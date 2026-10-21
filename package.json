@@ -1,0 +1,30 @@
+{
+  "name": "uni-scrims",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "test": "vitest run",
+    "lint": "eslint . && prettier --check . && pnpm -r typecheck",
+    "format": "prettier --write .",
+    "db:generate": "pnpm --filter @uni-scrims/db generate",
+    "db:migrate": "pnpm --filter @uni-scrims/db migrate",
+    "db:seed": "pnpm --filter @uni-scrims/db seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "24.19.2",
+    "dotenv": "18.0.8",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.2",
+    "globals": "16.4.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "5.0.5"
+  }
+}
