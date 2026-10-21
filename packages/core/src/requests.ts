@@ -41,27 +41,44 @@ function requestNotFound(): DomainError {
   return new DomainError("NOT_FOUND", "Anfrage nicht gefunden.");
 }
 
-/** Why the team cannot post another request now, or null. Open = OPEN and startsAt > now. */
+/** Open = OPEN and not started yet: only open requests take applications and count to the limit. */
+export function isRequestOpen(
+  request: { status: RequestStatus; startsAt: Date },
+  now: Date,
+): boolean {
+  return request.status === RequestStatus.OPEN && request.startsAt > now;
+}
+
+/** isRequestOpen as a Prisma filter. */
+export function openRequestWhere(now: Date) {
+  return {
+    status: RequestStatus.OPEN,
+    startsAt: { gt: now },
+  } satisfies Prisma.ScrimRequestWhereInput;
+}
+
+/** Why the team cannot post another request now, or null (SPEC P0-4). */
 export async function openRequestLimitProblem(
-  db: Db,
   teamId: string,
   now: Date,
+  db: Db = prisma,
 ): Promise<string | null> {
-  const open = await db.scrimRequest.count({
-    where: { teamId, status: RequestStatus.OPEN, startsAt: { gt: now } },
-  });
+  const open = await db.scrimRequest.count({ where: { teamId, ...openRequestWhere(now) } });
   return open >= MAX_OPEN_REQUESTS
     ? `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`
     : null;
 }
 
-/** Why the applicant team cannot be booked, or null: it must be active and ready (SPEC P0-5). */
-export function applicantTeamProblem(
+/**
+ * Why the applicant team cannot be booked, or null: it must be active and ready (SPEC P0-5).
+ * isReady only runs for active teams.
+ */
+export async function applicantTeamProblem(
   team: { name: string; bannedAt: Date | null; dissolvedAt: Date | null },
-  ready: boolean,
-): string | null {
+  isReady: () => boolean | Promise<boolean>,
+): Promise<string | null> {
   if (team.bannedAt || team.dissolvedAt) return `Das Team „${team.name}“ ist nicht mehr aktiv.`;
-  if (!ready) {
+  if (!(await isReady())) {
     return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als 5 verifizierte Mitglieder).`;
   }
   return null;
@@ -84,7 +101,7 @@ export async function createRequest(input: RequestInput & { userId: string; now:
     await lockTeam(tx, team.id);
     await requireActingCaptain(user.id, team.id, tx);
     await requireTeamReady(team.id, tx);
-    const full = await openRequestLimitProblem(tx, team.id, input.now);
+    const full = await openRequestLimitProblem(team.id, input.now, tx);
     if (full) throw new DomainError("CONFLICT", full);
     return tx.scrimRequest.create({
       data: {
@@ -158,7 +175,7 @@ export async function deleteRequest(input: {
     });
     if (!request) throw requestNotFound();
     await requireActingCaptain(input.userId, request.teamId, tx);
-    if (request.status !== RequestStatus.OPEN || request.startsAt <= input.now) throw notOpen();
+    if (!isRequestOpen(request, input.now)) throw notOpen();
     await closeOpenRequest(tx, request, RequestStatus.CANCELLED, input.now);
   });
 }
@@ -202,7 +219,7 @@ export async function applyToRequest(input: {
       if (team.id === request.teamId) {
         throw new DomainError("INVALID", "Ihr könnt euch nicht auf eure eigene Anfrage bewerben.");
       }
-      if (request.status !== RequestStatus.OPEN || request.startsAt <= input.now) throw notOpen();
+      if (!isRequestOpen(request, input.now)) throw notOpen();
       await requireTeamReady(team.id, tx);
       const existing = await tx.application.findUnique({
         where: { requestId_teamId: { requestId: request.id, teamId: team.id } },
@@ -286,17 +303,17 @@ export async function confirmApplication(input: {
     if (!application || application.requestId !== request.id) {
       throw new DomainError("NOT_FOUND", "Bewerbung nicht gefunden.");
     }
-    if (request.status !== RequestStatus.OPEN || request.startsAt <= now) throw notOpen();
+    if (!isRequestOpen(request, now)) throw notOpen();
     if (application.status !== AppStatus.PENDING) {
       throw new DomainError("CONFLICT", "Die Bewerbung ist nicht mehr offen.");
     }
     await requireTeamReady(host.id, tx);
     const guest = application.team;
-    const guestProblem = applicantTeamProblem(guest, await isTeamReady(guest.id, tx));
+    const guestProblem = await applicantTeamProblem(guest, () => isTeamReady(guest.id, tx));
     if (guestProblem) throw new DomainError("CONFLICT", guestProblem);
 
     const booked = await tx.scrimRequest.updateMany({
-      where: { id: request.id, status: RequestStatus.OPEN, startsAt: { gt: now } },
+      where: { id: request.id, ...openRequestWhere(now) },
       data: { status: RequestStatus.BOOKED },
     });
     if (booked.count === 0) throw notOpen();

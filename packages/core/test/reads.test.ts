@@ -205,8 +205,6 @@ describe("getRequestDetail", () => {
 
     expect(await detail(outsider.id)).toMatchObject({
       open: true,
-      hasTeam: false,
-      isOwner: false,
       apply: null,
       withdraw: null,
       remove: null,
@@ -216,7 +214,6 @@ describe("getRequestDetail", () => {
     });
     const onlyCaptain = { problem: "Das kann nur euer Captain." };
     expect(await detail(author.members[0]!.id)).toMatchObject({
-      isOwner: true,
       apply: null,
       remove: onlyCaptain,
       confirm: onlyCaptain,
@@ -237,7 +234,6 @@ describe("getRequestDetail", () => {
       applications: [{ canConfirm: true, teamProblem: null }],
     });
     expect(await detail(applicant.captain.id)).toMatchObject({
-      isOwner: false,
       apply: null,
       withdraw: { problem: null },
       remove: null,

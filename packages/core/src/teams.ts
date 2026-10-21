@@ -10,7 +10,7 @@ import {
   requireUser,
   teamReadyProblem,
 } from "./permissions.ts";
-import { hasReadyMembers } from "./readiness.ts";
+import { READY_MEMBER_COUNT } from "./readiness.ts";
 import { closeOpenRequest, openRequestLimitProblem } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
@@ -327,7 +327,7 @@ export async function getMyTeam(userId: string, now: Date) {
         : ("UNVERIFIED" as const),
   }));
   const verifiedCount = members.filter((member) => member.status === "VERIFIED").length;
-  const ready = hasReadyMembers(team.members);
+  const ready = verifiedCount >= READY_MEMBER_COUNT;
   return {
     id: team.id,
     name: team.name,
@@ -344,7 +344,7 @@ export async function getMyTeam(userId: string, now: Date) {
     requestProblem:
       actingCaptainProblem(user, team) ??
       teamReadyProblem(ready) ??
-      (await openRequestLimitProblem(prisma, team.id, now)),
+      (await openRequestLimitProblem(team.id, now)),
     universities: teamUniversities(team.members),
   };
 }
