@@ -23,8 +23,13 @@ export const auth = betterAuth({
       disableDefaultScope: true,
       scope: ["identify", "guilds.join"],
       overrideUserInfoOnSignIn: true,
-      // Better Auth requires an email; Discord sends none without the email scope. Never used for sending.
-      mapProfileToUser: (profile) => ({ email: `${profile.id}@users.uniscrims.invalid` }),
+      mapProfileToUser: (profile) => ({
+        // Better Auth requires an email; Discord sends none without the email scope. Never used for sending.
+        email: `${profile.id}@users.uniscrims.invalid`,
+        // The default is the display name (global_name), which is neither unique nor searchable.
+        // Captains find the opposing captain on Discord by this name (SPEC P0-6).
+        name: profile.username,
+      }),
     },
   },
   user: {
