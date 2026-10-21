@@ -14,8 +14,18 @@ function createClient(): PrismaClient {
 // Reuse a single client across hot reloads in Next.js dev.
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-export const prisma: PrismaClient = globalForPrisma.prisma ?? createClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+function getClient(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createClient();
+  }
+  return globalForPrisma.prisma;
 }
+
+// Created on first use, not on import: `next build` loads route modules without DATABASE_URL.
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const client = getClient();
+    const value: unknown = Reflect.get(client, property);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});
