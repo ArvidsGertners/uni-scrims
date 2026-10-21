@@ -4,14 +4,48 @@
 // checks inside their transaction as well.
 import { prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
-import { DomainError } from "./errors.ts";
+import { DomainError, type Problem, problemError } from "./errors.ts";
 import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
 import { isAdmin } from "./users.ts";
 
-const TEAM_BANNED = "Das Team ist gesperrt.";
-const CAPTAIN_NOT_VERIFIED = "Als Captain musst du für Scrim-Aktionen verifiziert sein.";
+// Thrown by the require* checks and shown by the pages with the same text.
+const TEAM_BANNED: Problem = {
+  kind: "TEAM_BANNED",
+  code: "FORBIDDEN",
+  message: "Das Team ist gesperrt.",
+};
+const NOT_CAPTAIN: Problem = {
+  kind: "NOT_CAPTAIN",
+  code: "FORBIDDEN",
+  message: "Das kann nur euer Captain.",
+};
+const CAPTAIN_NOT_VERIFIED: Problem = {
+  kind: "CAPTAIN_NOT_VERIFIED",
+  code: "NOT_VERIFIED",
+  message: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+};
 // Always about the user's own team: posting, applying and confirming as host.
-const TEAM_NOT_READY = `Euer Team hat noch keine ${READY_MEMBER_COUNT} verifizierten Mitglieder.`;
+const TEAM_NOT_READY: Problem = {
+  kind: "TEAM_NOT_READY",
+  code: "FORBIDDEN",
+  message: `Euer Team hat noch keine ${READY_MEMBER_COUNT} verifizierten Mitglieder.`,
+};
+
+type ActingUser = { id: string; verifiedAt: Date | null };
+type ActingTeam = { captainId: string; bannedAt: Date | null };
+
+/** The captain role (Team.captainId is its only source, ARCHITECTURE §4). */
+export function isCaptainOf(user: { id: string }, team: { captainId: string }): boolean {
+  return team.captainId === user.id;
+}
+
+/** Why requireCaptain fails for a team that is not dissolved. */
+function captainProblems(user: ActingUser, team: ActingTeam): Problem[] {
+  const problems: Problem[] = [];
+  if (team.bannedAt) problems.push(TEAM_BANNED);
+  if (!isCaptainOf(user, team)) problems.push(NOT_CAPTAIN);
+  return problems;
+}
 
 /** Logged in and not banned. */
 export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
@@ -47,12 +81,8 @@ export async function requireCaptain(
   if (!team || team.dissolvedAt) {
     throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
   }
-  if (team.bannedAt) {
-    throw new DomainError("FORBIDDEN", TEAM_BANNED);
-  }
-  if (team.captainId !== user.id) {
-    throw new DomainError("FORBIDDEN", "Nur der Captain darf das.");
-  }
+  const [problem] = captainProblems(user, team);
+  if (problem) throw problemError(problem);
   return { user, team };
 }
 
@@ -63,9 +93,7 @@ export async function requireActingCaptain(
   db: Db = prisma,
 ) {
   const result = await requireCaptain(userId, teamId, db);
-  if (!result.user.verifiedAt) {
-    throw new DomainError("NOT_VERIFIED", CAPTAIN_NOT_VERIFIED);
-  }
+  if (!result.user.verifiedAt) throw problemError(CAPTAIN_NOT_VERIFIED);
   return result;
 }
 
@@ -87,9 +115,8 @@ export async function requireTeamMember(
 }
 
 export async function requireTeamReady(teamId: string, db: Db = prisma): Promise<void> {
-  if (!(await isTeamReady(teamId, db))) {
-    throw new DomainError("FORBIDDEN", TEAM_NOT_READY);
-  }
+  const problem = teamReadyProblem(await isTeamReady(teamId, db));
+  if (problem) throw problemError(problem);
 }
 
 /** Admin = the Discord ID from account.accountId is listed in ADMIN_DISCORD_IDS. */
@@ -114,15 +141,13 @@ export async function requireOwnActingCaptain(userId: string | null | undefined,
   return requireActingCaptain(user.id, membership.teamId, db);
 }
 
-type ActingUser = { id: string; verifiedAt: Date | null };
-type ActingTeam = { captainId: string; bannedAt: Date | null };
-
-/** Every reason why requireActingCaptain would fail, so a form can show them all at once. */
-export function actingCaptainProblems(user: ActingUser, team: ActingTeam): string[] {
-  const problems: string[] = [];
-  if (team.bannedAt) problems.push(TEAM_BANNED);
-  if (team.captainId !== user.id) problems.push("Das kann nur euer Captain.");
-  else if (!user.verifiedAt) problems.push(CAPTAIN_NOT_VERIFIED);
+/**
+ * Every reason why requireActingCaptain fails, in its order, for a team that is not dissolved
+ * (callers filter dissolved teams, as requireCaptain answers NOT_FOUND for them).
+ */
+export function actingCaptainProblems(user: ActingUser, team: ActingTeam): Problem[] {
+  const problems = captainProblems(user, team);
+  if (isCaptainOf(user, team) && !user.verifiedAt) problems.push(CAPTAIN_NOT_VERIFIED);
   return problems;
 }
 
@@ -130,7 +155,7 @@ export function actingCaptainProblems(user: ActingUser, team: ActingTeam): strin
  * Non-throwing counterpart of requireActingCaptain for pages, so they only offer scrim actions
  * the user may run: null if allowed, otherwise the reason to show instead.
  */
-export function actingCaptainProblem(user: ActingUser, team: ActingTeam): string | null {
+export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Problem | null {
   return actingCaptainProblems(user, team)[0] ?? null;
 }
 
@@ -138,7 +163,7 @@ export function actingCaptainProblem(user: ActingUser, team: ActingTeam): string
  * Non-throwing counterpart of requireTeamReady: posting, applying and confirming need a ready team,
  * withdrawing, deleting, cancelling and feedback do not (SPEC P0-3).
  */
-export function teamReadyProblem(ready: boolean): string | null {
+export function teamReadyProblem(ready: boolean): Problem | null {
   return ready ? null : TEAM_NOT_READY;
 }
 

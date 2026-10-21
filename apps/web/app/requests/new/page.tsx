@@ -1,4 +1,5 @@
 import {
+  type ProblemKind,
   RANK_LABELS,
   RANKS,
   REQUEST_NOTE_MAX,
@@ -17,6 +18,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { requirePageUser } from "@/lib/session";
 import { createRequestAction } from "../actions";
+
+/** Where each reason can be fixed; a banned team cannot fix anything itself. */
+const PROBLEM_LINKS: Partial<Record<ProblemKind, { href: string; label: string }>> = {
+  CAPTAIN_NOT_VERIFIED: { href: "/verify", label: "Zur Verifizierung" },
+  TEAM_NOT_READY: { href: "/team", label: "Zum Team" },
+  REQUEST_LIMIT: { href: "/board", label: "Zum Board (eure Anfragen)" },
+};
 
 export default async function NewRequestPage() {
   const user = await requirePageUser("/requests/new");
@@ -39,22 +47,24 @@ export default async function NewRequestPage() {
       <h1 className="text-2xl font-bold">Anfrage erstellen</h1>
       {/* Same conditions as core's createRequest (§7), shown before the captain fills in the form. */}
       {form.problems.length > 0 ? (
-        <>
-          <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-destructive">
-            {form.problems.map((problem) => (
-              <li key={problem}>{problem}</li>
-            ))}
-          </ul>
-          {/* Readiness is fixed on the team page, open requests are deleted from the board. */}
-          <div className="flex flex-wrap gap-4 text-sm">
-            <Link href="/team" className="underline">
-              Zum Team
-            </Link>
-            <Link href="/board" className="underline">
-              Zum Board (eure Anfragen)
-            </Link>
-          </div>
-        </>
+        <ul className="flex list-disc flex-col gap-2 pl-5 text-sm">
+          {form.problems.map(({ kind, message }) => {
+            const link = PROBLEM_LINKS[kind];
+            return (
+              <li key={kind}>
+                <span className="text-destructive">{message}</span>
+                {link ? (
+                  <>
+                    {" "}
+                    <Link href={link.href} className="underline">
+                      {link.label}
+                    </Link>
+                  </>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
       ) : (
         <RequestForm defaultRank={form.rank} />
       )}

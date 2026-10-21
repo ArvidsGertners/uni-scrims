@@ -3,19 +3,19 @@ import { AppStatus, type Prisma, type Rank, ScrimStatus, prisma } from "@uni-scr
 import type { Db } from "./db.ts";
 import {
   actingCaptainProblem,
-  actingCaptainProblems,
   canSeeApplications,
+  isCaptainOf,
   isScrimTeam,
   requireUser,
   teamReadyProblem,
 } from "./permissions.ts";
 import { RANKS, isRankInRange, rankValue } from "./ranks.ts";
-import { hasReadyMembers } from "./readiness.ts";
+import { hasReadyMembers, isTeamReady } from "./readiness.ts";
 import {
   applicantTeamProblem,
   isRequestOpen,
-  openRequestLimitProblem,
   openRequestWhere,
+  requestPostingProblems,
 } from "./requests.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamUniversities } from "./teams.ts";
@@ -133,13 +133,11 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
   };
 }
 
-/** The user's team if it is not dissolved, with the verification of its members for readiness. */
+/** The user's team if it is not dissolved. */
 async function findOwnTeam(userId: string) {
   const membership = await prisma.teamMember.findUnique({
     where: { userId },
-    select: {
-      team: { include: { members: { select: { user: { select: { verifiedAt: true } } } } } },
-    },
+    select: { team: true },
   });
   return membership && !membership.team.dissolvedAt ? membership.team : null;
 }
@@ -167,17 +165,22 @@ export async function getBoard(input: BoardInput) {
     ...openRequestWhere(input.now),
     team: { bannedAt: null, dissolvedAt: null },
   };
+  // Each filter is its own AND entry, so none can overwrite a condition of base.
   const filtered: Prisma.ScrimRequestWhereInput = {
-    ...base,
-    ...(range ? { AND: [{ startsAt: { gte: range.from, lt: range.to } }] } : {}),
-    ...(ownTeam ? { teamId: { not: ownTeam.id } } : {}),
-    // Enums have no order in Prisma filters: rankMin ≤ rank ≤ rankMax via the rank list.
-    ...(rank
-      ? {
-          rankMin: { in: RANKS.slice(0, rankValue(rank)) },
-          rankMax: { in: RANKS.slice(rankValue(rank) - 1) },
-        }
-      : {}),
+    AND: [
+      base,
+      ...(range ? [{ startsAt: { gte: range.from, lt: range.to } }] : []),
+      ...(ownTeam ? [{ teamId: { not: ownTeam.id } }] : []),
+      // Enums have no order in Prisma filters: rankMin ≤ rank ≤ rankMax via the rank list.
+      ...(rank
+        ? [
+            {
+              rankMin: { in: RANKS.slice(0, rankValue(rank)) },
+              rankMax: { in: RANKS.slice(rankValue(rank) - 1) },
+            },
+          ]
+        : []),
+    ],
   };
   const include = {
     team: { select: teamCardSelect },
@@ -219,7 +222,7 @@ export async function getBoard(input: BoardInput) {
 
   return {
     ownTeam: ownTeam
-      ? { id: ownTeam.id, rank: ownTeam.rank, isCaptain: ownTeam.captainId === user.id }
+      ? { id: ownTeam.id, rank: ownTeam.rank, isCaptain: isCaptainOf(user, ownTeam) }
       : null,
     filter: { date, rank },
     requests: requests.map(toCard),
@@ -231,21 +234,19 @@ export async function getBoard(input: BoardInput) {
 
 /**
  * Form "Anfrage erstellen": null without a team. problems lists every reason why createRequest
- * would fail now regardless of the input, so the captain sees them all at once (§7).
+ * would fail now regardless of the input (the same list it throws the first entry of), so the
+ * captain sees them all at once; kind lets the page link to where each one is fixed (§7).
  */
 export async function getRequestForm(input: { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
   if (!ownTeam) return null;
-  const isCaptain = ownTeam.captainId === user.id;
-  const problems = isCaptain
-    ? [
-        ...actingCaptainProblems(user, ownTeam),
-        teamReadyProblem(hasReadyMembers(ownTeam.members)),
-        await openRequestLimitProblem(ownTeam.id, input.now),
-      ].filter((problem) => problem !== null)
-    : [];
-  return { isCaptain, rank: ownTeam.rank, problems };
+  const problems = await requestPostingProblems(user, ownTeam, input.now, prisma);
+  return {
+    isCaptain: isCaptainOf(user, ownTeam),
+    rank: ownTeam.rank,
+    problems: problems.map(({ kind, message }) => ({ kind, message })),
+  };
 }
 
 // ─── Request detail ───────────────────────────────────────────────────────────
@@ -274,51 +275,54 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const ownTeam = await findOwnTeam(user.id);
   const isOwner = ownTeam?.id === request.teamId;
   const showApplications = canSeeApplications(ownTeam?.id, request);
-  const [applications, ownApplication] = await Promise.all([
-    showApplications
-      ? prisma.application.findMany({
-          where: { requestId: request.id },
-          orderBy: { createdAt: "asc" },
-          include: { team: { select: { ...teamCardSelect, bannedAt: true, dissolvedAt: true } } },
-        })
-      : Promise.resolve([]),
+  // Only one of the two ever runs: the creating team sees all applications, others their own.
+  const applications = showApplications
+    ? await prisma.application.findMany({
+        where: { requestId: request.id },
+        orderBy: { createdAt: "asc" },
+        include: { team: { select: { ...teamCardSelect, bannedAt: true, dissolvedAt: true } } },
+      })
+    : [];
+  const ownApplication =
     ownTeam && !isOwner
-      ? prisma.application.findUnique({
+      ? await prisma.application.findUnique({
           where: { requestId_teamId: { requestId: request.id, teamId: ownTeam.id } },
           select: { id: true, status: true, message: true },
         })
-      : Promise.resolve(null),
-  ]);
+      : null;
   const reliabilities = await getReliabilities([
     request.teamId,
     ...applications.map((application) => application.teamId),
   ]);
   const scrim = request.scrim;
   const open = isRequestOpen(request, input.now);
-  const actionProblem = ownTeam ? actingCaptainProblem(user, ownTeam) : null;
-  const ownTeamReadyProblem = ownTeam ? teamReadyProblem(hasReadyMembers(ownTeam.members)) : null;
-
+  const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.message ?? null) : null;
   // Applying and confirming need a ready team, withdrawing and deleting do not (SPEC P0-3).
+  // Readiness is only counted when one of the two is offered.
+  const bookingProblem = async (teamId: string) =>
+    actionProblem ?? teamReadyProblem(await isTeamReady(teamId))?.message ?? null;
+
   const apply: ActionOffer =
     open && ownTeam && !isOwner && !ownApplication
-      ? { problem: actionProblem ?? ownTeamReadyProblem }
+      ? { problem: await bookingProblem(ownTeam.id) }
       : null;
   const withdraw: ActionOffer =
     ownApplication?.status === AppStatus.PENDING ? { problem: actionProblem } : null;
   // Only the captain can ever delete; other members see the captain rule once, at confirming.
   const remove: ActionOffer =
-    isOwner && open && ownTeam.captainId === user.id ? { problem: actionProblem } : null;
+    isOwner && open && isCaptainOf(user, ownTeam) ? { problem: actionProblem } : null;
   const pending = applications.filter((application) => application.status === AppStatus.PENDING);
   const confirm: ActionOffer =
     isOwner && open && pending.length > 0
-      ? { problem: actionProblem ?? ownTeamReadyProblem }
+      ? { problem: await bookingProblem(request.teamId) }
       : null;
   // The applicant team must still be active and ready, as confirmApplication checks it.
-  const confirmOffer = async (application: (typeof applications)[number]) => {
+  const confirmOffer = (application: (typeof applications)[number]) => {
     if (!confirm || application.status !== AppStatus.PENDING) {
       return { canConfirm: false, teamProblem: null };
     }
-    const teamProblem = await applicantTeamProblem(application.team, () =>
+    const teamProblem = applicantTeamProblem(
+      application.team,
       hasReadyMembers(application.team.members),
     );
     return { canConfirm: confirm.problem === null && teamProblem === null, teamProblem };
@@ -344,17 +348,15 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     outOfRange: ownTeam ? !isRankInRange(ownTeam.rank, request.rankMin, request.rankMax) : false,
     ownApplication,
     applications: showApplications
-      ? await Promise.all(
-          applications.map(async (application) => ({
-            id: application.id,
-            status: application.status,
-            message: application.message,
-            createdAt: application.createdAt,
-            outOfRange: !isRankInRange(application.team.rank, request.rankMin, request.rankMax),
-            team: toTeamCard(application.team, reliabilities),
-            ...(await confirmOffer(application)),
-          })),
-        )
+      ? applications.map((application) => ({
+          id: application.id,
+          status: application.status,
+          message: application.message,
+          createdAt: application.createdAt,
+          outOfRange: !isRankInRange(application.team.rank, request.rankMin, request.rankMax),
+          team: toTeamCard(application.team, reliabilities),
+          ...confirmOffer(application),
+        }))
       : null,
     scrimId: scrim && isScrimTeam(ownTeam?.id, scrim) ? scrim.id : null,
   };
@@ -386,7 +388,7 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
 
   const isHost = scrim.hostTeamId === ownTeam.id;
   const opponent = isHost ? scrim.guestTeam : scrim.hostTeam;
-  const actionProblem = actingCaptainProblem(user, ownTeam);
+  const actionProblem = actingCaptainProblem(user, ownTeam)?.message ?? null;
   const ownFeedback = scrim.feedback.find((feedback) => feedback.teamId === ownTeam.id) ?? null;
   const feedbackClosed = feedbackClosedReason(scrim, input.now);
 

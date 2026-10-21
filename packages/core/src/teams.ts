@@ -4,8 +4,8 @@ import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
-import { requireCaptain, requireUser } from "./permissions.ts";
-import { READY_MEMBER_COUNT } from "./readiness.ts";
+import { isCaptainOf, requireCaptain, requireUser } from "./permissions.ts";
+import { hasReadyMembers } from "./readiness.ts";
 import { closeOpenRequest } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
@@ -308,7 +308,7 @@ export async function getMyTeam(userId: string) {
   const team = membership?.team;
   if (!team || team.dissolvedAt) return null;
 
-  const isCaptain = team.captainId === user.id;
+  const isCaptain = isCaptainOf(user, team);
   const members = team.members.map(({ user: member, joinedAt }) => ({
     id: member.id,
     name: member.name,
@@ -333,7 +333,8 @@ export async function getMyTeam(userId: string) {
     inviteCode: isCaptain ? team.inviteCode : null,
     members,
     verifiedCount,
-    ready: verifiedCount >= READY_MEMBER_COUNT,
+    // The rule core enforces, so the team page and the request pages agree.
+    ready: hasReadyMembers(team.members),
     universities: teamUniversities(team.members),
   };
 }

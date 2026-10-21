@@ -192,35 +192,62 @@ describe("getBoard", () => {
 
 describe("getRequestForm", () => {
   const form = (userId: string, now = NOW) => getRequestForm({ userId, now });
+  const BANNED = { kind: "TEAM_BANNED", message: "Das Team ist gesperrt." };
+  const NOT_CAPTAIN = { kind: "NOT_CAPTAIN", message: "Das kann nur euer Captain." };
+  const NOT_VERIFIED = {
+    kind: "CAPTAIN_NOT_VERIFIED",
+    message: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+  };
+  const NOT_READY = {
+    kind: "TEAM_NOT_READY",
+    message: "Euer Team hat noch keine 5 verifizierten Mitglieder.",
+  };
+  const LIMIT = {
+    kind: "REQUEST_LIMIT",
+    message: `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`,
+  };
 
-  it("lists every reason why the captain cannot post right now", async () => {
+  it("lists every reason why the captain cannot post right now, in core's order", async () => {
     expect(await form((await createUser()).id)).toBeNull();
+    // Unverified captain plus 4 verified members: also not ready.
     const team = await createReadyTeam({ verifiedCaptain: false });
-    await prisma.user.update({ where: { id: team.members[0]!.id }, data: { verifiedAt: null } });
-    expect(await form(team.captain.id)).toMatchObject({
+    expect(await form(team.captain.id)).toEqual({
       isCaptain: true,
-      problems: [
-        "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
-        "Euer Team hat noch keine 5 verifizierten Mitglieder.",
-      ],
+      rank: Rank.GOLD,
+      problems: [NOT_VERIFIED, NOT_READY],
     });
-    expect(await form(team.members[1]!.id)).toMatchObject({ isCaptain: false, problems: [] });
+
+    await prisma.team.update({ where: { id: team.team.id }, data: { bannedAt: NOW } });
+    expect(await form(team.captain.id)).toMatchObject({
+      problems: [BANNED, NOT_VERIFIED, NOT_READY],
+    });
+    // createRequest throws the first entry.
+    await expect(createOpenRequest(team.captain.id)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: BANNED.message,
+    });
+    expect(await form(team.members[0]!.id)).toMatchObject({
+      isCaptain: false,
+      problems: [BANNED, NOT_CAPTAIN],
+    });
   });
 
-  it("applies the limit of open requests like createRequest", async () => {
+  it("applies the limit of open requests like createRequest, next to other reasons", async () => {
     const team = await createReadyTeam();
-    expect(await form(team.captain.id)).toMatchObject({ rank: Rank.GOLD, problems: [] });
+    expect(await form(team.captain.id)).toMatchObject({ problems: [] });
     for (const time of ["11:00", "12:00", "13:00", "14:00", "15:00"]) {
       await createOpenRequest(team.captain.id, { date: "2026-10-22", time });
     }
-    const full = `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`;
-    expect(await form(team.captain.id)).toMatchObject({ problems: [full] });
-    await expect(
-      createOpenRequest(team.captain.id, { date: "2026-10-22", time: "16:00" }),
-    ).rejects.toMatchObject({ message: full });
+    const sixth = () => createOpenRequest(team.captain.id, { date: "2026-10-22", time: "16:00" });
+    expect(await form(team.captain.id)).toMatchObject({ problems: [LIMIT] });
+    await expect(sixth()).rejects.toMatchObject({ code: "CONFLICT", message: LIMIT.message });
+
+    await prisma.user.update({ where: { id: team.members[0]!.id }, data: { verifiedAt: null } });
+    expect(await form(team.captain.id)).toMatchObject({ problems: [NOT_READY, LIMIT] });
+    await expect(sixth()).rejects.toMatchObject({ code: "FORBIDDEN", message: NOT_READY.message });
     // A request that has started no longer counts (11:00 Berlin = 09:00 UTC).
     expect(await form(team.captain.id, new Date("2026-10-22T09:00:00Z"))).toMatchObject({
-      problems: [],
+      problems: [NOT_READY],
     });
   });
 });

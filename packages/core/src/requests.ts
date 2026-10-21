@@ -11,7 +11,7 @@ import {
 } from "@uni-scrims/db";
 import { TIMING } from "../config/timing.ts";
 import { type Db, isUniqueViolation } from "./db.ts";
-import { DomainError } from "./errors.ts";
+import { DomainError, type Problem, problemError } from "./errors.ts";
 import { lockRequest, lockTeam } from "./locks.ts";
 import {
   BOTH_TEAM_CHANNELS,
@@ -19,7 +19,15 @@ import {
   forTeam,
   queueNotifications,
 } from "./notifications.ts";
-import { requireActingCaptain, requireOwnActingCaptain, requireTeamReady } from "./permissions.ts";
+import {
+  actingCaptainProblems,
+  isCaptainOf,
+  requireActingCaptain,
+  requireCaptain,
+  requireOwnActingCaptain,
+  requireTeamReady,
+  teamReadyProblem,
+} from "./permissions.ts";
 import { isRankInRange } from "./ranks.ts";
 import {
   type RequestInput,
@@ -57,28 +65,54 @@ export function openRequestWhere(now: Date) {
   } satisfies Prisma.ScrimRequestWhereInput;
 }
 
-/** Why the team cannot post another request now, or null (SPEC P0-4). */
+const REQUEST_LIMIT: Problem = {
+  kind: "REQUEST_LIMIT",
+  code: "CONFLICT",
+  message: `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`,
+};
+
+/**
+ * Why the team cannot post another request now, or null (SPEC P0-4). db is required on purpose:
+ * in createRequest the count is only safe on the transaction that holds the team lock.
+ */
 export async function openRequestLimitProblem(
   teamId: string,
   now: Date,
-  db: Db = prisma,
-): Promise<string | null> {
+  db: Db,
+): Promise<Problem | null> {
   const open = await db.scrimRequest.count({ where: { teamId, ...openRequestWhere(now) } });
-  return open >= MAX_OPEN_REQUESTS
-    ? `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`
-    : null;
+  return open >= MAX_OPEN_REQUESTS ? REQUEST_LIMIT : null;
 }
 
 /**
- * Why the applicant team cannot be booked, or null: it must be active and ready (SPEC P0-5).
- * isReady only runs for active teams.
+ * Every reason why createRequest fails regardless of the input, in the order it checks them.
+ * createRequest throws the first one, getRequestForm shows them all (§7).
  */
-export async function applicantTeamProblem(
+export async function requestPostingProblems(
+  user: { id: string; verifiedAt: Date | null },
+  team: { id: string; captainId: string; bannedAt: Date | null },
+  now: Date,
+  db: Db,
+): Promise<Problem[]> {
+  const problems = actingCaptainProblems(user, team);
+  if (!isCaptainOf(user, team)) return problems;
+  const notReady = teamReadyProblem(await isTeamReady(team.id, db));
+  const full = await openRequestLimitProblem(team.id, now, db);
+  return [...problems, ...[notReady, full].filter((problem) => problem !== null)];
+}
+
+/** Neither banned nor dissolved. */
+export function isTeamActive(team: { bannedAt: Date | null; dissolvedAt: Date | null }): boolean {
+  return !team.bannedAt && !team.dissolvedAt;
+}
+
+/** Why the applicant team cannot be booked, or null: it must be active and ready (SPEC P0-5). */
+export function applicantTeamProblem(
   team: { name: string; bannedAt: Date | null; dissolvedAt: Date | null },
-  isReady: () => boolean | Promise<boolean>,
-): Promise<string | null> {
-  if (team.bannedAt || team.dissolvedAt) return `Das Team „${team.name}“ ist nicht mehr aktiv.`;
-  if (!(await isReady())) {
+  ready: boolean,
+): string | null {
+  if (!isTeamActive(team)) return `Das Team „${team.name}“ ist nicht mehr aktiv.`;
+  if (!ready) {
     return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als ${READY_MEMBER_COUNT} verifizierte Mitglieder).`;
   }
   return null;
@@ -96,13 +130,12 @@ export async function createRequest(input: RequestInput & { userId: string; now:
         `Die Startzeit muss mindestens ${minutes} Minuten in der Zukunft liegen.`,
       );
     }
-    // Team lock: parallel creates must not exceed the limit. Re-check the captain afterwards,
-    // the role may have been transferred while we waited for the lock.
+    // Team lock: parallel creates must not exceed the limit. Re-read user and team afterwards,
+    // the captain role may have been transferred while we waited for the lock.
     await lockTeam(tx, team.id);
-    await requireActingCaptain(user.id, team.id, tx);
-    await requireTeamReady(team.id, tx);
-    const full = await openRequestLimitProblem(team.id, input.now, tx);
-    if (full) throw new DomainError("CONFLICT", full);
+    const current = await requireCaptain(user.id, team.id, tx);
+    const [problem] = await requestPostingProblems(current.user, current.team, input.now, tx);
+    if (problem) throw problemError(problem);
     return tx.scrimRequest.create({
       data: {
         teamId: team.id,
@@ -309,7 +342,9 @@ export async function confirmApplication(input: {
     }
     await requireTeamReady(host.id, tx);
     const guest = application.team;
-    const guestProblem = await applicantTeamProblem(guest, () => isTeamReady(guest.id, tx));
+    // Readiness is only counted for active teams.
+    const guestReady = isTeamActive(guest) && (await isTeamReady(guest.id, tx));
+    const guestProblem = applicantTeamProblem(guest, guestReady);
     if (guestProblem) throw new DomainError("CONFLICT", guestProblem);
 
     const booked = await tx.scrimRequest.updateMany({
