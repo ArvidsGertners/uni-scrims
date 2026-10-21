@@ -65,6 +65,13 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
         <p className="opacity-70">Sprecht die Lobby direkt auf Discord ab.</p>
       </section>
 
+      {scrim.cancellable && !scrim.canCancel ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Absagen</h2>
+          <p className="text-sm opacity-70">{scrim.actionProblem}</p>
+        </section>
+      ) : null}
+
       {scrim.canCancel ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Absagen</h2>
@@ -103,16 +110,8 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
             </p>
             <FeedbackForm scrimId={scrim.id} outcomes={OUTCOMES} ratings={RATINGS} />
           </>
-        ) : scrim.feedbackNotYetOpen ? (
-          <p className="text-sm opacity-70">Feedback ist ab der Startzeit möglich.</p>
-        ) : scrim.status === "SCHEDULED" || scrim.status === "AWAITING_FEEDBACK" ? (
-          <p className="text-sm opacity-70">
-            {scrim.isCaptain
-              ? "Die Feedback-Frist ist abgelaufen."
-              : "Nur euer Captain kann Feedback geben."}
-          </p>
         ) : (
-          <p className="text-sm opacity-70">Kein Feedback mehr möglich.</p>
+          <p className="text-sm opacity-70">{scrim.feedbackClosed ?? scrim.actionProblem}</p>
         )}
       </section>
     </main>

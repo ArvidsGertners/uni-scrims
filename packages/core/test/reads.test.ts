@@ -212,7 +212,7 @@ describe("getRequestDetail", () => {
     });
     expect(await detail(author.members[0]!.id)).toMatchObject({
       isOwner: true,
-      isCaptain: false,
+      actionProblem: "Das kann nur euer Captain.",
       applications: [
         {
           id: application.id,
@@ -224,7 +224,7 @@ describe("getRequestDetail", () => {
     });
     expect(await detail(applicant.captain.id)).toMatchObject({
       isOwner: false,
-      isCaptain: true,
+      actionProblem: null,
       outOfRange: true,
       applications: null,
       ownApplication: { id: application.id, status: AppStatus.PENDING },
@@ -254,8 +254,9 @@ describe("getScrimDetail and getMyScrims", () => {
     expect(await detail(outsider.captain.id)).toBeNull();
     expect(await detail(guest.members[0]!.id)).toMatchObject({
       isHost: false,
-      isCaptain: false,
+      actionProblem: "Das kann nur euer Captain.",
       opponent: { id: host.team.id, captainName: host.captain.name },
+      cancellable: true,
       canCancel: false,
       canGiveFeedback: false,
     });
@@ -266,14 +267,16 @@ describe("getScrimDetail and getMyScrims", () => {
     });
     expect(await detail(guest.captain.id)).toMatchObject({
       opponent: { captainName: host.members[1]!.name },
+      actionProblem: null,
       canCancel: true,
       cancelWouldBeLate: false,
-      feedbackNotYetOpen: true,
+      feedbackClosed: "Feedback ist erst ab der Startzeit möglich.",
+      canGiveFeedback: false,
     });
     expect(await detail(guest.captain.id, AFTER_START)).toMatchObject({
       canCancel: false,
+      feedbackClosed: null,
       canGiveFeedback: true,
-      feedbackNotYetOpen: false,
     });
     await submitFeedback({
       userId: guest.captain.id,
@@ -287,6 +290,21 @@ describe("getScrimDetail and getMyScrims", () => {
       canGiveFeedback: false,
       ownFeedback: { outcome: FeedbackOutcome.PLAYED, rating: 5 },
     });
+  });
+
+  it("offers no scrim actions to unverified captains or banned teams", async () => {
+    const { host, guest, scrim } = await bookScrim();
+    await prisma.user.update({ where: { id: guest.captain.id }, data: { verifiedAt: null } });
+    expect(
+      await getScrimDetail({ userId: guest.captain.id, scrimId: scrim.id, now: AFTER_START }),
+    ).toMatchObject({
+      actionProblem: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+      canGiveFeedback: false,
+    });
+    await prisma.team.update({ where: { id: host.team.id }, data: { bannedAt: NOW } });
+    expect(
+      await getScrimDetail({ userId: host.captain.id, scrimId: scrim.id, now: NOW }),
+    ).toMatchObject({ actionProblem: "Das Team ist gesperrt.", canCancel: false });
   });
 
   it("lists upcoming and past scrims of the own team", async () => {

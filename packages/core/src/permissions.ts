@@ -6,6 +6,9 @@ import { DomainError } from "./errors.ts";
 import { isTeamReady } from "./readiness.ts";
 import { isAdmin } from "./users.ts";
 
+const TEAM_BANNED = "Das Team ist gesperrt.";
+const CAPTAIN_NOT_VERIFIED = "Als Captain musst du für Scrim-Aktionen verifiziert sein.";
+
 /** Logged in and not banned. */
 export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
   if (!userId) {
@@ -41,7 +44,7 @@ export async function requireCaptain(
     throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
   }
   if (team.bannedAt) {
-    throw new DomainError("FORBIDDEN", "Das Team ist gesperrt.");
+    throw new DomainError("FORBIDDEN", TEAM_BANNED);
   }
   if (team.captainId !== user.id) {
     throw new DomainError("FORBIDDEN", "Nur der Captain darf das.");
@@ -57,10 +60,7 @@ export async function requireActingCaptain(
 ) {
   const result = await requireCaptain(userId, teamId, db);
   if (!result.user.verifiedAt) {
-    throw new DomainError(
-      "NOT_VERIFIED",
-      "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
-    );
+    throw new DomainError("NOT_VERIFIED", CAPTAIN_NOT_VERIFIED);
   }
   return result;
 }
@@ -108,4 +108,46 @@ export async function requireOwnActingCaptain(userId: string | null | undefined,
     throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
   }
   return requireActingCaptain(user.id, membership.teamId, db);
+}
+
+/**
+ * Non-throwing counterpart of requireActingCaptain for pages, so they only offer scrim actions
+ * the user may run: null if allowed, otherwise the reason to show instead.
+ */
+export function actingCaptainProblem(
+  user: { id: string; verifiedAt: Date | null },
+  team: { captainId: string; bannedAt: Date | null },
+): string | null {
+  if (team.bannedAt) return TEAM_BANNED;
+  if (team.captainId !== user.id) return "Das kann nur euer Captain.";
+  if (!user.verifiedAt) return CAPTAIN_NOT_VERIFIED;
+  return null;
+}
+
+type ScrimTeams = { hostTeamId: string; guestTeamId: string };
+
+/** §7: scrim detail and "Meine Scrims" only for members of the two teams. */
+export function isScrimTeam(teamId: string | null | undefined, scrim: ScrimTeams): boolean {
+  return !!teamId && (teamId === scrim.hostTeamId || teamId === scrim.guestTeamId);
+}
+
+/** §7: the applications of a request only for members of the creating team. */
+export function canSeeApplications(
+  teamId: string | null | undefined,
+  request: { teamId: string },
+): boolean {
+  return !!teamId && teamId === request.teamId;
+}
+
+/** §7: cancelling and feedback by the current, verified captain of one of the two teams. */
+export async function requireScrimActingCaptain(
+  userId: string | null | undefined,
+  scrim: ScrimTeams,
+  db: Db = prisma,
+) {
+  const result = await requireOwnActingCaptain(userId, db);
+  if (!isScrimTeam(result.team.id, scrim)) {
+    throw new DomainError("NOT_FOUND", "Scrim nicht gefunden.");
+  }
+  return result;
 }

@@ -10,11 +10,37 @@ import {
   forTeam,
   queueNotifications,
 } from "./notifications.ts";
-import { requireAdmin, requireOwnActingCaptain } from "./permissions.ts";
+import { requireAdmin, requireScrimActingCaptain } from "./permissions.ts";
 import { type FeedbackInput, feedbackInputSchema, parseInput } from "./schemas.ts";
 
 function scrimNotFound(): DomainError {
   return new DomainError("NOT_FOUND", "Scrim nicht gefunden.");
+}
+
+// Rules shared by the actions and the scrim page, so the page offers exactly what core allows.
+
+/** Scheduled scrims can be cancelled until the start (Flow C). */
+export function isCancellable(scrim: { status: ScrimStatus; startsAt: Date }, now: Date): boolean {
+  return scrim.status === ScrimStatus.SCHEDULED && scrim.startsAt > now;
+}
+
+/** Under LATE_CANCEL before the start a cancellation counts as late (Flow C). */
+export function isLateCancel(startsAt: Date, now: Date): boolean {
+  return startsAt.getTime() - now.getTime() < TIMING.LATE_CANCEL;
+}
+
+/** Why no feedback can be given right now, or null: from the start until the deadline (§5.6). */
+export function feedbackClosedReason(
+  scrim: { status: ScrimStatus; startsAt: Date; feedbackDeadline: Date },
+  now: Date,
+): string | null {
+  if (scrim.status === ScrimStatus.CANCELLED) return "Der Scrim wurde abgesagt.";
+  if (scrim.status !== ScrimStatus.SCHEDULED && scrim.status !== ScrimStatus.AWAITING_FEEDBACK) {
+    return "Feedback bereits abgeschlossen.";
+  }
+  if (now < scrim.startsAt) return "Feedback ist erst ab der Startzeit möglich.";
+  if (now >= scrim.feedbackDeadline) return "Die Feedback-Frist ist abgelaufen.";
+  return null;
 }
 
 type ScrimForCancel = {
@@ -72,12 +98,10 @@ const teamNames = {
 /** Either team until the start; under LATE_CANCEL before the start it counts as late (Flow C). */
 export async function cancelScrim(input: { userId: string; scrimId: string; now: Date }) {
   return prisma.$transaction(async (tx) => {
-    const { team } = await requireOwnActingCaptain(input.userId, tx);
     const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId }, include: teamNames });
-    if (!scrim || (scrim.hostTeamId !== team.id && scrim.guestTeamId !== team.id)) {
-      throw scrimNotFound();
-    }
-    const lateCancel = scrim.startsAt.getTime() - input.now.getTime() < TIMING.LATE_CANCEL;
+    if (!scrim) throw scrimNotFound();
+    const { team } = await requireScrimActingCaptain(input.userId, scrim, tx);
+    const lateCancel = isLateCancel(scrim.startsAt, input.now);
     if (!(await cancelScheduledScrim(tx, scrim, team.id, lateCancel, input.now))) {
       throw new DomainError("CONFLICT", "Der Scrim kann nicht mehr abgesagt werden.");
     }
@@ -175,31 +199,16 @@ export async function submitFeedback(
   const { now } = input;
   try {
     return await prisma.$transaction(async (tx) => {
-      const { user, team } = await requireOwnActingCaptain(input.userId, tx);
+      await lockScrim(tx, input.scrimId);
+      const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId } });
+      if (!scrim) throw scrimNotFound();
+      const { user, team } = await requireScrimActingCaptain(input.userId, scrim, tx);
       const data = parseInput(feedbackInputSchema, {
         outcome: input.outcome,
         rating: input.rating,
       });
-      await lockScrim(tx, input.scrimId);
-      const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId } });
-      if (!scrim || (scrim.hostTeamId !== team.id && scrim.guestTeamId !== team.id)) {
-        throw scrimNotFound();
-      }
-      if (scrim.status === ScrimStatus.CANCELLED) {
-        throw new DomainError("CONFLICT", "Der Scrim wurde abgesagt.");
-      }
-      if (
-        scrim.status !== ScrimStatus.SCHEDULED &&
-        scrim.status !== ScrimStatus.AWAITING_FEEDBACK
-      ) {
-        throw new DomainError("CONFLICT", "Feedback bereits abgeschlossen.");
-      }
-      if (now < scrim.startsAt) {
-        throw new DomainError("CONFLICT", "Feedback ist erst ab der Startzeit möglich.");
-      }
-      if (now >= scrim.feedbackDeadline) {
-        throw new DomainError("CONFLICT", "Die Feedback-Frist ist abgelaufen.");
-      }
+      const closed = feedbackClosedReason(scrim, now);
+      if (closed) throw new DomainError("CONFLICT", closed);
       if (scrim.status === ScrimStatus.SCHEDULED) {
         await tx.scrim.update({
           where: { id: scrim.id },

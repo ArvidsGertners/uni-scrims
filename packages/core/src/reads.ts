@@ -7,11 +7,16 @@ import {
   ScrimStatus,
   prisma,
 } from "@uni-scrims/db";
-import { TIMING } from "../config/timing.ts";
 import type { Db } from "./db.ts";
-import { requireUser } from "./permissions.ts";
+import {
+  actingCaptainProblem,
+  canSeeApplications,
+  isScrimTeam,
+  requireUser,
+} from "./permissions.ts";
 import { RANKS, isRankInRange, rankValue } from "./ranks.ts";
-import { summarizeUniversities } from "./teams.ts";
+import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
+import { teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
 
 // ─── Reliability ──────────────────────────────────────────────────────────────
@@ -121,11 +126,7 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
     name: team.name,
     tag: team.tag,
     rank: team.rank,
-    universities: summarizeUniversities(
-      team.members
-        .filter(({ user }) => user.verifiedAt)
-        .map(({ user }) => user.university?.name ?? user.universityOther),
-    ),
+    universities: teamUniversities(team.members),
     reliability: reliabilities.get(team.id)!,
   };
 }
@@ -242,7 +243,8 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
 
   const ownTeam = await findOwnTeam(user.id);
   const isOwner = ownTeam?.id === request.teamId;
-  const applications = isOwner
+  const showApplications = canSeeApplications(ownTeam?.id, request);
+  const applications = showApplications
     ? await prisma.application.findMany({
         where: { requestId: request.id },
         orderBy: { createdAt: "asc" },
@@ -261,8 +263,6 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     ...applications.map((application) => application.teamId),
   ]);
   const scrim = request.scrim;
-  const inScrim =
-    !!ownTeam && !!scrim && (scrim.hostTeamId === ownTeam.id || scrim.guestTeamId === ownTeam.id);
 
   return {
     id: request.id,
@@ -277,11 +277,12 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     team: toTeamCard(request.team, reliabilities),
     hasTeam: ownTeam !== null,
     isOwner,
-    isCaptain: ownTeam?.captainId === user.id,
+    /** null if the user may run scrim actions for the own team, otherwise why not. */
+    actionProblem: ownTeam ? actingCaptainProblem(user, ownTeam) : null,
     /** Own team rank outside the requested range: allowed, with a hint (SPEC P0-5). */
     outOfRange: ownTeam ? !isRankInRange(ownTeam.rank, request.rankMin, request.rankMax) : false,
     ownApplication,
-    applications: isOwner
+    applications: showApplications
       ? applications.map((application) => ({
           id: application.id,
           status: application.status,
@@ -291,7 +292,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
           team: toTeamCard(application.team, reliabilities),
         }))
       : null,
-    scrimId: inScrim ? scrim.id : null,
+    scrimId: scrim && isScrimTeam(ownTeam?.id, scrim) ? scrim.id : null,
   };
 }
 
@@ -317,17 +318,13 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
       feedback: { select: { teamId: true, outcome: true, rating: true } },
     },
   });
-  if (!scrim || !ownTeam) return null;
-  if (scrim.hostTeamId !== ownTeam.id && scrim.guestTeamId !== ownTeam.id) return null;
+  if (!scrim || !ownTeam || !isScrimTeam(ownTeam.id, scrim)) return null;
 
   const isHost = scrim.hostTeamId === ownTeam.id;
   const opponent = isHost ? scrim.guestTeam : scrim.hostTeam;
-  const isCaptain = ownTeam.captainId === user.id;
+  const actionProblem = actingCaptainProblem(user, ownTeam);
   const ownFeedback = scrim.feedback.find((feedback) => feedback.teamId === ownTeam.id) ?? null;
-  const feedbackOpen =
-    (scrim.status === ScrimStatus.SCHEDULED || scrim.status === ScrimStatus.AWAITING_FEEDBACK) &&
-    input.now >= scrim.startsAt &&
-    input.now < scrim.feedbackDeadline;
+  const feedbackClosed = feedbackClosedReason(scrim, input.now);
 
   return {
     id: scrim.id,
@@ -346,7 +343,8 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
       tag: opponent.tag,
       captainName: opponent.captain.name,
     },
-    isCaptain,
+    /** null if the user may cancel and give feedback for the own team, otherwise why not. */
+    actionProblem,
     cancelledByUs: scrim.cancelledByTeamId === ownTeam.id,
     lateCancel: scrim.lateCancel,
     noShow:
@@ -356,11 +354,13 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
           ? ("US" as const)
           : ("OPPONENT" as const),
     ownFeedback: ownFeedback ? { outcome: ownFeedback.outcome, rating: ownFeedback.rating } : null,
-    canCancel: isCaptain && scrim.status === ScrimStatus.SCHEDULED && scrim.startsAt > input.now,
+    cancellable: isCancellable(scrim, input.now),
+    canCancel: actionProblem === null && isCancellable(scrim, input.now),
     /** A cancellation now would count as late. */
-    cancelWouldBeLate: scrim.startsAt.getTime() - input.now.getTime() < TIMING.LATE_CANCEL,
-    canGiveFeedback: isCaptain && !ownFeedback && feedbackOpen,
-    feedbackNotYetOpen: scrim.status === ScrimStatus.SCHEDULED && input.now < scrim.startsAt,
+    cancelWouldBeLate: isLateCancel(scrim.startsAt, input.now),
+    /** null while feedback is possible (start until deadline), otherwise why not. */
+    feedbackClosed,
+    canGiveFeedback: actionProblem === null && !ownFeedback && feedbackClosed === null,
   };
 }
 

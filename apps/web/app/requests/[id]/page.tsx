@@ -39,6 +39,8 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
       ? "Abgelaufen"
       : REQUEST_STATUS_LABELS[request.status];
   const canApply = request.open && request.hasTeam && !request.isOwner && !request.ownApplication;
+  // Scrim actions only for the current, verified captain of an active team (§7).
+  const canAct = request.actionProblem === null;
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8">
@@ -71,7 +73,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               bewerben, der Ersteller entscheidet.
             </p>
           ) : null}
-          {request.isCaptain ? (
+          {canAct ? (
             <ActionForm action={applyAction} submitLabel="Bewerben">
               <input type="hidden" name="requestId" value={request.id} />
               <div className="flex flex-col gap-1.5">
@@ -85,7 +87,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               </div>
             </ActionForm>
           ) : (
-            <p className="text-sm opacity-70">Nur euer Captain kann sich bewerben.</p>
+            <p className="text-sm opacity-70">{request.actionProblem}</p>
           )}
         </section>
       ) : null}
@@ -99,7 +101,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           {request.ownApplication.message ? (
             <p className="text-sm whitespace-pre-line">{request.ownApplication.message}</p>
           ) : null}
-          {request.ownApplication.status === "PENDING" && request.isCaptain ? (
+          {request.ownApplication.status === "PENDING" && canAct ? (
             <ActionForm
               action={withdrawApplicationAction}
               submitLabel="Bewerbung zurückziehen"
@@ -136,7 +138,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                 {application.message ? (
                   <p className="text-sm whitespace-pre-line">{application.message}</p>
                 ) : null}
-                {application.status === "PENDING" && request.open && request.isCaptain ? (
+                {application.status === "PENDING" && request.open && canAct ? (
                   <ActionForm
                     action={confirmApplicationAction}
                     submitLabel="Bestätigen"
@@ -152,7 +154,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
         </section>
       ) : null}
 
-      {request.isOwner && request.isCaptain && request.open ? (
+      {request.isOwner && request.open && request.actionProblem ? (
+        <p className="text-sm opacity-70">{request.actionProblem}</p>
+      ) : null}
+
+      {request.isOwner && canAct && request.open ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Anfrage löschen</h2>
           <ActionForm

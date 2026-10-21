@@ -8,7 +8,7 @@ import {
   toBerlinDateString,
 } from "@uni-scrims/core";
 import { MAP_POOL } from "@uni-scrims/core/config/maps";
-import type { ScrimFormat } from "@uni-scrims/db";
+import type { Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { selectClass } from "@/components/team-fields";
@@ -21,6 +21,17 @@ import { createRequestAction } from "../actions";
 export default async function NewRequestPage() {
   const user = await requirePageUser("/requests/new");
   const team = await getMyTeam(user.id);
+
+  // Same conditions as core's createRequest (§7), shown before the captain fills in the form.
+  const problems = team?.isCaptain
+    ? [
+        team.banned ? "Euer Team ist gesperrt." : null,
+        user.verifiedAt ? null : "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+        team.ready
+          ? null
+          : "Euer Team ist noch nicht spielbereit (mindestens 5 verifizierte Mitglieder).",
+      ].filter((problem) => problem !== null)
+    : [];
 
   if (!team?.isCaptain) {
     return (
@@ -37,87 +48,95 @@ export default async function NewRequestPage() {
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
       <h1 className="text-2xl font-bold">Anfrage erstellen</h1>
-      {!team.ready ? (
-        <p className="text-sm text-destructive">
-          Euer Team ist noch nicht spielbereit (mindestens 5 verifizierte Mitglieder).
-        </p>
-      ) : null}
-      <ActionForm action={createRequestAction} submitLabel="Anfrage posten">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="date">Datum</Label>
-            <Input
-              id="date"
-              name="date"
-              type="date"
-              required
-              min={toBerlinDateString(new Date())}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="time">Startzeit</Label>
-            <select id="time" name="time" required defaultValue="20:00" className={selectClass}>
-              {START_TIME_SLOTS.map((slot) => (
-                <option key={slot} value={slot}>
-                  {slot} Uhr
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <p className="text-xs opacity-70">
-          Uhrzeiten in deutscher Zeit. Für Starts nach Mitternacht (00:00–01:45) das Datum des
-          Folgetags wählen, z. B. Mittwoch 01:00 für die Nacht von Dienstag auf Mittwoch.
-        </p>
+      {problems.length > 0 ? (
+        <>
+          {problems.map((problem) => (
+            <p key={problem} className="text-sm text-destructive">
+              {problem}
+            </p>
+          ))}
+          <Link href="/team" className="text-sm underline">
+            Zum Team
+          </Link>
+        </>
+      ) : (
+        <RequestForm defaultRank={team.rank} />
+      )}
+    </main>
+  );
+}
+
+function RequestForm({ defaultRank }: { defaultRank: Rank }) {
+  return (
+    <ActionForm action={createRequestAction} submitLabel="Anfrage posten">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="format">Format</Label>
-          <select id="format" name="format" required defaultValue="" className={selectClass}>
-            <option value="" disabled>
-              Bitte wählen …
-            </option>
-            {(Object.keys(SCRIM_FORMAT_LABELS) as ScrimFormat[]).map((format) => (
-              <option key={format} value={format}>
-                {SCRIM_FORMAT_LABELS[format]}
+          <Label htmlFor="date">Datum</Label>
+          <Input id="date" name="date" type="date" required min={toBerlinDateString(new Date())} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="time">Startzeit</Label>
+          <select id="time" name="time" required defaultValue="20:00" className={selectClass}>
+            {START_TIME_SLOTS.map((slot) => (
+              <option key={slot} value={slot}>
+                {slot} Uhr
               </option>
             ))}
           </select>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(["rankMin", "rankMax"] as const).map((name) => (
-            <div key={name} className="flex flex-col gap-1.5">
-              <Label htmlFor={name}>{name === "rankMin" ? "Rang von" : "Rang bis"}</Label>
-              <select
-                id={name}
-                name={name}
-                required
-                defaultValue={team.rank}
-                className={selectClass}
-              >
-                {RANKS.map((rank) => (
-                  <option key={rank} value={rank}>
-                    {RANK_LABELS[rank]}
-                  </option>
-                ))}
-              </select>
-            </div>
+      </div>
+      <p className="text-xs opacity-70">
+        Uhrzeiten in deutscher Zeit. Für Starts nach Mitternacht (00:00–01:45) das Datum des
+        Folgetags wählen, z. B. Mittwoch 01:00 für die Nacht von Dienstag auf Mittwoch.
+      </p>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="format">Format</Label>
+        <select id="format" name="format" required defaultValue="" className={selectClass}>
+          <option value="" disabled>
+            Bitte wählen …
+          </option>
+          {(Object.keys(SCRIM_FORMAT_LABELS) as ScrimFormat[]).map((format) => (
+            <option key={format} value={format}>
+              {SCRIM_FORMAT_LABELS[format]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(["rankMin", "rankMax"] as const).map((name) => (
+          <div key={name} className="flex flex-col gap-1.5">
+            <Label htmlFor={name}>{name === "rankMin" ? "Rang von" : "Rang bis"}</Label>
+            <select
+              id={name}
+              name={name}
+              required
+              defaultValue={defaultRank}
+              className={selectClass}
+            >
+              {RANKS.map((rank) => (
+                <option key={rank} value={rank}>
+                  {RANK_LABELS[rank]}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1.5 text-sm font-medium">Maps (optional)</legend>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+          {MAP_POOL.map((map) => (
+            <label key={map} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="maps" value={map} />
+              {map}
+            </label>
           ))}
         </div>
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1.5 text-sm font-medium">Maps (optional)</legend>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
-            {MAP_POOL.map((map) => (
-              <label key={map} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="maps" value={map} />
-                {map}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="note">Notiz (optional)</Label>
-          <Textarea id="note" name="note" maxLength={REQUEST_NOTE_MAX} rows={3} />
-        </div>
-      </ActionForm>
-    </main>
+      </fieldset>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="note">Notiz (optional)</Label>
+        <Textarea id="note" name="note" maxLength={REQUEST_NOTE_MAX} rows={3} />
+      </div>
+    </ActionForm>
   );
 }

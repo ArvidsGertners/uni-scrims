@@ -7,7 +7,7 @@ import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
 import { requireCaptain, requireUser } from "./permissions.ts";
 import { READY_MEMBER_COUNT } from "./readiness.ts";
 import { closeOpenRequest } from "./requests.ts";
-import { type TeamInput, teamInputSchema } from "./schemas.ts";
+import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 
 export const MAX_TEAM_MEMBERS = 10;
@@ -24,14 +24,6 @@ export function generateInviteCode(): string {
   return randomBytes(9).toString("base64url");
 }
 
-function parseTeamInput(input: TeamInput): TeamInput {
-  const parsed = teamInputSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new DomainError("INVALID", parsed.error.issues[0]?.message ?? "Ungültige Eingabe.");
-  }
-  return parsed.data;
-}
-
 function nameTaken(): DomainError {
   return new DomainError("CONFLICT", "Der Teamname ist schon vergeben.");
 }
@@ -42,7 +34,7 @@ function alreadyInTeam(): DomainError {
 
 export async function createTeam(input: TeamInput & { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
-  const data = parseTeamInput(input);
+  const data = parseInput(teamInputSchema, input);
   if (await prisma.teamMember.findUnique({ where: { userId: user.id } })) {
     throw alreadyInTeam();
   }
@@ -76,7 +68,7 @@ export async function createTeam(input: TeamInput & { userId: string; now: Date 
 
 export async function updateTeam(input: TeamInput & { userId: string; teamId: string }) {
   await requireCaptain(input.userId, input.teamId);
-  const data = parseTeamInput(input);
+  const data = parseInput(teamInputSchema, input);
   try {
     return await prisma.team.update({
       where: { id: input.teamId },
@@ -272,6 +264,23 @@ export function summarizeUniversities(names: (string | null)[]) {
   };
 }
 
+type MemberUniversity = {
+  user: {
+    verifiedAt: Date | null;
+    universityOther: string | null;
+    university: { name: string } | null;
+  };
+};
+
+/** Universities represented on a team card: those of the verified members (SPEC P0-3). */
+export function teamUniversities(members: MemberUniversity[]) {
+  return summarizeUniversities(
+    members
+      .filter(({ user }) => user.verifiedAt)
+      .map(({ user }) => user.university?.name ?? user.universityOther),
+  );
+}
+
 const memberSelect = {
   joinedAt: true,
   user: {
@@ -325,11 +334,7 @@ export async function getMyTeam(userId: string) {
     members,
     verifiedCount,
     ready: verifiedCount >= READY_MEMBER_COUNT,
-    universities: summarizeUniversities(
-      team.members
-        .filter(({ user: member }) => member.verifiedAt)
-        .map(({ user: member }) => member.university?.name ?? member.universityOther),
-    ),
+    universities: teamUniversities(team.members),
   };
 }
 
@@ -351,10 +356,6 @@ export async function getTeamByInviteCode(userId: string, inviteCode: string) {
     rank: team.rank,
     memberCount: team.members.length,
     full: team.members.length >= MAX_TEAM_MEMBERS,
-    universities: summarizeUniversities(
-      team.members
-        .filter(({ user }) => user.verifiedAt)
-        .map(({ user }) => user.university?.name ?? user.universityOther),
-    ),
+    universities: teamUniversities(team.members),
   };
 }
