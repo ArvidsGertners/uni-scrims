@@ -4,14 +4,9 @@ import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
-import {
-  actingCaptainProblem,
-  requireCaptain,
-  requireUser,
-  teamReadyProblem,
-} from "./permissions.ts";
+import { requireCaptain, requireUser } from "./permissions.ts";
 import { READY_MEMBER_COUNT } from "./readiness.ts";
-import { closeOpenRequest, openRequestLimitProblem } from "./requests.ts";
+import { closeOpenRequest } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 
@@ -302,7 +297,7 @@ const memberSelect = {
 } as const;
 
 /** Own team for the team page; null if the user is in no team. */
-export async function getMyTeam(userId: string, now: Date) {
+export async function getMyTeam(userId: string) {
   const user = await requireUser(userId);
   const membership = await prisma.teamMember.findUnique({
     where: { userId: user.id },
@@ -327,7 +322,6 @@ export async function getMyTeam(userId: string, now: Date) {
         : ("UNVERIFIED" as const),
   }));
   const verifiedCount = members.filter((member) => member.status === "VERIFIED").length;
-  const ready = verifiedCount >= READY_MEMBER_COUNT;
   return {
     id: team.id,
     name: team.name,
@@ -339,12 +333,7 @@ export async function getMyTeam(userId: string, now: Date) {
     inviteCode: isCaptain ? team.inviteCode : null,
     members,
     verifiedCount,
-    ready,
-    /** null if the user may post a request for the team now, otherwise why not (§7). */
-    requestProblem:
-      actingCaptainProblem(user, team) ??
-      teamReadyProblem(ready) ??
-      (await openRequestLimitProblem(team.id, now)),
+    ready: verifiedCount >= READY_MEMBER_COUNT,
     universities: teamUniversities(team.members),
   };
 }

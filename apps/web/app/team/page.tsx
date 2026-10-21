@@ -23,7 +23,7 @@ const STATUS_LABELS = {
 
 export default async function TeamPage() {
   const user = await requirePageUser("/team");
-  const team = await getMyTeam(user.id, new Date());
+  const team = await getMyTeam(user.id);
 
   if (!team) {
     return (

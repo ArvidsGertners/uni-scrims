@@ -3,6 +3,7 @@ import { AppStatus, type Prisma, type Rank, ScrimStatus, prisma } from "@uni-scr
 import type { Db } from "./db.ts";
 import {
   actingCaptainProblem,
+  actingCaptainProblems,
   canSeeApplications,
   isScrimTeam,
   requireUser,
@@ -10,7 +11,12 @@ import {
 } from "./permissions.ts";
 import { RANKS, isRankInRange, rankValue } from "./ranks.ts";
 import { hasReadyMembers } from "./readiness.ts";
-import { applicantTeamProblem, isRequestOpen, openRequestWhere } from "./requests.ts";
+import {
+  applicantTeamProblem,
+  isRequestOpen,
+  openRequestLimitProblem,
+  openRequestWhere,
+} from "./requests.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
@@ -221,6 +227,27 @@ export async function getBoard(input: BoardInput) {
   };
 }
 
+// ─── Request form ─────────────────────────────────────────────────────────────
+
+/**
+ * Form "Anfrage erstellen": null without a team. problems lists every reason why createRequest
+ * would fail now regardless of the input, so the captain sees them all at once (§7).
+ */
+export async function getRequestForm(input: { userId: string; now: Date }) {
+  const user = await requireUser(input.userId);
+  const ownTeam = await findOwnTeam(user.id);
+  if (!ownTeam) return null;
+  const isCaptain = ownTeam.captainId === user.id;
+  const problems = isCaptain
+    ? [
+        ...actingCaptainProblems(user, ownTeam),
+        teamReadyProblem(hasReadyMembers(ownTeam.members)),
+        await openRequestLimitProblem(ownTeam.id, input.now),
+      ].filter((problem) => problem !== null)
+    : [];
+  return { isCaptain, rank: ownTeam.rank, problems };
+}
+
 // ─── Request detail ───────────────────────────────────────────────────────────
 
 /**
@@ -278,7 +305,9 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
       : null;
   const withdraw: ActionOffer =
     ownApplication?.status === AppStatus.PENDING ? { problem: actionProblem } : null;
-  const remove: ActionOffer = isOwner && open ? { problem: actionProblem } : null;
+  // Only the captain can ever delete; other members see the captain rule once, at confirming.
+  const remove: ActionOffer =
+    isOwner && open && ownTeam.captainId === user.id ? { problem: actionProblem } : null;
   const pending = applications.filter((application) => application.status === AppStatus.PENDING);
   const confirm: ActionOffer =
     isOwner && open && pending.length > 0

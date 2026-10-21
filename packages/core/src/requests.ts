@@ -27,7 +27,7 @@ import {
   parseInput,
   requestInputSchema,
 } from "./schemas.ts";
-import { isTeamReady } from "./readiness.ts";
+import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
 import { berlinToUtc } from "./time.ts";
 
 /** Max. open requests per team (SPEC P0-4). */
@@ -79,7 +79,7 @@ export async function applicantTeamProblem(
 ): Promise<string | null> {
   if (team.bannedAt || team.dissolvedAt) return `Das Team „${team.name}“ ist nicht mehr aktiv.`;
   if (!(await isReady())) {
-    return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als 5 verifizierte Mitglieder).`;
+    return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als ${READY_MEMBER_COUNT} verifizierte Mitglieder).`;
   }
   return null;
 }

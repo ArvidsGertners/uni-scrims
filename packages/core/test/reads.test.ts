@@ -1,12 +1,14 @@
 import { AppStatus, FeedbackOutcome, Rank, ScrimStatus, prisma } from "@uni-scrims/db";
 import { describe, expect, it } from "vitest";
 import {
+  MAX_OPEN_REQUESTS,
   applyToRequest,
   cancelScrim,
   confirmApplication,
   getBoard,
   getMyScrims,
   getRequestDetail,
+  getRequestForm,
   getReliability,
   getScrimDetail,
   retireTeamActivity,
@@ -188,6 +190,41 @@ describe("getBoard", () => {
   });
 });
 
+describe("getRequestForm", () => {
+  const form = (userId: string, now = NOW) => getRequestForm({ userId, now });
+
+  it("lists every reason why the captain cannot post right now", async () => {
+    expect(await form((await createUser()).id)).toBeNull();
+    const team = await createReadyTeam({ verifiedCaptain: false });
+    await prisma.user.update({ where: { id: team.members[0]!.id }, data: { verifiedAt: null } });
+    expect(await form(team.captain.id)).toMatchObject({
+      isCaptain: true,
+      problems: [
+        "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+        "Euer Team hat noch keine 5 verifizierten Mitglieder.",
+      ],
+    });
+    expect(await form(team.members[1]!.id)).toMatchObject({ isCaptain: false, problems: [] });
+  });
+
+  it("applies the limit of open requests like createRequest", async () => {
+    const team = await createReadyTeam();
+    expect(await form(team.captain.id)).toMatchObject({ rank: Rank.GOLD, problems: [] });
+    for (const time of ["11:00", "12:00", "13:00", "14:00", "15:00"]) {
+      await createOpenRequest(team.captain.id, { date: "2026-10-22", time });
+    }
+    const full = `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`;
+    expect(await form(team.captain.id)).toMatchObject({ problems: [full] });
+    await expect(
+      createOpenRequest(team.captain.id, { date: "2026-10-22", time: "16:00" }),
+    ).rejects.toMatchObject({ message: full });
+    // A request that has started no longer counts (11:00 Berlin = 09:00 UTC).
+    expect(await form(team.captain.id, new Date("2026-10-22T09:00:00Z"))).toMatchObject({
+      problems: [],
+    });
+  });
+});
+
 describe("getRequestDetail", () => {
   it("shows applications only to the creating team (§7)", async () => {
     const author = await createReadyTeam();
@@ -215,7 +252,8 @@ describe("getRequestDetail", () => {
     const onlyCaptain = { problem: "Das kann nur euer Captain." };
     expect(await detail(author.members[0]!.id)).toMatchObject({
       apply: null,
-      remove: onlyCaptain,
+      // Deleting is never offered to members, the captain rule shows once at confirming.
+      remove: null,
       confirm: onlyCaptain,
       applications: [
         {
@@ -254,7 +292,7 @@ describe("getRequestDetail", () => {
       requestId: request.id,
       now: NOW,
     });
-    const notReady = "Das Team hat noch keine 5 verifizierten Mitglieder.";
+    const notReady = "Euer Team hat noch keine 5 verifizierten Mitglieder.";
     const detail = (userId: string) =>
       getRequestDetail({ userId, requestId: request.id, now: NOW });
     const confirm = () =>
@@ -287,6 +325,15 @@ describe("getRequestDetail", () => {
     await expect(confirm()).rejects.toMatchObject({ message: applicantNotReady });
     // Withdrawing needs no ready team.
     expect(await detail(applicant.captain.id)).toMatchObject({ withdraw: { problem: null } });
+    await unverify(applicant.members[0]!.id, NOW);
+
+    // The applicant team is banned without its application being withdrawn (a race with banTeam).
+    await prisma.team.update({ where: { id: applicant.team.id }, data: { bannedAt: NOW } });
+    const applicantInactive = `Das Team „${applicant.team.name}“ ist nicht mehr aktiv.`;
+    expect(await detail(author.captain.id)).toMatchObject({
+      applications: [{ canConfirm: false, teamProblem: applicantInactive }],
+    });
+    await expect(confirm()).rejects.toMatchObject({ message: applicantInactive });
 
     const late = await createReadyTeam();
     await unverify(late.members[0]!.id);

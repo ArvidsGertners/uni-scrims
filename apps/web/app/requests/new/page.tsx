@@ -4,7 +4,7 @@ import {
   REQUEST_NOTE_MAX,
   SCRIM_FORMAT_LABELS,
   START_TIME_SLOTS,
-  getMyTeam,
+  getRequestForm,
   toBerlinDateString,
 } from "@uni-scrims/core";
 import { MAP_POOL } from "@uni-scrims/core/config/maps";
@@ -20,9 +20,9 @@ import { createRequestAction } from "../actions";
 
 export default async function NewRequestPage() {
   const user = await requirePageUser("/requests/new");
-  const team = await getMyTeam(user.id, new Date());
+  const form = await getRequestForm({ userId: user.id, now: new Date() });
 
-  if (!team?.isCaptain) {
+  if (!form?.isCaptain) {
     return (
       <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
         <h1 className="text-2xl font-bold">Anfrage erstellen</h1>
@@ -38,15 +38,25 @@ export default async function NewRequestPage() {
     <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
       <h1 className="text-2xl font-bold">Anfrage erstellen</h1>
       {/* Same conditions as core's createRequest (§7), shown before the captain fills in the form. */}
-      {team.requestProblem ? (
+      {form.problems.length > 0 ? (
         <>
-          <p className="text-sm text-destructive">{team.requestProblem}</p>
-          <Link href="/team" className="text-sm underline">
-            Zum Team
-          </Link>
+          <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-destructive">
+            {form.problems.map((problem) => (
+              <li key={problem}>{problem}</li>
+            ))}
+          </ul>
+          {/* Readiness is fixed on the team page, open requests are deleted from the board. */}
+          <div className="flex flex-wrap gap-4 text-sm">
+            <Link href="/team" className="underline">
+              Zum Team
+            </Link>
+            <Link href="/board" className="underline">
+              Zum Board (eure Anfragen)
+            </Link>
+          </div>
         </>
       ) : (
-        <RequestForm defaultRank={team.rank} />
+        <RequestForm defaultRank={form.rank} />
       )}
     </main>
   );

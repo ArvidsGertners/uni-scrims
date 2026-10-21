@@ -23,7 +23,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
     );
   }
 
-  const myTeam = await getMyTeam(user.id, new Date());
+  const myTeam = await getMyTeam(user.id);
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
       <h1 className="text-2xl font-bold">Einladung</h1>

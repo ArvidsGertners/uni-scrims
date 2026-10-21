@@ -5,12 +5,13 @@
 import { prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
-import { isTeamReady } from "./readiness.ts";
+import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
 import { isAdmin } from "./users.ts";
 
 const TEAM_BANNED = "Das Team ist gesperrt.";
 const CAPTAIN_NOT_VERIFIED = "Als Captain musst du für Scrim-Aktionen verifiziert sein.";
-const TEAM_NOT_READY = "Das Team hat noch keine 5 verifizierten Mitglieder.";
+// Always about the user's own team: posting, applying and confirming as host.
+const TEAM_NOT_READY = `Euer Team hat noch keine ${READY_MEMBER_COUNT} verifizierten Mitglieder.`;
 
 /** Logged in and not banned. */
 export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
@@ -113,18 +114,24 @@ export async function requireOwnActingCaptain(userId: string | null | undefined,
   return requireActingCaptain(user.id, membership.teamId, db);
 }
 
+type ActingUser = { id: string; verifiedAt: Date | null };
+type ActingTeam = { captainId: string; bannedAt: Date | null };
+
+/** Every reason why requireActingCaptain would fail, so a form can show them all at once. */
+export function actingCaptainProblems(user: ActingUser, team: ActingTeam): string[] {
+  const problems: string[] = [];
+  if (team.bannedAt) problems.push(TEAM_BANNED);
+  if (team.captainId !== user.id) problems.push("Das kann nur euer Captain.");
+  else if (!user.verifiedAt) problems.push(CAPTAIN_NOT_VERIFIED);
+  return problems;
+}
+
 /**
  * Non-throwing counterpart of requireActingCaptain for pages, so they only offer scrim actions
  * the user may run: null if allowed, otherwise the reason to show instead.
  */
-export function actingCaptainProblem(
-  user: { id: string; verifiedAt: Date | null },
-  team: { captainId: string; bannedAt: Date | null },
-): string | null {
-  if (team.bannedAt) return TEAM_BANNED;
-  if (team.captainId !== user.id) return "Das kann nur euer Captain.";
-  if (!user.verifiedAt) return CAPTAIN_NOT_VERIFIED;
-  return null;
+export function actingCaptainProblem(user: ActingUser, team: ActingTeam): string | null {
+  return actingCaptainProblems(user, team)[0] ?? null;
 }
 
 /**
