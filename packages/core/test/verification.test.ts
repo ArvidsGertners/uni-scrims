@@ -1,0 +1,358 @@
+import { existsSync } from "node:fs";
+import { mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { NotifType, VerifStatus, prisma } from "@uni-scrims/db";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  AUTO_REJECT_REASON,
+  MAX_UPLOAD_BYTES,
+  autoRejectStaleVerifications,
+  cleanupDecidedFiles,
+  cleanupOrphanFiles,
+  decideVerification,
+  detectUploadType,
+  getVerificationFile,
+  listPendingVerifications,
+  submitVerification,
+} from "../src/index.ts";
+import { NOW, createUser } from "./helpers.ts";
+
+const PDF = new TextEncoder().encode(
+  "%PDF-1.4\n%âãÏÓ\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n",
+);
+const PNG = Uint8Array.from(
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64",
+  ),
+);
+const JPEG = Uint8Array.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+]);
+const HEIC = Uint8Array.from([
+  0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63, 0x00, 0x00, 0x00, 0x00,
+  0x6d, 0x69, 0x66, 0x31, 0x68, 0x65, 0x69, 0x63,
+]);
+const TEXT = new TextEncoder().encode("just some text, renamed to .pdf");
+
+const DAY = 24 * 60 * 60 * 1000;
+const previousAdmins = process.env.ADMIN_DISCORD_IDS;
+let uploadDir: string;
+let universityId: string;
+let admin: Awaited<ReturnType<typeof createUser>>;
+
+beforeAll(async () => {
+  admin = await createUser({ verified: true });
+  process.env.ADMIN_DISCORD_IDS = admin.discordId;
+  const university = await prisma.university.create({
+    data: { name: "Test-Uni", city: "Teststadt", slug: `test-${admin.id}` },
+  });
+  universityId = university.id;
+});
+
+beforeEach(async () => {
+  uploadDir = await mkdtemp(path.join(tmpdir(), "uni-scrims-uploads-"));
+  return () => rm(uploadDir, { recursive: true, force: true });
+});
+
+afterAll(async () => {
+  process.env.ADMIN_DISCORD_IDS = previousAdmins;
+  await prisma.$disconnect();
+});
+
+function submit(userId: string, file: Uint8Array = PDF, overrides: object = {}) {
+  return submitVerification({
+    userId,
+    universityId,
+    consent: true,
+    file,
+    uploadDir,
+    now: NOW,
+    ...overrides,
+  });
+}
+
+describe("detectUploadType", () => {
+  it("accepts PDF, PNG and JPEG by magic bytes", async () => {
+    expect(await detectUploadType(PDF)).toEqual({ mimeType: "application/pdf", ext: "pdf" });
+    expect(await detectUploadType(PNG)).toEqual({ mimeType: "image/png", ext: "png" });
+    expect(await detectUploadType(JPEG)).toEqual({ mimeType: "image/jpeg", ext: "jpg" });
+  });
+
+  it("rejects HEIC with a hint", async () => {
+    await expect(detectUploadType(HEIC)).rejects.toThrow("Foto bitte als JPG/PNG");
+  });
+
+  it("rejects other content regardless of the file name", async () => {
+    await expect(detectUploadType(TEXT)).rejects.toMatchObject({ code: "INVALID" });
+  });
+
+  it("rejects empty and too large files", async () => {
+    await expect(detectUploadType(new Uint8Array())).rejects.toMatchObject({ code: "INVALID" });
+    const big = new Uint8Array(MAX_UPLOAD_BYTES + 1);
+    big.set(PDF);
+    await expect(detectUploadType(big)).rejects.toThrow("5 MB");
+  });
+});
+
+describe("submitVerification", () => {
+  it("stores the file and creates a pending request", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    expect(request).toMatchObject({
+      status: VerifStatus.PENDING,
+      pendingUserId: user.id,
+      mimeType: "application/pdf",
+      sizeBytes: PDF.byteLength,
+      createdAt: NOW,
+    });
+    expect(await readdir(uploadDir)).toEqual([request.filePath]);
+  });
+
+  it("requires the consent checkbox", async () => {
+    const user = await createUser();
+    await expect(submit(user.id, PDF, { consent: false })).rejects.toMatchObject({
+      code: "INVALID",
+    });
+  });
+
+  it("requires exactly one of university and free text", async () => {
+    const user = await createUser();
+    await expect(submit(user.id, PDF, { universityId: null })).rejects.toMatchObject({
+      code: "INVALID",
+    });
+    await expect(submit(user.id, PDF, { universityOther: "Andere Uni" })).rejects.toMatchObject({
+      code: "INVALID",
+    });
+    await expect(
+      submit(user.id, PDF, { universityId: null, universityOther: "Andere Uni" }),
+    ).resolves.toMatchObject({ universityOther: "Andere Uni", universityId: null });
+  });
+
+  it("allows only one pending request per user", async () => {
+    const user = await createUser();
+    await submit(user.id);
+    await expect(submit(user.id)).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(await readdir(uploadDir)).toHaveLength(1);
+  });
+
+  it("deletes the file again when the insert fails", async () => {
+    const user = await createUser();
+    // Two parallel uploads: one insert hits the unique pendingUserId and must clean up its file.
+    const results = await Promise.allSettled([submit(user.id), submit(user.id)]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(await readdir(uploadDir)).toHaveLength(1);
+  });
+
+  it("rejects verified and banned users", async () => {
+    const verified = await createUser({ verified: true });
+    await expect(submit(verified.id)).rejects.toMatchObject({ code: "CONFLICT" });
+    const banned = await createUser({ banned: true });
+    await expect(submit(banned.id)).rejects.toMatchObject({ code: "BANNED" });
+  });
+
+  it("does not store invalid files", async () => {
+    const user = await createUser();
+    await expect(submit(user.id, HEIC)).rejects.toMatchObject({ code: "INVALID" });
+    expect(await readdir(uploadDir)).toEqual([]);
+  });
+});
+
+describe("decideVerification", () => {
+  it("approves: verifies the user, deletes the file, queues the DM", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    await decideVerification({
+      requestId: request.id,
+      adminId: admin.id,
+      decision: "APPROVED",
+      uploadDir,
+      now: NOW,
+    });
+
+    const row = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(row).toMatchObject({
+      status: VerifStatus.APPROVED,
+      filePath: null,
+      pendingUserId: null,
+      decidedById: admin.id,
+      decidedAt: NOW,
+    });
+    expect(existsSync(path.join(uploadDir, request.filePath!))).toBe(false);
+    const updatedUser = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updatedUser).toMatchObject({ verifiedAt: NOW, universityId });
+    const notifications = await prisma.notification.findMany({ where: { targetUserId: user.id } });
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        type: NotifType.VERIFICATION_RESULT,
+        channel: "USER_DM",
+        dedupeKey: `VERIFICATION_RESULT:${request.id}:${user.id}:USER_DM`,
+        scheduledFor: NOW,
+        payload: { approved: true, rejectReason: null },
+      }),
+    ]);
+  });
+
+  it("assigns a seed university for 'Andere' on approval", async () => {
+    const user = await createUser();
+    const request = await submit(user.id, PDF, { universityId: null, universityOther: "Uni X" });
+    await decideVerification({
+      requestId: request.id,
+      adminId: admin.id,
+      decision: "APPROVED",
+      universityId,
+      uploadDir,
+      now: NOW,
+    });
+    const updatedUser = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updatedUser).toMatchObject({ universityId, universityOther: null });
+  });
+
+  it("keeps the free text when 'Andere' is approved without assignment", async () => {
+    const user = await createUser();
+    const request = await submit(user.id, PDF, { universityId: null, universityOther: "Uni X" });
+    await decideVerification({
+      requestId: request.id,
+      adminId: admin.id,
+      decision: "APPROVED",
+      uploadDir,
+      now: NOW,
+    });
+    const updatedUser = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(updatedUser).toMatchObject({ universityId: null, universityOther: "Uni X" });
+  });
+
+  it("rejects with a reason and allows a new upload", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    await expect(
+      decideVerification({
+        requestId: request.id,
+        adminId: admin.id,
+        decision: "REJECTED",
+        uploadDir,
+        now: NOW,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID" });
+    await decideVerification({
+      requestId: request.id,
+      adminId: admin.id,
+      decision: "REJECTED",
+      rejectReason: "Nicht lesbar",
+      uploadDir,
+      now: NOW,
+    });
+    const row = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(row).toMatchObject({ status: VerifStatus.REJECTED, rejectReason: "Nicht lesbar" });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).verifiedAt).toBeNull();
+    expect(await readdir(uploadDir)).toEqual([]);
+    await expect(submit(user.id)).resolves.toMatchObject({ status: VerifStatus.PENDING });
+  });
+
+  it("decides only once", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    const decide = () =>
+      decideVerification({
+        requestId: request.id,
+        adminId: admin.id,
+        decision: "APPROVED",
+        uploadDir,
+        now: NOW,
+      });
+    await decide();
+    await expect(decide()).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+
+  it("is admin only", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    await expect(
+      decideVerification({
+        requestId: request.id,
+        adminId: user.id,
+        decision: "APPROVED",
+        uploadDir,
+        now: NOW,
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(listPendingVerifications(user.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(getVerificationFile(request.id, user.id, uploadDir)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+});
+
+describe("admin queue", () => {
+  it("lists pending requests oldest first and serves their files", async () => {
+    const older = await createUser();
+    const newer = await createUser();
+    const first = await submit(older.id, PDF, { now: new Date(NOW.getTime() - 1000) });
+    const second = await submit(newer.id, PNG);
+    const ids = (await listPendingVerifications(admin.id)).map((request) => request.id);
+    expect(ids.indexOf(first.id)).toBeLessThan(ids.indexOf(second.id));
+    expect(await getVerificationFile(second.id, admin.id, uploadDir)).toEqual({
+      path: path.join(uploadDir, second.filePath!),
+      mimeType: "image/png",
+    });
+  });
+});
+
+describe("janitor", () => {
+  it("auto-rejects pending requests after the TTL and deletes the file", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    expect(await autoRejectStaleVerifications(new Date(NOW.getTime() + 13 * DAY), uploadDir)).toBe(
+      0,
+    );
+    const later = new Date(NOW.getTime() + 14 * DAY);
+    expect(await autoRejectStaleVerifications(later, uploadDir)).toBeGreaterThanOrEqual(1);
+    const row = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(row).toMatchObject({
+      status: VerifStatus.REJECTED,
+      rejectReason: AUTO_REJECT_REASON,
+      decidedById: null,
+      pendingUserId: null,
+      filePath: null,
+    });
+    expect(await readdir(uploadDir)).toEqual([]);
+    expect(
+      await prisma.notification.count({
+        where: { targetUserId: user.id, type: NotifType.VERIFICATION_RESULT },
+      }),
+    ).toBe(1);
+  });
+
+  it("deletes leftover files of decided requests", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    await prisma.verificationRequest.update({
+      where: { id: request.id },
+      data: { status: VerifStatus.REJECTED, pendingUserId: null },
+    });
+    expect(await cleanupDecidedFiles(uploadDir)).toBeGreaterThanOrEqual(1);
+    expect(await readdir(uploadDir)).toEqual([]);
+  });
+
+  it("deletes orphan files older than 24 h only", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    const oldOrphan = path.join(uploadDir, "old-orphan.pdf");
+    const freshOrphan = path.join(uploadDir, "fresh-orphan.pdf");
+    await writeFile(oldOrphan, PDF);
+    await writeFile(freshOrphan, PDF);
+    const old = new Date(Date.now() - 2 * DAY);
+    await utimes(oldOrphan, old, old);
+    await utimes(path.join(uploadDir, request.filePath!), old, old);
+
+    expect(await cleanupOrphanFiles(uploadDir, new Date())).toBe(1);
+    expect((await readdir(uploadDir)).sort()).toEqual(
+      ["fresh-orphan.pdf", request.filePath].sort(),
+    );
+  });
+
+  it("ignores a missing upload directory", async () => {
+    expect(await cleanupOrphanFiles(path.join(uploadDir, "missing"), NOW)).toBe(0);
+  });
+});
