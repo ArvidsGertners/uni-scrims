@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { Prisma, Rank, prisma } from "../src/index.ts";
 
@@ -12,14 +13,17 @@ describe("prisma client", () => {
   });
 
   it("enforces the case-insensitive team name via nameNormalized", async () => {
+    // Unique per run: the test DB is only reset once per `vitest` process (watch mode re-runs).
+    const suffix = randomUUID();
     const captain = await prisma.user.create({
-      data: { id: "test-captain", name: "Captain", email: "1@users.uniscrims.invalid" },
+      data: { id: suffix, name: "Captain", email: `${suffix}@users.uniscrims.invalid` },
     });
     const team = { tag: "TST", rank: Rank.GOLD, captainId: captain.id };
-    await prisma.team.create({ data: { ...team, name: "Test", nameNormalized: "test" } });
+    const nameNormalized = `test-${suffix}`;
+    await prisma.team.create({ data: { ...team, name: `Test-${suffix}`, nameNormalized } });
 
     await expect(
-      prisma.team.create({ data: { ...team, name: "TEST", nameNormalized: "test" } }),
+      prisma.team.create({ data: { ...team, name: `TEST-${suffix}`, nameNormalized } }),
     ).rejects.toSatisfy(
       (error) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002",
     );
