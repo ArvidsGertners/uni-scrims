@@ -4,15 +4,8 @@ import { cancelScrim, submitFeedback } from "@uni-scrims/core";
 import type { FeedbackOutcome } from "@uni-scrims/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { type ActionState, runAction } from "@/lib/action";
+import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
 import { getSessionUserId } from "@/lib/session";
-
-const id = z.string().min(1);
-const invalid: ActionState = { error: "Ungültige Eingabe." };
-
-function field(formData: FormData, name: string): FormDataEntryValue | undefined {
-  return formData.get(name) ?? undefined;
-}
 
 async function finish(scrimId: string, state: ActionState): Promise<ActionState> {
   revalidatePath(`/scrims/${scrimId}`);
@@ -22,8 +15,8 @@ async function finish(scrimId: string, state: ActionState): Promise<ActionState>
 
 export async function cancelScrimAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
-  const scrimId = id.safeParse(field(formData, "scrimId"));
-  if (!scrimId.success) return invalid;
+  const scrimId = idSchema.safeParse(formField(formData, "scrimId"));
+  if (!scrimId.success) return invalidInput;
   return finish(
     scrimId.data,
     await runAction(async () => {
@@ -36,13 +29,13 @@ export async function submitFeedbackAction(_state: ActionState, formData: FormDa
   const userId = (await getSessionUserId()) ?? "";
   // Shape check only; outcome and rating rules live in core's feedbackInputSchema.
   const parsed = z
-    .object({ scrimId: id, outcome: z.string().optional(), rating: z.string().optional() })
+    .object({ scrimId: idSchema, outcome: z.string().optional(), rating: z.string().optional() })
     .safeParse({
-      scrimId: field(formData, "scrimId"),
-      outcome: field(formData, "outcome"),
-      rating: field(formData, "rating"),
+      scrimId: formField(formData, "scrimId"),
+      outcome: formField(formData, "outcome"),
+      rating: formField(formData, "rating"),
     });
-  if (!parsed.success) return invalid;
+  if (!parsed.success) return invalidInput;
   const { scrimId, outcome, rating } = parsed.data;
   return finish(
     scrimId,

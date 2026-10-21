@@ -1,4 +1,5 @@
 import { isDomainError } from "@uni-scrims/core";
+import { z } from "zod";
 import type { ActionState } from "./action-state.ts";
 
 export type { ActionState } from "./action-state.ts";
@@ -13,4 +14,14 @@ export async function runAction(body: () => Promise<void>): Promise<ActionState>
     console.error("Server action failed", error);
     return { error: "Etwas ist schiefgelaufen. Bitte versuch es erneut." };
   }
+}
+
+// Shape checks shared by the server actions; the content rules live in core.
+
+export const idSchema = z.string().min(1);
+
+export const invalidInput: ActionState = { error: "Ungültige Eingabe." };
+
+export function formField(formData: FormData, name: string): FormDataEntryValue | undefined {
+  return formData.get(name) ?? undefined;
 }
