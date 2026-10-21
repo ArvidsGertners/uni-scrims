@@ -96,3 +96,16 @@ export async function requireAdmin(userId: string | null | undefined, db: Db = p
   }
   return user;
 }
+
+/**
+ * requireActingCaptain for the user's own team: scrim actions always act for the team
+ * the user is in.
+ */
+export async function requireOwnActingCaptain(userId: string | null | undefined, db: Db = prisma) {
+  const user = await requireUser(userId, db);
+  const membership = await db.teamMember.findUnique({ where: { userId: user.id } });
+  if (!membership) {
+    throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
+  }
+  return requireActingCaptain(user.id, membership.teamId, db);
+}

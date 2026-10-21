@@ -1,0 +1,302 @@
+// Booked scrims: cancellation, feedback and outcome (SPEC Flow C, P0-6, P0-8, ARCHITECTURE §5.5, §5.6).
+import { FeedbackOutcome, NotifType, type Prisma, ScrimStatus, prisma } from "@uni-scrims/db";
+import { TIMING } from "../config/timing.ts";
+import { isUniqueViolation } from "./db.ts";
+import { DomainError } from "./errors.ts";
+import { lockScrim } from "./locks.ts";
+import {
+  BOTH_TEAM_CHANNELS,
+  cancelPendingScrimNotifications,
+  forTeam,
+  queueNotifications,
+} from "./notifications.ts";
+import { requireAdmin, requireOwnActingCaptain } from "./permissions.ts";
+import { type FeedbackInput, feedbackInputSchema, parseInput } from "./schemas.ts";
+
+function scrimNotFound(): DomainError {
+  return new DomainError("NOT_FOUND", "Scrim nicht gefunden.");
+}
+
+type ScrimForCancel = {
+  id: string;
+  startsAt: Date;
+  format: string;
+  hostTeamId: string;
+  guestTeamId: string;
+  hostTeam: { name: string };
+  guestTeam: { name: string };
+};
+
+/**
+ * SCHEDULED → CANCELLED by one team; pending notifications of the scrim are dropped and the
+ * other team is told. Returns false if the scrim was no longer cancellable.
+ */
+export async function cancelScheduledScrim(
+  tx: Prisma.TransactionClient,
+  scrim: ScrimForCancel,
+  cancelledByTeamId: string,
+  lateCancel: boolean,
+  now: Date,
+): Promise<boolean> {
+  const updated = await tx.scrim.updateMany({
+    where: { id: scrim.id, status: ScrimStatus.SCHEDULED, startsAt: { gt: now } },
+    data: { status: ScrimStatus.CANCELLED, cancelledByTeamId, cancelledAt: now, lateCancel },
+  });
+  if (updated.count === 0) return false;
+  await cancelPendingScrimNotifications(tx, scrim.id);
+  const hostCancelled = cancelledByTeamId === scrim.hostTeamId;
+  const otherTeamId = hostCancelled ? scrim.guestTeamId : scrim.hostTeamId;
+  const cancellingTeamName = hostCancelled ? scrim.hostTeam.name : scrim.guestTeam.name;
+  await queueNotifications(
+    tx,
+    now,
+    forTeam(otherTeamId, BOTH_TEAM_CHANNELS, {
+      type: NotifType.SCRIM_CANCELLED,
+      entityId: scrim.id,
+      scrimId: scrim.id,
+      payload: {
+        opponentTeamName: cancellingTeamName,
+        startsAt: scrim.startsAt.toISOString(),
+        format: scrim.format,
+      },
+    }),
+  );
+  return true;
+}
+
+const teamNames = {
+  hostTeam: { select: { name: true } },
+  guestTeam: { select: { name: true } },
+} as const;
+
+/** Either team until the start; under LATE_CANCEL before the start it counts as late (Flow C). */
+export async function cancelScrim(input: { userId: string; scrimId: string; now: Date }) {
+  return prisma.$transaction(async (tx) => {
+    const { team } = await requireOwnActingCaptain(input.userId, tx);
+    const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId }, include: teamNames });
+    if (!scrim || (scrim.hostTeamId !== team.id && scrim.guestTeamId !== team.id)) {
+      throw scrimNotFound();
+    }
+    const lateCancel = scrim.startsAt.getTime() - input.now.getTime() < TIMING.LATE_CANCEL;
+    if (!(await cancelScheduledScrim(tx, scrim, team.id, lateCancel, input.now))) {
+      throw new DomainError("CONFLICT", "Der Scrim kann nicht mehr abgesagt werden.");
+    }
+    return { lateCancel };
+  });
+}
+
+// ─── Outcome ──────────────────────────────────────────────────────────────────
+
+export type FeedbackSide = { teamId: string; outcome: FeedbackOutcome | null };
+
+export type ScrimOutcome = {
+  status:
+    | typeof ScrimStatus.COMPLETED
+    | typeof ScrimStatus.NO_SHOW
+    | typeof ScrimStatus.DISPUTED
+    | typeof ScrimStatus.UNCONFIRMED;
+  noShowTeamId: string | null;
+};
+
+const outcome = (status: ScrimOutcome["status"], noShowTeamId: string | null = null) => ({
+  status,
+  noShowTeamId,
+});
+
+/**
+ * Pure evaluation of the table in ARCHITECTURE §5.6, symmetric in a and b.
+ * null = keep waiting (one or no answer before the deadline).
+ */
+export function resolveScrimOutcome(
+  a: FeedbackSide,
+  b: FeedbackSide,
+  deadlineReached: boolean,
+): ScrimOutcome | null {
+  if (a.outcome && b.outcome) {
+    const outcomes = [a.outcome, b.outcome];
+    const count = (value: FeedbackOutcome) => outcomes.filter((o) => o === value).length;
+    if (count(FeedbackOutcome.PLAYED) === 2) return outcome(ScrimStatus.COMPLETED);
+    if (count(FeedbackOutcome.PLAYED) === 1) return outcome(ScrimStatus.DISPUTED);
+    if (count(FeedbackOutcome.OPPONENT_NO_SHOW) === 2) return outcome(ScrimStatus.DISPUTED);
+    if (count(FeedbackOutcome.WE_COULD_NOT) === 2) return outcome(ScrimStatus.UNCONFIRMED);
+    // One says "opponent did not show", the other "we could not": the latter did not show.
+    const absent = a.outcome === FeedbackOutcome.WE_COULD_NOT ? a : b;
+    return outcome(ScrimStatus.NO_SHOW, absent.teamId);
+  }
+  if (!deadlineReached) return null;
+  const answered = a.outcome ? a : b.outcome ? b : null;
+  if (!answered) return outcome(ScrimStatus.UNCONFIRMED);
+  const silent = answered === a ? b : a;
+  switch (answered.outcome) {
+    case FeedbackOutcome.PLAYED:
+      return outcome(ScrimStatus.COMPLETED);
+    case FeedbackOutcome.OPPONENT_NO_SHOW:
+      return outcome(ScrimStatus.NO_SHOW, silent.teamId);
+    default:
+      return outcome(ScrimStatus.NO_SHOW, answered.teamId);
+  }
+}
+
+/** Reads both answers of a locked scrim, evaluates and writes the result if it is final. */
+async function evaluate(
+  tx: Prisma.TransactionClient,
+  scrim: { id: string; hostTeamId: string; guestTeamId: string },
+  deadlineReached: boolean,
+): Promise<ScrimOutcome | null> {
+  const feedback = await tx.scrimFeedback.findMany({
+    where: { scrimId: scrim.id },
+    select: { teamId: true, outcome: true },
+  });
+  const side = (teamId: string): FeedbackSide => ({
+    teamId,
+    outcome: feedback.find((entry) => entry.teamId === teamId)?.outcome ?? null,
+  });
+  const result = resolveScrimOutcome(
+    side(scrim.hostTeamId),
+    side(scrim.guestTeamId),
+    deadlineReached,
+  );
+  if (!result) return null;
+  const updated = await tx.scrim.updateMany({
+    where: { id: scrim.id, status: ScrimStatus.AWAITING_FEEDBACK },
+    data: { status: result.status, noShowTeamId: result.noShowTeamId },
+  });
+  return updated.count === 0 ? null : result;
+}
+
+/**
+ * One answer per team, from the start time until the deadline; not changeable (§5.6).
+ * After the deadline the sweeper evaluates, so late answers cannot change a result that is
+ * already due.
+ */
+export async function submitFeedback(
+  input: FeedbackInput & { userId: string; scrimId: string; now: Date },
+) {
+  const { now } = input;
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const { user, team } = await requireOwnActingCaptain(input.userId, tx);
+      const data = parseInput(feedbackInputSchema, {
+        outcome: input.outcome,
+        rating: input.rating,
+      });
+      await lockScrim(tx, input.scrimId);
+      const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId } });
+      if (!scrim || (scrim.hostTeamId !== team.id && scrim.guestTeamId !== team.id)) {
+        throw scrimNotFound();
+      }
+      if (scrim.status === ScrimStatus.CANCELLED) {
+        throw new DomainError("CONFLICT", "Der Scrim wurde abgesagt.");
+      }
+      if (
+        scrim.status !== ScrimStatus.SCHEDULED &&
+        scrim.status !== ScrimStatus.AWAITING_FEEDBACK
+      ) {
+        throw new DomainError("CONFLICT", "Feedback bereits abgeschlossen.");
+      }
+      if (now < scrim.startsAt) {
+        throw new DomainError("CONFLICT", "Feedback ist erst ab der Startzeit möglich.");
+      }
+      if (now >= scrim.feedbackDeadline) {
+        throw new DomainError("CONFLICT", "Die Feedback-Frist ist abgelaufen.");
+      }
+      if (scrim.status === ScrimStatus.SCHEDULED) {
+        await tx.scrim.update({
+          where: { id: scrim.id },
+          data: { status: ScrimStatus.AWAITING_FEEDBACK },
+        });
+      }
+      const existing = await tx.scrimFeedback.findUnique({
+        where: { scrimId_teamId: { scrimId: scrim.id, teamId: team.id } },
+      });
+      if (existing) throw alreadyAnswered();
+      await tx.scrimFeedback.create({
+        data: {
+          scrimId: scrim.id,
+          teamId: team.id,
+          submittedById: user.id,
+          outcome: data.outcome,
+          rating: data.rating ?? null,
+          createdAt: now,
+        },
+      });
+      return { result: await evaluate(tx, scrim, false) };
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) throw alreadyAnswered();
+    throw error;
+  }
+}
+
+function alreadyAnswered(): DomainError {
+  return new DomainError("CONFLICT", "Ihr habt schon geantwortet.");
+}
+
+/** Sweeper: feedback opens at feedbackOpensAt, independent of the prompt being delivered. */
+export async function openFeedback(now: Date): Promise<number> {
+  const updated = await prisma.scrim.updateMany({
+    where: { status: ScrimStatus.SCHEDULED, feedbackOpensAt: { lte: now } },
+    data: { status: ScrimStatus.AWAITING_FEEDBACK },
+  });
+  return updated.count;
+}
+
+/** Sweeper: scrims past their feedback deadline are evaluated with what is there. */
+export async function resolveDeadlines(now: Date): Promise<number> {
+  const due = await prisma.scrim.findMany({
+    where: { status: ScrimStatus.AWAITING_FEEDBACK, feedbackDeadline: { lte: now } },
+    orderBy: { id: "asc" },
+    select: { id: true },
+  });
+  let resolved = 0;
+  for (const { id } of due) {
+    const result = await prisma.$transaction(async (tx) => {
+      await lockScrim(tx, id);
+      const scrim = await tx.scrim.findUniqueOrThrow({ where: { id } });
+      if (scrim.status !== ScrimStatus.AWAITING_FEEDBACK || scrim.feedbackDeadline > now) {
+        return null;
+      }
+      return evaluate(tx, scrim, true);
+    });
+    if (result) resolved++;
+  }
+  return resolved;
+}
+
+export type DisputeDecision =
+  { decision: "PLAYED" } | { decision: "NO_SHOW"; noShowTeamId: string } | { decision: "UNCLEAR" };
+
+/** Admin decision on a dispute: played, no-show of one team, or unclear (= unconfirmed). */
+export async function resolveDispute(
+  input: DisputeDecision & { adminId: string; scrimId: string; now: Date },
+): Promise<void> {
+  await requireAdmin(input.adminId);
+  await prisma.$transaction(async (tx) => {
+    await lockScrim(tx, input.scrimId);
+    const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId } });
+    if (!scrim) throw scrimNotFound();
+    if (scrim.status !== ScrimStatus.DISPUTED) {
+      throw new DomainError("CONFLICT", "Dieser Scrim ist kein offener Streitfall.");
+    }
+    let result: ScrimOutcome;
+    if (input.decision === "PLAYED") {
+      result = outcome(ScrimStatus.COMPLETED);
+    } else if (input.decision === "UNCLEAR") {
+      result = outcome(ScrimStatus.UNCONFIRMED);
+    } else {
+      if (input.noShowTeamId !== scrim.hostTeamId && input.noShowTeamId !== scrim.guestTeamId) {
+        throw new DomainError("INVALID", "Das Team ist an diesem Scrim nicht beteiligt.");
+      }
+      result = outcome(ScrimStatus.NO_SHOW, input.noShowTeamId);
+    }
+    await tx.scrim.update({
+      where: { id: scrim.id },
+      data: {
+        status: result.status,
+        noShowTeamId: result.noShowTeamId,
+        resolvedById: input.adminId,
+        resolvedAt: input.now,
+      },
+    });
+  });
+}

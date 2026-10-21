@@ -24,3 +24,14 @@ export const RANK_LABELS: Record<Rank, string> = {
   IMMORTAL: "Immortal",
   RADIANT: "Radiant",
 };
+
+/** Position in RANKS (1–9) for range comparisons. */
+export function rankValue(rank: Rank): number {
+  return RANKS.indexOf(rank) + 1;
+}
+
+/** rankMin ≤ rank ≤ rankMax. */
+export function isRankInRange(rank: Rank, rankMin: Rank, rankMax: Rank): boolean {
+  const value = rankValue(rank);
+  return rankValue(rankMin) <= value && value <= rankValue(rankMax);
+}

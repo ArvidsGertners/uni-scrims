@@ -1,11 +1,14 @@
 // Team lifecycle (SPEC P0-3, ARCHITECTURE §5.5). All paths ignore dissolved teams.
 import { randomBytes } from "node:crypto";
-import { Prisma, prisma } from "@uni-scrims/db";
-import type { Db } from "./db.ts";
+import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
+import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
+import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
 import { requireCaptain, requireUser } from "./permissions.ts";
 import { READY_MEMBER_COUNT } from "./readiness.ts";
+import { closeOpenRequest } from "./requests.ts";
 import { type TeamInput, teamInputSchema } from "./schemas.ts";
+import { cancelScheduledScrim } from "./scrims.ts";
 
 export const MAX_TEAM_MEMBERS = 10;
 /** Team cards show at most this many universities, then "+n" (SPEC P0-3). */
@@ -29,21 +32,12 @@ function parseTeamInput(input: TeamInput): TeamInput {
   return parsed.data;
 }
 
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
-}
-
 function nameTaken(): DomainError {
   return new DomainError("CONFLICT", "Der Teamname ist schon vergeben.");
 }
 
 function alreadyInTeam(): DomainError {
   return new DomainError("CONFLICT", "Du bist schon in einem Team.");
-}
-
-/** Row lock on the team (the only allowed raw SQL, ARCHITECTURE §4). */
-async function lockTeam(tx: Prisma.TransactionClient, teamId: string): Promise<void> {
-  await tx.$queryRaw`SELECT id FROM "Team" WHERE id = ${teamId} FOR UPDATE`;
 }
 
 export async function createTeam(input: TeamInput & { userId: string; now: Date }) {
@@ -219,19 +213,51 @@ export async function leaveTeam(input: { userId: string; now: Date }) {
  * No hard delete: scrims keep the team ID. Name and invite link become free/invalid.
  */
 export async function dissolveTeam(teamId: string, now: Date, db: Db = prisma): Promise<void> {
-  await retireTeamActivity(teamId, now, db);
-  await db.teamMember.deleteMany({ where: { teamId } });
-  await db.team.update({
-    where: { id: teamId },
-    data: { dissolvedAt: now, nameNormalized: null, inviteCode: null },
+  await inTransaction(db, async (tx) => {
+    await retireTeamActivity(teamId, now, tx);
+    await tx.teamMember.deleteMany({ where: { teamId } });
+    await tx.team.update({
+      where: { id: teamId },
+      data: { dissolvedAt: now, nameNormalized: null, inviteCode: null },
+    });
   });
 }
 
 /**
- * Cancels open requests, withdraws open applications and cancels future scrims of a team
- * (ARCHITECTURE §5.5). Stub in phase 1: requests and scrims arrive in phase 2.
+ * On ban and dissolution (ARCHITECTURE §5.5): open requests are cancelled, own open applications
+ * withdrawn and future scrims cancelled. These cancellations never count as late.
  */
-export async function retireTeamActivity(_teamId: string, _now: Date, _db: Db = prisma) {}
+export async function retireTeamActivity(teamId: string, now: Date, db: Db = prisma) {
+  await inTransaction(db, async (tx) => {
+    const requests = await tx.scrimRequest.findMany({
+      where: { teamId, status: RequestStatus.OPEN },
+      orderBy: { id: "asc" },
+      include: { team: { select: { name: true } } },
+    });
+    for (const request of requests) {
+      await lockRequest(tx, request.id);
+      await closeOpenRequest(tx, request, RequestStatus.CANCELLED, now);
+    }
+
+    await tx.application.updateMany({
+      where: { teamId, status: AppStatus.PENDING },
+      data: { status: AppStatus.WITHDRAWN, decidedAt: now },
+    });
+
+    const scrims = await tx.scrim.findMany({
+      where: {
+        status: ScrimStatus.SCHEDULED,
+        startsAt: { gt: now },
+        OR: [{ hostTeamId: teamId }, { guestTeamId: teamId }],
+      },
+      orderBy: { id: "asc" },
+      include: { hostTeam: { select: { name: true } }, guestTeam: { select: { name: true } } },
+    });
+    for (const scrim of scrims) {
+      await cancelScheduledScrim(tx, scrim, teamId, false, now);
+    }
+  });
+}
 
 // ─── Reads ────────────────────────────────────────────────────────────────────
 

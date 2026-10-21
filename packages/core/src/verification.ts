@@ -1,9 +1,10 @@
 // Verification via certificate of enrolment (SPEC P0-2, ARCHITECTURE §5.2).
 import { readdir, stat } from "node:fs/promises";
-import { NotifChannel, NotifStatus, NotifType, Prisma, VerifStatus, prisma } from "@uni-scrims/db";
+import { NotifChannel, NotifType, Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { TIMING } from "../config/timing.ts";
 import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
+import { queueNotifications } from "./notifications.ts";
 import { requireAdmin, requireUser } from "./permissions.ts";
 import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./uploads.ts";
 
@@ -183,20 +184,15 @@ async function createResultNotification(
   rejectReason: string | null,
   now: Date,
 ): Promise<void> {
-  const type = NotifType.VERIFICATION_RESULT;
-  const channel = NotifChannel.USER_DM;
-  await db.notification.create({
-    data: {
-      type,
-      channel,
+  await queueNotifications(db, now, [
+    {
+      type: NotifType.VERIFICATION_RESULT,
+      channel: NotifChannel.USER_DM,
+      entityId: requestId,
       targetUserId: userId,
       payload: { approved, rejectReason },
-      scheduledFor: now,
-      status: NotifStatus.PENDING,
-      dedupeKey: `${type}:${requestId}:${userId}:${channel}`,
-      createdAt: now,
     },
-  });
+  ]);
 }
 
 async function removeFile(requestId: string, fileName: string | null, uploadDir: string) {

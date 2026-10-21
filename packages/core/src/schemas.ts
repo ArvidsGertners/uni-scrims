@@ -1,6 +1,10 @@
 // Zod schemas for user input, shared by core and the web forms.
-import { Rank } from "@uni-scrims/db";
+import { FeedbackOutcome, Rank, ScrimFormat } from "@uni-scrims/db";
 import { z } from "zod";
+import { mapSchema } from "../config/maps.ts";
+import { DomainError } from "./errors.ts";
+import { rankValue } from "./ranks.ts";
+import { isStartSlot, isValidDateString } from "./time.ts";
 
 export const TEAM_NAME_MIN = 2;
 export const TEAM_NAME_MAX = 40;
@@ -22,3 +26,91 @@ export const teamInputSchema = z.object({
 });
 
 export type TeamInput = z.infer<typeof teamInputSchema>;
+
+// ─── Requests, applications, feedback ─────────────────────────────────────────
+
+export const REQUEST_NOTE_MAX = 300;
+export const APPLICATION_MESSAGE_MAX = 200;
+export const RATING_MIN = 1;
+export const RATING_MAX = 5;
+
+/** Empty optional text becomes null. */
+function optionalText(max: number, message: string) {
+  return z
+    .string()
+    .trim()
+    .max(max, message)
+    .nullish()
+    .transform((value) => value || null);
+}
+
+export const requestInputSchema = z
+  .object({
+    date: z.string().refine(isValidDateString, "Bitte gib ein gültiges Datum an."),
+    time: z
+      .string()
+      .refine(isStartSlot, "Bitte wähle eine Startzeit zwischen 10:00 und 01:45 Uhr."),
+    format: z.enum(ScrimFormat, "Bitte wähle ein Format."),
+    rankMin: z.enum(Rank, "Bitte wähle einen Mindestrang."),
+    rankMax: z.enum(Rank, "Bitte wähle einen Höchstrang."),
+    maps: z
+      .array(mapSchema, "Unbekannte Map.")
+      .default([])
+      .refine((maps) => new Set(maps).size === maps.length, "Jede Map nur einmal auswählen."),
+    note: optionalText(
+      REQUEST_NOTE_MAX,
+      `Die Notiz darf höchstens ${REQUEST_NOTE_MAX} Zeichen haben.`,
+    ),
+  })
+  .refine((input) => rankValue(input.rankMin) <= rankValue(input.rankMax), {
+    message: "Der Mindestrang darf nicht über dem Höchstrang liegen.",
+    path: ["rankMin"],
+  });
+
+export type RequestInput = z.input<typeof requestInputSchema>;
+
+export const applicationMessageSchema = optionalText(
+  APPLICATION_MESSAGE_MAX,
+  `Die Nachricht darf höchstens ${APPLICATION_MESSAGE_MAX} Zeichen haben.`,
+);
+
+const RATING_RANGE_MESSAGE = `Bitte bewerte den Gegner mit ${RATING_MIN} bis ${RATING_MAX} Sternen.`;
+
+export const feedbackInputSchema = z
+  .object({
+    outcome: z.enum(FeedbackOutcome, "Bitte wähle aus, ob der Scrim stattgefunden hat."),
+    rating: z
+      .number(RATING_RANGE_MESSAGE)
+      .int(RATING_RANGE_MESSAGE)
+      .min(RATING_MIN, RATING_RANGE_MESSAGE)
+      .max(RATING_MAX, RATING_RANGE_MESSAGE)
+      .nullish(),
+  })
+  .superRefine((input, ctx) => {
+    const played = input.outcome === FeedbackOutcome.PLAYED;
+    if (played && input.rating == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["rating"],
+        message: RATING_RANGE_MESSAGE,
+      });
+    }
+    if (!played && input.rating != null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["rating"],
+        message: "Eine Bewertung gibt es nur, wenn der Scrim stattgefunden hat.",
+      });
+    }
+  });
+
+export type FeedbackInput = z.input<typeof feedbackInputSchema>;
+
+/** First issue message of a failed parse as a DomainError. */
+export function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) {
+    throw new DomainError("INVALID", parsed.error.issues[0]?.message ?? "Ungültige Eingabe.");
+  }
+  return parsed.data;
+}
