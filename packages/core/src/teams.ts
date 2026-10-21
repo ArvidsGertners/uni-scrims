@@ -4,7 +4,7 @@ import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
-import { isCaptainOf, requireCaptain, requireUser } from "./permissions.ts";
+import { findOwnTeam, isCaptainOf, requireCaptain, requireUser } from "./permissions.ts";
 import { isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
 import { closeOpenRequest } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
@@ -181,13 +181,13 @@ function invalidInvite(): DomainError {
  */
 export async function leaveTeam(input: { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
-  const membership = await prisma.teamMember.findUnique({ where: { userId: user.id } });
-  if (!membership) {
+  const ownTeam = await findOwnTeam(user.id);
+  if (!ownTeam) {
     throw new DomainError("NOT_FOUND", "Du bist in keinem Team.");
   }
   return prisma.$transaction(async (tx) => {
-    await lockTeam(tx, membership.teamId);
-    const team = await tx.team.findUniqueOrThrow({ where: { id: membership.teamId } });
+    await lockTeam(tx, ownTeam.id);
+    const team = await tx.team.findUniqueOrThrow({ where: { id: ownTeam.id } });
     if (!isCaptainOf(user, team)) {
       await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
       return { dissolved: false };
@@ -299,17 +299,16 @@ const memberSelect = {
 /** Own team for the team page; null if the user is in no team. */
 export async function getMyTeam(userId: string) {
   const user = await requireUser(userId);
-  const membership = await prisma.teamMember.findUnique({
-    where: { userId: user.id },
-    select: {
-      team: { include: { members: { select: memberSelect, orderBy: { joinedAt: "asc" } } } },
-    },
+  const team = await findOwnTeam(user.id);
+  if (!team) return null;
+  const memberRows = await prisma.teamMember.findMany({
+    where: { teamId: team.id },
+    select: memberSelect,
+    orderBy: { joinedAt: "asc" },
   });
-  const team = membership?.team;
-  if (!team || team.dissolvedAt) return null;
 
   const isCaptain = isCaptainOf(user, team);
-  const members = team.members.map(({ user: member, joinedAt }) => ({
+  const members = memberRows.map(({ user: member, joinedAt }) => ({
     id: member.id,
     name: member.name,
     image: member.image,
@@ -335,7 +334,7 @@ export async function getMyTeam(userId: string) {
     verifiedCount,
     // Counted once, judged by the rule core enforces, so the team page and the request pages agree.
     ready: isReadyCount(verifiedCount),
-    universities: teamUniversities(team.members),
+    universities: teamUniversities(memberRows),
   };
 }
 

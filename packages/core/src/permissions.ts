@@ -99,6 +99,15 @@ export async function requireActingCaptain(
   return result;
 }
 
+/**
+ * The user's team if it is not dissolved, else null. The one membership rule for pages and checks
+ * (dissolving deletes the memberships; the check covers rows that are left anyway).
+ */
+export async function findOwnTeam(userId: string, db: Db = prisma) {
+  const membership = await db.teamMember.findUnique({ where: { userId }, select: { team: true } });
+  return membership && !membership.team.dissolvedAt ? membership.team : null;
+}
+
 /** Member of a team that is not dissolved. Banned teams still count, so members can leave them. */
 export async function requireTeamMember(
   userId: string | null | undefined,
@@ -106,14 +115,11 @@ export async function requireTeamMember(
   db: Db = prisma,
 ) {
   const user = await requireUser(userId, db);
-  const member = await db.teamMember.findUnique({
-    where: { userId: user.id },
-    include: { team: true },
-  });
-  if (!member || member.teamId !== teamId || member.team.dissolvedAt) {
+  const team = await findOwnTeam(user.id, db);
+  if (!team || team.id !== teamId) {
     throw new DomainError("FORBIDDEN", "Du bist nicht in diesem Team.");
   }
-  return { user, team: member.team };
+  return { user, team };
 }
 
 export async function requireTeamReady(teamId: string, db: Db = prisma): Promise<void> {
@@ -132,15 +138,18 @@ export async function requireAdmin(userId: string | null | undefined, db: Db = p
 
 /**
  * requireActingCaptain for the user's own team: scrim actions always act for the team
- * the user is in.
+ * the user is in. User and membership are read once.
  */
 export async function requireOwnActingCaptain(userId: string | null | undefined, db: Db = prisma) {
   const user = await requireUser(userId, db);
-  const membership = await db.teamMember.findUnique({ where: { userId: user.id } });
-  if (!membership) {
+  const team = await findOwnTeam(user.id, db);
+  if (!team) {
     throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
   }
-  return requireActingCaptain(user.id, membership.teamId, db);
+  const problem = captainProblem(user, team);
+  if (problem) throw problemError(problem);
+  if (!user.verifiedAt) throw problemError(CAPTAIN_NOT_VERIFIED);
+  return { user, team };
 }
 
 /**

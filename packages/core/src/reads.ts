@@ -4,6 +4,7 @@ import type { Db } from "./db.ts";
 import {
   actingCaptainProblem,
   canSeeApplications,
+  findOwnTeam,
   isCaptainOf,
   isScrimTeam,
   requireUser,
@@ -131,15 +132,6 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
     universities: teamUniversities(team.members),
     reliability: reliabilities.get(team.id)!,
   };
-}
-
-/** The user's team if it is not dissolved. */
-async function findOwnTeam(userId: string) {
-  const membership = await prisma.teamMember.findUnique({
-    where: { userId },
-    select: { team: true },
-  });
-  return membership && !membership.team.dissolvedAt ? membership.team : null;
 }
 
 // ─── Board ────────────────────────────────────────────────────────────────────
