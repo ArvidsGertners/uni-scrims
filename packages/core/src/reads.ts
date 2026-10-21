@@ -295,13 +295,16 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const offersApply = open && ownTeam !== null && !isOwner && !ownApplication;
   const pending = applications.filter((application) => application.status === AppStatus.PENDING);
   const offersConfirm = isOwner && open && pending.length > 0;
+  const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.message ?? null) : null;
   // Applying and confirming need a ready team, withdrawing and deleting do not (SPEC P0-3).
-  // Readiness is only counted when one of the two is offered, alongside the reliabilities.
+  // Readiness is only counted when it decides: one of the two is offered and nothing else blocks
+  // it. Then it runs alongside the reliabilities.
+  const countReadiness =
+    ownTeam !== null && actionProblem === null && (offersApply || offersConfirm);
   const [reliabilities, ownTeamReady] = await Promise.all([
     getReliabilities([request.teamId, ...applications.map((application) => application.teamId)]),
-    ownTeam && (offersApply || offersConfirm) ? isTeamReady(ownTeam.id) : true,
+    countReadiness ? isTeamReady(ownTeam.id) : true,
   ]);
-  const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.message ?? null) : null;
   const bookingProblem = actionProblem ?? teamReadyProblem(ownTeamReady)?.message ?? null;
 
   const apply: ActionOffer = offersApply ? { problem: bookingProblem } : null;
@@ -312,16 +315,13 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     isOwner && open && isCaptainOf(user, ownTeam) ? { problem: actionProblem } : null;
   const confirm: ActionOffer = offersConfirm ? { problem: bookingProblem } : null;
   // The applicant team must still be active and ready, as confirmApplication checks it
-  // (findApplicantTeamProblem); here from the loaded members, only for active teams.
+  // (findApplicantTeamProblem); here from the members that are already loaded.
   const confirmOffer = (application: (typeof applications)[number]) => {
     if (!confirm || application.status !== AppStatus.PENDING) {
       return { canConfirm: false, teamProblem: null };
     }
     const { team } = application;
-    const teamProblem = applicantTeamProblem(
-      team,
-      isTeamActive(team) && hasReadyMembers(team.members),
-    );
+    const teamProblem = applicantTeamProblem(team, hasReadyMembers(team.members));
     return { canConfirm: confirm.problem === null && teamProblem === null, teamProblem };
   };
 
