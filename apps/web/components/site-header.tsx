@@ -17,6 +17,8 @@ export async function SiteHeader() {
         </Link>
         {user && !user.bannedAt ? (
           <>
+            <Link href="/board">Board</Link>
+            <Link href="/scrims">Meine Scrims</Link>
             <Link href="/team">Team</Link>
             <Link href="/verify">Verifizierung</Link>
             {user.isAdmin ? <Link href="/admin">Admin</Link> : null}
