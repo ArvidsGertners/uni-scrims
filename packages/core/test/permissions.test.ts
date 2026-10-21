@@ -1,7 +1,9 @@
-import { prisma } from "@uni-scrims/db";
+import { Rank, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  deleteRequest,
   isTeamReady,
+  leaveTeam,
   requireActingCaptain,
   requireAdmin,
   requireCaptain,
@@ -9,8 +11,24 @@ import {
   requireTeamReady,
   requireUser,
   requireVerified,
+  updateTeam,
 } from "../src/index.ts";
-import { NOW, createTeamWithMembers, createUser } from "./helpers.ts";
+import {
+  NOW,
+  createOpenRequest,
+  createReadyTeam,
+  createTeamWithMembers,
+  createUser,
+} from "./helpers.ts";
+
+const NOT_IN_TEAM = { code: "FORBIDDEN", message: "Du bist nicht in diesem Team." };
+
+/** Dissolved the real way: the captain leaves as the last member, which deletes the membership. */
+async function dissolvedTeam() {
+  const dissolved = await createTeamWithMembers();
+  await leaveTeam({ userId: dissolved.captain.id, now: NOW });
+  return dissolved;
+}
 
 const previousAdmins = process.env.ADMIN_DISCORD_IDS;
 
@@ -66,25 +84,50 @@ describe("requireCaptain / requireActingCaptain", () => {
       code: "FORBIDDEN",
       message: "Das Team ist gesperrt.",
     });
-    const dissolved = await createTeamWithMembers();
-    await prisma.team.update({ where: { id: dissolved.team.id }, data: { dissolvedAt: NOW } });
-    await expect(requireCaptain(dissolved.captain.id, dissolved.team.id)).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
+    const dissolved = await dissolvedTeam();
+    await expect(requireCaptain(dissolved.captain.id, dissolved.team.id)).rejects.toMatchObject(
+      NOT_IN_TEAM,
+    );
+    // A membership row left behind on a dissolved team does not count either.
+    const leftover = await createTeamWithMembers();
+    await prisma.team.update({ where: { id: leftover.team.id }, data: { dissolvedAt: NOW } });
+    await expect(requireCaptain(leftover.captain.id, leftover.team.id)).rejects.toMatchObject(
+      NOT_IN_TEAM,
+    );
   });
 
-  it("does not tell non-members whether another team is active, banned or dissolved (§4)", async () => {
+  it("gives non-members one answer for active, banned, dissolved and unknown teams (§4)", async () => {
     const outsider = await createTeamWithMembers();
     const active = await createTeamWithMembers();
     const banned = await createTeamWithMembers({ banned: true });
-    const dissolved = await createTeamWithMembers();
-    await prisma.team.update({ where: { id: dissolved.team.id }, data: { dissolvedAt: NOW } });
-    for (const { team } of [active, banned, dissolved]) {
-      await expect(requireActingCaptain(outsider.captain.id, team.id)).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "Du bist nicht in diesem Team.",
-      });
+    const dissolved = await dissolvedTeam();
+    for (const teamId of [active.team.id, banned.team.id, dissolved.team.id, "unknown-team"]) {
+      await expect(requireCaptain(outsider.captain.id, teamId)).rejects.toMatchObject(NOT_IN_TEAM);
+      await expect(requireActingCaptain(outsider.captain.id, teamId)).rejects.toMatchObject(
+        NOT_IN_TEAM,
+      );
+      await expect(
+        updateTeam({
+          userId: outsider.captain.id,
+          teamId,
+          name: "Fremd",
+          tag: "FR",
+          rank: Rank.GOLD,
+        }),
+      ).rejects.toMatchObject(NOT_IN_TEAM);
     }
+  });
+
+  it("does not reveal a ban through another team's request (§4)", async () => {
+    const outsider = await createReadyTeam();
+    const owner = await createReadyTeam();
+    const request = await createOpenRequest(owner.captain.id);
+    const remove = () =>
+      deleteRequest({ userId: outsider.captain.id, requestId: request.id, now: NOW });
+    await expect(remove()).rejects.toMatchObject(NOT_IN_TEAM);
+    // Banned directly, so the request is still open, as in a race with the ban.
+    await prisma.team.update({ where: { id: owner.team.id }, data: { bannedAt: NOW } });
+    await expect(remove()).rejects.toMatchObject(NOT_IN_TEAM);
   });
 });
 
