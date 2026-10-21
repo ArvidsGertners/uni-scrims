@@ -1,5 +1,12 @@
 // Booked scrims: cancellation, feedback and outcome (SPEC Flow C, P0-6, P0-8, ARCHITECTURE §5.5, §5.6).
-import { FeedbackOutcome, NotifType, type Prisma, ScrimStatus, prisma } from "@uni-scrims/db";
+import {
+  FeedbackOutcome,
+  NotifType,
+  type Prisma,
+  type ScrimFormat,
+  ScrimStatus,
+  prisma,
+} from "@uni-scrims/db";
 import { TIMING } from "../config/timing.ts";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
@@ -46,7 +53,7 @@ export function feedbackClosedReason(
 type ScrimForCancel = {
   id: string;
   startsAt: Date;
-  format: string;
+  format: ScrimFormat;
   hostTeamId: string;
   guestTeamId: string;
   hostTeam: { name: string };

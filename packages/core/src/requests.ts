@@ -400,7 +400,12 @@ export async function confirmApplication(input: {
       { teamId: host.id, opponentTeamName: guest.name },
       { teamId: guest.id, opponentTeamName: host.name },
     ];
-    const toBothTeams = (type: NotifType, scheduledFor?: Date): NotificationEntry[] =>
+    type ScrimNotifType =
+      | typeof NotifType.SCRIM_BOOKED
+      | typeof NotifType.REMINDER_24H
+      | typeof NotifType.REMINDER_1H
+      | typeof NotifType.FEEDBACK_PROMPT;
+    const toBothTeams = (type: ScrimNotifType, scheduledFor?: Date): NotificationEntry[] =>
       sides.flatMap((side) =>
         forTeam(side.teamId, BOTH_TEAM_CHANNELS, {
           type,

@@ -140,9 +140,10 @@ uni-scrims/
 | Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` |
 | Konto | `deleteAccount` |
+| Bot | `deliverNotification`, `deliverDueNotifications` (Outbox-Sender §6.2; der Bot übergibt die Sendefunktion `Deliver`, wie beim Hub-Beitritt) |
 | Wartung | `purgeOldNotifications` |
 
-Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Rang-Utils (`ranks.ts`) Upload-Helfer (`uploads.ts`: Magic-Bytes-Prüfung, Speichern, Löschen), Startzeiten (`time.ts`: 15-Minuten-Raster, Berlin → UTC, Anzeige mit "(Nacht auf …)"), Anzeigenamen für Format und Feedback (`labels.ts`), Outbox-Einträge (`notifications.ts`) und Zeilensperren (`locks.ts`). `config/dev.ts` kapselt das Dev-Flag `DEV_LOGIN`.
+Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Rang-Utils (`ranks.ts`) Upload-Helfer (`uploads.ts`: Magic-Bytes-Prüfung, Speichern, Löschen), Startzeiten (`time.ts`: 15-Minuten-Raster, Berlin → UTC, Anzeige mit "(Nacht auf …)"), Anzeigenamen für Format und Feedback (`labels.ts`), Outbox-Einträge mit einem Zod-Schema für den Payload jedes Typs (`notifications.ts`), Outbox-Sender (`outbox.ts`: Relevanz, Empfänger, Fehlerklassen, Backoff) und Zeilensperren (`locks.ts`). `config/dev.ts` kapselt die Dev-Schalter `DEV_LOGIN`, `DEV_DM_REDIRECT_DISCORD_ID` und `DEV_CHANNEL_ID`.
 
 **Konstanten** in `packages/core/config/`:
 - `maps.ts`: Map-Pool als Liste. Zod validiert Anfragen dagegen. Keine DB-Tabelle.
@@ -463,7 +464,7 @@ Bei allen Typen an Teams gilt zusätzlich: Team ist nicht aufgelöst.
 
 Test: Zwei Bewerbungen auf dieselbe Anfrage erzeugen zwei `APPLICATION_RECEIVED`-Einträge.
 
-Alle Nachrichten enthalten einen **Link-Button** zur passenden Seite (`PUBLIC_BASE_URL/...`). Der gegnerische Captain wird immer mit **Name und Mention** `<@discordId>` ausgegeben (die Mention kann auf fremden Servern als unbekannter Nutzer erscheinen). Alle Nachrichten senden mit `allowedMentions: { parse: [] }`, damit niemand gepingt wird.
+Alle Nachrichten enthalten einen **Link-Button** zur passenden Seite (`PUBLIC_BASE_URL/...`). Der gegnerische Captain wird immer mit **Name und Mention** `<@discordId>` ausgegeben (die Mention kann auf fremden Servern als unbekannter Nutzer erscheinen). Er wird wie der Empfänger erst beim Senden aufgelöst (aktueller Captain des anderen Scrim-Teams) und steht in allen Scrim-Nachrichten (`SCRIM_BOOKED`, `SCRIM_CANCELLED`, Reminder, `FEEDBACK_PROMPT`). Alle Nachrichten senden mit `allowedMentions: { parse: [] }`, damit niemand gepingt wird.
 
 **Nutzertext wird entschärft:** Teamnamen und andere Nutzereingaben laufen vor dem Einbetten durch `escapeMarkdown` aus discord.js (in `messages/*`), damit niemand über den Bot maskierte Links verschicken kann. Anfrage-Notizen und Bewerbungsnachrichten werden **nicht** in Bot-Nachrichten übernommen, nur auf der Website angezeigt.
 
@@ -481,17 +482,19 @@ SELECT * FROM Notification
  ORDER BY scheduledFor LIMIT 20
 ```
 
-Für jeden Eintrag:
+Für jeden Eintrag (`deliverNotification` in `core`; der Bot übergibt nur die Sendefunktion und baut die Embeds):
 
-1. **Relevanzprüfung** laut Tabelle. Nicht mehr relevant → CANCELLED.
-2. **Empfänger auflösen:** USER_DM → `targetUserId`; CAPTAIN_DM → aktueller `Team.captainId`; TEAM_CHANNEL → `Team.discordChannelId` (fehlt er, CANCELLED).
+1. **Relevanzprüfung** laut Tabelle. Nicht mehr relevant → CANCELLED. Passt der Payload nicht zum Schema seines Typs → `FAILED` ohne Retry.
+2. **Empfänger auflösen:** USER_DM → `targetUserId`; CAPTAIN_DM → aktueller `Team.captainId`; TEAM_CHANNEL → `Team.discordChannelId` (fehlt er, CANCELLED). Hat der Empfänger keine Discord-ID mehr (gelöschtes Konto), CANCELLED. In Dev greifen hier `DEV_DM_REDIRECT_DISCORD_ID` und `DEV_CHANNEL_ID` (§7).
 3. Embed aus `messages/<type>.ts` bauen und senden.
 4. Erfolg: `SENT` + `sentAt`; bei DM `User.dmFailedAt = null`.
-5. Fehler:
+5. Fehler (`attempts` zählt die fehlgeschlagenen Sendeversuche):
    - **50007 (DM nicht möglich):** `FAILED` ohne Retry, `User.dmFailedAt = now`.
-   - **Channel-Fehler** (10003 Unknown Channel, 50001 Missing Access, 50013 Missing Permissions): `FAILED`, `Team.discordChannelId = null`, `CHANNEL_BROKEN` anlegen.
-   - **Alles andere:** `attempts++`, `lastError`, `scheduledFor = now + 2^attempts Minuten` (1, 2, 4, 8, 16). Nach 5 Versuchen `FAILED`.
-6. Reminder, deren `startsAt` beim Retry schon vorbei ist, werden CANCELLED.
+   - **Channel-Fehler** (10003 Unknown Channel, 50001 Missing Access, 50013 Missing Permissions): `FAILED`. `Team.discordChannelId = null` nur, wenn der Team-Channel noch der fehlgeschlagene ist (nicht ein inzwischen per `/setup` neu gesetzter, nicht der Dev-Channel), und nur dann `CHANNEL_BROKEN` anlegen. So kommt der Hinweis einmal, auch wenn mehrere Posts in denselben Channel scheitern.
+   - **Alles andere:** Nach dem n-ten Fehlschlag (n = 1…5) `lastError` und `scheduledFor = now + 2^(n−1) Minuten` (1, 2, 4, 8, 16). Der 6. Fehlschlag setzt `FAILED`.
+6. Reminder, deren `startsAt` beim Retry schon vorbei ist, werden CANCELLED (Relevanzprüfung).
+
+Um den Discord-Aufruf liegt **keine Transaktion**: lesen, senden, Ergebnis schreiben. Das Ergebnis wird nur geschrieben, solange der Eintrag noch PENDING ist (`updateMany … WHERE status = 'PENDING'`). Sonst würde ein Retry einen Eintrag wiederbeleben, den z. B. `cancelScrim` währenddessen storniert hat.
 
 **Duplikate:** Stürzt der Bot genau zwischen Senden und `SENT` ab, kann eine Nachricht doppelt kommen. Das ist akzeptiert (at-least-once).
 
@@ -547,7 +550,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 |---|---|
 | `DEV_LOGIN=true` | "Als Seed-Nutzer einloggen", damit du zwei Teams parallel testen kannst (normales + privates Fenster) |
 | `DEV_DM_REDIRECT_DISCORD_ID` | Alle DMs gehen an diese Discord-ID (deinen Account), mit Präfix "[an: <Name>]". Nötig, weil Seed-Nutzer erfundene Discord-IDs haben. |
-| `DEV_CHANNEL_ID` | Alle Team-Channel-Posts gehen in diesen Channel |
+| `DEV_CHANNEL_ID` | Alle Team-Channel-Posts gehen in diesen Channel, auch von Teams ohne `/setup` (Seed-Captains können `/setup` nicht ausführen), mit Präfix "[an: <Teamname>]" |
 | `DEV_TIME_OFFSETS=true` | Nur für **manuelle** Tests. Zeiten in Minuten: Reminder 24 h → 3 min, 1 h → 1 min, `FEEDBACK_OFFSET` → 2 min nach Start, `FEEDBACK_WINDOW` → 5 min ab Feedback-Hinweis, Prüf-TTL → 10 min. Erlaubt außerdem Startzeiten ab 5 Minuten in der Zukunft. |
 
 - **Automatische Tests kontrollieren die Zeit über den `now`-Parameter** (siehe Zeit-Regel in §3), nicht über `DEV_TIME_OFFSETS`.
