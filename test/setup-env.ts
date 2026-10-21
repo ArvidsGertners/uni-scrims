@@ -1,3 +1,3 @@
 import { loadTestEnv } from "./load-test-env.ts";
 
-loadTestEnv();
+loadTestEnv({ trustInherited: true });
