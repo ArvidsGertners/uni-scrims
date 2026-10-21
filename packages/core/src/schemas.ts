@@ -37,7 +37,7 @@ export const RATING_MAX = 5;
 /** Empty optional text becomes null. */
 function optionalText(max: number, message: string) {
   return z
-    .string()
+    .string("Ungültiger Text.")
     .trim()
     .max(max, message)
     .nullish()
@@ -46,9 +46,11 @@ function optionalText(max: number, message: string) {
 
 export const requestInputSchema = z
   .object({
-    date: z.string().refine(isValidDateString, "Bitte gib ein gültiges Datum an."),
+    date: z
+      .string("Bitte gib ein Datum an.")
+      .refine(isValidDateString, "Bitte gib ein gültiges Datum an."),
     time: z
-      .string()
+      .string("Bitte wähle eine Startzeit.")
       .refine(isStartSlot, "Bitte wähle eine Startzeit zwischen 10:00 und 01:45 Uhr."),
     format: z.enum(ScrimFormat, "Bitte wähle ein Format."),
     rankMin: z.enum(Rank, "Bitte wähle einen Mindestrang."),

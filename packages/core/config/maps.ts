@@ -18,4 +18,4 @@ export const MAP_POOL = [
 
 export type ValorantMap = (typeof MAP_POOL)[number];
 
-export const mapSchema = z.enum(MAP_POOL);
+export const mapSchema = z.enum(MAP_POOL, "Unbekannte Map.");

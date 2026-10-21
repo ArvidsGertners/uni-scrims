@@ -90,6 +90,20 @@ describe("createRequest", () => {
     ).rejects.toMatchObject({ code: "INVALID" });
   });
 
+  it("explains invalid input in German", async () => {
+    const { captain } = await createReadyTeam();
+    await expect(
+      createOpenRequest(captain.id, { maps: ["Dust2"] } as unknown as Partial<
+        typeof REQUEST_INPUT
+      >),
+    ).rejects.toMatchObject({ message: "Unbekannte Map." });
+    await expect(
+      createOpenRequest(captain.id, { date: undefined } as unknown as Partial<
+        typeof REQUEST_INPUT
+      >),
+    ).rejects.toMatchObject({ message: "Bitte gib ein Datum an." });
+  });
+
   it(`allows at most ${MAX_OPEN_REQUESTS} open requests, also in parallel`, async () => {
     const { team, captain } = await createReadyTeam();
     for (let i = 0; i < MAX_OPEN_REQUESTS - 1; i++) await createOpenRequest(captain.id);
