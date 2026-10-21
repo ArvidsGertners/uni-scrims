@@ -20,7 +20,7 @@ import { createRequestAction } from "../actions";
 
 export default async function NewRequestPage() {
   const user = await requirePageUser("/requests/new");
-  const team = await getMyTeam(user.id);
+  const team = await getMyTeam(user.id, new Date());
 
   if (!team?.isCaptain) {
     return (
@@ -38,9 +38,9 @@ export default async function NewRequestPage() {
     <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
       <h1 className="text-2xl font-bold">Anfrage erstellen</h1>
       {/* Same conditions as core's createRequest (§7), shown before the captain fills in the form. */}
-      {team.bookingProblem ? (
+      {team.requestProblem ? (
         <>
-          <p className="text-sm text-destructive">{team.bookingProblem}</p>
+          <p className="text-sm text-destructive">{team.requestProblem}</p>
           <Link href="/team" className="text-sm underline">
             Zum Team
           </Link>

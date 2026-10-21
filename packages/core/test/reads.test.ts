@@ -207,31 +207,49 @@ describe("getRequestDetail", () => {
       open: true,
       hasTeam: false,
       isOwner: false,
+      apply: null,
+      withdraw: null,
+      remove: null,
+      confirm: null,
       applications: null,
       ownApplication: null,
     });
+    const onlyCaptain = { problem: "Das kann nur euer Captain." };
     expect(await detail(author.members[0]!.id)).toMatchObject({
       isOwner: true,
-      actionProblem: "Das kann nur euer Captain.",
+      apply: null,
+      remove: onlyCaptain,
+      confirm: onlyCaptain,
       applications: [
         {
           id: application.id,
           message: "Hallo",
           outOfRange: true,
           team: { id: applicant.team.id, rank: Rank.IRON },
+          canConfirm: false,
+          teamProblem: null,
         },
       ],
     });
+    expect(await detail(author.captain.id)).toMatchObject({
+      remove: { problem: null },
+      confirm: { problem: null },
+      applications: [{ canConfirm: true, teamProblem: null }],
+    });
     expect(await detail(applicant.captain.id)).toMatchObject({
       isOwner: false,
-      actionProblem: null,
+      apply: null,
+      withdraw: { problem: null },
+      remove: null,
+      confirm: null,
       outOfRange: true,
       applications: null,
       ownApplication: { id: application.id, status: AppStatus.PENDING },
     });
+    expect(await detail(applicant.members[0]!.id)).toMatchObject({ withdraw: onlyCaptain });
   });
 
-  it("offers applying and confirming only to ready teams, like core", async () => {
+  it("offers applying and confirming only where core allows them", async () => {
     const author = await createReadyTeam();
     const applicant = await createReadyTeam();
     const request = await createOpenRequest(author.captain.id);
@@ -243,38 +261,46 @@ describe("getRequestDetail", () => {
     const notReady = "Das Team hat noch keine 5 verifizierten Mitglieder.";
     const detail = (userId: string) =>
       getRequestDetail({ userId, requestId: request.id, now: NOW });
-
-    expect(await detail(author.captain.id)).toMatchObject({
-      actionProblem: null,
-      bookingProblem: null,
-    });
-    await prisma.user.update({ where: { id: author.members[0]!.id }, data: { verifiedAt: null } });
-    expect(await detail(author.captain.id)).toMatchObject({
-      actionProblem: null,
-      bookingProblem: notReady,
-    });
-    await expect(
+    const confirm = () =>
       confirmApplication({
         userId: author.captain.id,
         requestId: request.id,
         applicationId: application.id,
         now: NOW,
-      }),
-    ).rejects.toMatchObject({ message: notReady });
+      });
+    const unverify = (userId: string, verifiedAt: Date | null = null) =>
+      prisma.user.update({ where: { id: userId }, data: { verifiedAt } });
+
+    // The host team is not ready: confirming is blocked, deleting is not.
+    await unverify(author.members[0]!.id);
+    expect(await detail(author.captain.id)).toMatchObject({
+      remove: { problem: null },
+      confirm: { problem: notReady },
+      applications: [{ canConfirm: false, teamProblem: null }],
+    });
+    await expect(confirm()).rejects.toMatchObject({ message: notReady });
+    await unverify(author.members[0]!.id, NOW);
+
+    // The applicant team is no longer ready: only its application cannot be confirmed.
+    await unverify(applicant.members[0]!.id);
+    const applicantNotReady = `Das Team „${applicant.team.name}“ ist nicht mehr spielbereit (weniger als 5 verifizierte Mitglieder).`;
+    expect(await detail(author.captain.id)).toMatchObject({
+      confirm: { problem: null },
+      applications: [{ canConfirm: false, teamProblem: applicantNotReady }],
+    });
+    await expect(confirm()).rejects.toMatchObject({ message: applicantNotReady });
+    // Withdrawing needs no ready team.
+    expect(await detail(applicant.captain.id)).toMatchObject({ withdraw: { problem: null } });
 
     const late = await createReadyTeam();
-    await prisma.user.update({ where: { id: late.members[0]!.id }, data: { verifiedAt: null } });
-    expect(await detail(late.captain.id)).toMatchObject({
-      actionProblem: null,
-      bookingProblem: notReady,
-    });
+    await unverify(late.members[0]!.id);
+    expect(await detail(late.captain.id)).toMatchObject({ apply: { problem: notReady } });
     await expect(
       applyToRequest({ userId: late.captain.id, requestId: request.id, now: NOW }),
     ).rejects.toMatchObject({ message: notReady });
     // The captain rule comes first.
     expect(await detail(late.members[1]!.id)).toMatchObject({
-      actionProblem: "Das kann nur euer Captain.",
-      bookingProblem: "Das kann nur euer Captain.",
+      apply: { problem: "Das kann nur euer Captain." },
     });
   });
 

@@ -1,5 +1,7 @@
 // Central permission checks, see the permission table in ARCHITECTURE §7.
-// Every check reads the current state from the database and throws a DomainError.
+// The require* checks read the current state from the database and throw a DomainError.
+// The non-throwing predicates only decide what pages offer; mutations always run the require*
+// checks inside their transaction as well.
 import { prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";

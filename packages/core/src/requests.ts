@@ -10,7 +10,7 @@ import {
   prisma,
 } from "@uni-scrims/db";
 import { TIMING } from "../config/timing.ts";
-import { isUniqueViolation } from "./db.ts";
+import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { lockRequest, lockTeam } from "./locks.ts";
 import {
@@ -41,6 +41,32 @@ function requestNotFound(): DomainError {
   return new DomainError("NOT_FOUND", "Anfrage nicht gefunden.");
 }
 
+/** Why the team cannot post another request now, or null. Open = OPEN and startsAt > now. */
+export async function openRequestLimitProblem(
+  db: Db,
+  teamId: string,
+  now: Date,
+): Promise<string | null> {
+  const open = await db.scrimRequest.count({
+    where: { teamId, status: RequestStatus.OPEN, startsAt: { gt: now } },
+  });
+  return open >= MAX_OPEN_REQUESTS
+    ? `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`
+    : null;
+}
+
+/** Why the applicant team cannot be booked, or null: it must be active and ready (SPEC P0-5). */
+export function applicantTeamProblem(
+  team: { name: string; bannedAt: Date | null; dissolvedAt: Date | null },
+  ready: boolean,
+): string | null {
+  if (team.bannedAt || team.dissolvedAt) return `Das Team „${team.name}“ ist nicht mehr aktiv.`;
+  if (!ready) {
+    return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als 5 verifizierte Mitglieder).`;
+  }
+  return null;
+}
+
 export async function createRequest(input: RequestInput & { userId: string; now: Date }) {
   return prisma.$transaction(async (tx) => {
     const { user, team } = await requireOwnActingCaptain(input.userId, tx);
@@ -58,15 +84,8 @@ export async function createRequest(input: RequestInput & { userId: string; now:
     await lockTeam(tx, team.id);
     await requireActingCaptain(user.id, team.id, tx);
     await requireTeamReady(team.id, tx);
-    const open = await tx.scrimRequest.count({
-      where: { teamId: team.id, status: RequestStatus.OPEN, startsAt: { gt: input.now } },
-    });
-    if (open >= MAX_OPEN_REQUESTS) {
-      throw new DomainError(
-        "CONFLICT",
-        `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`,
-      );
-    }
+    const full = await openRequestLimitProblem(tx, team.id, input.now);
+    if (full) throw new DomainError("CONFLICT", full);
     return tx.scrimRequest.create({
       data: {
         teamId: team.id,
@@ -273,15 +292,8 @@ export async function confirmApplication(input: {
     }
     await requireTeamReady(host.id, tx);
     const guest = application.team;
-    if (guest.bannedAt || guest.dissolvedAt) {
-      throw new DomainError("CONFLICT", `Das Team „${guest.name}“ ist nicht mehr aktiv.`);
-    }
-    if (!(await isTeamReady(guest.id, tx))) {
-      throw new DomainError(
-        "CONFLICT",
-        `Das Team „${guest.name}“ ist nicht mehr spielbereit (weniger als 5 verifizierte Mitglieder).`,
-      );
-    }
+    const guestProblem = applicantTeamProblem(guest, await isTeamReady(guest.id, tx));
+    if (guestProblem) throw new DomainError("CONFLICT", guestProblem);
 
     const booked = await tx.scrimRequest.updateMany({
       where: { id: request.id, status: RequestStatus.OPEN, startsAt: { gt: now } },

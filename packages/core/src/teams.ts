@@ -10,8 +10,8 @@ import {
   requireUser,
   teamReadyProblem,
 } from "./permissions.ts";
-import { READY_MEMBER_COUNT } from "./readiness.ts";
-import { closeOpenRequest } from "./requests.ts";
+import { hasReadyMembers } from "./readiness.ts";
+import { closeOpenRequest, openRequestLimitProblem } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 
@@ -302,7 +302,7 @@ const memberSelect = {
 } as const;
 
 /** Own team for the team page; null if the user is in no team. */
-export async function getMyTeam(userId: string) {
+export async function getMyTeam(userId: string, now: Date) {
   const user = await requireUser(userId);
   const membership = await prisma.teamMember.findUnique({
     where: { userId: user.id },
@@ -327,7 +327,7 @@ export async function getMyTeam(userId: string) {
         : ("UNVERIFIED" as const),
   }));
   const verifiedCount = members.filter((member) => member.status === "VERIFIED").length;
-  const ready = verifiedCount >= READY_MEMBER_COUNT;
+  const ready = hasReadyMembers(team.members);
   return {
     id: team.id,
     name: team.name,
@@ -340,8 +340,11 @@ export async function getMyTeam(userId: string) {
     members,
     verifiedCount,
     ready,
-    /** null if the user may post requests for the team, otherwise why not (§7). */
-    bookingProblem: actingCaptainProblem(user, team) ?? teamReadyProblem(ready),
+    /** null if the user may post a request for the team now, otherwise why not (§7). */
+    requestProblem:
+      actingCaptainProblem(user, team) ??
+      teamReadyProblem(ready) ??
+      (await openRequestLimitProblem(prisma, team.id, now)),
     universities: teamUniversities(team.members),
   };
 }

@@ -38,11 +38,6 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     : request.status === "OPEN"
       ? "Abgelaufen"
       : REQUEST_STATUS_LABELS[request.status];
-  const canApply = request.open && request.hasTeam && !request.isOwner && !request.ownApplication;
-  // Scrim actions only for the current, verified captain of an active team (§7).
-  const canAct = request.actionProblem === null;
-  // Applying and confirming also need a ready team.
-  const canBook = request.bookingProblem === null;
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8">
@@ -66,7 +61,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
         </Link>
       ) : null}
 
-      {canApply ? (
+      {request.apply ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Bewerben</h2>
           {request.outOfRange ? (
@@ -75,7 +70,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               bewerben, der Ersteller entscheidet.
             </p>
           ) : null}
-          {canBook ? (
+          {request.apply.problem === null ? (
             <ActionForm action={applyAction} submitLabel="Bewerben">
               <input type="hidden" name="requestId" value={request.id} />
               <div className="flex flex-col gap-1.5">
@@ -89,7 +84,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               </div>
             </ActionForm>
           ) : (
-            <p className="text-sm opacity-70">{request.bookingProblem}</p>
+            <p className="text-sm opacity-70">{request.apply.problem}</p>
           )}
         </section>
       ) : null}
@@ -103,7 +98,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           {request.ownApplication.message ? (
             <p className="text-sm whitespace-pre-line">{request.ownApplication.message}</p>
           ) : null}
-          {request.ownApplication.status === "PENDING" && canAct ? (
+          {request.withdraw?.problem === null ? (
             <ActionForm
               action={withdrawApplicationAction}
               submitLabel="Bewerbung zurückziehen"
@@ -113,6 +108,8 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               <input type="hidden" name="requestId" value={request.id} />
               <input type="hidden" name="applicationId" value={request.ownApplication.id} />
             </ActionForm>
+          ) : request.withdraw ? (
+            <p className="text-sm opacity-70">{request.withdraw.problem}</p>
           ) : null}
         </section>
       ) : null}
@@ -122,6 +119,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           <h2 className="text-lg font-semibold">Bewerbungen ({request.applications.length})</h2>
           {request.applications.length === 0 ? (
             <p className="text-sm opacity-70">Noch keine Bewerbungen.</p>
+          ) : null}
+          {request.confirm?.problem ? (
+            <p className="text-sm opacity-70">
+              Bestätigen geht gerade nicht: {request.confirm.problem}
+            </p>
           ) : null}
           {request.applications.map((application) => (
             <Card key={application.id}>
@@ -140,7 +142,10 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                 {application.message ? (
                   <p className="text-sm whitespace-pre-line">{application.message}</p>
                 ) : null}
-                {application.status === "PENDING" && request.open && canBook ? (
+                {application.teamProblem ? (
+                  <p className="text-sm opacity-70">{application.teamProblem}</p>
+                ) : null}
+                {application.canConfirm ? (
                   <ActionForm
                     action={confirmApplicationAction}
                     submitLabel="Bestätigen"
@@ -156,21 +161,21 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
         </section>
       ) : null}
 
-      {request.isOwner && request.open && request.bookingProblem ? (
-        <p className="text-sm opacity-70">{request.bookingProblem}</p>
-      ) : null}
-
-      {request.isOwner && canAct && request.open ? (
+      {request.remove ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Anfrage löschen</h2>
-          <ActionForm
-            action={deleteRequestAction}
-            submitLabel="Anfrage löschen"
-            variant="destructive"
-            confirmText="Anfrage löschen? Offene Bewerbungen werden abgelehnt."
-          >
-            <input type="hidden" name="requestId" value={request.id} />
-          </ActionForm>
+          {request.remove.problem === null ? (
+            <ActionForm
+              action={deleteRequestAction}
+              submitLabel="Anfrage löschen"
+              variant="destructive"
+              confirmText="Anfrage löschen? Offene Bewerbungen werden abgelehnt."
+            >
+              <input type="hidden" name="requestId" value={request.id} />
+            </ActionForm>
+          ) : (
+            <p className="text-sm opacity-70">{request.remove.problem}</p>
+          )}
         </section>
       ) : null}
     </main>

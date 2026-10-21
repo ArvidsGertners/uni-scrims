@@ -11,3 +11,10 @@ export async function countVerifiedMembers(teamId: string, db: Db = prisma): Pro
 export async function isTeamReady(teamId: string, db: Db = prisma): Promise<boolean> {
   return (await countVerifiedMembers(teamId, db)) >= READY_MEMBER_COUNT;
 }
+
+/** isTeamReady for members that are already loaded. */
+export function hasReadyMembers(
+  members: readonly { user: { verifiedAt: Date | null } }[],
+): boolean {
+  return members.filter(({ user }) => user.verifiedAt !== null).length >= READY_MEMBER_COUNT;
+}

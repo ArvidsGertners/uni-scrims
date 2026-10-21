@@ -1,6 +1,7 @@
 import { Rank, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  MAX_OPEN_REQUESTS,
   MAX_TEAM_MEMBERS,
   createTeam,
   generateInviteCode,
@@ -14,7 +15,7 @@ import {
   transferCaptain,
   updateTeam,
 } from "../src/index.ts";
-import { NOW, createTeamWithMembers, createUser, uid } from "./helpers.ts";
+import { NOW, createOpenRequest, createTeamWithMembers, createUser, uid } from "./helpers.ts";
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -228,32 +229,50 @@ describe("reads", () => {
       },
     });
 
-    const own = await getMyTeam(captain.id);
+    const own = await getMyTeam(captain.id, NOW);
     expect(own).toMatchObject({
       id: team.id,
       isCaptain: true,
       verifiedCount: 4,
       ready: false,
-      bookingProblem: "Das Team hat noch keine 5 verifizierten Mitglieder.",
+      requestProblem: "Das Team hat noch keine 5 verifizierten Mitglieder.",
     });
     expect(own?.inviteCode).toBe(team.inviteCode);
     expect(own?.members.find((member) => member.id === pending.id)?.status).toBe("PENDING");
 
-    const asMember = await getMyTeam(members[0]!.id);
+    const asMember = await getMyTeam(members[0]!.id, NOW);
     expect(asMember).toMatchObject({
       isCaptain: false,
       inviteCode: null,
-      bookingProblem: "Das kann nur euer Captain.",
+      requestProblem: "Das kann nur euer Captain.",
     });
-    expect(await getMyTeam((await createUser()).id)).toBeNull();
+    expect(await getMyTeam((await createUser()).id, NOW)).toBeNull();
   });
 
   it("tells the captain why the team cannot post requests", async () => {
     const ready = await createTeamWithMembers({ extraMembers: 4 });
-    expect(await getMyTeam(ready.captain.id)).toMatchObject({ ready: true, bookingProblem: null });
+    expect(await getMyTeam(ready.captain.id, NOW)).toMatchObject({
+      ready: true,
+      requestProblem: null,
+    });
     const unverified = await createTeamWithMembers({ extraMembers: 4, verifiedCaptain: false });
-    expect(await getMyTeam(unverified.captain.id)).toMatchObject({
-      bookingProblem: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+    expect(await getMyTeam(unverified.captain.id, NOW)).toMatchObject({
+      requestProblem: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+    });
+
+    // Like createRequest: at most 5 open requests; one that has started no longer counts.
+    const times = ["11:00", "12:00", "13:00", "14:00", "15:00"];
+    for (const time of times) {
+      await createOpenRequest(ready.captain.id, { date: "2026-10-22", time });
+    }
+    const full = `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`;
+    expect(await getMyTeam(ready.captain.id, NOW)).toMatchObject({ requestProblem: full });
+    await expect(
+      createOpenRequest(ready.captain.id, { date: "2026-10-22", time: "16:00" }),
+    ).rejects.toMatchObject({ message: full });
+    const afterFirstStart = new Date("2026-10-22T09:00:00Z");
+    expect(await getMyTeam(ready.captain.id, afterFirstStart)).toMatchObject({
+      requestProblem: null,
     });
   });
 

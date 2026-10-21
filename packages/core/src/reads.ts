@@ -16,7 +16,8 @@ import {
   teamReadyProblem,
 } from "./permissions.ts";
 import { RANKS, isRankInRange, rankValue } from "./ranks.ts";
-import { isTeamReady } from "./readiness.ts";
+import { hasReadyMembers, isTeamReady } from "./readiness.ts";
+import { applicantTeamProblem } from "./requests.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
@@ -229,6 +230,12 @@ export async function getBoard(input: BoardInput) {
 // ─── Request detail ───────────────────────────────────────────────────────────
 
 /**
+ * An action a page may offer (§7): null if it does not apply (nothing to show), otherwise
+ * problem is null when core allows it, or the reason to show instead.
+ */
+export type ActionOffer = { problem: string | null } | null;
+
+/**
  * Request for logged-in users; applications only for members of the creating team (§7).
  * null for unknown requests and those of banned or dissolved teams.
  */
@@ -250,7 +257,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     ? await prisma.application.findMany({
         where: { requestId: request.id },
         orderBy: { createdAt: "asc" },
-        include: { team: { select: teamCardSelect } },
+        include: { team: { select: { ...teamCardSelect, bannedAt: true, dissolvedAt: true } } },
       })
     : [];
   const ownApplication =
@@ -265,15 +272,36 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     ...applications.map((application) => application.teamId),
   ]);
   const scrim = request.scrim;
+  const open = request.status === RequestStatus.OPEN && request.startsAt > input.now;
   const actionProblem = ownTeam ? actingCaptainProblem(user, ownTeam) : null;
-  const bookingProblem = ownTeam
-    ? (actionProblem ?? teamReadyProblem(await isTeamReady(ownTeam.id)))
-    : null;
+
+  // Applying and confirming need a ready team, withdrawing and deleting do not (SPEC P0-3).
+  const apply: ActionOffer =
+    open && ownTeam && !isOwner && !ownApplication
+      ? { problem: actionProblem ?? teamReadyProblem(await isTeamReady(ownTeam.id)) }
+      : null;
+  const withdraw: ActionOffer =
+    ownApplication?.status === AppStatus.PENDING ? { problem: actionProblem } : null;
+  const remove: ActionOffer = isOwner && open ? { problem: actionProblem } : null;
+  const pending = applications.filter((application) => application.status === AppStatus.PENDING);
+  // For the owner, request.team is the own team with its members already loaded.
+  const confirm: ActionOffer =
+    isOwner && open && pending.length > 0
+      ? { problem: actionProblem ?? teamReadyProblem(hasReadyMembers(request.team.members)) }
+      : null;
+  // The applicant team must still be active and ready, as confirmApplication checks it.
+  const confirmOffer = (application: (typeof applications)[number]) => {
+    const pendingHere = confirm !== null && application.status === AppStatus.PENDING;
+    const teamProblem = pendingHere
+      ? applicantTeamProblem(application.team, hasReadyMembers(application.team.members))
+      : null;
+    return { canConfirm: pendingHere && confirm.problem === null && !teamProblem, teamProblem };
+  };
 
   return {
     id: request.id,
     status: request.status,
-    open: request.status === RequestStatus.OPEN && request.startsAt > input.now,
+    open,
     startsAt: request.startsAt,
     format: request.format,
     rankMin: request.rankMin,
@@ -283,10 +311,11 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     team: toTeamCard(request.team, reliabilities),
     hasTeam: ownTeam !== null,
     isOwner,
-    /** null if the user may run scrim actions for the own team, otherwise why not. */
-    actionProblem,
-    /** Like actionProblem; applying and confirming also need a ready team. */
-    bookingProblem,
+    apply,
+    withdraw,
+    remove,
+    /** Shown once for all pending applications; problems of the applicant team are per application. */
+    confirm,
     /** Own team rank outside the requested range: allowed, with a hint (SPEC P0-5). */
     outOfRange: ownTeam ? !isRankInRange(ownTeam.rank, request.rankMin, request.rankMax) : false,
     ownApplication,
@@ -298,6 +327,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
           createdAt: application.createdAt,
           outOfRange: !isRankInRange(application.team.rank, request.rankMin, request.rankMax),
           team: toTeamCard(application.team, reliabilities),
+          ...confirmOffer(application),
         }))
       : null,
     scrimId: scrim && isScrimTeam(ownTeam?.id, scrim) ? scrim.id : null,
