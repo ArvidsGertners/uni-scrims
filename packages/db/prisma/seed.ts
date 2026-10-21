@@ -92,6 +92,7 @@ async function seedTeam(team: SeedTeam, now: Date): Promise<void> {
       tag: team.tag,
       rank: team.rank,
       captainId,
+      createdAt: now,
       inviteCode: inviteCode(),
     },
     update: {},

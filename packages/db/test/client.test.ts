@@ -18,7 +18,8 @@ describe("prisma client", () => {
     const captain = await prisma.user.create({
       data: { id: suffix, name: "Captain", email: `${suffix}@users.uniscrims.invalid` },
     });
-    const team = { tag: "TST", rank: Rank.GOLD, captainId: captain.id };
+    const createdAt = new Date("2026-01-01T12:00:00Z");
+    const team = { tag: "TST", rank: Rank.GOLD, captainId: captain.id, createdAt };
     const nameNormalized = `test-${suffix}`;
     await prisma.team.create({ data: { ...team, name: `Test-${suffix}`, nameNormalized } });
 

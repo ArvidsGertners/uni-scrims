@@ -2,6 +2,7 @@
 // Better Auth tables (User, Session, Account, Verification) were generated with
 // `pnpm dlx auth@1.7.12 generate` and keep their @@map to the Better Auth table names.
 // Domain models have no @@map, so raw SQL row locks can use the model names.
+// All timestamps are timestamptz. Domain models have no time defaults: core sets them from `now`.
 
 generator client {
   provider = "prisma-client"
@@ -106,17 +107,17 @@ model User {
   email         String
   emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
 
   // Additional fields (Better Auth `additionalFields` with `input: false`), set only by core.
   universityId    String?
   university      University? @relation(fields: [universityId], references: [id])
   universityOther String?
-  verifiedAt      DateTime?
-  bannedAt        DateTime?
-  hubJoinFailedAt DateTime?
-  dmFailedAt      DateTime?
+  verifiedAt      DateTime?   @db.Timestamptz(3)
+  bannedAt        DateTime?   @db.Timestamptz(3)
+  hubJoinFailedAt DateTime?   @db.Timestamptz(3)
+  dmFailedAt      DateTime?   @db.Timestamptz(3)
 
   sessions Session[]
   accounts Account[]
@@ -137,10 +138,10 @@ model User {
 
 model Session {
   id        String   @id
-  expiresAt DateTime
+  expiresAt DateTime @db.Timestamptz(3)
   token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
   ipAddress String?
   userAgent String?
   userId    String
@@ -161,12 +162,12 @@ model Account {
   accessToken           String?
   refreshToken          String?
   idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(3)
   scope                 String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
 
   @@index([userId])
   @@map("account")
@@ -176,9 +177,9 @@ model Verification {
   id         String   @id
   identifier String
   value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  expiresAt  DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([identifier])
   @@map("verification")
@@ -212,8 +213,8 @@ model VerificationRequest {
   sizeBytes       Int
   status          VerifStatus
   rejectReason    String?
-  createdAt       DateTime    @default(now())
-  decidedAt       DateTime?
+  createdAt       DateTime    @db.Timestamptz(3)
+  decidedAt       DateTime?   @db.Timestamptz(3)
   // null on automatic rejection.
   decidedById     String?
   decidedBy       User?       @relation("VerificationRequestDecidedBy", fields: [decidedById], references: [id])
@@ -239,9 +240,9 @@ model Team {
   inviteCode       String?   @unique
   discordGuildId   String?
   discordChannelId String?
-  bannedAt         DateTime?
-  dissolvedAt      DateTime?
-  createdAt        DateTime  @default(now())
+  bannedAt         DateTime? @db.Timestamptz(3)
+  dissolvedAt      DateTime? @db.Timestamptz(3)
+  createdAt        DateTime  @db.Timestamptz(3)
 
   members       TeamMember[]
   requests      ScrimRequest[]
@@ -263,7 +264,7 @@ model TeamMember {
   // unique ⇒ a user is in at most one team.
   userId   String   @unique
   user     User     @relation(fields: [userId], references: [id])
-  joinedAt DateTime @default(now())
+  joinedAt DateTime @db.Timestamptz(3)
 
   @@id([teamId, userId])
 }
@@ -275,14 +276,14 @@ model ScrimRequest {
   createdById String
   createdBy   User          @relation(fields: [createdById], references: [id])
   game        String        @default("valorant")
-  startsAt    DateTime
+  startsAt    DateTime      @db.Timestamptz(3)
   format      ScrimFormat
   rankMin     Rank
   rankMax     Rank
   maps        String[]
   note        String?
   status      RequestStatus
-  createdAt   DateTime      @default(now())
+  createdAt   DateTime      @db.Timestamptz(3)
 
   applications  Application[]
   scrim         Scrim?
@@ -293,15 +294,15 @@ model ScrimRequest {
 }
 
 model Application {
-  id         String       @id @default(cuid())
-  requestId  String
-  request    ScrimRequest @relation(fields: [requestId], references: [id])
-  teamId     String
-  team       Team         @relation(fields: [teamId], references: [id])
-  message    String?
-  status     AppStatus
-  createdAt  DateTime     @default(now())
-  decidedAt  DateTime?
+  id        String       @id @default(cuid())
+  requestId String
+  request   ScrimRequest @relation(fields: [requestId], references: [id])
+  teamId    String
+  team      Team         @relation(fields: [teamId], references: [id])
+  message   String?
+  status    AppStatus
+  createdAt DateTime     @db.Timestamptz(3)
+  decidedAt DateTime?    @db.Timestamptz(3)
 
   // No second application, not even after WITHDRAWN.
   @@unique([requestId, teamId])
@@ -316,26 +317,26 @@ model Scrim {
   hostTeam          Team         @relation("ScrimHostTeam", fields: [hostTeamId], references: [id])
   guestTeamId       String
   guestTeam         Team         @relation("ScrimGuestTeam", fields: [guestTeamId], references: [id])
-  startsAt          DateTime
+  startsAt          DateTime     @db.Timestamptz(3)
   format            ScrimFormat
   maps              String[]
   // = startsAt + FEEDBACK_OFFSET
-  feedbackOpensAt   DateTime
+  feedbackOpensAt   DateTime     @db.Timestamptz(3)
   // = feedbackOpensAt + FEEDBACK_WINDOW
-  feedbackDeadline  DateTime
+  feedbackDeadline  DateTime     @db.Timestamptz(3)
   status            ScrimStatus
   // On ban/dissolution: cancelledByTeamId = affected team, lateCancel = false.
   cancelledByTeamId String?
   cancelledByTeam   Team?        @relation("ScrimCancelledByTeam", fields: [cancelledByTeamId], references: [id])
-  cancelledAt       DateTime?
+  cancelledAt       DateTime?    @db.Timestamptz(3)
   lateCancel        Boolean      @default(false)
   noShowTeamId      String?
   noShowTeam        Team?        @relation("ScrimNoShowTeam", fields: [noShowTeamId], references: [id])
   // Admin decision on a dispute.
   resolvedById      String?
   resolvedBy        User?        @relation("ScrimResolvedBy", fields: [resolvedById], references: [id])
-  resolvedAt        DateTime?
-  createdAt         DateTime     @default(now())
+  resolvedAt        DateTime?    @db.Timestamptz(3)
+  createdAt         DateTime     @db.Timestamptz(3)
 
   feedback      ScrimFeedback[]
   notifications Notification[]
@@ -358,7 +359,7 @@ model ScrimFeedback {
   outcome       FeedbackOutcome
   // 1–5, about the opponent; only for PLAYED.
   rating        Int?
-  createdAt     DateTime        @default(now())
+  createdAt     DateTime        @db.Timestamptz(3)
 
   @@unique([scrimId, teamId])
 }
@@ -381,14 +382,14 @@ model Notification {
   // Display data only.
   payload      Json
   // Set from the `now` parameter when created; no database default.
-  scheduledFor DateTime
+  scheduledFor DateTime      @db.Timestamptz(3)
   status       NotifStatus
   attempts     Int           @default(0)
   lastError    String?
   // <type>:<triggering entity per §6.1>:<teamId|userId>:<channel>
   dedupeKey    String        @unique
-  createdAt    DateTime      @default(now())
-  sentAt       DateTime?
+  createdAt    DateTime      @db.Timestamptz(3)
+  sentAt       DateTime?     @db.Timestamptz(3)
 
   @@index([status, scheduledFor])
   @@index([scrimId])
@@ -399,5 +400,5 @@ model Notification {
 model SystemStatus {
   // 'bot'
   id          String   @id
-  heartbeatAt DateTime
+  heartbeatAt DateTime @db.Timestamptz(3)
 }

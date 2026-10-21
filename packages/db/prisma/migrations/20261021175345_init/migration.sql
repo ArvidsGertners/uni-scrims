@@ -35,14 +35,14 @@ CREATE TABLE "user" (
     "email" TEXT NOT NULL,
     "emailVerified" BOOLEAN NOT NULL DEFAULT false,
     "image" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(3) NOT NULL,
     "universityId" TEXT,
     "universityOther" TEXT,
-    "verifiedAt" TIMESTAMP(3),
-    "bannedAt" TIMESTAMP(3),
-    "hubJoinFailedAt" TIMESTAMP(3),
-    "dmFailedAt" TIMESTAMP(3),
+    "verifiedAt" TIMESTAMPTZ(3),
+    "bannedAt" TIMESTAMPTZ(3),
+    "hubJoinFailedAt" TIMESTAMPTZ(3),
+    "dmFailedAt" TIMESTAMPTZ(3),
 
     CONSTRAINT "user_pkey" PRIMARY KEY ("id")
 );
@@ -50,10 +50,10 @@ CREATE TABLE "user" (
 -- CreateTable
 CREATE TABLE "session" (
     "id" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "expiresAt" TIMESTAMPTZ(3) NOT NULL,
     "token" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(3) NOT NULL,
     "ipAddress" TEXT,
     "userAgent" TEXT,
     "userId" TEXT NOT NULL,
@@ -70,12 +70,12 @@ CREATE TABLE "account" (
     "accessToken" TEXT,
     "refreshToken" TEXT,
     "idToken" TEXT,
-    "accessTokenExpiresAt" TIMESTAMP(3),
-    "refreshTokenExpiresAt" TIMESTAMP(3),
+    "accessTokenExpiresAt" TIMESTAMPTZ(3),
+    "refreshTokenExpiresAt" TIMESTAMPTZ(3),
     "scope" TEXT,
     "password" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "account_pkey" PRIMARY KEY ("id")
 );
@@ -85,9 +85,9 @@ CREATE TABLE "verification" (
     "id" TEXT NOT NULL,
     "identifier" TEXT NOT NULL,
     "value" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "expiresAt" TIMESTAMPTZ(3) NOT NULL,
+    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "verification_pkey" PRIMARY KEY ("id")
 );
@@ -114,8 +114,8 @@ CREATE TABLE "VerificationRequest" (
     "sizeBytes" INTEGER NOT NULL,
     "status" "VerifStatus" NOT NULL,
     "rejectReason" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "decidedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMPTZ(3) NOT NULL,
+    "decidedAt" TIMESTAMPTZ(3),
     "decidedById" TEXT,
 
     CONSTRAINT "VerificationRequest_pkey" PRIMARY KEY ("id")
@@ -133,9 +133,9 @@ CREATE TABLE "Team" (
     "inviteCode" TEXT,
     "discordGuildId" TEXT,
     "discordChannelId" TEXT,
-    "bannedAt" TIMESTAMP(3),
-    "dissolvedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "bannedAt" TIMESTAMPTZ(3),
+    "dissolvedAt" TIMESTAMPTZ(3),
+    "createdAt" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "Team_pkey" PRIMARY KEY ("id")
 );
@@ -144,7 +144,7 @@ CREATE TABLE "Team" (
 CREATE TABLE "TeamMember" (
     "teamId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "joinedAt" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "TeamMember_pkey" PRIMARY KEY ("teamId","userId")
 );
@@ -155,14 +155,14 @@ CREATE TABLE "ScrimRequest" (
     "teamId" TEXT NOT NULL,
     "createdById" TEXT NOT NULL,
     "game" TEXT NOT NULL DEFAULT 'valorant',
-    "startsAt" TIMESTAMP(3) NOT NULL,
+    "startsAt" TIMESTAMPTZ(3) NOT NULL,
     "format" "ScrimFormat" NOT NULL,
     "rankMin" "Rank" NOT NULL,
     "rankMax" "Rank" NOT NULL,
     "maps" TEXT[],
     "note" TEXT,
     "status" "RequestStatus" NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "ScrimRequest_pkey" PRIMARY KEY ("id")
 );
@@ -174,8 +174,8 @@ CREATE TABLE "Application" (
     "teamId" TEXT NOT NULL,
     "message" TEXT,
     "status" "AppStatus" NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "decidedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMPTZ(3) NOT NULL,
+    "decidedAt" TIMESTAMPTZ(3),
 
     CONSTRAINT "Application_pkey" PRIMARY KEY ("id")
 );
@@ -186,19 +186,19 @@ CREATE TABLE "Scrim" (
     "requestId" TEXT NOT NULL,
     "hostTeamId" TEXT NOT NULL,
     "guestTeamId" TEXT NOT NULL,
-    "startsAt" TIMESTAMP(3) NOT NULL,
+    "startsAt" TIMESTAMPTZ(3) NOT NULL,
     "format" "ScrimFormat" NOT NULL,
     "maps" TEXT[],
-    "feedbackOpensAt" TIMESTAMP(3) NOT NULL,
-    "feedbackDeadline" TIMESTAMP(3) NOT NULL,
+    "feedbackOpensAt" TIMESTAMPTZ(3) NOT NULL,
+    "feedbackDeadline" TIMESTAMPTZ(3) NOT NULL,
     "status" "ScrimStatus" NOT NULL,
     "cancelledByTeamId" TEXT,
-    "cancelledAt" TIMESTAMP(3),
+    "cancelledAt" TIMESTAMPTZ(3),
     "lateCancel" BOOLEAN NOT NULL DEFAULT false,
     "noShowTeamId" TEXT,
     "resolvedById" TEXT,
-    "resolvedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolvedAt" TIMESTAMPTZ(3),
+    "createdAt" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "Scrim_pkey" PRIMARY KEY ("id")
 );
@@ -211,7 +211,7 @@ CREATE TABLE "ScrimFeedback" (
     "submittedById" TEXT NOT NULL,
     "outcome" "FeedbackOutcome" NOT NULL,
     "rating" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "ScrimFeedback_pkey" PRIMARY KEY ("id")
 );
@@ -226,13 +226,13 @@ CREATE TABLE "Notification" (
     "scrimId" TEXT,
     "requestId" TEXT,
     "payload" JSONB NOT NULL,
-    "scheduledFor" TIMESTAMP(3) NOT NULL,
+    "scheduledFor" TIMESTAMPTZ(3) NOT NULL,
     "status" "NotifStatus" NOT NULL,
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "lastError" TEXT,
     "dedupeKey" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "sentAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMPTZ(3) NOT NULL,
+    "sentAt" TIMESTAMPTZ(3),
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
@@ -240,7 +240,7 @@ CREATE TABLE "Notification" (
 -- CreateTable
 CREATE TABLE "SystemStatus" (
     "id" TEXT NOT NULL,
-    "heartbeatAt" TIMESTAMP(3) NOT NULL,
+    "heartbeatAt" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "SystemStatus_pkey" PRIMARY KEY ("id")
 );

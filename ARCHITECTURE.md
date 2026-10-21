@@ -125,7 +125,7 @@ uni-scrims/
 
 **Regel:** `apps/*` enthalten keine Geschäftsregeln. Jede Zustandsänderung läuft über eine Funktion in `packages/core`.
 
-**Zeit-Regel:** Jede `core`-Funktion, die mit Zeit arbeitet, bekommt `now: Date` als Parameter. Web und Bot übergeben `new Date()`, Tests einen festen Zeitpunkt. SQL vergleicht nur mit diesem Parameter, **nie mit `now()` der Datenbank.**
+**Zeit-Regel:** Jede `core`-Funktion, die mit Zeit arbeitet, bekommt `now: Date` als Parameter. Web und Bot übergeben `new Date()`, Tests einen festen Zeitpunkt. SQL vergleicht nur mit diesem Parameter, **nie mit `now()` der Datenbank.** Domänenmodelle haben deshalb **keine Zeit-Defaults** (`@default(now())`) im Schema: `core` setzt `createdAt`, `joinedAt` usw. aus `now`. Nur die Better-Auth-Modelle behalten ihre Defaults.
 
 **Vollständige Liste der `core`-Funktionen** (Berechtigungen siehe §7):
 
@@ -149,7 +149,7 @@ uni-scrims/
 
 ## 4. Datenmodell
 
-Alle Zeitpunkte als `timestamptz` in UTC. Anzeige in `Europe/Berlin`. **Keine partiellen Indizes und kein Hand-SQL in Migrationen:** Alle Constraints sind normale Unique-Indizes im Prisma-Schema. Zur Laufzeit ist das **einzig erlaubte Roh-SQL** die Zeilensperre `SELECT … FOR UPDATE` per `$queryRaw` in interaktiven Transaktionen (§5.3, §5.5, §5.6). Alle anderen Abfragen laufen über den Prisma-Client. **Domänenmodelle ohne `@@map`**, damit die Tabellennamen im Roh-SQL den Modellnamen entsprechen (`"Scrim"`, `"ScrimRequest"`, `"Team"`). Sperren mehrerer Zeilen immer mit `ORDER BY id`. Ein Deadlock- oder Serialisierungsfehler zeigt im Web "Bitte erneut versuchen"; der Sweeper versucht es im nächsten Durchlauf ohnehin wieder.
+Alle Zeitpunkte als `timestamptz` in UTC (im Schema `@db.Timestamptz(3)`, auch in den Better-Auth-Modellen). Anzeige in `Europe/Berlin`. **Keine partiellen Indizes und kein Hand-SQL in Migrationen:** Alle Constraints sind normale Unique-Indizes im Prisma-Schema. Zur Laufzeit ist das **einzig erlaubte Roh-SQL** die Zeilensperre `SELECT … FOR UPDATE` per `$queryRaw` in interaktiven Transaktionen (§5.3, §5.5, §5.6). Alle anderen Abfragen laufen über den Prisma-Client. **Domänenmodelle ohne `@@map`**, damit die Tabellennamen im Roh-SQL den Modellnamen entsprechen (`"Scrim"`, `"ScrimRequest"`, `"Team"`). Sperren mehrerer Zeilen immer mit `ORDER BY id`. Ein Deadlock- oder Serialisierungsfehler zeigt im Web "Bitte erneut versuchen"; der Sweeper versucht es im nächsten Durchlauf ohnehin wieder.
 
 ### Enums
 
