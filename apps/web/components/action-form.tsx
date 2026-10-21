@@ -3,6 +3,7 @@
 import { type ReactNode, useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { type ActionState, initialActionState } from "@/lib/action-state";
+import { submitKeepingValues } from "@/lib/submit-form";
 
 type Props = {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -29,7 +30,11 @@ export function ActionForm({
       action={formAction}
       className={className ?? "flex flex-col gap-3"}
       onSubmit={(event) => {
-        if (confirmText && !window.confirm(confirmText)) event.preventDefault();
+        if (confirmText && !window.confirm(confirmText)) {
+          event.preventDefault();
+          return;
+        }
+        submitKeepingValues(event, formAction);
       }}
     >
       {children}

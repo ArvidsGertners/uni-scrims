@@ -40,7 +40,12 @@ export default async function BoardPage({
         ) : null}
       </div>
 
-      <form method="get" className="flex flex-wrap items-end gap-3">
+      {/* Keyed by the applied filter: soft navigations would otherwise keep stale select values. */}
+      <form
+        key={`${board.filter.date ?? ""}|${board.filter.rank ?? "ALL"}`}
+        method="get"
+        className="flex flex-wrap items-end gap-3"
+      >
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="datum">Datum</Label>
           <Input id="datum" name="datum" type="date" defaultValue={board.filter.date ?? ""} />

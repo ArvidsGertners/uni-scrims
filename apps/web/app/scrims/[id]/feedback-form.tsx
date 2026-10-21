@@ -4,6 +4,7 @@ import type { FeedbackOutcome } from "@uni-scrims/db";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { initialActionState } from "@/lib/action-state";
+import { submitKeepingValues } from "@/lib/submit-form";
 import { submitFeedbackAction } from "../actions";
 
 type Props = {
@@ -25,7 +26,9 @@ export function FeedbackForm({ scrimId, outcomes, ratings }: Props) {
       onSubmit={(event) => {
         if (!window.confirm("Antwort abschicken? Sie lässt sich danach nicht mehr ändern.")) {
           event.preventDefault();
+          return;
         }
+        submitKeepingValues(event, action);
       }}
     >
       <input type="hidden" name="scrimId" value={scrimId} />
