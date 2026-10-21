@@ -44,9 +44,23 @@ export function isCaptainOf(user: { id: string }, team: { captainId: string }): 
  * Why requireCaptain fails for a member of a team that is not dissolved, or null. A ban is final in
  * the MVP (§4), so it comes first: nothing else the user could fix would help.
  */
-function captainProblem(user: ActingUser, team: ActingTeam): Problem | null {
+export function captainProblem(user: ActingUser, team: ActingTeam): Problem | null {
   if (team.bannedAt) return TEAM_BANNED;
   return isCaptainOf(user, team) ? null : NOT_CAPTAIN;
+}
+
+/** Scrim actions also need a verified captain (SPEC P0-3); only checked after captainProblem. */
+export function captainVerificationProblem(user: { verifiedAt: Date | null }): Problem | null {
+  return user.verifiedAt ? null : CAPTAIN_NOT_VERIFIED;
+}
+
+/**
+ * Non-throwing counterpart of requireActingCaptain for the user's own team (callers filter dissolved
+ * teams): null if allowed, otherwise the one reason. The only place that fixes the order;
+ * requireActingCaptain and requireOwnActingCaptain throw exactly this.
+ */
+export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Problem | null {
+  return captainProblem(user, team) ?? captainVerificationProblem(user);
 }
 
 /** Logged in and not banned. */
@@ -94,9 +108,10 @@ export async function requireActingCaptain(
   teamId: string,
   db: Db = prisma,
 ) {
-  const result = await requireCaptain(userId, teamId, db);
-  if (!result.user.verifiedAt) throw problemError(CAPTAIN_NOT_VERIFIED);
-  return result;
+  const { user, team } = await requireTeamMember(userId, teamId, db);
+  const problem = actingCaptainProblem(user, team);
+  if (problem) throw problemError(problem);
+  return { user, team };
 }
 
 /**
@@ -146,19 +161,9 @@ export async function requireOwnActingCaptain(userId: string | null | undefined,
   if (!team) {
     throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
   }
-  const problem = captainProblem(user, team);
+  const problem = actingCaptainProblem(user, team);
   if (problem) throw problemError(problem);
-  if (!user.verifiedAt) throw problemError(CAPTAIN_NOT_VERIFIED);
   return { user, team };
-}
-
-/**
- * Non-throwing counterpart of requireActingCaptain for the user's own team (callers filter dissolved
- * teams), so pages only offer scrim actions the user may run: null if allowed, otherwise the one
- * reason to show instead, in requireActingCaptain's order.
- */
-export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Problem | null {
-  return captainProblem(user, team) ?? (user.verifiedAt ? null : CAPTAIN_NOT_VERIFIED);
 }
 
 /**

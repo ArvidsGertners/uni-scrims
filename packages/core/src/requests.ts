@@ -20,7 +20,8 @@ import {
   queueNotifications,
 } from "./notifications.ts";
 import {
-  actingCaptainProblem,
+  captainProblem,
+  captainVerificationProblem,
   requireActingCaptain,
   requireOwnActingCaptain,
   requireTeamMember,
@@ -84,8 +85,10 @@ export async function openRequestLimitProblem(
 }
 
 /**
- * Every reason why createRequest fails regardless of the input, in this order. Under the team
- * lock createRequest throws the first one; getRequestForm shows them all (§7).
+ * Why createRequest fails regardless of the input, in actingCaptainProblem's order followed by
+ * readiness and the limit. A ban or another captain settles it alone; an unverified captain also
+ * learns what else is missing. Under the team lock createRequest throws the first entry;
+ * getRequestForm shows the list (§7).
  */
 export async function requestPostingProblems(
   user: { id: string; verifiedAt: Date | null },
@@ -93,16 +96,17 @@ export async function requestPostingProblems(
   now: Date,
   db: Db,
 ): Promise<Problem[]> {
-  const captain = actingCaptainProblem(user, team);
-  // A ban or another captain settles it; an unverified captain also learns what else is missing.
-  if (captain && captain.kind !== "CAPTAIN_NOT_VERIFIED") return [captain];
+  const blocking = captainProblem(user, team);
+  if (blocking) return [blocking];
   // In parallel for getRequestForm; on createRequest's transaction both counts share its single
   // connection and run one after the other.
   const [ready, full] = await Promise.all([
     isTeamReady(team.id, db),
     openRequestLimitProblem(team.id, now, db),
   ]);
-  return [captain, teamReadyProblem(ready), full].filter((problem) => problem !== null);
+  return [captainVerificationProblem(user), teamReadyProblem(ready), full].filter(
+    (problem) => problem !== null,
+  );
 }
 
 /**
