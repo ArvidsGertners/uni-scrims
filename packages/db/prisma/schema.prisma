@@ -1,0 +1,403 @@
+// Data model: see ARCHITECTURE.md §4.
+// Better Auth tables (User, Session, Account, Verification) were generated with
+// `pnpm dlx auth@1.7.12 generate` and keep their @@map to the Better Auth table names.
+// Domain models have no @@map, so raw SQL row locks can use the model names.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+// Declaration order = value 1–9, used for range comparisons.
+enum Rank {
+  IRON
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+  ASCENDANT
+  IMMORTAL
+  RADIANT
+}
+
+enum VerifStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ScrimFormat {
+  ONE_MAP
+  TWO_MAPS
+  BO3
+}
+
+enum RequestStatus {
+  OPEN
+  BOOKED
+  CANCELLED
+  EXPIRED
+}
+
+enum AppStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ScrimStatus {
+  SCHEDULED
+  CANCELLED
+  AWAITING_FEEDBACK
+  COMPLETED
+  NO_SHOW
+  DISPUTED
+  UNCONFIRMED
+}
+
+enum FeedbackOutcome {
+  PLAYED
+  OPPONENT_NO_SHOW
+  WE_COULD_NOT
+}
+
+// See ARCHITECTURE.md §6.1.
+enum NotifType {
+  VERIFICATION_RESULT
+  APPLICATION_RECEIVED
+  APPLICATION_REJECTED
+  REQUEST_DELETED
+  REQUEST_EXPIRED
+  SCRIM_BOOKED
+  SCRIM_CANCELLED
+  REMINDER_24H
+  REMINDER_1H
+  FEEDBACK_PROMPT
+  CHANNEL_BROKEN
+}
+
+enum NotifChannel {
+  USER_DM
+  CAPTAIN_DM
+  TEAM_CHANNEL
+}
+
+enum NotifStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// ─── Better Auth ──────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id
+  name          String
+  // Placeholder `<discordId>@users.uniscrims.invalid`, never used for sending (§5.1).
+  email         String
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Additional fields (Better Auth `additionalFields` with `input: false`), set only by core.
+  universityId    String?
+  university      University? @relation(fields: [universityId], references: [id])
+  universityOther String?
+  verifiedAt      DateTime?
+  bannedAt        DateTime?
+  hubJoinFailedAt DateTime?
+  dmFailedAt      DateTime?
+
+  sessions Session[]
+  accounts Account[]
+
+  verificationRequests VerificationRequest[] @relation("VerificationRequestUser")
+  pendingVerification  VerificationRequest?  @relation("VerificationRequestPendingUser")
+  decidedVerifications VerificationRequest[] @relation("VerificationRequestDecidedBy")
+  captainOf            Team[]
+  membership           TeamMember?
+  createdRequests      ScrimRequest[]
+  submittedFeedback    ScrimFeedback[]
+  resolvedScrims       Scrim[]               @relation("ScrimResolvedBy")
+  notifications        Notification[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+// The Discord user ID lives in `accountId` (providerId = 'discord'); there is no discordId column on User.
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Domain ───────────────────────────────────────────────────────────────────
+
+model University {
+  id   String @id @default(cuid())
+  name String
+  city String
+  slug String @unique
+
+  users                User[]
+  verificationRequests VerificationRequest[]
+}
+
+model VerificationRequest {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation("VerificationRequestUser", fields: [userId], references: [id])
+  // = userId while PENDING, otherwise null ⇒ at most one open request per user.
+  pendingUserId   String?     @unique
+  pendingUser     User?       @relation("VerificationRequestPendingUser", fields: [pendingUserId], references: [id])
+  universityId    String?
+  university      University? @relation(fields: [universityId], references: [id])
+  universityOther String?
+  // null once the file has been deleted.
+  filePath        String?
+  mimeType        String
+  sizeBytes       Int
+  status          VerifStatus
+  rejectReason    String?
+  createdAt       DateTime    @default(now())
+  decidedAt       DateTime?
+  // null on automatic rejection.
+  decidedById     String?
+  decidedBy       User?       @relation("VerificationRequestDecidedBy", fields: [decidedById], references: [id])
+
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+// State: active (bannedAt and dissolvedAt null) | banned | dissolved. Banned and dissolved are final in the MVP.
+model Team {
+  id               String    @id @default(cuid())
+  name             String
+  // lowercase + trimmed ⇒ case-insensitive unique name; null after dissolution.
+  nameNormalized   String?   @unique
+  // 2–5 characters, not unique.
+  tag              String
+  rank             Rank
+  game             String    @default("valorant")
+  // Single source of truth for the captain role; intentionally not unique.
+  captainId        String
+  captain          User      @relation(fields: [captainId], references: [id])
+  // 12 URL-safe characters; null after dissolution.
+  inviteCode       String?   @unique
+  discordGuildId   String?
+  discordChannelId String?
+  bannedAt         DateTime?
+  dissolvedAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  members       TeamMember[]
+  requests      ScrimRequest[]
+  applications  Application[]
+  hostScrims    Scrim[]         @relation("ScrimHostTeam")
+  guestScrims   Scrim[]         @relation("ScrimGuestTeam")
+  cancelled     Scrim[]         @relation("ScrimCancelledByTeam")
+  noShows       Scrim[]         @relation("ScrimNoShowTeam")
+  feedback      ScrimFeedback[]
+  notifications Notification[]
+
+  @@index([captainId])
+}
+
+// The captain is always a member too; max. 10 members (both enforced in core).
+model TeamMember {
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id])
+  // unique ⇒ a user is in at most one team.
+  userId   String   @unique
+  user     User     @relation(fields: [userId], references: [id])
+  joinedAt DateTime @default(now())
+
+  @@id([teamId, userId])
+}
+
+model ScrimRequest {
+  id          String        @id @default(cuid())
+  teamId      String
+  team        Team          @relation(fields: [teamId], references: [id])
+  createdById String
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  game        String        @default("valorant")
+  startsAt    DateTime
+  format      ScrimFormat
+  rankMin     Rank
+  rankMax     Rank
+  maps        String[]
+  note        String?
+  status      RequestStatus
+  createdAt   DateTime      @default(now())
+
+  applications  Application[]
+  scrim         Scrim?
+  notifications Notification[]
+
+  @@index([status, startsAt])
+  @@index([teamId])
+}
+
+model Application {
+  id         String       @id @default(cuid())
+  requestId  String
+  request    ScrimRequest @relation(fields: [requestId], references: [id])
+  teamId     String
+  team       Team         @relation(fields: [teamId], references: [id])
+  message    String?
+  status     AppStatus
+  createdAt  DateTime     @default(now())
+  decidedAt  DateTime?
+
+  // No second application, not even after WITHDRAWN.
+  @@unique([requestId, teamId])
+  @@index([teamId])
+}
+
+model Scrim {
+  id                String       @id @default(cuid())
+  requestId         String       @unique
+  request           ScrimRequest @relation(fields: [requestId], references: [id])
+  hostTeamId        String
+  hostTeam          Team         @relation("ScrimHostTeam", fields: [hostTeamId], references: [id])
+  guestTeamId       String
+  guestTeam         Team         @relation("ScrimGuestTeam", fields: [guestTeamId], references: [id])
+  startsAt          DateTime
+  format            ScrimFormat
+  maps              String[]
+  // = startsAt + FEEDBACK_OFFSET
+  feedbackOpensAt   DateTime
+  // = feedbackOpensAt + FEEDBACK_WINDOW
+  feedbackDeadline  DateTime
+  status            ScrimStatus
+  // On ban/dissolution: cancelledByTeamId = affected team, lateCancel = false.
+  cancelledByTeamId String?
+  cancelledByTeam   Team?        @relation("ScrimCancelledByTeam", fields: [cancelledByTeamId], references: [id])
+  cancelledAt       DateTime?
+  lateCancel        Boolean      @default(false)
+  noShowTeamId      String?
+  noShowTeam        Team?        @relation("ScrimNoShowTeam", fields: [noShowTeamId], references: [id])
+  // Admin decision on a dispute.
+  resolvedById      String?
+  resolvedBy        User?        @relation("ScrimResolvedBy", fields: [resolvedById], references: [id])
+  resolvedAt        DateTime?
+  createdAt         DateTime     @default(now())
+
+  feedback      ScrimFeedback[]
+  notifications Notification[]
+
+  @@index([status, startsAt])
+  @@index([status, feedbackDeadline])
+  @@index([hostTeamId])
+  @@index([guestTeamId])
+}
+
+model ScrimFeedback {
+  id            String          @id @default(cuid())
+  scrimId       String
+  scrim         Scrim           @relation(fields: [scrimId], references: [id])
+  // The responding team.
+  teamId        String
+  team          Team            @relation(fields: [teamId], references: [id])
+  submittedById String
+  submittedBy   User            @relation(fields: [submittedById], references: [id])
+  outcome       FeedbackOutcome
+  // 1–5, about the opponent; only for PLAYED.
+  rating        Int?
+  createdAt     DateTime        @default(now())
+
+  @@unique([scrimId, teamId])
+}
+
+// Outbox, see ARCHITECTURE.md §6.
+model Notification {
+  id           String        @id @default(cuid())
+  type         NotifType
+  channel      NotifChannel
+  // Only for USER_DM.
+  targetUserId String?
+  targetUser   User?         @relation(fields: [targetUserId], references: [id])
+  // For CAPTAIN_DM and TEAM_CHANNEL.
+  targetTeamId String?
+  targetTeam   Team?         @relation(fields: [targetTeamId], references: [id])
+  scrimId      String?
+  scrim        Scrim?        @relation(fields: [scrimId], references: [id])
+  requestId    String?
+  request      ScrimRequest? @relation(fields: [requestId], references: [id])
+  // Display data only.
+  payload      Json
+  // Set from the `now` parameter when created; no database default.
+  scheduledFor DateTime
+  status       NotifStatus
+  attempts     Int           @default(0)
+  lastError    String?
+  // <type>:<triggering entity per §6.1>:<teamId|userId>:<channel>
+  dedupeKey    String        @unique
+  createdAt    DateTime      @default(now())
+  sentAt       DateTime?
+
+  @@index([status, scheduledFor])
+  @@index([scrimId])
+  @@index([requestId])
+  @@index([targetUserId])
+}
+
+model SystemStatus {
+  // 'bot'
+  id          String   @id
+  heartbeatAt DateTime
+}
