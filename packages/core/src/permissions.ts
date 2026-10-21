@@ -41,12 +41,12 @@ export function isCaptainOf(user: { id: string }, team: { captainId: string }): 
 }
 
 /**
- * Why requireCaptain fails for a team that is not dissolved. A ban is final in the MVP (§4), so it
- * is then the only reason: nothing else the user could fix would help.
+ * Why requireCaptain fails for a member of a team that is not dissolved, or null. A ban is final in
+ * the MVP (§4), so it comes first: nothing else the user could fix would help.
  */
-function captainProblems(user: ActingUser, team: ActingTeam): Problem[] {
-  if (team.bannedAt) return [TEAM_BANNED];
-  return isCaptainOf(user, team) ? [] : [NOT_CAPTAIN];
+function captainProblem(user: ActingUser, team: ActingTeam): Problem | null {
+  if (team.bannedAt) return TEAM_BANNED;
+  return isCaptainOf(user, team) ? null : NOT_CAPTAIN;
 }
 
 /** Logged in and not banned. */
@@ -83,7 +83,7 @@ export async function requireCaptain(
   db: Db = prisma,
 ) {
   const { user, team } = await requireTeamMember(userId, teamId, db);
-  const [problem] = captainProblems(user, team);
+  const problem = captainProblem(user, team);
   if (problem) throw problemError(problem);
   return { user, team };
 }
@@ -144,21 +144,12 @@ export async function requireOwnActingCaptain(userId: string | null | undefined,
 }
 
 /**
- * Why requireActingCaptain fails, in its order, for a team that is not dissolved (callers filter
- * dissolved teams, as requireCaptain answers NOT_FOUND for them).
- */
-export function actingCaptainProblems(user: ActingUser, team: ActingTeam): Problem[] {
-  const problems = captainProblems(user, team);
-  if (problems.length === 0 && !user.verifiedAt) problems.push(CAPTAIN_NOT_VERIFIED);
-  return problems;
-}
-
-/**
- * Non-throwing counterpart of requireActingCaptain for pages, so they only offer scrim actions
- * the user may run: null if allowed, otherwise the reason to show instead.
+ * Non-throwing counterpart of requireActingCaptain for the user's own team (callers filter dissolved
+ * teams), so pages only offer scrim actions the user may run: null if allowed, otherwise the one
+ * reason to show instead, in requireActingCaptain's order.
  */
 export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Problem | null {
-  return actingCaptainProblems(user, team)[0] ?? null;
+  return captainProblem(user, team) ?? (user.verifiedAt ? null : CAPTAIN_NOT_VERIFIED);
 }
 
 /**

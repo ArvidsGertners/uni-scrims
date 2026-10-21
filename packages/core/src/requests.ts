@@ -20,8 +20,7 @@ import {
   queueNotifications,
 } from "./notifications.ts";
 import {
-  actingCaptainProblems,
-  isCaptainOf,
+  actingCaptainProblem,
   requireActingCaptain,
   requireOwnActingCaptain,
   requireTeamMember,
@@ -94,14 +93,16 @@ export async function requestPostingProblems(
   now: Date,
   db: Db,
 ): Promise<Problem[]> {
-  const problems = actingCaptainProblems(user, team);
-  // Readiness and the limit only matter to the captain of a team that is not banned.
-  if (team.bannedAt || !isCaptainOf(user, team)) return problems;
+  const captain = actingCaptainProblem(user, team);
+  // A ban or another captain settles it; an unverified captain also learns what else is missing.
+  if (captain && captain.kind !== "CAPTAIN_NOT_VERIFIED") return [captain];
+  // In parallel for getRequestForm; on createRequest's transaction both counts share its single
+  // connection and run one after the other.
   const [ready, full] = await Promise.all([
     isTeamReady(team.id, db),
     openRequestLimitProblem(team.id, now, db),
   ]);
-  return [...problems, ...[teamReadyProblem(ready), full].filter((problem) => problem !== null)];
+  return [captain, teamReadyProblem(ready), full].filter((problem) => problem !== null);
 }
 
 /**
