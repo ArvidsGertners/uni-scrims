@@ -20,7 +20,9 @@ export async function findUserByDiscordId(discordId: string, db: Db = prisma) {
   return account?.user ?? null;
 }
 
-export function getAdminDiscordIds(env: { ADMIN_DISCORD_IDS?: string } = process.env): string[] {
+export function getAdminDiscordIds(
+  env: Record<string, string | undefined> = process.env,
+): string[] {
   return (env.ADMIN_DISCORD_IDS ?? "")
     .split(",")
     .map((id) => id.trim())
@@ -75,4 +77,18 @@ export async function clearOAuthTokens(userId: string, db: Db = prisma): Promise
       refreshTokenExpiresAt: null,
     },
   });
+}
+
+/** Dev login only: seed users (ids starting with "seed-") with their team. */
+export async function listSeedUsers(db: Db = prisma) {
+  const users = await db.user.findMany({
+    where: { id: { startsWith: "seed-" } },
+    orderBy: { id: "asc" },
+    select: { id: true, name: true, membership: { select: { team: { select: { name: true } } } } },
+  });
+  return users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    teamName: user.membership?.team.name ?? null,
+  }));
 }
