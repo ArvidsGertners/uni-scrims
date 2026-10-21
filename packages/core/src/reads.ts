@@ -225,10 +225,10 @@ export async function getBoard(input: BoardInput) {
 // ─── Request form ─────────────────────────────────────────────────────────────
 
 /**
- * Form "Anfrage erstellen" for every member: null without a team. problems lists every reason
- * why createRequest would fail now regardless of the input (the list it throws the first entry
- * of under the team lock), so nobody fills in the form in vain; kind lets the page link to where
- * each one is fixed (§7).
+ * Form "Anfrage erstellen": null without a team. problems are requestPostingProblems, the list
+ * createRequest throws the first entry of under the team lock, so nobody fills in the form in vain:
+ * the captain sees every reason at once, other members only that the captain has to act, and a
+ * ban is the only reason. kind lets the page link to where each one is fixed (§7).
  */
 export async function getRequestForm(input: { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
@@ -290,14 +290,15 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.message ?? null) : null;
   // Applying and confirming need a ready team, withdrawing and deleting do not (SPEC P0-3).
   // Readiness is only counted when it decides: one of the two is offered and nothing else blocks
-  // it. Then it runs alongside the reliabilities.
+  // it. Then it runs alongside the reliabilities; null means not counted.
   const countReadiness =
     ownTeam !== null && actionProblem === null && (offersApply || offersConfirm);
   const [reliabilities, ownTeamReady] = await Promise.all([
     getReliabilities([request.teamId, ...applications.map((application) => application.teamId)]),
-    countReadiness ? isTeamReady(ownTeam.id) : true,
+    countReadiness ? isTeamReady(ownTeam.id) : null,
   ]);
-  const bookingProblem = actionProblem ?? teamReadyProblem(ownTeamReady)?.message ?? null;
+  const readyProblem = ownTeamReady === null ? null : teamReadyProblem(ownTeamReady);
+  const bookingProblem = actionProblem ?? readyProblem?.message ?? null;
 
   const apply: ActionOffer = offersApply ? { problem: bookingProblem } : null;
   const withdraw: ActionOffer =
