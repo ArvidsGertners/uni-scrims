@@ -13,6 +13,7 @@
     "@base-ui/react": "1.9.0",
     "@uni-scrims/core": "workspace:*",
     "@uni-scrims/db": "workspace:*",
+    "better-auth": "1.7.12",
     "class-variance-authority": "0.7.1",
     "cn": "0.5.0",
     "lucide-react": "1.60.0",

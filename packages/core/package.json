@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
+    ".": "./src/index.ts",
     "./config/*": "./config/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@uni-scrims/db": "workspace:*",
+    "file-type": "22.2.0",
     "zod": "4.6.7"
   }
 }
