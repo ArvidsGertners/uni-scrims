@@ -76,7 +76,7 @@ In Phase 0 werden **exakte Versionen** in `package.json` gepinnt (ohne `^`/`~`) 
 | tsx | 4.23.15 | Bot-Runtime (Dev und Docker), Seed |
 | dotenv | 18.0.8 | explizites Laden der Root-`.env` |
 | Zod | 4.6.7 | |
-| date-fns + @date-fns/tz | 4.4.0 / 1.5.0 | Zeitzonen. Werden erst installiert, wenn sie gebraucht werden. |
+| date-fns + @date-fns/tz | 4.4.0 / 1.5.0 | Zeitzonen (Startzeiten in `core/src/time.ts`). In Phase 2 installiert. |
 | file-type | 22.2.0 | MIME-Prüfung über Magic Bytes. Wird erst in Phase 1 installiert. |
 
 **Warum Better Auth statt Auth.js (next-auth):** Auth.js wird seit 2025 vom Better-Auth-Team nur noch mit Sicherheitsfixes gepflegt, und next-auth v5 ist weiterhin Beta. Für ein neues Projekt ist Better Auth der aktiv entwickelte Weg.
