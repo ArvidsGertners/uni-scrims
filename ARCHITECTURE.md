@@ -153,7 +153,7 @@ Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Ra
 
 ## 4. Datenmodell
 
-Alle Zeitpunkte als `timestamptz` in UTC (im Schema `@db.Timestamptz(3)`, auch in den Better-Auth-Modellen). Anzeige in `Europe/Berlin`. **Keine partiellen Indizes und kein Hand-SQL in Migrationen:** Alle Constraints sind normale Unique-Indizes im Prisma-Schema. Zur Laufzeit ist das **einzig erlaubte Roh-SQL** die Zeilensperre `SELECT … FOR UPDATE` per `$queryRaw` in interaktiven Transaktionen (§5.3, §5.5, §5.6). Alle anderen Abfragen laufen über den Prisma-Client. **Domänenmodelle ohne `@@map`**, damit die Tabellennamen im Roh-SQL den Modellnamen entsprechen (`"Scrim"`, `"ScrimRequest"`, `"Team"`). Sperren mehrerer Zeilen immer mit `ORDER BY id`. Ein Deadlock- oder Serialisierungsfehler zeigt im Web "Bitte erneut versuchen"; der Sweeper versucht es im nächsten Durchlauf ohnehin wieder.
+Alle Zeitpunkte als `timestamptz` in UTC (im Schema `@db.Timestamptz(3)`, auch in den Better-Auth-Modellen). Anzeige in `Europe/Berlin`. **Keine partiellen Indizes und kein Hand-SQL in Migrationen:** Alle Constraints sind normale Unique-Indizes im Prisma-Schema. Zur Laufzeit ist das **einzig erlaubte Roh-SQL** die Zeilensperre `SELECT … FOR NO KEY UPDATE` per `$queryRaw` in interaktiven Transaktionen (§5.3, §5.5, §5.6). `NO KEY UPDATE` statt `UPDATE`: Die Sperren schließen sich weiterhin gegenseitig aus, blockieren aber nicht die `FOR KEY SHARE`-Sperren der Fremdschlüssel-Prüfungen. Mit `FOR UPDATE` lief das Auflösen eines Teams (hält die Team-Zeile, sperrt dann dessen Anfragen) in einen Deadlock mit einer Bewerbung auf eine dieser Anfragen (hält die Anfrage, legt dann eine Notification mit Verweis auf das Team an). Alle anderen Abfragen laufen über den Prisma-Client. **Domänenmodelle ohne `@@map`**, damit die Tabellennamen im Roh-SQL den Modellnamen entsprechen (`"Scrim"`, `"ScrimRequest"`, `"Team"`). Sperren mehrerer Zeilen immer mit `ORDER BY id`. Ein Deadlock- oder Serialisierungsfehler zeigt im Web "Bitte erneut versuchen"; der Sweeper versucht es im nächsten Durchlauf ohnehin wieder.
 
 ### Enums
 
@@ -350,7 +350,7 @@ Admin entscheidet (eine Transaktion)
 
 Alle Funktionen in diesem Abschnitt prüfen zuerst die Berechtigung laut §7 (aktueller Captain, selbst verifiziert, nicht gesperrt).
 
-**Zeilensperre auf der Anfrage:** `applyToRequest`, `deleteRequest`, `confirmApplication` und `expireRequests` sperren in einer interaktiven Transaktion zuerst die `ScrimRequest`-Zeile (`SELECT … FROM "ScrimRequest" WHERE id = $1 FOR UPDATE` per `$queryRaw`) und prüfen erst danach den Status. Dadurch laufen sie nacheinander, und eine PENDING-Bewerbung existiert nur, solange die Anfrage OPEN ist. Test: paralleles `applyToRequest` und `confirmApplication` hinterlässt keine PENDING-Bewerbung auf einer nicht offenen Anfrage.
+**Zeilensperre auf der Anfrage:** `applyToRequest`, `deleteRequest`, `confirmApplication` und `expireRequests` sperren in einer interaktiven Transaktion zuerst die `ScrimRequest`-Zeile (`SELECT … FROM "ScrimRequest" WHERE id = $1 FOR NO KEY UPDATE` per `$queryRaw`) und prüfen erst danach den Status. Dadurch laufen sie nacheinander, und eine PENDING-Bewerbung existiert nur, solange die Anfrage OPEN ist. Test: paralleles `applyToRequest` und `confirmApplication` hinterlässt keine PENDING-Bewerbung auf einer nicht offenen Anfrage.
 
 - `createRequest`: Team spielbereit und aktiv; max. 5 offene Anfragen; Startzeit im 15-Minuten-Raster zwischen 10:00 und 01:45 Uhr Berliner Zeit, mindestens 30 Minuten nach `now`. Sperrt die `Team`-Zeile, damit parallele Aufrufe das Limit nicht überschreiten. Als offen zählen Anfragen mit OPEN und `startsAt > now`. Das Zeitfenster vermeidet nebenbei die Zeitumstellung (02:00–03:00). Das eingegebene Datum ist das Kalenderdatum des tatsächlichen Starts (01:00 am 22.10. = Nacht von Di auf Mi).
 - `applyToRequest`: Team spielbereit und aktiv, nicht das Ersteller-Team; Anfrage OPEN und zukünftig; `unique(requestId, teamId)`. Liegt der Team-Rang außerhalb des Bereichs, wird die Bewerbung trotzdem angelegt; die UI zeigt einen Hinweis. Notification `APPLICATION_RECEIVED`.
@@ -389,7 +389,7 @@ Alle Funktionen in diesem Abschnitt prüfen zuerst die Berechtigung laut §7 (ak
 - `leaveTeam`: Spieler jederzeit, **auch in gesperrten Teams** (sonst säßen die Mitglieder eines gesperrten Teams fest). Captain nur, wenn er das einzige Mitglied ist, dann folgt `dissolveTeam`.
 - `transferCaptain`, `removeMember` (nur Captain, nicht sich selbst).
 - `dissolveTeam`: `retireTeamActivity`, alle `TeamMember`-Zeilen löschen, `dissolvedAt = now`, `nameNormalized = null`, `inviteCode = null`. **Kein hartes Löschen**, weil Scrims die Team-ID behalten.
-- `joinTeam`: nur über den `inviteCode` eines aktiven Teams, max. 10 Mitglieder, Nutzer in keinem anderen Team. Sperrt zuerst die Team-Zeile (`FOR UPDATE`), damit zwei gleichzeitige Beitritte das Limit nicht überschreiten.
+- `joinTeam`: nur über den `inviteCode` eines aktiven Teams, max. 10 Mitglieder, Nutzer in keinem anderen Team. Sperrt zuerst die Team-Zeile (`FOR NO KEY UPDATE`), damit zwei gleichzeitige Beitritte das Limit nicht überschreiten.
 - `banUser`: `bannedAt` setzen, Sessions löschen. Ist er **kein** Captain, wird er aus dem Team entfernt. Ist er Captain, bleibt er Mitglied und Captain, und das Team wird mit `banTeam` gesperrt. **Entsperren gibt es im MVP nur manuell per DB** (im README beschrieben).
 - `banTeam`: `bannedAt` setzen + `retireTeamActivity`.
 - `deleteAccount`: wie in §4 beschrieben (gesperrte Nutzer behalten die `account`-Zeile ohne Tokens), zusätzlich alle Notifications mit `targetUserId` des Nutzers löschen; als Captain nur ohne weitere Mitglieder (dann `dissolveTeam`), sonst Fehler "Erst Captain übertragen". Der Nutzer wird **nicht** aus dem Hub-Server entfernt (kein `KICK_MEMBERS`-Recht); das steht in der Datenschutzerklärung.
@@ -400,7 +400,7 @@ Alle Funktionen in diesem Abschnitt prüfen zuerst die Berechtigung laut §7 (ak
 
 `submitFeedback(scrimId, outcome, rating?, actingUserId, now)` in **einer interaktiven Transaktion**:
 1. Der Nutzer ist **aktueller**, verifizierter Captain von Host- oder Gastteam.
-2. **Scrim-Zeile sperren:** `SELECT … FROM "Scrim" WHERE id = $1 FOR UPDATE` per `$queryRaw`. Damit laufen parallele Feedbacks beider Captains und die Sweeper-Auswertung nacheinander.
+2. **Scrim-Zeile sperren:** `SELECT … FROM "Scrim" WHERE id = $1 FOR NO KEY UPDATE` per `$queryRaw`. Damit laufen parallele Feedbacks beider Captains und die Sweeper-Auswertung nacheinander.
 3. `now ≥ startsAt`, `now < feedbackDeadline` und Status ∈ {SCHEDULED, AWAITING_FEEDBACK}. Bei SCHEDULED wird zuerst auf AWAITING_FEEDBACK gewechselt. Bei einem Endzustand → Fehler "Feedback bereits abgeschlossen". Nach der Frist → Fehler "Feedback-Frist abgelaufen"; die Auswertung übernimmt dann `resolveDeadlines`, damit das Ergebnis nicht davon abhängt, wann der Sweeper läuft.
 4. `rating` nur bei PLAYED, dann Pflicht (1–5).
 5. Insert in `ScrimFeedback`. Der Unique-Index verhindert eine zweite Antwort; die Antwort ist nicht änderbar.

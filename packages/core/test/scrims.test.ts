@@ -13,6 +13,7 @@ import {
   type ScrimOutcome,
   applyToRequest,
   cancelScrim,
+  deleteRequest,
   leaveTeam,
   openFeedback,
   resolveDeadlines,
@@ -423,6 +424,51 @@ describe("retireTeamActivity", () => {
       cancelledByTeamId: x.team.id,
       lateCancel: false,
     });
+  });
+
+  it("does not deadlock with parallel applications and deletions while a team dissolves", async () => {
+    for (let round = 0; round < 10; round++) {
+      // Applying to the dissolving team's request (FK checks on its Team row).
+      const host = await createReadyTeam();
+      await prisma.teamMember.deleteMany({
+        where: { teamId: host.team.id, userId: { not: host.captain.id } },
+      });
+      const ownRequest = await prisma.scrimRequest.create({
+        data: {
+          teamId: host.team.id,
+          createdById: host.captain.id,
+          startsAt: REQUEST_STARTS_AT,
+          format: "ONE_MAP",
+          rankMin: "IRON",
+          rankMax: "RADIANT",
+          maps: [],
+          status: RequestStatus.OPEN,
+          createdAt: NOW,
+        },
+      });
+      const applicant = await createReadyTeam();
+      // Deleting a request the dissolving team applied to (its application and notification).
+      const leaving = await createReadyTeam();
+      const other = await createReadyTeam();
+      const foreignRequest = await createOpenRequest(other.captain.id);
+      await applyToRequest({ userId: leaving.captain.id, requestId: foreignRequest.id, now: NOW });
+      await prisma.teamMember.deleteMany({
+        where: { teamId: leaving.team.id, userId: { not: leaving.captain.id } },
+      });
+
+      const results = await Promise.allSettled([
+        applyToRequest({ userId: applicant.captain.id, requestId: ownRequest.id, now: NOW }),
+        leaveTeam({ userId: host.captain.id, now: NOW }),
+        deleteRequest({ userId: other.captain.id, requestId: foreignRequest.id, now: NOW }),
+        leaveTeam({ userId: leaving.captain.id, now: NOW }),
+      ]);
+      // Domain errors (e.g. "nicht mehr offen") are fine; a deadlock is not.
+      for (const result of results) {
+        if (result.status === "rejected") expect(result.reason).toMatchObject({ code: "CONFLICT" });
+      }
+      expect(results[1]).toMatchObject({ status: "fulfilled" });
+      expect(results[3]).toMatchObject({ status: "fulfilled" });
+    }
   });
 
   it("leaves scrims that have already started alone", async () => {

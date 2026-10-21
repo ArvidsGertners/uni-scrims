@@ -1,17 +1,21 @@
-// Row locks and transactions. SELECT … FOR UPDATE is the only raw SQL allowed (ARCHITECTURE §4).
+// Row locks and transactions. SELECT … FOR NO KEY UPDATE is the only raw SQL allowed (ARCHITECTURE §4).
+// NO KEY UPDATE instead of UPDATE: the locks still exclude each other, but do not block the
+// FOR KEY SHARE locks that foreign key checks take. With FOR UPDATE, dissolving a team (holds the
+// Team lock, then locks its requests) deadlocked with applying to one of its requests (holds the
+// request lock, then inserts a notification referencing the Team).
 import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 
 export async function lockTeam(tx: Prisma.TransactionClient, teamId: string): Promise<void> {
-  await tx.$queryRaw`SELECT id FROM "Team" WHERE id = ${teamId} FOR UPDATE`;
+  await tx.$queryRaw`SELECT id FROM "Team" WHERE id = ${teamId} FOR NO KEY UPDATE`;
 }
 
 export async function lockRequest(tx: Prisma.TransactionClient, requestId: string): Promise<void> {
-  await tx.$queryRaw`SELECT id FROM "ScrimRequest" WHERE id = ${requestId} FOR UPDATE`;
+  await tx.$queryRaw`SELECT id FROM "ScrimRequest" WHERE id = ${requestId} FOR NO KEY UPDATE`;
 }
 
 export async function lockScrim(tx: Prisma.TransactionClient, scrimId: string): Promise<void> {
-  await tx.$queryRaw`SELECT id FROM "Scrim" WHERE id = ${scrimId} FOR UPDATE`;
+  await tx.$queryRaw`SELECT id FROM "Scrim" WHERE id = ${scrimId} FOR NO KEY UPDATE`;
 }
 
 /** Runs fn in the caller's transaction, or in a new one when db is the shared client. */

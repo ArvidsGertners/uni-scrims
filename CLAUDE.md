@@ -23,7 +23,7 @@ Scrim-Plattform für Valorant-Teams deutscher Hochschulen: Next.js-Web-App + dis
 - Geschäftslogik nur in `packages/core`. `apps/web` und `apps/bot` rufen nur `core`-Funktionen auf.
 - Jede zeitabhängige `core`-Funktion bekommt `now: Date` als Parameter. In SQL nie `now()` der Datenbank verwenden.
 - Prisma-Client immer aus `packages/db` importieren, nie aus `@prisma/client`.
-- Einziges erlaubtes Roh-SQL: Zeilensperren `SELECT … FOR UPDATE` in interaktiven Transaktionen. Domänenmodelle ohne `@@map`.
+- Einziges erlaubtes Roh-SQL: Zeilensperren `SELECT … FOR NO KEY UPDATE` in interaktiven Transaktionen. Domänenmodelle ohne `@@map`.
 - Schleifen in Bot und Janitor sequenziell (`await` + sleep), **nie `setInterval`**.
 - Versionen exakt pinnen (ohne `^`/`~`), keine Major-Upgrades während des Baus.
 - Berechtigungen immer über `core/permissions.ts` laut Tabelle in ARCHITECTURE §7.
