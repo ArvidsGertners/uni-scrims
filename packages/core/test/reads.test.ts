@@ -207,7 +207,7 @@ describe("getRequestForm", () => {
     message: `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`,
   };
 
-  it("lists every reason why the team cannot post right now, for every member", async () => {
+  it("lists every reason for the captain; members only learn that the captain has to act", async () => {
     expect(await form((await createUser()).id)).toBeNull();
     // Unverified captain plus 4 verified members: also not ready.
     const team = await createReadyTeam({ verifiedCaptain: false });
