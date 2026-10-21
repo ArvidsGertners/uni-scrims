@@ -565,7 +565,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 
 Alle Services mit Log-Rotation: `logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }`.
 
-**Stolperstelle Docker-Build:** Next.js `standalone` im pnpm-Monorepo mit dem Prisma-7-Client außerhalb von `node_modules`. Lösung: `outputFileTracingRoot` auf das Monorepo-Root setzen, `packages/db` und `packages/core` per `transpilePackages` einbinden, Prisma-Client im Build-Schritt explizit generieren. **Der Docker-Build muss schon in Phase 0 einmal grün laufen.**
+**Stolperstelle Docker-Build:** Next.js `standalone` im pnpm-Monorepo mit dem Prisma-7-Client außerhalb von `node_modules`. Lösung: `outputFileTracingRoot` auf das Monorepo-Root setzen, `packages/db` und `packages/core` per `transpilePackages` einbinden, Prisma-Client im Build-Schritt explizit generieren. Der Client wird erst beim ersten Zugriff erzeugt, weil `next build` die Route-Module ohne `DATABASE_URL` lädt. Die Root-`.env` lädt `next.config.ts` per `dotenv`, weil Next selbst nur `apps/web/.env*` liest. **Der Docker-Build muss schon in Phase 0 einmal grün laufen.**
 
 ### Backups
 
@@ -650,7 +650,7 @@ Jede Phase endet mit lauffähigem Stand, grünen Tests und einem Commit. **Erst 
 - Seed: Hochschul-Liste (große Universitäten, alle DHBW-Standorte, bekannte Uniliga-Valorant-Hochschulen), 2 Test-Teams mit je 5 verifizierten Seed-Nutzern
 - `packages/core/config`: Map-Pool und `timing.ts` inkl. `DEV_TIME_OFFSETS`
 - `docker-compose.dev.yml` mit App-DB und Test-DB
-- Dockerfile mit den Targets `web`, `bot` und `migrate`; der Web-Build läuft einmal grün (siehe §8 Stolperstelle)
+- Dockerfile mit den Targets `web`, `bot` und `migrate`; der Web-Build läuft einmal grün (siehe §8 Stolperstelle), nachgewiesen über `/api/health`, das den Prisma-Client nutzt
 - README: Discord-Einrichtung laut §8
 - *Fertig wenn:* `pnpm dev` startet Web und Bot (Bot loggt sich ein), `pnpm db:seed` läuft, `pnpm test` läuft gegen die Test-DB, `docker build` für alle drei Targets ist grün und `docker compose run --rm migrate` gegen eine leere DB ist grün.
 
