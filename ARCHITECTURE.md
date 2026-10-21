@@ -143,7 +143,7 @@ uni-scrims/
 
 **Konstanten** in `packages/core/config/`:
 - `maps.ts`: Map-Pool als Liste. Zod validiert Anfragen dagegen. Keine DB-Tabelle.
-- `timing.ts`: `FEEDBACK_OFFSET = 3 h`, `FEEDBACK_WINDOW = 72 h`, `REMINDER_OFFSETS = [24 h, 1 h]`, `LATE_CANCEL = 24 h`, `VERIFICATION_TTL = 14 Tage`. Mit `DEV_TIME_OFFSETS=true` werden sie auf Minuten verkürzt (siehe §7).
+- `timing.ts`: `FEEDBACK_OFFSET = 3 h`, `FEEDBACK_WINDOW = 72 h`, `REMINDER_OFFSETS = [24 h, 1 h]`, `LATE_CANCEL = 24 h`, `VERIFICATION_TTL = 14 Tage`, `MIN_REQUEST_LEAD = 30 min` (Mindestvorlauf einer Anfrage). Mit `DEV_TIME_OFFSETS=true` werden sie auf Minuten verkürzt (siehe §7).
 
 ---
 
@@ -579,7 +579,7 @@ Nächtlich `pg_dump` per Cron auf dem Host, verschlüsselt auf einen externen Sp
 
 ### Discord-Einrichtung (Anleitung im README, schon in Phase 0)
 
-1. Discord-Application anlegen; OAuth2-Redirect auf `<AUTH_URL>/api/auth/callback/discord` (lokal und Production).
+1. Discord-Application anlegen; OAuth2-Redirect auf `<BETTER_AUTH_URL>/api/auth/callback/discord` (lokal und Production).
 2. Bot-User anlegen. Keine privilegierten Intents nötig.
 3. Hub-Server anlegen, Bot einladen mit `CREATE_INSTANT_INVITE`, `ViewChannel`, `SendMessages`, `EmbedLinks`. Im Hub **kein Regel-Screening** (Membership Screening) und eine **niedrige Verifizierungsstufe**, damit per `guilds.join` hinzugefügte Nutzer sofort DMs bekommen können (nicht verifiziert, in Phase 1 testen).
 4. Einladungslink für Team-Server generieren (Scopes `bot` + `applications.commands`, Rechte `ViewChannel`, `SendMessages`, `EmbedLinks`).
