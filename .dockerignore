@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+packages/db/src/generated
+.env
+.env.*
+!.env.example
+.git
+.agents
+.claude
+docker
+*.md

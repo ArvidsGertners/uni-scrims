@@ -1,0 +1,51 @@
+# Local development: app DB, test DB and the migrate job.
+# Ports 5433/5434 avoid clashing with a locally installed Postgres on 5432.
+name: uni-scrims-dev
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: uniscrims
+      POSTGRES_PASSWORD: uniscrims
+      POSTGRES_DB: uniscrims
+    ports:
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uniscrims -d uniscrims"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  db-test:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: uniscrims
+      POSTGRES_PASSWORD: uniscrims
+      POSTGRES_DB: uniscrims_test
+    ports:
+      - "127.0.0.1:5434:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uniscrims -d uniscrims_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://uniscrims:uniscrims@db:5432/uniscrims
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["migrate"]
+
+volumes:
+  pgdata:
