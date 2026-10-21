@@ -10,7 +10,7 @@ import {
   teamReadyProblem,
 } from "./permissions.ts";
 import { RANKS, isRankInRange, rankValue } from "./ranks.ts";
-import { hasReadyMembers, isTeamReady } from "./readiness.ts";
+import { hasReadyMembers, isTeamActive, isTeamReady } from "./readiness.ts";
 import {
   applicantTeamProblem,
   isRequestOpen,
@@ -233,9 +233,10 @@ export async function getBoard(input: BoardInput) {
 // ─── Request form ─────────────────────────────────────────────────────────────
 
 /**
- * Form "Anfrage erstellen": null without a team. problems lists every reason why createRequest
- * would fail now regardless of the input (the same list it throws the first entry of), so the
- * captain sees them all at once; kind lets the page link to where each one is fixed (§7).
+ * Form "Anfrage erstellen" for every member: null without a team. problems lists every reason
+ * why createRequest would fail now regardless of the input (the list it throws the first entry
+ * of under the team lock), so nobody fills in the form in vain; kind lets the page link to where
+ * each one is fixed (§7).
  */
 export async function getRequestForm(input: { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
@@ -243,7 +244,6 @@ export async function getRequestForm(input: { userId: string; now: Date }) {
   if (!ownTeam) return null;
   const problems = await requestPostingProblems(user, ownTeam, input.now, prisma);
   return {
-    isCaptain: isCaptainOf(user, ownTeam),
     rank: ownTeam.rank,
     problems: problems.map(({ kind, message }) => ({ kind, message })),
   };
@@ -270,7 +270,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
       scrim: { select: { id: true, hostTeamId: true, guestTeamId: true } },
     },
   });
-  if (!request || request.team.bannedAt || request.team.dissolvedAt) return null;
+  if (!request || !isTeamActive(request.team)) return null;
 
   const ownTeam = await findOwnTeam(user.id);
   const isOwner = ownTeam?.id === request.teamId;
@@ -290,40 +290,37 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
           select: { id: true, status: true, message: true },
         })
       : null;
-  const reliabilities = await getReliabilities([
-    request.teamId,
-    ...applications.map((application) => application.teamId),
-  ]);
   const scrim = request.scrim;
   const open = isRequestOpen(request, input.now);
-  const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.message ?? null) : null;
+  const offersApply = open && ownTeam !== null && !isOwner && !ownApplication;
+  const pending = applications.filter((application) => application.status === AppStatus.PENDING);
+  const offersConfirm = isOwner && open && pending.length > 0;
   // Applying and confirming need a ready team, withdrawing and deleting do not (SPEC P0-3).
-  // Readiness is only counted when one of the two is offered.
-  const bookingProblem = async (teamId: string) =>
-    actionProblem ?? teamReadyProblem(await isTeamReady(teamId))?.message ?? null;
+  // Readiness is only counted when one of the two is offered, alongside the reliabilities.
+  const [reliabilities, ownTeamReady] = await Promise.all([
+    getReliabilities([request.teamId, ...applications.map((application) => application.teamId)]),
+    ownTeam && (offersApply || offersConfirm) ? isTeamReady(ownTeam.id) : true,
+  ]);
+  const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.message ?? null) : null;
+  const bookingProblem = actionProblem ?? teamReadyProblem(ownTeamReady)?.message ?? null;
 
-  const apply: ActionOffer =
-    open && ownTeam && !isOwner && !ownApplication
-      ? { problem: await bookingProblem(ownTeam.id) }
-      : null;
+  const apply: ActionOffer = offersApply ? { problem: bookingProblem } : null;
   const withdraw: ActionOffer =
     ownApplication?.status === AppStatus.PENDING ? { problem: actionProblem } : null;
-  // Only the captain can ever delete; other members see the captain rule once, at confirming.
+  // Only the captain can ever delete, so other members do not see it (§7).
   const remove: ActionOffer =
     isOwner && open && isCaptainOf(user, ownTeam) ? { problem: actionProblem } : null;
-  const pending = applications.filter((application) => application.status === AppStatus.PENDING);
-  const confirm: ActionOffer =
-    isOwner && open && pending.length > 0
-      ? { problem: await bookingProblem(request.teamId) }
-      : null;
-  // The applicant team must still be active and ready, as confirmApplication checks it.
+  const confirm: ActionOffer = offersConfirm ? { problem: bookingProblem } : null;
+  // The applicant team must still be active and ready, as confirmApplication checks it
+  // (findApplicantTeamProblem); here from the loaded members, only for active teams.
   const confirmOffer = (application: (typeof applications)[number]) => {
     if (!confirm || application.status !== AppStatus.PENDING) {
       return { canConfirm: false, teamProblem: null };
     }
+    const { team } = application;
     const teamProblem = applicantTeamProblem(
-      application.team,
-      hasReadyMembers(application.team.members),
+      team,
+      isTeamActive(team) && hasReadyMembers(team.members),
     );
     return { canConfirm: confirm.problem === null && teamProblem === null, teamProblem };
   };

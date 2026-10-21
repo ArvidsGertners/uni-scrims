@@ -193,7 +193,7 @@ describe("getBoard", () => {
 describe("getRequestForm", () => {
   const form = (userId: string, now = NOW) => getRequestForm({ userId, now });
   const BANNED = { kind: "TEAM_BANNED", message: "Das Team ist gesperrt." };
-  const NOT_CAPTAIN = { kind: "NOT_CAPTAIN", message: "Das kann nur euer Captain." };
+  const NOT_CAPTAIN = { kind: "NOT_CAPTAIN", message: "Nur der Captain des Teams darf das." };
   const NOT_VERIFIED = {
     kind: "CAPTAIN_NOT_VERIFIED",
     message: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
@@ -207,28 +207,24 @@ describe("getRequestForm", () => {
     message: `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`,
   };
 
-  it("lists every reason why the captain cannot post right now, in core's order", async () => {
+  it("lists every reason why the team cannot post right now, for every member", async () => {
     expect(await form((await createUser()).id)).toBeNull();
     // Unverified captain plus 4 verified members: also not ready.
     const team = await createReadyTeam({ verifiedCaptain: false });
     expect(await form(team.captain.id)).toEqual({
-      isCaptain: true,
       rank: Rank.GOLD,
       problems: [NOT_VERIFIED, NOT_READY],
     });
+    expect(await form(team.members[0]!.id)).toMatchObject({ problems: [NOT_CAPTAIN] });
 
+    // A ban is final, so it is the only reason, for the captain and for members.
     await prisma.team.update({ where: { id: team.team.id }, data: { bannedAt: NOW } });
-    expect(await form(team.captain.id)).toMatchObject({
-      problems: [BANNED, NOT_VERIFIED, NOT_READY],
-    });
-    // createRequest throws the first entry.
+    expect(await form(team.captain.id)).toMatchObject({ problems: [BANNED] });
+    expect(await form(team.members[0]!.id)).toMatchObject({ problems: [BANNED] });
+    // createRequest rejects with the same reason (here already before the team lock).
     await expect(createOpenRequest(team.captain.id)).rejects.toMatchObject({
       code: "FORBIDDEN",
       message: BANNED.message,
-    });
-    expect(await form(team.members[0]!.id)).toMatchObject({
-      isCaptain: false,
-      problems: [BANNED, NOT_CAPTAIN],
     });
   });
 
@@ -242,6 +238,8 @@ describe("getRequestForm", () => {
     expect(await form(team.captain.id)).toMatchObject({ problems: [LIMIT] });
     await expect(sixth()).rejects.toMatchObject({ code: "CONFLICT", message: LIMIT.message });
 
+    // The captain passes the checks before the lock; under the lock createRequest throws the
+    // first entry of the same list, so readiness wins over the limit.
     await prisma.user.update({ where: { id: team.members[0]!.id }, data: { verifiedAt: null } });
     expect(await form(team.captain.id)).toMatchObject({ problems: [NOT_READY, LIMIT] });
     await expect(sixth()).rejects.toMatchObject({ code: "FORBIDDEN", message: NOT_READY.message });
@@ -276,7 +274,7 @@ describe("getRequestDetail", () => {
       applications: null,
       ownApplication: null,
     });
-    const onlyCaptain = { problem: "Das kann nur euer Captain." };
+    const onlyCaptain = { problem: "Nur der Captain des Teams darf das." };
     expect(await detail(author.members[0]!.id)).toMatchObject({
       apply: null,
       // Deleting is never offered to members, the captain rule shows once at confirming.
@@ -370,7 +368,7 @@ describe("getRequestDetail", () => {
     ).rejects.toMatchObject({ message: notReady });
     // The captain rule comes first.
     expect(await detail(late.members[1]!.id)).toMatchObject({
-      apply: { problem: "Das kann nur euer Captain." },
+      apply: { problem: "Nur der Captain des Teams darf das." },
     });
   });
 
@@ -397,7 +395,7 @@ describe("getScrimDetail and getMyScrims", () => {
     expect(await detail(outsider.captain.id)).toBeNull();
     expect(await detail(guest.members[0]!.id)).toMatchObject({
       isHost: false,
-      actionProblem: "Das kann nur euer Captain.",
+      actionProblem: "Nur der Captain des Teams darf das.",
       opponent: { id: host.team.id, captainName: host.captain.name },
       cancellable: true,
       canCancel: false,

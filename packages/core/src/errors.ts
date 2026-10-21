@@ -27,8 +27,11 @@ export function isDomainError(error: unknown): error is DomainError {
 export type ProblemKind =
   "TEAM_BANNED" | "NOT_CAPTAIN" | "CAPTAIN_NOT_VERIFIED" | "TEAM_NOT_READY" | "REQUEST_LIMIT";
 
-/** Why an action is not possible: mutations throw it, pages show the same message. */
-export type Problem = { kind: ProblemKind; code: DomainErrorCode; message: string };
+/**
+ * Why an action is not possible: mutations throw it, pages show the same message. Readonly, since
+ * the shared constants are handed out by reference.
+ */
+export type Problem = Readonly<{ kind: ProblemKind; code: DomainErrorCode; message: string }>;
 
 export function problemError(problem: Problem): DomainError {
   return new DomainError(problem.code, problem.message);

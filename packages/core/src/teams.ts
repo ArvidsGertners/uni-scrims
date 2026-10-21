@@ -5,7 +5,7 @@ import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
 import { isCaptainOf, requireCaptain, requireUser } from "./permissions.ts";
-import { hasReadyMembers } from "./readiness.ts";
+import { isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
 import { closeOpenRequest } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
@@ -144,7 +144,7 @@ export async function joinTeam(input: { userId: string; inviteCode: string; now:
       // Lock first, then re-check: parallel joins must not exceed the member limit.
       await lockTeam(tx, found.id);
       const team = await tx.team.findUniqueOrThrow({ where: { id: found.id } });
-      if (team.inviteCode !== input.inviteCode || team.dissolvedAt || team.bannedAt) {
+      if (team.inviteCode !== input.inviteCode || !isTeamActive(team)) {
         throw invalidInvite();
       }
       const membership = await tx.teamMember.findUnique({ where: { userId: user.id } });
@@ -276,7 +276,7 @@ type MemberUniversity = {
 export function teamUniversities(members: MemberUniversity[]) {
   return summarizeUniversities(
     members
-      .filter(({ user }) => user.verifiedAt)
+      .filter(({ user }) => isVerifiedMember(user))
       .map(({ user }) => user.university?.name ?? user.universityOther),
   );
 }
@@ -315,7 +315,7 @@ export async function getMyTeam(userId: string) {
     image: member.image,
     joinedAt,
     isCaptain: member.id === team.captainId,
-    status: member.verifiedAt
+    status: isVerifiedMember(member)
       ? ("VERIFIED" as const)
       : member.pendingVerification
         ? ("PENDING" as const)
@@ -333,8 +333,8 @@ export async function getMyTeam(userId: string) {
     inviteCode: isCaptain ? team.inviteCode : null,
     members,
     verifiedCount,
-    // The rule core enforces, so the team page and the request pages agree.
-    ready: hasReadyMembers(team.members),
+    // Counted once, judged by the rule core enforces, so the team page and the request pages agree.
+    ready: isReadyCount(verifiedCount),
     universities: teamUniversities(team.members),
   };
 }
@@ -349,7 +349,7 @@ export async function getTeamByInviteCode(userId: string, inviteCode: string) {
     where: { inviteCode },
     include: { members: { select: memberSelect } },
   });
-  if (!team || team.dissolvedAt || team.bannedAt) return null;
+  if (!team || !isTeamActive(team)) return null;
   return {
     id: team.id,
     name: team.name,

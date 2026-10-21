@@ -14,10 +14,11 @@ const TEAM_BANNED: Problem = {
   code: "FORBIDDEN",
   message: "Das Team ist gesperrt.",
 };
+// Neutral on purpose: requireCaptain also answers for teams the user is not in.
 const NOT_CAPTAIN: Problem = {
   kind: "NOT_CAPTAIN",
   code: "FORBIDDEN",
-  message: "Das kann nur euer Captain.",
+  message: "Nur der Captain des Teams darf das.",
 };
 const CAPTAIN_NOT_VERIFIED: Problem = {
   kind: "CAPTAIN_NOT_VERIFIED",
@@ -39,12 +40,13 @@ export function isCaptainOf(user: { id: string }, team: { captainId: string }): 
   return team.captainId === user.id;
 }
 
-/** Why requireCaptain fails for a team that is not dissolved. */
+/**
+ * Why requireCaptain fails for a team that is not dissolved. A ban is final in the MVP (§4), so it
+ * is then the only reason: nothing else the user could fix would help.
+ */
 function captainProblems(user: ActingUser, team: ActingTeam): Problem[] {
-  const problems: Problem[] = [];
-  if (team.bannedAt) problems.push(TEAM_BANNED);
-  if (!isCaptainOf(user, team)) problems.push(NOT_CAPTAIN);
-  return problems;
+  if (team.bannedAt) return [TEAM_BANNED];
+  return isCaptainOf(user, team) ? [] : [NOT_CAPTAIN];
 }
 
 /** Logged in and not banned. */
@@ -142,12 +144,12 @@ export async function requireOwnActingCaptain(userId: string | null | undefined,
 }
 
 /**
- * Every reason why requireActingCaptain fails, in its order, for a team that is not dissolved
- * (callers filter dissolved teams, as requireCaptain answers NOT_FOUND for them).
+ * Why requireActingCaptain fails, in its order, for a team that is not dissolved (callers filter
+ * dissolved teams, as requireCaptain answers NOT_FOUND for them).
  */
 export function actingCaptainProblems(user: ActingUser, team: ActingTeam): Problem[] {
   const problems = captainProblems(user, team);
-  if (isCaptainOf(user, team) && !user.verifiedAt) problems.push(CAPTAIN_NOT_VERIFIED);
+  if (problems.length === 0 && !user.verifiedAt) problems.push(CAPTAIN_NOT_VERIFIED);
   return problems;
 }
 

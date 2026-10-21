@@ -23,8 +23,8 @@ import {
   actingCaptainProblems,
   isCaptainOf,
   requireActingCaptain,
-  requireCaptain,
   requireOwnActingCaptain,
+  requireTeamMember,
   requireTeamReady,
   teamReadyProblem,
 } from "./permissions.ts";
@@ -35,7 +35,7 @@ import {
   parseInput,
   requestInputSchema,
 } from "./schemas.ts";
-import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
+import { READY_MEMBER_COUNT, isTeamActive, isTeamReady } from "./readiness.ts";
 import { berlinToUtc } from "./time.ts";
 
 /** Max. open requests per team (SPEC P0-4). */
@@ -85,8 +85,8 @@ export async function openRequestLimitProblem(
 }
 
 /**
- * Every reason why createRequest fails regardless of the input, in the order it checks them.
- * createRequest throws the first one, getRequestForm shows them all (§7).
+ * Every reason why createRequest fails regardless of the input, in this order. Under the team
+ * lock createRequest throws the first one; getRequestForm shows them all (§7).
  */
 export async function requestPostingProblems(
   user: { id: string; verifiedAt: Date | null },
@@ -95,18 +95,19 @@ export async function requestPostingProblems(
   db: Db,
 ): Promise<Problem[]> {
   const problems = actingCaptainProblems(user, team);
-  if (!isCaptainOf(user, team)) return problems;
-  const notReady = teamReadyProblem(await isTeamReady(team.id, db));
-  const full = await openRequestLimitProblem(team.id, now, db);
-  return [...problems, ...[notReady, full].filter((problem) => problem !== null)];
+  // Readiness and the limit only matter to the captain of a team that is not banned.
+  if (team.bannedAt || !isCaptainOf(user, team)) return problems;
+  const [ready, full] = await Promise.all([
+    isTeamReady(team.id, db),
+    openRequestLimitProblem(team.id, now, db),
+  ]);
+  return [...problems, ...[teamReadyProblem(ready), full].filter((problem) => problem !== null)];
 }
 
-/** Neither banned nor dissolved. */
-export function isTeamActive(team: { bannedAt: Date | null; dissolvedAt: Date | null }): boolean {
-  return !team.bannedAt && !team.dissolvedAt;
-}
-
-/** Why the applicant team cannot be booked, or null: it must be active and ready (SPEC P0-5). */
+/**
+ * Why the applicant team cannot be booked, or null: it must be active and ready (SPEC P0-5).
+ * Pure, for teams whose members are loaded; findApplicantTeamProblem reads readiness from the db.
+ */
 export function applicantTeamProblem(
   team: { name: string; bannedAt: Date | null; dissolvedAt: Date | null },
   ready: boolean,
@@ -116,6 +117,14 @@ export function applicantTeamProblem(
     return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als ${READY_MEMBER_COUNT} verifizierte Mitglieder).`;
   }
   return null;
+}
+
+/** applicantTeamProblem against the database; readiness is only counted for active teams. */
+export async function findApplicantTeamProblem(
+  team: { id: string; name: string; bannedAt: Date | null; dissolvedAt: Date | null },
+  db: Db,
+): Promise<string | null> {
+  return applicantTeamProblem(team, isTeamActive(team) && (await isTeamReady(team.id, db)));
 }
 
 export async function createRequest(input: RequestInput & { userId: string; now: Date }) {
@@ -130,10 +139,11 @@ export async function createRequest(input: RequestInput & { userId: string; now:
         `Die Startzeit muss mindestens ${minutes} Minuten in der Zukunft liegen.`,
       );
     }
-    // Team lock: parallel creates must not exceed the limit. Re-read user and team afterwards,
-    // the captain role may have been transferred while we waited for the lock.
+    // Team lock: parallel creates must not exceed the limit. User and team are re-read under the
+    // lock (the role, the ban or the members may have changed while we waited); from here on
+    // requestPostingProblems alone decides.
     await lockTeam(tx, team.id);
-    const current = await requireCaptain(user.id, team.id, tx);
+    const current = await requireTeamMember(user.id, team.id, tx);
     const [problem] = await requestPostingProblems(current.user, current.team, input.now, tx);
     if (problem) throw problemError(problem);
     return tx.scrimRequest.create({
@@ -342,9 +352,7 @@ export async function confirmApplication(input: {
     }
     await requireTeamReady(host.id, tx);
     const guest = application.team;
-    // Readiness is only counted for active teams.
-    const guestReady = isTeamActive(guest) && (await isTeamReady(guest.id, tx));
-    const guestProblem = applicantTeamProblem(guest, guestReady);
+    const guestProblem = await findApplicantTeamProblem(guest, tx);
     if (guestProblem) throw new DomainError("CONFLICT", guestProblem);
 
     const booked = await tx.scrimRequest.updateMany({
