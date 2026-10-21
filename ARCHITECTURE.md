@@ -137,12 +137,12 @@ uni-scrims/
 | Anfragen | `createRequest`, `deleteRequest`, `expireRequests` |
 | Bewerbungen | `applyToRequest`, `withdrawApplication`, `confirmApplication` |
 | Scrims | `cancelScrim`, `openFeedback`, `submitFeedback`, `resolveScrimOutcome` (rein), `resolveDeadlines`, `resolveDispute` |
-| Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability`, `isTeamReady`; nur für den Dev-Login: `listSeedUsers` |
+| Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` |
 | Konto | `deleteAccount` |
 | Wartung | `purgeOldNotifications` |
 
-Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Rang-Utils (`ranks.ts`) und Upload-Helfer (`uploads.ts`: Magic-Bytes-Prüfung, Speichern, Löschen). `config/dev.ts` kapselt das Dev-Flag `DEV_LOGIN`.
+Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Rang-Utils (`ranks.ts`) Upload-Helfer (`uploads.ts`: Magic-Bytes-Prüfung, Speichern, Löschen), Startzeiten (`time.ts`: 15-Minuten-Raster, Berlin → UTC, Anzeige mit "(Nacht auf …)"), Anzeigenamen für Format und Feedback (`labels.ts`), Outbox-Einträge (`notifications.ts`) und Zeilensperren (`locks.ts`). `config/dev.ts` kapselt das Dev-Flag `DEV_LOGIN`.
 
 **Konstanten** in `packages/core/config/`:
 - `maps.ts`: Map-Pool als Liste. Zod validiert Anfragen dagegen. Keine DB-Tabelle.
@@ -352,11 +352,11 @@ Alle Funktionen in diesem Abschnitt prüfen zuerst die Berechtigung laut §7 (ak
 
 **Zeilensperre auf der Anfrage:** `applyToRequest`, `deleteRequest`, `confirmApplication` und `expireRequests` sperren in einer interaktiven Transaktion zuerst die `ScrimRequest`-Zeile (`SELECT … FROM "ScrimRequest" WHERE id = $1 FOR UPDATE` per `$queryRaw`) und prüfen erst danach den Status. Dadurch laufen sie nacheinander, und eine PENDING-Bewerbung existiert nur, solange die Anfrage OPEN ist. Test: paralleles `applyToRequest` und `confirmApplication` hinterlässt keine PENDING-Bewerbung auf einer nicht offenen Anfrage.
 
-- `createRequest`: Team spielbereit und aktiv; max. 5 offene Anfragen; Startzeit im 15-Minuten-Raster zwischen 10:00 und 01:45 Uhr Berliner Zeit, mindestens 30 Minuten nach `now`. Das Zeitfenster vermeidet nebenbei die Zeitumstellung (02:00–03:00). Das eingegebene Datum ist das Kalenderdatum des tatsächlichen Starts (01:00 am 22.10. = Nacht von Di auf Mi).
+- `createRequest`: Team spielbereit und aktiv; max. 5 offene Anfragen; Startzeit im 15-Minuten-Raster zwischen 10:00 und 01:45 Uhr Berliner Zeit, mindestens 30 Minuten nach `now`. Sperrt die `Team`-Zeile, damit parallele Aufrufe das Limit nicht überschreiten. Als offen zählen Anfragen mit OPEN und `startsAt > now`. Das Zeitfenster vermeidet nebenbei die Zeitumstellung (02:00–03:00). Das eingegebene Datum ist das Kalenderdatum des tatsächlichen Starts (01:00 am 22.10. = Nacht von Di auf Mi).
 - `applyToRequest`: Team spielbereit und aktiv, nicht das Ersteller-Team; Anfrage OPEN und zukünftig; `unique(requestId, teamId)`. Liegt der Team-Rang außerhalb des Bereichs, wird die Bewerbung trotzdem angelegt; die UI zeigt einen Hinweis. Notification `APPLICATION_RECEIVED`.
 - `withdrawApplication`: nur PENDING → WITHDRAWN.
-- `deleteRequest`: nur OPEN → CANCELLED; PENDING-Bewerbungen → REJECTED; `REQUEST_DELETED` an die Bewerber.
-- **Board-Standardfilter:** `rankMin ≤ eigenerRang ≤ rankMax`.
+- `deleteRequest`: nur OPEN und vor dem Start → CANCELLED; PENDING-Bewerbungen → REJECTED; `REQUEST_DELETED` an die Bewerber.
+- **Board-Standardfilter:** `rankMin ≤ eigenerRang ≤ rankMax`. Die eigenen Anfragen stehen ungefiltert in einem eigenen Abschnitt.
 
 ### 5.4 Bestätigen (atomar)
 
@@ -401,7 +401,7 @@ Alle Funktionen in diesem Abschnitt prüfen zuerst die Berechtigung laut §7 (ak
 `submitFeedback(scrimId, outcome, rating?, actingUserId, now)` in **einer interaktiven Transaktion**:
 1. Der Nutzer ist **aktueller**, verifizierter Captain von Host- oder Gastteam.
 2. **Scrim-Zeile sperren:** `SELECT … FROM "Scrim" WHERE id = $1 FOR UPDATE` per `$queryRaw`. Damit laufen parallele Feedbacks beider Captains und die Sweeper-Auswertung nacheinander.
-3. `now ≥ startsAt` und Status ∈ {SCHEDULED, AWAITING_FEEDBACK}. Bei SCHEDULED wird zuerst auf AWAITING_FEEDBACK gewechselt. Bei einem Endzustand → Fehler "Feedback bereits abgeschlossen".
+3. `now ≥ startsAt`, `now < feedbackDeadline` und Status ∈ {SCHEDULED, AWAITING_FEEDBACK}. Bei SCHEDULED wird zuerst auf AWAITING_FEEDBACK gewechselt. Bei einem Endzustand → Fehler "Feedback bereits abgeschlossen". Nach der Frist → Fehler "Feedback-Frist abgelaufen"; die Auswertung übernimmt dann `resolveDeadlines`, damit das Ergebnis nicht davon abhängt, wann der Sweeper läuft.
 4. `rating` nur bei PLAYED, dann Pflicht (1–5).
 5. Insert in `ScrimFeedback`. Der Unique-Index verhindert eine zweite Antwort; die Antwort ist nicht änderbar.
 6. Beide Feedbacks lesen. Liegen beide vor: `resolveScrimOutcome()` anwenden und das Ergebnis mit `UPDATE … WHERE id = $1 AND status = 'AWAITING_FEEDBACK'` schreiben.
@@ -410,7 +410,7 @@ Alle Funktionen in diesem Abschnitt prüfen zuerst die Berechtigung laut §7 (ak
 
 Test: Zwei parallele `submitFeedback` mit PLAYED ergeben sofort `COMPLETED`.
 
-`resolveScrimOutcome(feedbackA?, feedbackB?, deadlineReached)` ist eine **reine Funktion** in `core`. Sie gibt `null` zurück (weiter warten) oder `{ status, noShowTeamId? }`. Sie gilt symmetrisch:
+`resolveScrimOutcome(a, b, deadlineReached)` ist eine **reine Funktion** in `core`; `a` und `b` sind `{ teamId, outcome | null }` (die Team-ID wird für `noShowTeamId` bei fehlender Antwort gebraucht). Sie gibt `null` zurück (weiter warten) oder `{ status, noShowTeamId }`. Sie gilt symmetrisch:
 
 | A | B | Ergebnis |
 |---|---|---|
