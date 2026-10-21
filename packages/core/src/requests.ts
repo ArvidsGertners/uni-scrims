@@ -53,8 +53,10 @@ export async function createRequest(input: RequestInput & { userId: string; now:
         `Die Startzeit muss mindestens ${minutes} Minuten in der Zukunft liegen.`,
       );
     }
-    // Team lock: parallel creates must not exceed the limit.
+    // Team lock: parallel creates must not exceed the limit. Re-check the captain afterwards,
+    // the role may have been transferred while we waited for the lock.
     await lockTeam(tx, team.id);
+    await requireActingCaptain(user.id, team.id, tx);
     await requireTeamReady(team.id, tx);
     const open = await tx.scrimRequest.count({
       where: { teamId: team.id, status: RequestStatus.OPEN, startsAt: { gt: input.now } },
@@ -100,20 +102,18 @@ export async function closeOpenRequest(
     data: { status },
   });
   if (updated.count === 0) return false;
-  const pending = await tx.application.findMany({
-    where: { requestId: request.id, status: AppStatus.PENDING },
-    select: { teamId: true },
-  });
-  await tx.application.updateMany({
+  // Only the rows actually rejected here: an application withdrawn meanwhile gets no notice.
+  const rejected = await tx.application.updateManyAndReturn({
     where: { requestId: request.id, status: AppStatus.PENDING },
     data: { status: AppStatus.REJECTED, decidedAt: now },
+    select: { teamId: true },
   });
   const type =
     status === RequestStatus.CANCELLED ? NotifType.REQUEST_DELETED : NotifType.REQUEST_EXPIRED;
   await queueNotifications(
     tx,
     now,
-    pending.map((application) => ({
+    rejected.map((application) => ({
       type,
       channel: NotifChannel.CAPTAIN_DM,
       entityId: request.id,
@@ -295,13 +295,11 @@ export async function confirmApplication(input: {
     if (accepted.count === 0) {
       throw new DomainError("CONFLICT", "Die Bewerbung ist nicht mehr offen.");
     }
-    const rejected = await tx.application.findMany({
-      where: { requestId: request.id, status: AppStatus.PENDING },
-      select: { id: true, teamId: true },
-    });
-    await tx.application.updateMany({
+    // Only the rows actually rejected here: an application withdrawn meanwhile gets no notice.
+    const rejected = await tx.application.updateManyAndReturn({
       where: { requestId: request.id, status: AppStatus.PENDING },
       data: { status: AppStatus.REJECTED, decidedAt: now },
+      select: { id: true, teamId: true },
     });
 
     const feedbackOpensAt = new Date(request.startsAt.getTime() + TIMING.FEEDBACK_OFFSET);
