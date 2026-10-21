@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @uni-scrims/db generate",
     "db:migrate": "pnpm --filter @uni-scrims/db migrate",
-    "db:seed": "pnpm --filter @uni-scrims/db seed"
+    "db:seed": "pnpm --filter @uni-scrims/db seed",
+    "bot:test-dm": "pnpm --filter @uni-scrims/bot test-dm"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

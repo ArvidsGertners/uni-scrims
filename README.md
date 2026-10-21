@@ -47,6 +47,7 @@ Die App-DB läuft auf `localhost:5433`, die Test-DB auf `localhost:5434` (tmpfs,
 | `pnpm format` | Prettier schreibt |
 | `pnpm db:generate` | Prisma-Client nach `packages/db/src/generated` erzeugen |
 | `pnpm db:migrate` | `prisma migrate dev` gegen die App-DB |
+| `pnpm bot:test-dm <discordId>` | Schickt einmalig eine Test-DM über den Bot. Prüft, ob der Hub-Server DMs erlaubt (Fehler 50007 = kein gemeinsamer Server oder DMs blockiert) |
 | `pnpm db:seed` | Hochschulen und zwei Test-Teams mit je 5 verifizierten Nutzern anlegen (idempotent) |
 
 ### Docker
