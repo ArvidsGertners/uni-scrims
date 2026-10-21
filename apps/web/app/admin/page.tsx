@@ -1,4 +1,5 @@
-import { listPendingVerifications, listUniversities } from "@uni-scrims/core";
+import { isAdmin, listPendingVerifications, listUniversities } from "@uni-scrims/core";
+import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
 import { requirePageUser } from "@/lib/session";
@@ -14,6 +15,8 @@ const CHECKLIST = [
 
 export default async function AdminPage() {
   const admin = await requirePageUser("/admin");
+  // Layout and page render in parallel, so the page checks too.
+  if (!(await isAdmin(admin.id))) notFound();
   const queue = await listPendingVerifications(admin.id);
   const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
 
