@@ -307,8 +307,12 @@ export async function getMyTeam(userId: string) {
   };
 }
 
-/** Preview on the invite page; null for unknown codes and banned or dissolved teams. */
-export async function getTeamByInviteCode(inviteCode: string) {
+/**
+ * Preview on the invite page for logged-in, non-banned users (§7: team cards);
+ * null for unknown codes and banned or dissolved teams.
+ */
+export async function getTeamByInviteCode(userId: string, inviteCode: string) {
+  await requireUser(userId);
   const team = await prisma.team.findUnique({
     where: { inviteCode },
     include: { members: { select: memberSelect } },

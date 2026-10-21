@@ -195,7 +195,7 @@ describe("leaveTeam", () => {
 
     const row = await prisma.team.findUniqueOrThrow({ where: { id: team.id } });
     expect(row).toMatchObject({ dissolvedAt: NOW, nameNormalized: null, inviteCode: null });
-    expect(await getTeamByInviteCode(team.inviteCode!)).toBeNull();
+    expect(await getTeamByInviteCode(captain.id, team.inviteCode!)).toBeNull();
     const joiner = await createUser();
     await expect(
       joinTeam({ userId: joiner.id, inviteCode: team.inviteCode!, now: NOW }),
@@ -240,10 +240,22 @@ describe("reads", () => {
 
   it("previews a team by invite code", async () => {
     const { team } = await createTeamWithMembers({ extraMembers: 2 });
-    expect(await getTeamByInviteCode(team.inviteCode!)).toMatchObject({
+    const viewer = await createUser();
+    expect(await getTeamByInviteCode(viewer.id, team.inviteCode!)).toMatchObject({
       id: team.id,
       memberCount: 3,
       full: false,
+    });
+  });
+
+  it("previews teams only for logged-in, non-banned users", async () => {
+    const { team } = await createTeamWithMembers();
+    await expect(getTeamByInviteCode("", team.inviteCode!)).rejects.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
+    const banned = await createUser({ banned: true });
+    await expect(getTeamByInviteCode(banned.id, team.inviteCode!)).rejects.toMatchObject({
+      code: "BANNED",
     });
   });
 });

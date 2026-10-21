@@ -4,9 +4,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileTypeFromBuffer } from "file-type";
+import { MAX_UPLOAD_BYTES } from "../config/uploads.ts";
 import { DomainError } from "./errors.ts";
 
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export { MAX_UPLOAD_BYTES };
 
 const ALLOWED_TYPES: Record<string, string> = {
   "application/pdf": "pdf",

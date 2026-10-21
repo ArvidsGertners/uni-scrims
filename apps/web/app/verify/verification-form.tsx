@@ -1,5 +1,6 @@
 "use client";
 
+import { MAX_UPLOAD_BYTES } from "@uni-scrims/core/config/uploads";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +17,24 @@ const selectClass =
 export function VerificationForm({ universities }: { universities: University[] }) {
   const [state, action, pending] = useActionState(submitVerificationAction, initialActionState);
   const [university, setUniversity] = useState("");
+  const [sizeError, setSizeError] = useState<string | null>(null);
+  const error = sizeError ?? state.error;
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form
+      action={action}
+      className="flex flex-col gap-4"
+      onSubmit={(event) => {
+        // Files above the server action body limit never reach core and would fail without a message.
+        const file = new FormData(event.currentTarget).get("file");
+        if (file instanceof File && file.size > MAX_UPLOAD_BYTES) {
+          event.preventDefault();
+          setSizeError("Die Datei ist größer als 5 MB.");
+        } else {
+          setSizeError(null);
+        }
+      }}
+    >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="university">Hochschule</Label>
         <select
@@ -65,7 +81,7 @@ export function VerificationForm({ universities }: { universities: University[] 
           Zeitpunkte und wer geprüft hat. Ich bin damit einverstanden.
         </span>
       </label>
-      {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button type="submit" className="self-start" disabled={pending}>
         {pending ? "Wird hochgeladen …" : "Hochladen"}
       </Button>

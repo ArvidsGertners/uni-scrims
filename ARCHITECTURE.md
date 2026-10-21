@@ -147,6 +147,7 @@ Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Ra
 **Konstanten** in `packages/core/config/`:
 - `maps.ts`: Map-Pool als Liste. Zod validiert Anfragen dagegen. Keine DB-Tabelle.
 - `timing.ts`: `FEEDBACK_OFFSET = 3 h`, `FEEDBACK_WINDOW = 72 h`, `REMINDER_OFFSETS = [24 h, 1 h]`, `LATE_CANCEL = 24 h`, `VERIFICATION_TTL = 14 Tage`, `MIN_REQUEST_LEAD = 30 min` (Mindestvorlauf einer Anfrage). Mit `DEV_TIME_OFFSETS=true` werden sie auf Minuten verkürzt (siehe §7).
+- `uploads.ts`: `MAX_UPLOAD_BYTES = 5 MB`. Ohne Server-Importe, damit auch das Upload-Formular im Browser vorab prüfen kann (Dateien über dem Body-Limit erreichen `core` sonst nie).
 
 ---
 
@@ -196,14 +197,14 @@ User                                     # Better-Auth-Tabelle "user" + zusätzl
 VerificationRequest
   id, userId ──► User
   pendingUserId? (unique)                 # = userId solange PENDING, sonst null ⇒ max. 1 offene Prüfung
-  universityId?, universityOther?
+  universityId?, universityOther?         # Freitext max. 200 Zeichen
   filePath?                               # null nach Löschung
   mimeType, sizeBytes
-  status (VerifStatus), rejectReason?
+  status (VerifStatus), rejectReason?     # Grund max. 500 Zeichen
   createdAt, decidedAt?, decidedById? ──► User   # null bei automatischer Ablehnung
 
 Team
-  id, name
+  id, name                                # 2–40 Zeichen (getrimmt)
   nameNormalized? (unique)                # lowercase + getrimmt ⇒ Name case-insensitiv eindeutig; null nach Auflösung
   tag                                     # 2–5 Zeichen, nicht eindeutig
   rank (Rank)                             # vom Captain änderbar

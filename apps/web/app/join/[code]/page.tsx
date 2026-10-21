@@ -13,7 +13,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   if (!(await getSessionUserId())) redirect(loginUrl(path));
   const user = await requirePageUser(path);
 
-  const team = await getTeamByInviteCode(code);
+  const team = await getTeamByInviteCode(user.id, code);
   if (!team) {
     return (
       <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
