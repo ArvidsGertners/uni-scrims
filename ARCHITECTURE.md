@@ -59,7 +59,7 @@ In Phase 0 werden **exakte Versionen** in `package.json` gepinnt (ohne `^`/`~`) 
 |---|---|---|
 | Node.js | 24 LTS (lokal 24.21.0) | Next.js 16 braucht ≥ 20.9. Docker-Base-Image `node:24-slim`. `engines: >=24 <25`. |
 | pnpm | 12.14.0 | Workspaces, über Corepack (`packageManager` in der Root-`package.json`). Build-Skripte nur für Pakete in `allowBuilds` (`pnpm-workspace.yaml`). |
-| Next.js / eslint-config-next | 16.4.2 | `middleware.ts` heißt jetzt `proxy.ts`. Wird hier **nicht** gebraucht: Auth-Checks laufen in Server Actions und Seiten. |
+| Next.js / eslint-config-next | 16.4.2 | `middleware.ts` heißt jetzt `proxy.ts`. Wird hier **nicht** gebraucht: Auth-Checks laufen in Server Actions und Seiten. `serverActions.bodySizeLimit` liegt in 16.4.2 unter `experimental`. |
 | React / React DOM | 19.3.1 | |
 | Better Auth | 1.7.12 | Discord-Provider, DB-Sessions, Prisma-Adapter. **Die CLI ist jetzt das Paket `auth`** (`pnpm dlx auth@1.7.12 generate`); `@better-auth/cli` endet bei 1.4.x. |
 | Prisma (`prisma`, `@prisma/client`, `@prisma/adapter-pg`) | 7.10.1 | Der npm-Tag `latest` zeigt auf 8-RC, darum explizit 7.10.1. Driver-Adapter `@prisma/adapter-pg`, `prisma.config.ts`, Client-Output außerhalb von `node_modules`, `.env` wird nicht automatisch geladen, `generate` und `seed` explizit aufrufen. **Client überall aus `packages/db` importieren, nie aus `@prisma/client`** (per ESLint-Regel erzwungen). |
@@ -131,15 +131,18 @@ uni-scrims/
 
 | Bereich | Funktionen |
 |---|---|
-| Verifizierung | `submitVerification`, `decideVerification`, `autoRejectStaleVerifications` |
+| Login | `handleDiscordLogin` (Hub-Beitritt über einen übergebenen Discord-Aufruf, Ergebnis speichern, Tokens löschen), `recordHubJoinResult`, `clearOAuthTokens` |
+| Verifizierung | `submitVerification`, `decideVerification`, `autoRejectStaleVerifications`, `cleanupDecidedFiles`, `cleanupOrphanFiles`, `runUploadJanitor` (die drei Janitor-Schritte aus §5.2) |
 | Teams | `createTeam`, `updateTeam`, `regenerateInvite`, `joinTeam`, `leaveTeam`, `transferCaptain`, `removeMember`, `dissolveTeam`, `retireTeamActivity` |
 | Anfragen | `createRequest`, `deleteRequest`, `expireRequests` |
 | Bewerbungen | `applyToRequest`, `withdrawApplication`, `confirmApplication` |
 | Scrims | `cancelScrim`, `openFeedback`, `submitFeedback`, `resolveScrimOutcome` (rein), `resolveDeadlines`, `resolveDispute` |
-| Lesen | `getDiscordId`, `findUserByDiscordId`, `getBoard`, `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability`, `isTeamReady` |
+| Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability`, `isTeamReady`; nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` |
 | Konto | `deleteAccount` |
 | Wartung | `purgeOldNotifications` |
+
+Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Rang-Utils (`ranks.ts`) und Upload-Helfer (`uploads.ts`: Magic-Bytes-Prüfung, Speichern, Löschen). `config/dev.ts` kapselt das Dev-Flag `DEV_LOGIN`.
 
 **Konstanten** in `packages/core/config/`:
 - `maps.ts`: Map-Pool als Liste. Zod validiert Anfragen dagegen. Keine DB-Tabelle.
@@ -316,7 +319,7 @@ User lädt Datei hoch (Server Action)
   → Auth-Check, Nutzer noch nicht verifiziert (`verifiedAt` null), kein PENDING vorhanden, Checkbox bestätigt
   → echte Dateigröße ≤ 5 MB nach dem Einlesen prüfen (nicht nur Content-Length)
   → MIME über Magic Bytes prüfen (file-type): nur PDF, JPEG, PNG; HEIC mit Hinweis ablehnen
-  → Datei schreiben: /data/uploads/<uuid>.<ext>
+  → Datei schreiben: <UPLOAD_DIR>/<uuid>.<ext> (Rechte 0600); filePath speichert nur den Dateinamen
   → VerificationRequest(PENDING, pendingUserId = userId) anlegen
   → schlägt der DB-Insert fehl: Datei sofort löschen
 
@@ -333,7 +336,9 @@ Admin entscheidet (eine Transaktion)
   → nach dem Commit: Datei löschen, filePath = null
 ```
 
-**Body-Limit:** Server Actions haben standardmäßig ein Limit von 1 MB. Setze `serverActions.bodySizeLimit: '6mb'` in `next.config.ts`; prüfe in der gepinnten Next.js-Version, ob der Schlüssel unter `experimental` liegt. Zusätzlich in Caddy `request_body { max_size 6MB }`.
+**Body-Limit:** Server Actions haben standardmäßig ein Limit von 1 MB. In `next.config.ts` steht `experimental.serverActions.bodySizeLimit: '6mb'` (in Next 16.4.2 unter `experimental`). Zusätzlich in Caddy `request_body { max_size 6MB }`.
+
+**`UPLOAD_DIR`** muss ein absoluter Pfad sein (`resolveUploadDir` in core bricht sonst ab), damit Web, Janitor und Tests nicht vom Arbeitsverzeichnis abhängen. Die Datei-Route `/api/admin/uploads/[id]` ist von den globalen Sicherheits-Headern (§7) ausgenommen und setzt eigene, darunter `frame-ancestors 'self'`. Sonst würde `frame-ancestors 'none'` die PDF-Vorschau im iframe der Queue blockieren.
 
 **Janitor im Web-Prozess** (`instrumentation.ts`, beim Start und dann stündlich): Start nur, wenn `process.env.NEXT_RUNTIME === 'nodejs'`, mit einem Modul-Flag gegen Doppelstart (der Dev-Server ruft `register()` mehrfach auf), als sequenzielle Schleife wie in §6.2 (kein `setInterval`):
 1. PENDING-Prüfungen älter als `VERIFICATION_TTL` (14 Tage) → automatisch REJECTED mit Grund "Prüfung nicht rechtzeitig erfolgt", Datei löschen, `VERIFICATION_RESULT` senden.
