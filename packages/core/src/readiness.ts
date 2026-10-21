@@ -1,6 +1,6 @@
 // Whether a team can play: active, and ready with enough verified members (SPEC P0-3).
 // Every count of verified members and every readiness decision goes through these rules.
-import { prisma } from "@uni-scrims/db";
+import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 
 /** A team is ready to play with at least this many verified members (SPEC P0-3). */
@@ -9,6 +9,11 @@ export const READY_MEMBER_COUNT = 5;
 /** Neither banned nor dissolved; only active teams can play or be joined (ARCHITECTURE §4). */
 export function isTeamActive(team: { bannedAt: Date | null; dissolvedAt: Date | null }): boolean {
   return !team.bannedAt && !team.dissolvedAt;
+}
+
+/** isTeamActive as a Prisma filter. */
+export function activeTeamWhere() {
+  return { bannedAt: null, dissolvedAt: null } satisfies Prisma.TeamWhereInput;
 }
 
 /** A member counts as verified for readiness and the team card. */

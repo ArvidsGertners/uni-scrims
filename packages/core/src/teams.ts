@@ -188,7 +188,7 @@ export async function leaveTeam(input: { userId: string; now: Date }) {
   return prisma.$transaction(async (tx) => {
     await lockTeam(tx, membership.teamId);
     const team = await tx.team.findUniqueOrThrow({ where: { id: membership.teamId } });
-    if (team.captainId !== user.id) {
+    if (!isCaptainOf(user, team)) {
       await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
       return { dissolved: false };
     }
@@ -314,7 +314,7 @@ export async function getMyTeam(userId: string) {
     name: member.name,
     image: member.image,
     joinedAt,
-    isCaptain: member.id === team.captainId,
+    isCaptain: isCaptainOf(member, team),
     status: isVerifiedMember(member)
       ? ("VERIFIED" as const)
       : member.pendingVerification

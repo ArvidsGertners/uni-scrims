@@ -10,7 +10,7 @@ import {
   teamReadyProblem,
 } from "./permissions.ts";
 import { RANKS, isRankInRange, rankValue } from "./ranks.ts";
-import { hasReadyMembers, isTeamActive, isTeamReady } from "./readiness.ts";
+import { activeTeamWhere, hasReadyMembers, isTeamActive, isTeamReady } from "./readiness.ts";
 import {
   applicantTeamProblem,
   isRequestOpen,
@@ -163,7 +163,7 @@ export async function getBoard(input: BoardInput) {
 
   const base: Prisma.ScrimRequestWhereInput = {
     ...openRequestWhere(input.now),
-    team: { bannedAt: null, dissolvedAt: null },
+    team: activeTeamWhere(),
   };
   // Each filter is its own AND entry, so none can overwrite a condition of base.
   const filtered: Prisma.ScrimRequestWhereInput = {
