@@ -64,12 +64,27 @@ describe("requireCaptain / requireActingCaptain", () => {
     const banned = await createTeamWithMembers({ banned: true });
     await expect(requireCaptain(banned.captain.id, banned.team.id)).rejects.toMatchObject({
       code: "FORBIDDEN",
+      message: "Das Team ist gesperrt.",
     });
     const dissolved = await createTeamWithMembers();
     await prisma.team.update({ where: { id: dissolved.team.id }, data: { dissolvedAt: NOW } });
     await expect(requireCaptain(dissolved.captain.id, dissolved.team.id)).rejects.toMatchObject({
-      code: "NOT_FOUND",
+      code: "FORBIDDEN",
     });
+  });
+
+  it("does not tell non-members whether another team is active, banned or dissolved (§4)", async () => {
+    const outsider = await createTeamWithMembers();
+    const active = await createTeamWithMembers();
+    const banned = await createTeamWithMembers({ banned: true });
+    const dissolved = await createTeamWithMembers();
+    await prisma.team.update({ where: { id: dissolved.team.id }, data: { dissolvedAt: NOW } });
+    for (const { team } of [active, banned, dissolved]) {
+      await expect(requireActingCaptain(outsider.captain.id, team.id)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: "Du bist nicht in diesem Team.",
+      });
+    }
   });
 });
 

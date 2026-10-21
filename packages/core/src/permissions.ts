@@ -14,11 +14,11 @@ const TEAM_BANNED: Problem = {
   code: "FORBIDDEN",
   message: "Das Team ist gesperrt.",
 };
-// Neutral on purpose: requireCaptain also answers for teams the user is not in.
+// Only ever about the user's own team: requireCaptain answers non-members before it gets here.
 const NOT_CAPTAIN: Problem = {
   kind: "NOT_CAPTAIN",
   code: "FORBIDDEN",
-  message: "Nur der Captain des Teams darf das.",
+  message: "Das kann nur euer Captain.",
 };
 const CAPTAIN_NOT_VERIFIED: Problem = {
   kind: "CAPTAIN_NOT_VERIFIED",
@@ -72,17 +72,17 @@ export async function requireVerified(userId: string | null | undefined, db: Db 
   return user;
 }
 
-/** Current captain of an active team (neither banned nor dissolved). Verification is not required. */
+/**
+ * Current captain of an active team (neither banned nor dissolved). Verification is not required.
+ * Membership comes first: non-members get the same answer for active, banned and dissolved teams,
+ * so nobody learns that another team was banned (ARCHITECTURE §4).
+ */
 export async function requireCaptain(
   userId: string | null | undefined,
   teamId: string,
   db: Db = prisma,
 ) {
-  const user = await requireUser(userId, db);
-  const team = await db.team.findUnique({ where: { id: teamId } });
-  if (!team || team.dissolvedAt) {
-    throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
-  }
+  const { user, team } = await requireTeamMember(userId, teamId, db);
   const [problem] = captainProblems(user, team);
   if (problem) throw problemError(problem);
   return { user, team };

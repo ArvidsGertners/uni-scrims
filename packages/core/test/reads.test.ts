@@ -193,7 +193,7 @@ describe("getBoard", () => {
 describe("getRequestForm", () => {
   const form = (userId: string, now = NOW) => getRequestForm({ userId, now });
   const BANNED = { kind: "TEAM_BANNED", message: "Das Team ist gesperrt." };
-  const NOT_CAPTAIN = { kind: "NOT_CAPTAIN", message: "Nur der Captain des Teams darf das." };
+  const NOT_CAPTAIN = { kind: "NOT_CAPTAIN", message: "Das kann nur euer Captain." };
   const NOT_VERIFIED = {
     kind: "CAPTAIN_NOT_VERIFIED",
     message: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
@@ -274,7 +274,7 @@ describe("getRequestDetail", () => {
       applications: null,
       ownApplication: null,
     });
-    const onlyCaptain = { problem: "Nur der Captain des Teams darf das." };
+    const onlyCaptain = { problem: "Das kann nur euer Captain." };
     expect(await detail(author.members[0]!.id)).toMatchObject({
       apply: null,
       // Deleting is never offered to members, the captain rule shows once at confirming.
@@ -368,7 +368,7 @@ describe("getRequestDetail", () => {
     ).rejects.toMatchObject({ message: notReady });
     // The captain rule comes first.
     expect(await detail(late.members[1]!.id)).toMatchObject({
-      apply: { problem: "Nur der Captain des Teams darf das." },
+      apply: { problem: "Das kann nur euer Captain." },
     });
   });
 
@@ -395,7 +395,7 @@ describe("getScrimDetail and getMyScrims", () => {
     expect(await detail(outsider.captain.id)).toBeNull();
     expect(await detail(guest.members[0]!.id)).toMatchObject({
       isHost: false,
-      actionProblem: "Nur der Captain des Teams darf das.",
+      actionProblem: "Das kann nur euer Captain.",
       opponent: { id: host.team.id, captainName: host.captain.name },
       cancellable: true,
       canCancel: false,
