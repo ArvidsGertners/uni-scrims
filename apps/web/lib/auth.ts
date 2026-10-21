@@ -27,8 +27,12 @@ export const auth = betterAuth({
         // Better Auth requires an email; Discord sends none without the email scope. Never used for sending.
         email: `${profile.id}@users.uniscrims.invalid`,
         // The default is the display name (global_name), which is neither unique nor searchable.
-        // Captains find the opposing captain on Discord by this name (SPEC P0-6).
-        name: profile.username,
+        // Captains find the opposing captain on Discord by this name (SPEC P0-6). Accounts not yet
+        // migrated to unique usernames are only unique with their discriminator (name#1234).
+        name:
+          profile.discriminator && profile.discriminator !== "0"
+            ? `${profile.username}#${profile.discriminator}`
+            : profile.username,
       }),
     },
   },
