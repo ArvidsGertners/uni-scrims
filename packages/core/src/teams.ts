@@ -4,11 +4,18 @@ import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
-import { findOwnTeam, isCaptainOf, requireCaptain, requireUser } from "./permissions.ts";
+import {
+  findOwnTeam,
+  isCaptainOf,
+  requireCaptain,
+  requireOwnCaptain,
+  requireUser,
+} from "./permissions.ts";
 import { isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
 import { closeOpenRequest } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
+import { findUserByDiscordId } from "./users.ts";
 
 export const MAX_TEAM_MEMBERS = 10;
 /** Team cards show at most this many universities, then "+n" (SPEC P0-3). */
@@ -93,6 +100,24 @@ export async function regenerateInvite(input: { userId: string; teamId: string }
     data: { inviteCode: generateInviteCode() },
   });
   return team.inviteCode;
+}
+
+/**
+ * /setup (ARCHITECTURE §6.4): links a Discord server and channel to the caller's team, so bookings,
+ * cancellations and reminders are also posted there. Only the captain of a team that is not banned.
+ */
+export async function linkTeamChannel(input: {
+  discordUserId: string;
+  guildId: string;
+  channelId: string;
+}) {
+  const user = await findUserByDiscordId(input.discordUserId);
+  const { team } = await requireOwnCaptain(user?.id);
+  return prisma.team.update({
+    where: { id: team.id },
+    data: { discordGuildId: input.guildId, discordChannelId: input.channelId },
+    select: { id: true, name: true },
+  });
 }
 
 export async function transferCaptain(input: {

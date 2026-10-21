@@ -151,16 +151,33 @@ export async function requireAdmin(userId: string | null | undefined, db: Db = p
   return user;
 }
 
-/**
- * requireActingCaptain for the user's own team: scrim actions always act for the team
- * the user is in. User and membership are read once.
- */
-export async function requireOwnActingCaptain(userId: string | null | undefined, db: Db = prisma) {
+/** The user and the team they are in; user and membership are read once. */
+async function requireOwnTeam(userId: string | null | undefined, db: Db) {
   const user = await requireUser(userId, db);
   const team = await findOwnTeam(user.id, db);
   if (!team) {
     throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
   }
+  return { user, team };
+}
+
+/**
+ * requireCaptain for the user's own team, for team management that starts without a team ID
+ * (/setup in Discord). Verification is not required.
+ */
+export async function requireOwnCaptain(userId: string | null | undefined, db: Db = prisma) {
+  const { user, team } = await requireOwnTeam(userId, db);
+  const problem = captainProblem(user, team);
+  if (problem) throw problemError(problem);
+  return { user, team };
+}
+
+/**
+ * requireActingCaptain for the user's own team: scrim actions always act for the team
+ * the user is in.
+ */
+export async function requireOwnActingCaptain(userId: string | null | undefined, db: Db = prisma) {
+  const { user, team } = await requireOwnTeam(userId, db);
   const problem = actingCaptainProblem(user, team);
   if (problem) throw problemError(problem);
   return { user, team };

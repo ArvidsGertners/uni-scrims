@@ -8,6 +8,7 @@ import {
   getTeamByInviteCode,
   joinTeam,
   leaveTeam,
+  linkTeamChannel,
   regenerateInvite,
   removeMember,
   summarizeUniversities,
@@ -262,5 +263,31 @@ describe("reads", () => {
     await expect(getTeamByInviteCode(banned.id, team.inviteCode!)).rejects.toMatchObject({
       code: "BANNED",
     });
+  });
+});
+
+describe("linkTeamChannel (/setup)", () => {
+  const link = (discordUserId: string) =>
+    linkTeamChannel({ discordUserId, guildId: "400", channelId: "401" });
+
+  it("links server and channel for the captain, also without verification", async () => {
+    const { team, captain } = await createTeamWithMembers({ verifiedCaptain: false });
+    expect(await link(captain.discordId)).toEqual({ id: team.id, name: team.name });
+    expect(await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).toMatchObject({
+      discordGuildId: "400",
+      discordChannelId: "401",
+    });
+  });
+
+  it("rejects members, banned teams, users without a team and unknown Discord users", async () => {
+    const { members } = await createTeamWithMembers({ extraMembers: 1 });
+    await expect(link(members[0]!.discordId)).rejects.toThrow("Das kann nur euer Captain.");
+    const banned = await createTeamWithMembers({ banned: true });
+    await expect(link(banned.captain.discordId)).rejects.toThrow("Das Team ist gesperrt.");
+    const loner = await createUser();
+    await expect(link(loner.discordId)).rejects.toThrow("Du bist in keinem Team.");
+    await expect(link("123456789")).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    const bannedUser = await createUser({ banned: true });
+    await expect(link(bannedUser.discordId)).rejects.toMatchObject({ code: "BANNED" });
   });
 });

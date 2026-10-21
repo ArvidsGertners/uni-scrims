@@ -15,3 +15,4 @@ export * from "./requests.ts";
 export * from "./scrims.ts";
 export * from "./reads.ts";
 export * from "./outbox.ts";
+export * from "./sweeper.ts";
