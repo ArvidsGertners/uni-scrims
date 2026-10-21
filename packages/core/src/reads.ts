@@ -13,8 +13,10 @@ import {
   canSeeApplications,
   isScrimTeam,
   requireUser,
+  teamReadyProblem,
 } from "./permissions.ts";
 import { RANKS, isRankInRange, rankValue } from "./ranks.ts";
+import { isTeamReady } from "./readiness.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
@@ -263,6 +265,10 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     ...applications.map((application) => application.teamId),
   ]);
   const scrim = request.scrim;
+  const actionProblem = ownTeam ? actingCaptainProblem(user, ownTeam) : null;
+  const bookingProblem = ownTeam
+    ? (actionProblem ?? teamReadyProblem(await isTeamReady(ownTeam.id)))
+    : null;
 
   return {
     id: request.id,
@@ -278,7 +284,9 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     hasTeam: ownTeam !== null,
     isOwner,
     /** null if the user may run scrim actions for the own team, otherwise why not. */
-    actionProblem: ownTeam ? actingCaptainProblem(user, ownTeam) : null,
+    actionProblem,
+    /** Like actionProblem; applying and confirming also need a ready team. */
+    bookingProblem,
     /** Own team rank outside the requested range: allowed, with a hint (SPEC P0-5). */
     outOfRange: ownTeam ? !isRankInRange(ownTeam.rank, request.rankMin, request.rankMax) : false,
     ownApplication,

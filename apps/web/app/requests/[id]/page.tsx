@@ -41,6 +41,8 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const canApply = request.open && request.hasTeam && !request.isOwner && !request.ownApplication;
   // Scrim actions only for the current, verified captain of an active team (§7).
   const canAct = request.actionProblem === null;
+  // Applying and confirming also need a ready team.
+  const canBook = request.bookingProblem === null;
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8">
@@ -73,7 +75,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               bewerben, der Ersteller entscheidet.
             </p>
           ) : null}
-          {canAct ? (
+          {canBook ? (
             <ActionForm action={applyAction} submitLabel="Bewerben">
               <input type="hidden" name="requestId" value={request.id} />
               <div className="flex flex-col gap-1.5">
@@ -87,7 +89,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               </div>
             </ActionForm>
           ) : (
-            <p className="text-sm opacity-70">{request.actionProblem}</p>
+            <p className="text-sm opacity-70">{request.bookingProblem}</p>
           )}
         </section>
       ) : null}
@@ -138,7 +140,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                 {application.message ? (
                   <p className="text-sm whitespace-pre-line">{application.message}</p>
                 ) : null}
-                {application.status === "PENDING" && request.open && canAct ? (
+                {application.status === "PENDING" && request.open && canBook ? (
                   <ActionForm
                     action={confirmApplicationAction}
                     submitLabel="Bestätigen"
@@ -154,8 +156,8 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
         </section>
       ) : null}
 
-      {request.isOwner && request.open && request.actionProblem ? (
-        <p className="text-sm opacity-70">{request.actionProblem}</p>
+      {request.isOwner && request.open && request.bookingProblem ? (
+        <p className="text-sm opacity-70">{request.bookingProblem}</p>
       ) : null}
 
       {request.isOwner && canAct && request.open ? (

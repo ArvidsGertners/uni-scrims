@@ -22,17 +22,6 @@ export default async function NewRequestPage() {
   const user = await requirePageUser("/requests/new");
   const team = await getMyTeam(user.id);
 
-  // Same conditions as core's createRequest (§7), shown before the captain fills in the form.
-  const problems = team?.isCaptain
-    ? [
-        team.banned ? "Euer Team ist gesperrt." : null,
-        user.verifiedAt ? null : "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
-        team.ready
-          ? null
-          : "Euer Team ist noch nicht spielbereit (mindestens 5 verifizierte Mitglieder).",
-      ].filter((problem) => problem !== null)
-    : [];
-
   if (!team?.isCaptain) {
     return (
       <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
@@ -48,13 +37,10 @@ export default async function NewRequestPage() {
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
       <h1 className="text-2xl font-bold">Anfrage erstellen</h1>
-      {problems.length > 0 ? (
+      {/* Same conditions as core's createRequest (§7), shown before the captain fills in the form. */}
+      {team.bookingProblem ? (
         <>
-          {problems.map((problem) => (
-            <p key={problem} className="text-sm text-destructive">
-              {problem}
-            </p>
-          ))}
+          <p className="text-sm text-destructive">{team.bookingProblem}</p>
           <Link href="/team" className="text-sm underline">
             Zum Team
           </Link>

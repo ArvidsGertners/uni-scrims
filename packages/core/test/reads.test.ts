@@ -231,6 +231,53 @@ describe("getRequestDetail", () => {
     });
   });
 
+  it("offers applying and confirming only to ready teams, like core", async () => {
+    const author = await createReadyTeam();
+    const applicant = await createReadyTeam();
+    const request = await createOpenRequest(author.captain.id);
+    const { application } = await applyToRequest({
+      userId: applicant.captain.id,
+      requestId: request.id,
+      now: NOW,
+    });
+    const notReady = "Das Team hat noch keine 5 verifizierten Mitglieder.";
+    const detail = (userId: string) =>
+      getRequestDetail({ userId, requestId: request.id, now: NOW });
+
+    expect(await detail(author.captain.id)).toMatchObject({
+      actionProblem: null,
+      bookingProblem: null,
+    });
+    await prisma.user.update({ where: { id: author.members[0]!.id }, data: { verifiedAt: null } });
+    expect(await detail(author.captain.id)).toMatchObject({
+      actionProblem: null,
+      bookingProblem: notReady,
+    });
+    await expect(
+      confirmApplication({
+        userId: author.captain.id,
+        requestId: request.id,
+        applicationId: application.id,
+        now: NOW,
+      }),
+    ).rejects.toMatchObject({ message: notReady });
+
+    const late = await createReadyTeam();
+    await prisma.user.update({ where: { id: late.members[0]!.id }, data: { verifiedAt: null } });
+    expect(await detail(late.captain.id)).toMatchObject({
+      actionProblem: null,
+      bookingProblem: notReady,
+    });
+    await expect(
+      applyToRequest({ userId: late.captain.id, requestId: request.id, now: NOW }),
+    ).rejects.toMatchObject({ message: notReady });
+    // The captain rule comes first.
+    expect(await detail(late.members[1]!.id)).toMatchObject({
+      actionProblem: "Das kann nur euer Captain.",
+      bookingProblem: "Das kann nur euer Captain.",
+    });
+  });
+
   it("links the scrim for both teams after booking and hides banned teams' requests", async () => {
     const { host, guest, request, scrim } = await bookScrim();
     const outsider = await createReadyTeam();

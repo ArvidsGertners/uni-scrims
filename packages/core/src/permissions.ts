@@ -8,6 +8,7 @@ import { isAdmin } from "./users.ts";
 
 const TEAM_BANNED = "Das Team ist gesperrt.";
 const CAPTAIN_NOT_VERIFIED = "Als Captain musst du für Scrim-Aktionen verifiziert sein.";
+const TEAM_NOT_READY = "Das Team hat noch keine 5 verifizierten Mitglieder.";
 
 /** Logged in and not banned. */
 export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
@@ -84,7 +85,7 @@ export async function requireTeamMember(
 
 export async function requireTeamReady(teamId: string, db: Db = prisma): Promise<void> {
   if (!(await isTeamReady(teamId, db))) {
-    throw new DomainError("FORBIDDEN", "Das Team hat noch keine 5 verifizierten Mitglieder.");
+    throw new DomainError("FORBIDDEN", TEAM_NOT_READY);
   }
 }
 
@@ -122,6 +123,14 @@ export function actingCaptainProblem(
   if (team.captainId !== user.id) return "Das kann nur euer Captain.";
   if (!user.verifiedAt) return CAPTAIN_NOT_VERIFIED;
   return null;
+}
+
+/**
+ * Non-throwing counterpart of requireTeamReady: posting, applying and confirming need a ready team,
+ * withdrawing, deleting, cancelling and feedback do not (SPEC P0-3).
+ */
+export function teamReadyProblem(ready: boolean): string | null {
+  return ready ? null : TEAM_NOT_READY;
 }
 
 type ScrimTeams = { hostTeamId: string; guestTeamId: string };

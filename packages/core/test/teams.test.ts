@@ -229,13 +229,32 @@ describe("reads", () => {
     });
 
     const own = await getMyTeam(captain.id);
-    expect(own).toMatchObject({ id: team.id, isCaptain: true, verifiedCount: 4, ready: false });
+    expect(own).toMatchObject({
+      id: team.id,
+      isCaptain: true,
+      verifiedCount: 4,
+      ready: false,
+      bookingProblem: "Das Team hat noch keine 5 verifizierten Mitglieder.",
+    });
     expect(own?.inviteCode).toBe(team.inviteCode);
     expect(own?.members.find((member) => member.id === pending.id)?.status).toBe("PENDING");
 
     const asMember = await getMyTeam(members[0]!.id);
-    expect(asMember).toMatchObject({ isCaptain: false, inviteCode: null });
+    expect(asMember).toMatchObject({
+      isCaptain: false,
+      inviteCode: null,
+      bookingProblem: "Das kann nur euer Captain.",
+    });
     expect(await getMyTeam((await createUser()).id)).toBeNull();
+  });
+
+  it("tells the captain why the team cannot post requests", async () => {
+    const ready = await createTeamWithMembers({ extraMembers: 4 });
+    expect(await getMyTeam(ready.captain.id)).toMatchObject({ ready: true, bookingProblem: null });
+    const unverified = await createTeamWithMembers({ extraMembers: 4, verifiedCaptain: false });
+    expect(await getMyTeam(unverified.captain.id)).toMatchObject({
+      bookingProblem: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+    });
   });
 
   it("previews a team by invite code", async () => {

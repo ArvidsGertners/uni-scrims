@@ -4,7 +4,12 @@ import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
-import { requireCaptain, requireUser } from "./permissions.ts";
+import {
+  actingCaptainProblem,
+  requireCaptain,
+  requireUser,
+  teamReadyProblem,
+} from "./permissions.ts";
 import { READY_MEMBER_COUNT } from "./readiness.ts";
 import { closeOpenRequest } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
@@ -322,6 +327,7 @@ export async function getMyTeam(userId: string) {
         : ("UNVERIFIED" as const),
   }));
   const verifiedCount = members.filter((member) => member.status === "VERIFIED").length;
+  const ready = verifiedCount >= READY_MEMBER_COUNT;
   return {
     id: team.id,
     name: team.name,
@@ -333,7 +339,9 @@ export async function getMyTeam(userId: string) {
     inviteCode: isCaptain ? team.inviteCode : null,
     members,
     verifiedCount,
-    ready: verifiedCount >= READY_MEMBER_COUNT,
+    ready,
+    /** null if the user may post requests for the team, otherwise why not (§7). */
+    bookingProblem: actingCaptainProblem(user, team) ?? teamReadyProblem(ready),
     universities: teamUniversities(team.members),
   };
 }
