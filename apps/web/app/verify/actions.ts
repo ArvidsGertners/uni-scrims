@@ -1,0 +1,48 @@
+"use server";
+
+import { resolveUploadDir, submitVerification } from "@uni-scrims/core";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { type ActionState, runAction } from "@/lib/action";
+import { getSessionUserId } from "@/lib/session";
+import { OTHER_UNIVERSITY } from "./constants";
+
+const schema = z.object({
+  university: z.string().min(1),
+  universityOther: z.string().max(200).optional(),
+  consent: z.literal("on"),
+  file: z.instanceof(File),
+});
+
+export async function submitVerificationAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const userId = await getSessionUserId();
+  const parsed = schema.safeParse({
+    university: formData.get("university"),
+    universityOther: formData.get("universityOther") ?? undefined,
+    consent: formData.get("consent"),
+    file: formData.get("file"),
+  });
+  if (!parsed.success) {
+    return {
+      error: "Bitte wähle deine Hochschule, lade eine Datei hoch und bestätige den Hinweis.",
+    };
+  }
+  const { university, universityOther, file } = parsed.data;
+  const other = university === OTHER_UNIVERSITY;
+  const state = await runAction(async () => {
+    await submitVerification({
+      userId: userId ?? "",
+      universityId: other ? null : university,
+      universityOther: other ? (universityOther ?? "") : null,
+      consent: true,
+      file: new Uint8Array(await file.arrayBuffer()),
+      uploadDir: resolveUploadDir(),
+      now: new Date(),
+    });
+  });
+  revalidatePath("/verify");
+  return state;
+}

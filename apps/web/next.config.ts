@@ -17,10 +17,11 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "6mb" },
   },
   // Security headers for all pages (ARCHITECTURE §7); HSTS is set in Caddy.
+  // The admin upload route sets its own headers, so the queue can embed the preview.
   async headers() {
     return [
       {
-        source: "/:path*",
+        source: "/((?!api/admin/uploads/).*)",
         headers: [
           { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
           { key: "X-Content-Type-Options", value: "nosniff" },
