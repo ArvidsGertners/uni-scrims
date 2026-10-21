@@ -49,8 +49,8 @@ export async function createTeamWithMembers(
   const team = await prisma.team.create({
     data: {
       id,
-      name: `Team ${id}`,
-      nameNormalized: `team ${id}`,
+      name: `Team ${id.slice(0, 18)}`,
+      nameNormalized: `team ${id.slice(0, 18)}`,
       tag: "TST",
       rank: Rank.GOLD,
       captainId: captain.id,
