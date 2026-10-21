@@ -9,7 +9,8 @@ import { OTHER_UNIVERSITY } from "./constants";
 
 const schema = z.object({
   university: z.string().min(1),
-  universityOther: z.string().max(200).optional(),
+  // Length is checked by core (MAX_UNIVERSITY_OTHER_LENGTH) with a specific message.
+  universityOther: z.string().optional(),
   consent: z.literal("on"),
   file: z.instanceof(File),
 });

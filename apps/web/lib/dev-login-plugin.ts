@@ -1,12 +1,11 @@
 // Dev login (ARCHITECTURE §7): sign in as a seed user without Discord.
 // Only works with NODE_ENV=development and DEV_LOGIN=true; otherwise the endpoint answers 404.
+import { SEED_USER_PREFIX } from "@uni-scrims/core";
 import { isDevLoginEnabled } from "@uni-scrims/core/config/dev";
 import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthEndpoint } from "better-auth/api";
 import { setSessionCookie } from "better-auth/cookies";
 import { z } from "zod";
-
-export const SEED_USER_PREFIX = "seed-";
 
 export function devLogin() {
   return {

@@ -79,10 +79,13 @@ export async function clearOAuthTokens(userId: string, db: Db = prisma): Promise
   });
 }
 
-/** Dev login only: seed users (ids starting with "seed-") with their team. */
+/** Seed users have IDs with this prefix; only they can use the dev login. */
+export const SEED_USER_PREFIX = "seed-";
+
+/** Dev login only: seed users with their team. */
 export async function listSeedUsers(db: Db = prisma) {
   const users = await db.user.findMany({
-    where: { id: { startsWith: "seed-" } },
+    where: { id: { startsWith: SEED_USER_PREFIX } },
     orderBy: { id: "asc" },
     select: { id: true, name: true, membership: { select: { team: { select: { name: true } } } } },
   });

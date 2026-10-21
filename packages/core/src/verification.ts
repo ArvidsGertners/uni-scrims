@@ -166,8 +166,13 @@ export async function decideVerification(input: DecideVerificationInput): Promis
     return request;
   });
 
-  // After the commit: the file is deleted right after the decision (SPEC P0-2).
-  await removeFile(request.id, request.filePath, input.uploadDir);
+  // After the commit: the file is deleted right after the decision (SPEC P0-2). The decision is
+  // already saved, so a failure here must not look like a failed decision; janitor step 2 retries.
+  try {
+    await removeFile(request.id, request.filePath, input.uploadDir);
+  } catch (error) {
+    console.error(`Could not delete the upload of verification ${request.id}`, error);
+  }
 }
 
 async function createResultNotification(
@@ -236,7 +241,11 @@ export async function autoRejectStaleVerifications(
     });
     if (changed) {
       rejected++;
-      await removeFile(request.id, request.filePath, uploadDir);
+      try {
+        await removeFile(request.id, request.filePath, uploadDir);
+      } catch (error) {
+        console.error(`Could not delete the upload of verification ${request.id}`, error);
+      }
     }
   }
   return rejected;
@@ -274,7 +283,14 @@ export async function cleanupOrphanFiles(uploadDir: string, now: Date): Promise<
   let deleted = 0;
   for (const name of names) {
     if (referenced.has(name)) continue;
-    const info = await stat(uploadFilePath(uploadDir, name));
+    let info: Awaited<ReturnType<typeof stat>>;
+    try {
+      info = await stat(uploadFilePath(uploadDir, name));
+    } catch (error) {
+      // Deleted meanwhile, e.g. by a decision between readdir and stat.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
     if (!info.isFile() || now.getTime() - info.mtimeMs < ORPHAN_FILE_AGE_MS) continue;
     await deleteUpload(uploadDir, name);
     deleted++;

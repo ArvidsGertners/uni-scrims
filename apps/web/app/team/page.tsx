@@ -51,8 +51,9 @@ export default async function TeamPage() {
       <h1 className="text-2xl font-bold">Dein Team</h1>
       {team.banned ? (
         <p className="text-destructive">
-          Dieses Team ist gesperrt. Du kannst es verlassen und ein neues gründen oder einem anderen
-          beitreten.
+          {team.isCaptain && !soleMember
+            ? "Dieses Team ist gesperrt. Die anderen Mitglieder können es verlassen und ein neues gründen oder einem anderen beitreten. Danach kannst du es als letztes Mitglied auflösen."
+            : "Dieses Team ist gesperrt. Du kannst es verlassen und ein neues gründen oder einem anderen beitreten."}
         </p>
       ) : null}
       <TeamCard

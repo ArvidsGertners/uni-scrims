@@ -1,6 +1,6 @@
-import { isDomainError, requireUser } from "@uni-scrims/core";
+import { isDomainError, requireAdmin, requireUser } from "@uni-scrims/core";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "./auth.ts";
 
 export async function getSessionUserId(): Promise<string | null> {
@@ -21,6 +21,17 @@ export async function requirePageUser(path: string) {
   } catch (error) {
     if (isDomainError(error) && error.code === "BANNED") redirect("/?gesperrt=1");
     if (isDomainError(error) && error.code === "UNAUTHENTICATED") redirect(loginUrl(path));
+    throw error;
+  }
+}
+
+/** For admin pages: requirePageUser plus requireAdmin from core; non-admins get a 404. */
+export async function requireAdminPage(path: string) {
+  const user = await requirePageUser(path);
+  try {
+    return await requireAdmin(user.id);
+  } catch (error) {
+    if (isDomainError(error) && error.code === "FORBIDDEN") notFound();
     throw error;
   }
 }

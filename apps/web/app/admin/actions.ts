@@ -9,7 +9,8 @@ import { getSessionUserId } from "@/lib/session";
 const schema = z.object({
   requestId: z.string().min(1),
   decision: z.enum(["APPROVED", "REJECTED"]),
-  rejectReason: z.string().max(500).optional(),
+  // Length is checked by core (MAX_REJECT_REASON_LENGTH) with a specific message.
+  rejectReason: z.string().optional(),
   universityId: z.string().optional(),
 });
 
