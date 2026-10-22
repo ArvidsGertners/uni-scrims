@@ -43,11 +43,20 @@ CMD ["node", "apps/web/server.js"]
 
 # ─── bot ──────────────────────────────────────────────────────────────────────
 
+# The Prisma CLI is a dev dependency, so the client is generated here and copied into the image.
+FROM manifests AS bot-build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @uni-scrims/db
+COPY tsconfig.base.json ./
+COPY packages/db ./packages/db
+RUN pnpm --filter @uni-scrims/db generate
+
 FROM manifests AS bot
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter @uni-scrims/bot...
 COPY tsconfig.base.json ./
 COPY packages ./packages
+COPY --from=bot-build /app/packages/db/src/generated ./packages/db/src/generated
 COPY apps/bot ./apps/bot
 ENV NODE_ENV=production
 WORKDIR /app/apps/bot
