@@ -33,6 +33,8 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
         return `Abgesagt ${scrim.cancelledByUs ? "von euch" : "vom Gegner"}${scrim.lateCancel ? " (kurzfristig)" : ""}.`;
       case "NO_SHOW":
         return `No-Show von ${scrim.noShow === "US" ? scrim.ownTeam.name : scrim.opponent.name}.`;
+      case "DISPUTED":
+        return "Streitfall, der Admin entscheidet.";
       default:
         return null;
     }

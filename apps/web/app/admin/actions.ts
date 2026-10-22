@@ -1,9 +1,16 @@
 "use server";
 
-import { decideVerification, resolveUploadDir } from "@uni-scrims/core";
+import {
+  type DisputeDecision,
+  banTeam,
+  banUser,
+  decideVerification,
+  resolveDispute,
+  resolveUploadDir,
+} from "@uni-scrims/core";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { type ActionState, runAction } from "@/lib/action";
+import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
 import { getSessionUserId } from "@/lib/session";
 
 const schema = z.object({
@@ -35,5 +42,54 @@ export async function decideVerificationAction(
     });
   });
   revalidatePath("/admin");
+  return state;
+}
+
+const NO_SHOW_PREFIX = "NO_SHOW:";
+
+/** Button values of the dispute form: PLAYED, UNCLEAR or NO_SHOW:<teamId>. */
+function parseDisputeDecision(value: string): DisputeDecision | null {
+  if (value === "PLAYED" || value === "UNCLEAR") return { decision: value };
+  if (value.startsWith(NO_SHOW_PREFIX) && value.length > NO_SHOW_PREFIX.length) {
+    return { decision: "NO_SHOW", noShowTeamId: value.slice(NO_SHOW_PREFIX.length) };
+  }
+  return null;
+}
+
+export async function resolveDisputeAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const adminId = (await getSessionUserId()) ?? "";
+  const scrimId = idSchema.safeParse(formField(formData, "scrimId"));
+  const decision = z.string().safeParse(formField(formData, "decision"));
+  const parsed = decision.success ? parseDisputeDecision(decision.data) : null;
+  if (!scrimId.success || !parsed) return invalidInput;
+  const state = await runAction(async () => {
+    await resolveDispute({ ...parsed, adminId, scrimId: scrimId.data, now: new Date() });
+  });
+  revalidatePath("/admin/disputes");
+  return state;
+}
+
+export async function banUserAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+  const adminId = (await getSessionUserId()) ?? "";
+  const userId = idSchema.safeParse(formField(formData, "userId"));
+  if (!userId.success) return invalidInput;
+  const state = await runAction(async () => {
+    await banUser({ adminId, userId: userId.data, now: new Date() });
+  });
+  revalidatePath("/admin/bans");
+  return state;
+}
+
+export async function banTeamAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+  const adminId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  if (!teamId.success) return invalidInput;
+  const state = await runAction(async () => {
+    await banTeam({ adminId, teamId: teamId.data, now: new Date() });
+  });
+  revalidatePath("/admin/bans");
   return state;
 }

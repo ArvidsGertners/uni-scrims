@@ -2,6 +2,7 @@ import { listPendingVerifications, listUniversities } from "@uni-scrims/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
 import { requireAdminPage } from "@/lib/session";
+import { AdminNav } from "./admin-nav";
 import { DecisionForm } from "./decision-form";
 
 // Fixed checklist from SPEC P0-2.
@@ -20,6 +21,7 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
+      <AdminNav adminId={admin.id} />
       <h1 className="text-2xl font-bold">Prüf-Queue</h1>
       {queue.length === 0 ? <p>Keine offenen Prüfungen.</p> : null}
       {queue.map((request) => {

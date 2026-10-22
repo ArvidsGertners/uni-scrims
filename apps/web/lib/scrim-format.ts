@@ -1,5 +1,13 @@
 import { RANK_LABELS, type Reliability, SCRIM_FORMAT_LABELS } from "@uni-scrims/core";
-import type { AppStatus, Rank, RequestStatus, ScrimFormat, ScrimStatus } from "@uni-scrims/db";
+import type {
+  AppStatus,
+  NotifChannel,
+  NotifType,
+  Rank,
+  RequestStatus,
+  ScrimFormat,
+  ScrimStatus,
+} from "@uni-scrims/db";
 
 export function formatRankRange(rankMin: Rank, rankMax: Rank): string {
   return rankMin === rankMax
@@ -58,4 +66,25 @@ export const SCRIM_STATUS_LABELS: Record<ScrimStatus, string> = {
   NO_SHOW: "No-Show",
   DISPUTED: "Streitfall",
   UNCONFIRMED: "Unbestätigt",
+};
+
+/** Admin list of failed notifications (SPEC P0-9). */
+export const NOTIFICATION_TYPE_LABELS: Record<NotifType, string> = {
+  VERIFICATION_RESULT: "Ergebnis der Verifizierung",
+  APPLICATION_RECEIVED: "Neue Bewerbung",
+  APPLICATION_REJECTED: "Bewerbung abgelehnt",
+  REQUEST_DELETED: "Anfrage gelöscht",
+  REQUEST_EXPIRED: "Anfrage verfallen",
+  SCRIM_BOOKED: "Scrim gebucht",
+  SCRIM_CANCELLED: "Scrim abgesagt",
+  REMINDER_24H: "Reminder 24 h",
+  REMINDER_1H: "Reminder 1 h",
+  FEEDBACK_PROMPT: "Feedback-Hinweis",
+  CHANNEL_BROKEN: "Team-Channel nicht erreichbar",
+};
+
+export const NOTIFICATION_CHANNEL_LABELS: Record<NotifChannel, string> = {
+  USER_DM: "DM an Nutzer",
+  CAPTAIN_DM: "DM an Captain",
+  TEAM_CHANNEL: "Team-Channel",
 };
