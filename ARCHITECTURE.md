@@ -591,7 +591,7 @@ Nächtlich `pg_dump` per Cron auf dem Host, verschlüsselt auf einen externen Sp
 ### Server
 
 - Kleiner VPS (2 vCPU, 4 GB RAM) reicht.
-- Firewall: nur 22, 80, 443. SSH nur mit Key.
+- Firewall: für Uni Scrims nur 22, 80, 443. Auf einem geteilten Server öffnet sie zusätzlich die Ports der anderen Dienste; Uni Scrims selbst ist dort nur über nginx erreichbar (`web` auf `127.0.0.1`). Ports, die Docker veröffentlicht, umgehen ufw. SSH nur mit Key.
 - Updates: `unattended-upgrades`.
 
 ### Discord-Einrichtung (Anleitung im README, schon in Phase 0)
