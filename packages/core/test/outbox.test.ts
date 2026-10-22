@@ -137,7 +137,6 @@ describe("deliverNotification: recipients", () => {
         },
         requestId: null,
         scrimId: scrim.id,
-        teamName: host.team.name,
         opponentCaptain: { name: guest.captain.name, discordId: guest.captain.discordId },
         feedbackDeadline: scrim.feedbackDeadline,
       },
@@ -207,7 +206,6 @@ describe("deliverNotification: recipients", () => {
       type: NotifType.VERIFICATION_RESULT,
       payload: { approved: true, rejectReason: null },
       recipient: { kind: "DM", userId: user.id, discordId: user.discordId },
-      teamName: null,
       opponentCaptain: null,
     });
   });
@@ -317,6 +315,13 @@ describe("deliverNotification: relevance (§6.1)", () => {
     expect(sent[0]?.feedbackDeadline).toEqual(scrim.feedbackDeadline);
   });
 
+  it("drops the feedback prompt after the deadline, even before the sweeper evaluated", async () => {
+    const { host, scrim } = await bookScrim();
+    await openFeedback(FEEDBACK_OPENS);
+    const prompt = await scrimNotification(scrim.id, NotifType.FEEDBACK_PROMPT, host.team.id);
+    expect(await send(prompt.id, scrim.feedbackDeadline)).toBe("CANCELLED");
+  });
+
   it("drops the feedback prompt once the scrim is evaluated", async () => {
     const { host, guest, scrim } = await bookScrim();
     for (const team of [host, guest]) {
@@ -388,11 +393,10 @@ describe("deliverNotification: relevance (§6.1)", () => {
 
 describe("deliverNotification: results (§6.2)", () => {
   it("keeps an entry cancelled while it was being sent", async () => {
-    const { host, scrim } = await bookScrim();
-    const reminder = await scrimNotification(scrim.id, NotifType.REMINDER_24H, host.team.id);
-    const cancelDuringSend =
-      (result: DeliveryResult): Deliver =>
-      async () => {
+    for (const result of [{ ok: true }, { ok: false, code: null, error: "timeout" }] as const) {
+      const { host, scrim } = await bookScrim();
+      const reminder = await scrimNotification(scrim.id, NotifType.REMINDER_24H, host.team.id);
+      const cancelDuringSend: Deliver = async () => {
         await cancelScrim({
           userId: host.captain.id,
           scrimId: scrim.id,
@@ -400,17 +404,13 @@ describe("deliverNotification: results (§6.2)", () => {
         });
         return result;
       };
-    expect(
-      await send(
-        reminder.id,
-        reminder.scheduledFor,
-        cancelDuringSend({ ok: false, code: null, error: "timeout" }),
-      ),
-    ).toBe("RETRY");
-    expect(await prisma.notification.findUnique({ where: { id: reminder.id } })).toMatchObject({
-      status: NotifStatus.CANCELLED,
-      attempts: 0,
-    });
+      expect(await send(reminder.id, reminder.scheduledFor, cancelDuringSend)).toBeNull();
+      expect(await prisma.notification.findUnique({ where: { id: reminder.id } })).toMatchObject({
+        status: NotifStatus.CANCELLED,
+        attempts: 0,
+        sentAt: null,
+      });
+    }
   });
 
   it("marks a DM to a user who blocks DMs as failed and remembers it until a DM arrives", async () => {
@@ -429,6 +429,15 @@ describe("deliverNotification: results (§6.2)", () => {
 
     const next = await queueVerificationResult(user.id);
     expect(await send(next.id)).toBe("SENT");
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).dmFailedAt).toBeNull();
+  });
+
+  it("leaves dmFailedAt alone when the DM was redirected in development", async () => {
+    const user = await createUser();
+    const notification = await queueVerificationResult(user.id);
+    const blocked = recorder({ ok: false, code: 50007, error: "Cannot send messages" });
+    expect(await send(notification.id, NOW, blocked.deliver, DEV_ENV)).toBe("FAILED");
+    expect(blocked.sent[0]?.recipient).toMatchObject({ redirectedFrom: user.name });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).dmFailedAt).toBeNull();
   });
 

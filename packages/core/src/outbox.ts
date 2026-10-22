@@ -13,7 +13,7 @@ import {
 } from "@uni-scrims/db";
 import { type DevEnv, getDevChannelId, getDevDmRedirectId } from "../config/dev.ts";
 import type { Db } from "./db.ts";
-import { inTransaction } from "./locks.ts";
+import { lockTeam } from "./locks.ts";
 import {
   type NotificationPayload,
   parseNotificationPayload,
@@ -21,6 +21,7 @@ import {
 } from "./notifications.ts";
 import { isTeamActive } from "./readiness.ts";
 import { isRequestOpen } from "./requests.ts";
+import { feedbackClosedReason } from "./scrims.ts";
 import { getDiscordId } from "./users.ts";
 
 const MINUTE = 60 * 1000;
@@ -59,7 +60,7 @@ export function classifyDeliveryError(channel: NotifChannel, code: number | null
 // ─── Messages ─────────────────────────────────────────────────────────────────
 
 export type Recipient =
-  /** userId: whose dmFailedAt the result updates. */
+  /** userId: whose dmFailedAt the result updates, unless the DM was redirected in development. */
   | { kind: "DM"; userId: string; discordId: string; redirectedFrom: string | null }
   | { kind: "CHANNEL"; channelId: string; redirectedFrom: string | null };
 
@@ -72,8 +73,6 @@ export type OutboxMessage = {
     recipient: Recipient;
     requestId: string | null;
     scrimId: string | null;
-    /** The receiving team (team notifications). */
-    teamName: string | null;
     /** Scrim notifications: the other team's current captain (SPEC P0-6, §6.1). */
     opponentCaptain: { name: string; discordId: string | null } | null;
     feedbackDeadline: Date | null;
@@ -99,6 +98,7 @@ type RelevanceInput = {
   scrim: {
     status: ScrimStatus;
     startsAt: Date;
+    feedbackDeadline: Date;
     hostTeam: TeamState;
     guestTeam: TeamState;
     feedback: { teamId: string }[];
@@ -107,8 +107,9 @@ type RelevanceInput = {
 
 /**
  * The relevance check of §6.1 right before sending; on top, the receiving team is not dissolved.
- * VERIFICATION_RESULT needs none here: a deleted user has no Discord account left (§4), so the
- * recipient cannot be resolved.
+ * The checks only use the stored state and `now`, so the result does not depend on whether the
+ * sweeper has run yet (e.g. right after a restart). VERIFICATION_RESULT has no check here:
+ * deleteAccount removes the user's notifications (§5.5).
  */
 export function isNotificationRelevant(notification: RelevanceInput, now: Date): boolean {
   if (notification.targetTeam?.dissolvedAt) return false;
@@ -124,9 +125,10 @@ export function isNotificationRelevant(notification: RelevanceInput, now: Date):
       // Also drops reminders that are retried or caught up after the start.
       return scrim?.status === ScrimStatus.SCHEDULED && scrim.startsAt > now && bothTeamsActive;
     case NotifType.FEEDBACK_PROMPT:
+      // Only while feedback can be given (until the deadline) and this team has not answered.
       return (
-        (scrim?.status === ScrimStatus.SCHEDULED ||
-          scrim?.status === ScrimStatus.AWAITING_FEEDBACK) &&
+        !!scrim &&
+        feedbackClosedReason(scrim, now) === null &&
         !scrim.feedback.some((answer) => answer.teamId === notification.targetTeamId)
       );
     default:
@@ -207,7 +209,7 @@ async function opponentCaptain(notification: LoadedNotification) {
   return { name: opponent.captain.name, discordId: await getDiscordId(opponent.captain.id) };
 }
 
-/** Writes a result only while the entry is still PENDING. */
+/** Writes a result only while the entry is still PENDING; false if it was not written. */
 async function settle(
   db: Db,
   id: string,
@@ -222,62 +224,75 @@ async function settle(
 
 const MAX_ERROR_LENGTH = 500;
 
+/** dmFailedAt drives the banner (§5.1); a redirected dev DM says nothing about the user. */
+async function recordDmResult(recipient: Recipient, dmFailedAt: Date | null): Promise<void> {
+  if (recipient.kind !== "DM" || recipient.redirectedFrom !== null) return;
+  await prisma.user.update({ where: { id: recipient.userId }, data: { dmFailedAt } });
+}
+
+/** null if the entry was no longer pending, so nothing was written. */
 async function recordFailure(
   notification: LoadedNotification,
   recipient: Recipient,
   result: Extract<DeliveryResult, { ok: false }>,
   now: Date,
-): Promise<DeliveryOutcome> {
+): Promise<DeliveryOutcome | null> {
   const failedSends = notification.attempts + 1;
   const lastError = result.error.slice(0, MAX_ERROR_LENGTH);
   const failed = { status: NotifStatus.FAILED, attempts: failedSends, lastError };
+  const outcome = (settled: boolean, value: DeliveryOutcome) => (settled ? value : null);
   switch (classifyDeliveryError(notification.channel, result.code)) {
-    case "DM_BLOCKED":
-      await settle(prisma, notification.id, failed);
-      if (recipient.kind === "DM") {
-        await prisma.user.update({ where: { id: recipient.userId }, data: { dmFailedAt: now } });
-      }
-      return "FAILED";
-    case "CHANNEL_BROKEN":
-      await inTransaction(prisma, async (tx) => {
-        await settle(tx, notification.id, failed);
-        const team = notification.targetTeam;
-        if (!team || recipient.kind !== "CHANNEL") return;
+    case "DM_BLOCKED": {
+      // The DM failed regardless of the entry's state, so the banner shows either way.
+      await recordDmResult(recipient, now);
+      return outcome(await settle(prisma, notification.id, failed), "FAILED");
+    }
+    case "CHANNEL_BROKEN": {
+      const team = notification.targetTeam;
+      const settled = await prisma.$transaction(async (tx) => {
+        // Team before notifications, as in leaveTeam and dissolveTeam, so the two cannot deadlock.
+        if (team) await lockTeam(tx, team.id);
+        const written = await settle(tx, notification.id, failed);
+        if (!team || recipient.kind !== "CHANNEL") return written;
         // Only the link that failed: not one set again by /setup meanwhile, not the dev channel.
         // So the captain is told once, even if several posts fail on the same channel.
         const unlinked = await tx.team.updateMany({
           where: { id: team.id, discordChannelId: recipient.channelId },
           data: { discordChannelId: null },
         });
-        if (unlinked.count === 0) return;
-        await queueNotifications(tx, now, [
-          {
-            type: NotifType.CHANNEL_BROKEN,
-            channel: NotifChannel.CAPTAIN_DM,
-            entityId: notification.id,
-            targetTeamId: team.id,
-            payload: { teamName: team.name },
-          },
-        ]);
+        if (unlinked.count > 0) {
+          await queueNotifications(tx, now, [
+            {
+              type: NotifType.CHANNEL_BROKEN,
+              channel: NotifChannel.CAPTAIN_DM,
+              entityId: notification.id,
+              targetTeamId: team.id,
+              payload: { teamName: team.name },
+            },
+          ]);
+        }
+        return written;
       });
-      return "FAILED";
+      return outcome(settled, "FAILED");
+    }
     case "RETRY":
       if (failedSends > MAX_RETRIES) {
-        await settle(prisma, notification.id, failed);
-        return "FAILED";
+        return outcome(await settle(prisma, notification.id, failed), "FAILED");
       }
-      await settle(prisma, notification.id, {
-        attempts: failedSends,
-        lastError,
-        scheduledFor: new Date(now.getTime() + retryDelayMs(failedSends)),
-      });
-      return "RETRY";
+      return outcome(
+        await settle(prisma, notification.id, {
+          attempts: failedSends,
+          lastError,
+          scheduledFor: new Date(now.getTime() + retryDelayMs(failedSends)),
+        }),
+        "RETRY",
+      );
   }
 }
 
 /**
  * Sends one due PENDING notification (§6.2): relevance check, recipient, deliver, result.
- * Returns null if it is not due or no longer pending.
+ * Returns null if it is not due or no longer pending, also when it was cancelled during the send.
  */
 export async function deliverNotification(
   id: string,
@@ -288,15 +303,16 @@ export async function deliverNotification(
   const notification = await loadNotification(id);
   if (!notification || notification.status !== NotifStatus.PENDING) return null;
   if (notification.scheduledFor > now) return null;
-  const cancel = async () => {
-    await settle(prisma, id, { status: NotifStatus.CANCELLED });
-    return "CANCELLED" as const;
-  };
+  const cancel = async () =>
+    (await settle(prisma, id, { status: NotifStatus.CANCELLED })) ? ("CANCELLED" as const) : null;
   if (!isNotificationRelevant(notification, now)) return cancel();
   const payload = parseNotificationPayload(notification.type, notification.payload);
   if (!payload) {
-    await settle(prisma, id, { status: NotifStatus.FAILED, lastError: "Invalid payload" });
-    return "FAILED";
+    const failed = await settle(prisma, id, {
+      status: NotifStatus.FAILED,
+      lastError: "Invalid payload",
+    });
+    return failed ? "FAILED" : null;
   }
   const recipient = await resolveRecipient(notification, env);
   if (!recipient) return cancel();
@@ -309,17 +325,13 @@ export async function deliverNotification(
     recipient,
     requestId: notification.requestId,
     scrimId: notification.scrimId,
-    teamName: notification.targetTeam?.name ?? null,
     opponentCaptain: await opponentCaptain(notification),
     feedbackDeadline: notification.scrim?.feedbackDeadline ?? null,
   } as OutboxMessage;
   const result = await deliver(message);
   if (!result.ok) return recordFailure(notification, recipient, result, now);
-  await settle(prisma, id, { status: NotifStatus.SENT, sentAt: now });
-  if (recipient.kind === "DM") {
-    await prisma.user.update({ where: { id: recipient.userId }, data: { dmFailedAt: null } });
-  }
-  return "SENT";
+  await recordDmResult(recipient, null);
+  return (await settle(prisma, id, { status: NotifStatus.SENT, sentAt: now })) ? "SENT" : null;
 }
 
 /** One sender run: due PENDING entries, oldest first, one after another (§6.2). */

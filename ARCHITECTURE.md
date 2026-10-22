@@ -448,7 +448,7 @@ Test: Zwei parallele `submitFeedback` mit PLAYED ergeben sofort `COMPLETED`.
 
 | Typ | Auslöser | Ziel / Kanal | Zeitpunkt | Entität im dedupeKey | Relevanzprüfung vor dem Senden |
 |---|---|---|---|---|---|
-| `VERIFICATION_RESULT` | Admin-Entscheidung oder Auto-Ablehnung | User, USER_DM | sofort | verificationId | Nutzer nicht gelöscht |
+| `VERIFICATION_RESULT` | Admin-Entscheidung oder Auto-Ablehnung | User, USER_DM | sofort | verificationId | Nutzer nicht gelöscht (`deleteAccount` löscht seine Notifications, §5.5) |
 | `APPLICATION_RECEIVED` | `applyToRequest` | Ersteller-Team, CAPTAIN_DM | sofort | **applicationId** | Anfrage noch OPEN |
 | `APPLICATION_REJECTED` | anderes Team bestätigt | Bewerber-Team, CAPTAIN_DM | sofort | applicationId | – |
 | `REQUEST_DELETED` | `deleteRequest`, `retireTeamActivity` | Bewerber-Team, CAPTAIN_DM | sofort | requestId | – |
@@ -457,7 +457,7 @@ Test: Zwei parallele `submitFeedback` mit PLAYED ergeben sofort `COMPLETED`.
 | `SCRIM_CANCELLED` | `cancelScrim`, `retireTeamActivity` | jeweils anderes Team, CAPTAIN_DM + TEAM_CHANNEL | sofort | scrimId | – |
 | `REMINDER_24H` | `confirmApplication` | beide Teams, CAPTAIN_DM + TEAM_CHANNEL | startsAt − 24 h | scrimId | Scrim SCHEDULED, startsAt > now, beide Teams aktiv |
 | `REMINDER_1H` | `confirmApplication` | beide Teams, CAPTAIN_DM + TEAM_CHANNEL | startsAt − 1 h | scrimId | Scrim SCHEDULED, startsAt > now, beide Teams aktiv |
-| `FEEDBACK_PROMPT` | `confirmApplication` | beide Teams, CAPTAIN_DM + TEAM_CHANNEL | feedbackOpensAt | scrimId | Scrim in SCHEDULED/AWAITING_FEEDBACK und dieses Team hat noch nicht geantwortet |
+| `FEEDBACK_PROMPT` | `confirmApplication` | beide Teams, CAPTAIN_DM + TEAM_CHANNEL | feedbackOpensAt | scrimId | Scrim in SCHEDULED/AWAITING_FEEDBACK, `feedbackDeadline` noch nicht erreicht (auch wenn der Sweeper noch nicht ausgewertet hat) und dieses Team hat noch nicht geantwortet |
 | `CHANNEL_BROKEN` | Sender bei Channel-Fehler | betroffenes Team, CAPTAIN_DM | sofort | **ID der fehlgeschlagenen Notification** | – |
 
 Bei allen Typen an Teams gilt zusätzlich: Team ist nicht aufgelöst.
@@ -490,7 +490,7 @@ Für jeden Eintrag (`deliverNotification` in `core`; der Bot übergibt nur die S
 4. Erfolg: `SENT` + `sentAt`; bei DM `User.dmFailedAt = null`.
 5. Fehler (`attempts` zählt die fehlgeschlagenen Sendeversuche):
    - **50007 (DM nicht möglich):** `FAILED` ohne Retry, `User.dmFailedAt = now`.
-   - **Channel-Fehler** (10003 Unknown Channel, 50001 Missing Access, 50013 Missing Permissions): `FAILED`. `Team.discordChannelId = null` nur, wenn der Team-Channel noch der fehlgeschlagene ist (nicht ein inzwischen per `/setup` neu gesetzter, nicht der Dev-Channel), und nur dann `CHANNEL_BROKEN` anlegen. So kommt der Hinweis einmal, auch wenn mehrere Posts in denselben Channel scheitern.
+   - **Channel-Fehler** (10003 Unknown Channel, 50001 Missing Access, 50013 Missing Permissions): `FAILED`, in einer Transaktion, die zuerst die Team-Zeile sperrt (gleiche Reihenfolge wie `leaveTeam`, sonst Deadlock). `Team.discordChannelId = null` nur, wenn der Team-Channel noch der fehlgeschlagene ist (nicht ein inzwischen per `/setup` neu gesetzter, nicht der Dev-Channel), und nur dann `CHANNEL_BROKEN` anlegen. So kommt der Hinweis einmal, auch wenn mehrere Posts in denselben Channel scheitern.
    - **Alles andere:** Nach dem n-ten Fehlschlag (n = 1…5) `lastError` und `scheduledFor = now + 2^(n−1) Minuten` (1, 2, 4, 8, 16). Der 6. Fehlschlag setzt `FAILED`.
 6. Reminder, deren `startsAt` beim Retry schon vorbei ist, werden CANCELLED (Relevanzprüfung).
 

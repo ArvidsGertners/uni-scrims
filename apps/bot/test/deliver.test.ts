@@ -10,7 +10,6 @@ const MESSAGE = {
   recipient: { kind: "DM", userId: "user-1", discordId: "111", redirectedFrom: null },
   requestId: null,
   scrimId: null,
-  teamName: "Team A",
   opponentCaptain: null,
   feedbackDeadline: null,
 } satisfies OutboxMessage;
