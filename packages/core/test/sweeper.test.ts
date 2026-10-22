@@ -6,7 +6,7 @@ import {
   ScrimStatus,
   prisma,
 } from "@uni-scrims/db";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BOT_STATUS_ID,
   NOTIFICATION_RETENTION_MS,
@@ -16,7 +16,22 @@ import {
   runSweeper,
 } from "../src/index.ts";
 import { queueNotifications } from "../src/notifications.ts";
+import type * as Requests from "../src/requests.ts";
 import { NOW, bookScrim, createOpenRequest, createReadyTeam, createUser, uid } from "./helpers.ts";
+
+// Lets a test make the expireRequests step of the sweeper fail; otherwise the real function runs.
+const faults = vi.hoisted(() => ({ expireRequests: false }));
+
+vi.mock("../src/requests.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof Requests>();
+  return {
+    ...actual,
+    expireRequests: async (now: Date) => {
+      if (faults.expireRequests) throw new Error("expireRequests failed");
+      return actual.expireRequests(now);
+    },
+  };
+});
 
 const HOUR = 60 * 60 * 1000;
 
@@ -74,6 +89,11 @@ describe("recordBotHeartbeat", () => {
 });
 
 describe("runSweeper (§6.3)", () => {
+  afterEach(() => {
+    faults.expireRequests = false;
+    vi.restoreAllMocks();
+  });
+
   it("expires requests, opens and evaluates scrims and writes the heartbeat in one run", async () => {
     const host = await createReadyTeam();
     const applicant = await createReadyTeam();
@@ -106,5 +126,26 @@ describe("runSweeper (§6.3)", () => {
 
   it("purges only when asked to", async () => {
     expect((await runSweeper(NOW, { purge: true })).purgedNotifications).not.toBeNull();
+  });
+
+  it("runs the other steps and writes the heartbeat when one step fails", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { scrim } = await bookScrim();
+    // Later than in the other tests, so the heartbeat is surely from this run.
+    const now = new Date(scrim.feedbackDeadline.getTime() + 60 * 1000);
+    faults.expireRequests = true;
+
+    const result = await runSweeper(now, { purge: false });
+    expect(result.expiredRequests).toBeNull();
+    expect(result.openedFeedback).toBeGreaterThanOrEqual(1);
+    expect(result.resolvedScrims).toBeGreaterThanOrEqual(1);
+    expect(errors).toHaveBeenCalledWith("Sweeper step expireRequests failed", expect.any(Error));
+    expect(await prisma.scrim.findUniqueOrThrow({ where: { id: scrim.id } })).toMatchObject({
+      status: ScrimStatus.UNCONFIRMED,
+    });
+    expect(await prisma.systemStatus.findUnique({ where: { id: BOT_STATUS_ID } })).toEqual({
+      id: BOT_STATUS_ID,
+      heartbeatAt: now,
+    });
   });
 });

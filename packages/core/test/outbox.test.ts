@@ -504,6 +504,27 @@ describe("deliverNotification: results (§6.2)", () => {
     ).toBe(0);
   });
 
+  it("keeps the team's own channel when the dev channel fails", async () => {
+    const { host, scrim } = await bookScrim();
+    await prisma.team.update({ where: { id: host.team.id }, data: { discordChannelId: "401" } });
+    const booked = await scrimNotification(
+      scrim.id,
+      NotifType.SCRIM_BOOKED,
+      host.team.id,
+      NotifChannel.TEAM_CHANNEL,
+    );
+    const missingAccess = { ok: false, code: 50001, error: "Missing Access" } as const;
+    expect(await send(booked.id, NOW, recorder(missingAccess).deliver, DEV_ENV)).toBe("FAILED");
+    expect(await prisma.team.findUniqueOrThrow({ where: { id: host.team.id } })).toMatchObject({
+      discordChannelId: "401",
+    });
+    expect(
+      await prisma.notification.count({
+        where: { type: NotifType.CHANNEL_BROKEN, targetTeamId: host.team.id },
+      }),
+    ).toBe(0);
+  });
+
   it("retries other errors after 1, 2, 4, 8 and 16 minutes, then fails", async () => {
     const user = await createUser();
     const notification = await queueVerificationResult(user.id);
