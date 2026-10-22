@@ -232,4 +232,4 @@ Was das Entsperren **nicht** zurückholt:
 - Abgesagte Scrims, gelöschte Anfragen und zurückgezogene Bewerbungen bleiben so.
 - Ein gesperrter Spieler wurde aus seinem Team entfernt und muss per Einladungslink neu beitreten.
 - Bei einem gesperrten Captain Nutzer und Team zusammen entsperren. Soll nur das Team wieder spielen, im selben Schritt einen anderen Captain setzen (`UPDATE "Team" SET "captainId" = '<user-id eines Mitglieds>', "bannedAt" = NULL WHERE id = '<team-id>';`). Ein gesperrter Captain eines aktiven Teams kann weder die Rolle übertragen noch sein Konto löschen.
-- Hat ein gesperrter Nutzer sein Konto gelöscht, landet ein neuer Login nach dem Entsperren beim anonymisierten Konto, ohne Verifizierung und ohne Team.
+- Hat ein gesperrter Nutzer sein Konto gelöscht, landet ein neuer Login nach dem Entsperren beim alten Konto (Name und Avatar kommen beim Login wieder aus Discord), aber ohne Verifizierung und ohne Team.

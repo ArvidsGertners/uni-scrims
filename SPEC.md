@@ -230,7 +230,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 **P0-10 Rechtliches und Datenschutz**
 - [ ] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
-- [ ] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert, damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
+- [ ] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert, damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Meldet sich ein gesperrter Nutzer nach der Löschung erneut an, werden Discord-Name, Avatar und Session wie bei jedem Login wieder gespeichert (bewusst akzeptiert); er kann das Konto danach erneut löschen. Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
 - [ ] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus
 - [ ] Server-Logs werden begrenzt aufbewahrt (Rotation)
 

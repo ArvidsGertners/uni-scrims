@@ -282,7 +282,7 @@ SystemStatus
 - **Zuverlässigkeit wird nicht gespeichert,** sondern beim Lesen berechnet (§5.7).
 - **Kontolöschung:** Der User wird anonymisiert statt hart gelöscht (`name = "Gelöschter Nutzer"`, `email` auf den neuen Platzhalter `deleted-<userId>@users.uniscrims.invalid`, `image`, `verifiedAt`, `universityId`, `universityOther`, `hubJoinFailedAt` und `dmFailedAt` auf `null`, Sessions löschen, aus dem Team entfernen). Alle `VerificationRequest`-Zeilen des Nutzers werden samt Dateien gelöscht, sonst bliebe eine offene Prüfung ohne Datei in der Queue. So bleiben Team-Statistiken stimmig. Der neue Platzhalter ist nötig, weil `email` unique ist: Ein späterer Login legt einen User mit dem ursprünglichen Platzhalter an.
   - **Ungesperrter Nutzer:** auch die `account`-Zeile wird gelöscht. Ein späterer Discord-Login legt einen neuen User an.
-  - **Gesperrter Nutzer:** die `account`-Zeile bleibt, aber nur mit `providerId` und `accountId` (ohne Tokens), und `bannedAt` bleibt gesetzt. Ein erneuter Login landet dadurch wieder beim gesperrten, anonymisierten User, und `requireUser` blockiert. So lässt sich eine Sperre nicht durch Löschen umgehen.
+  - **Gesperrter Nutzer:** die `account`-Zeile bleibt, aber nur mit `providerId` und `accountId` (ohne Tokens), und `bannedAt` bleibt gesetzt. Ein erneuter Login landet dadurch wieder beim gesperrten User, und `requireUser` blockiert. So lässt sich eine Sperre nicht durch Löschen umgehen. Wegen `overrideUserInfoOnSignIn` schreibt Better Auth dabei Name, Avatar und Platzhalter-Mail wieder aus dem Discord-Profil, und eine neue Session entsteht (bewusst akzeptiert: ein neuer Login der Person; `/account` erlaubt erneutes Löschen).
 
 ---
 
