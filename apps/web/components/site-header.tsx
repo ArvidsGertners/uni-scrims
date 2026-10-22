@@ -24,6 +24,8 @@ export async function SiteHeader() {
             {user.isAdmin ? <Link href="/admin">Admin</Link> : null}
           </>
         ) : null}
+        {/* Also for banned users: they may delete their account (ARCHITECTURE §7). */}
+        {user ? <Link href="/account">Konto</Link> : null}
         <span className="ml-auto" />
         {user ? <LogoutButton /> : <Link href="/login">Anmelden</Link>}
       </nav>

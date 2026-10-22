@@ -1,4 +1,4 @@
-import { isDomainError, requireAdmin, requireUser } from "@uni-scrims/core";
+import { isDomainError, requireAccountUser, requireAdmin, requireUser } from "@uni-scrims/core";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "./auth.ts";
@@ -20,6 +20,18 @@ export async function requirePageUser(path: string) {
     return await requireUser(userId);
   } catch (error) {
     if (isDomainError(error) && error.code === "BANNED") redirect("/?gesperrt=1");
+    if (isDomainError(error) && error.code === "UNAUTHENTICATED") redirect(loginUrl(path));
+    throw error;
+  }
+}
+
+/** For /account: logged in, banned users included (ARCHITECTURE §7), otherwise redirect. */
+export async function requirePageAccountUser(path: string) {
+  const userId = await getSessionUserId();
+  if (!userId) redirect(loginUrl(path));
+  try {
+    return await requireAccountUser(userId);
+  } catch (error) {
     if (isDomainError(error) && error.code === "UNAUTHENTICATED") redirect(loginUrl(path));
     throw error;
   }

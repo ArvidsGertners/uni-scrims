@@ -7,7 +7,7 @@ export default async function LandingPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { gesperrt } = await searchParams;
+  const { gesperrt, geloescht } = await searchParams;
   const loggedIn = (await getSessionUserId()) !== null;
 
   return (
@@ -17,8 +17,15 @@ export default async function LandingPage({
         Scrims für Valorant-Teams deutscher Hochschulen. Nur für Studierende mit geprüfter
         Immatrikulationsbescheinigung.
       </p>
+      {geloescht ? <p>Dein Konto wurde gelöscht.</p> : null}
       {gesperrt ? (
-        <p className="text-destructive">Dein Konto ist gesperrt.</p>
+        <p className="text-destructive">
+          Dein Konto ist gesperrt. Du kannst es unter{" "}
+          <Link href="/account" className="underline">
+            Konto
+          </Link>{" "}
+          löschen.
+        </p>
       ) : loggedIn ? (
         <Link href="/team" className={buttonVariants({ className: "self-start" })}>
           Zu deinem Team
