@@ -12,7 +12,7 @@ apps/web        Next.js (App Router, Tailwind, shadcn/ui)
 apps/bot        discord.js-Bot
 packages/core   Fachlogik und Konstanten (Map-Pool, Zeiten)
 packages/db     Prisma-Schema, Migrationen, generierter Client, Seed
-docker/         Compose-Dateien
+docker/         Compose-Dateien, Caddyfile, Backup-Skript, Gerüst der Rechtstexte
 Dockerfile      Targets web, bot, migrate
 ```
 
@@ -35,7 +35,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-`UPLOAD_DIR` muss ein **absoluter** Pfad sein, lokal z. B. `/Users/<du>/uni-scrims-uploads` (in Docker `/data/uploads`). Dort liegen hochgeladene Bescheinigungen bis zur Prüfung. Für den Admin-Bereich deine Discord-ID in `ADMIN_DISCORD_IDS` eintragen.
+`UPLOAD_DIR` muss ein **absoluter** Pfad sein, lokal z. B. `/Users/<du>/uni-scrims-uploads` (in Docker `/data/uploads`). Dort liegen hochgeladene Bescheinigungen bis zur Prüfung. Für den Admin-Bereich deine Discord-ID in `ADMIN_DISCORD_IDS` eintragen. `LEGAL_DIR` ist ebenfalls absolut; lokal reicht das Gerüst, z. B. `/Users/<du>/uni-scrims/docker/legal.example`.
 
 Die App-DB läuft auf `localhost:5433`, die Test-DB auf `localhost:5434` (tmpfs, ohne dauerhafte Daten). Ist Port 5433 belegt, kann die App-DB mit `DB_PORT=<port>` auf einen anderen Host-Port gelegt werden.
 
@@ -51,6 +51,7 @@ Die App-DB läuft auf `localhost:5433`, die Test-DB auf `localhost:5434` (tmpfs,
 | `pnpm db:migrate` | `prisma migrate dev` gegen die App-DB |
 | `pnpm bot:test-dm <discordId>` | Schickt einmalig eine Test-DM über den Bot. Prüft, ob der Hub-Server DMs erlaubt (Fehler 50007 = kein gemeinsamer Server oder DMs blockiert) |
 | `pnpm db:seed` | Hochschulen und zwei Test-Teams mit je 5 verifizierten Nutzern anlegen (idempotent) |
+| `pnpm --filter @uni-scrims/db seed:universities` | nur die Hochschul-Liste, ohne Test-Teams (so läuft es in Production) |
 
 ### Docker
 
@@ -124,3 +125,109 @@ Den Stand zeigt die Tabelle `Notification` (`status`, `attempts`, `lastError`); 
 5. Einen privaten Dev-Channel anlegen und dessen ID nach `DEV_CHANNEL_ID`.
 
 Discord-IDs kopieren: In Discord unter Einstellungen → Erweitert den Entwicklermodus aktivieren, dann Rechtsklick → "ID kopieren".
+
+## Production (VPS)
+
+**Vorher erledigt** (SPEC §9, offene Punkte 1–4): Impressum geklärt, Datenschutzerklärung geschrieben, AVV mit dem Hoster abgeschlossen, Hoster-Snapshots und -Backups ausgeschaltet (sonst landen Uploads doch in Backups), Ablauf für die Datenauskunft festgelegt.
+
+### Server vorbereiten
+
+Ein kleiner VPS (2 vCPU, 4 GB RAM) mit Debian oder Ubuntu reicht.
+
+```sh
+# Firewall: nur SSH, HTTP und HTTPS
+ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443 && ufw enable
+# SSH nur mit Key: in /etc/ssh/sshd_config "PasswordAuthentication no", dann
+systemctl reload ssh
+# Sicherheitsupdates automatisch
+apt install unattended-upgrades && dpkg-reconfigure -plow unattended-upgrades
+```
+
+Docker nach der [offiziellen Anleitung](https://docs.docker.com/engine/install/) installieren. Docker umgeht mit veröffentlichten Ports die ufw-Regeln; veröffentlicht werden nur 80 und 443 (Caddy), die Datenbank nicht.
+
+Beim Domain-Anbieter einen A-Eintrag (und ggf. AAAA) auf die Server-IP setzen. In der Discord-Application den Redirect `https://<domain>/api/auth/callback/discord` eintragen (Discord-Einrichtung, Schritt 1).
+
+### Einrichten und starten
+
+```sh
+git clone <repo> /opt/uni-scrims && cd /opt/uni-scrims
+cp .env.example .env && chmod 600 .env
+```
+
+In der `.env`:
+
+- `DOMAIN=<domain>`, `BETTER_AUTH_URL=https://<domain>`, `PUBLIC_BASE_URL=https://<domain>`
+- `BETTER_AUTH_SECRET` mit `openssl rand -base64 32`, `POSTGRES_PASSWORD` mit `openssl rand -hex 32` (hex, weil es in `DATABASE_URL` steht)
+- Discord-Werte, `HUB_GUILD_ID`, `HUB_INVITE_URL`, `ADMIN_DISCORD_IDS`
+- `DATABASE_URL`, `UPLOAD_DIR` und `LEGAL_DIR` setzt die Compose-Datei selbst. Die `DEV_*`-Schalter sind in Production ohnehin aus.
+
+Rechtstexte anlegen (Format siehe ARCHITECTURE §8):
+
+```sh
+mkdir docker/legal && cp docker/legal.example/*.txt docker/legal/
+# docker/legal/impressum.txt und docker/legal/datenschutz.txt mit den echten Texten füllen
+```
+
+Starten, aus dem Repo-Root:
+
+```sh
+alias dc='docker compose --env-file .env -f docker/docker-compose.yml'
+dc up -d --build
+# einmalig: die Hochschul-Liste (ohne Test-Teams)
+dc run --rm migrate ./node_modules/.bin/tsx prisma/seed.ts --universities-only
+dc ps    # web "healthy", bot läuft, migrate mit Exit-Code 0 beendet
+```
+
+Prüfen: `https://<domain>/api/health` antwortet, der Login klappt, und der Admin-Bereich zeigt „Bot läuft“.
+
+- **Updates:** `git pull && dc up -d --build`. Der Migrate-Job läuft dabei jedes Mal mit; `web` und `bot` starten erst danach.
+- **Logs:** `dc logs -f web bot`. Docker rotiert sie (3 × 10 MB pro Container).
+- **Datenbank-Konsole:** `dc exec db psql -U uniscrims uniscrims`
+
+### Backups
+
+`docker/backup.sh` sichert die Datenbank: `pg_dump`, verschlüsselt mit deinem öffentlichen GPG-Schlüssel, 14 Tage lokal in `/var/backups/uni-scrims` und per `rsync --delete` gespiegelt auf einen externen Speicher (z. B. Hetzner Storage Box). Uploads werden bewusst nicht gesichert.
+
+1. Auf deinem eigenen Rechner ein Schlüsselpaar erzeugen (`gpg --quick-generate-key "Uni Scrims Backup"`) und den öffentlichen Schlüssel exportieren (`gpg --export --armor <key-id> > backup.asc`). Der private Schlüssel bleibt dort; ohne ihn sind die Backups wertlos.
+2. Auf dem Server: `apt install gpg rsync`, `gpg --import backup.asc`, einen SSH-Key für root beim externen Speicher hinterlegen und dort den Zielordner anlegen.
+3. Cron für root (`crontab -e`), jede Nacht um 3:30 Uhr:
+
+```
+30 3 * * * BACKUP_GPG_RECIPIENT=<key-id> BACKUP_REMOTE=<user>@<host>:uni-scrims BACKUP_SSH_PORT=23 /opt/uni-scrims/docker/backup.sh >> /var/log/uni-scrims-backup.log 2>&1
+```
+
+(`BACKUP_SSH_PORT=23` gilt für die Storage Box, sonst weglassen.)
+
+Wiederherstellen:
+
+```sh
+gpg --decrypt uniscrims-<zeit>.dump.gpg > restore.dump    # auf dem Rechner mit dem privaten Schlüssel
+dc stop web bot
+dc exec -T db pg_restore -U uniscrims -d uniscrims --clean --if-exists < restore.dump
+dc start web bot
+```
+
+Gelöschte Konten stehen bis zum Ablauf (14 Tage) noch in den Backups; das steht in der Datenschutzerklärung.
+
+## Entsperren per SQL
+
+Sperren gibt es im Admin-Bereich, Entsperren im MVP nur per Datenbank (`dc exec db psql -U uniscrims uniscrims`):
+
+```sql
+-- Nutzer über die Discord-ID finden und entsperren
+SELECT u.id, u.name, u."bannedAt" FROM "user" u
+  JOIN account a ON a."userId" = u.id
+  WHERE a."providerId" = 'discord' AND a."accountId" = '<discord-id>';
+UPDATE "user" SET "bannedAt" = NULL WHERE id = '<user-id>';
+
+-- Team finden und entsperren
+SELECT id, name, "bannedAt" FROM "Team" WHERE name ILIKE '%<name>%' AND "dissolvedAt" IS NULL;
+UPDATE "Team" SET "bannedAt" = NULL WHERE id = '<team-id>';
+```
+
+Was das Entsperren **nicht** zurückholt:
+
+- Abgesagte Scrims, gelöschte Anfragen und zurückgezogene Bewerbungen bleiben so.
+- Ein gesperrter Spieler wurde aus seinem Team entfernt und muss per Einladungslink neu beitreten.
+- Bei einem gesperrten Captain sind Nutzer und Team getrennt zu entsperren.
+- Hat ein gesperrter Nutzer sein Konto gelöscht, landet ein neuer Login nach dem Entsperren beim anonymisierten Konto, ohne Verifizierung und ohne Team.
