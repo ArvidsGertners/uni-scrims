@@ -41,7 +41,14 @@ services:
       LEGAL_DIR: /config/legal
     volumes:
       - uploads:/data/uploads
-      - ./legal:/config/legal:ro
+      # Long syntax: without docker/legal on the host, `up` fails instead of mounting an empty
+      # directory, so the site never goes online without Impressum and privacy policy.
+      - type: bind
+        source: ./legal
+        target: /config/legal
+        read_only: true
+        bind:
+          create_host_path: false
     # node:24-slim has neither curl nor wget.
     healthcheck:
       test:

@@ -3,7 +3,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-export type LegalPage = "impressum" | "datenschutz";
+export const LEGAL_PAGES = ["impressum", "datenschutz"] as const;
+export type LegalPage = (typeof LEGAL_PAGES)[number];
 
 export type LegalBlock =
   | { type: "heading"; text: string }
@@ -62,4 +63,19 @@ export async function readLegalPage(
     console.error(`Could not read the legal page ${page}`, error);
     return null;
   }
+}
+
+/**
+ * Pages whose text is missing or empty; they show "Inhalt folgt." (ARCHITECTURE §8). The admin page
+ * and the start of the web process report them, so a server without its legal texts is noticed.
+ */
+export async function missingLegalPages(
+  env: Record<string, string | undefined> = process.env,
+): Promise<LegalPage[]> {
+  const missing: LegalPage[] = [];
+  for (const page of LEGAL_PAGES) {
+    const blocks = await readLegalPage(page, env);
+    if (!blocks || blocks.length === 0) missing.push(page);
+  }
+  return missing;
 }

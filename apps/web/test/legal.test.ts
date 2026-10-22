@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { parseLegalText, readLegalPage } from "../lib/legal.ts";
+import { missingLegalPages, parseLegalText, readLegalPage } from "../lib/legal.ts";
 
 describe("parseLegalText", () => {
   it("reads headings, paragraphs with line breaks and lists", () => {
@@ -62,5 +62,14 @@ describe("readLegalPage", () => {
     await expect(readLegalPage("datenschutz", { LEGAL_DIR: dir })).resolves.toBeNull();
     await expect(readLegalPage("impressum", {})).resolves.toBeNull();
     await expect(readLegalPage("impressum", { LEGAL_DIR: "docker/legal" })).resolves.toBeNull();
+  });
+
+  it("lists the pages that would show the placeholder", async () => {
+    await expect(missingLegalPages({ LEGAL_DIR: dir })).resolves.toEqual(["datenschutz"]);
+    await writeFile(path.join(dir, "datenschutz.txt"), "\n\n");
+    await expect(missingLegalPages({ LEGAL_DIR: dir })).resolves.toEqual(["datenschutz"]);
+    await writeFile(path.join(dir, "datenschutz.txt"), "Text");
+    await expect(missingLegalPages({ LEGAL_DIR: dir })).resolves.toEqual([]);
+    await expect(missingLegalPages({})).resolves.toEqual(["impressum", "datenschutz"]);
   });
 });

@@ -566,6 +566,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | `DEV_CHANNEL_ID` | Alle Team-Channel-Posts gehen in diesen Channel, auch von Teams ohne `/setup` (Seed-Captains können `/setup` nicht ausführen), mit Präfix "[an: <Teamname>]" |
 | `DEV_TIME_OFFSETS=true` | Nur für **manuelle** Tests. Zeiten in Minuten: Reminder 24 h → 3 min, 1 h → 1 min, `FEEDBACK_OFFSET` → 2 min nach Start, `FEEDBACK_WINDOW` → 5 min ab Feedback-Hinweis, Prüf-TTL → 10 min. Erlaubt außerdem Startzeiten ab 5 Minuten in der Zukunft. |
 
+- **`DEV_HOST`** (Shell-Variable für `pnpm dev`, nicht in der `.env`): bindet den Web-Dev-Server an diese Adresse. Ohne sie lauscht `next dev` auf allen Schnittstellen; auf einem Server mit Dev-Login deshalb `DEV_HOST=127.0.0.1` und Zugriff per SSH-Portweiterleitung (README).
 - **Automatische Tests kontrollieren die Zeit über den `now`-Parameter** (siehe Zeit-Regel in §3), nicht über `DEV_TIME_OFFSETS`.
 - **Testdatenbank:** zweite Postgres-DB in `docker-compose.dev.yml` (App-DB auf Host-Port 5433, überschreibbar mit `DB_PORT`; Test-DB auf 5434 mit tmpfs, damit sie nicht mit einem lokal installierten Postgres auf 5432 kollidieren), `DATABASE_URL_TEST`. Der Vitest-`globalSetup` setzt `DATABASE_URL` auf `DATABASE_URL_TEST` und bricht ab, wenn beide gleich sind. Vor dem Testlauf `prisma migrate reset --force` gegen die Test-DB. Für DB-Tests in der Vitest-Config `fileParallelism: false`.
 - **Unit-Tests** (Vitest) für alle `core`-Funktionen, insbesondere `resolveScrimOutcome` (jede Tabellenzeile, beide Richtungen), `confirmApplication`, `cancelScrim`, `retireTeamActivity`, `getReliability`.
@@ -626,7 +627,7 @@ HUB_INVITE_URL=
 ADMIN_DISCORD_IDS=123,456
 UPLOAD_DIR=/data/uploads
 PUBLIC_BASE_URL=https://deine-domain.de   # für Links in Bot-Nachrichten
-LEGAL_DIR=/config/legal                   # absoluter Pfad zu impressum.txt und datenschutz.txt
+LEGAL_DIR=                                # absoluter Pfad zu impressum.txt und datenschutz.txt; Production: setzt Compose (/config/legal)
 DOMAIN=deine-domain.de                    # nur Production: Caddy
 POSTGRES_PASSWORD=                        # nur Production: hex, z. B. openssl rand -hex 32
 DEV_LOGIN=false
@@ -635,7 +636,7 @@ DEV_CHANNEL_ID=
 DEV_TIME_OFFSETS=false
 ```
 
-**Impressum und Datenschutzerklärung** liegen als `impressum.txt` und `datenschutz.txt` in `LEGAL_DIR`, außerhalb von Git (Production: `docker/legal/`, schreibgeschützt in den Web-Container gemountet; Gerüst in `docker/legal.example/`). Format: `## ` beginnt eine Überschrift, `- ` einen Listenpunkt, eine Leerzeile beendet einen Absatz; Zeilenumbrüche im Absatz bleiben (Adressen). Die Seiten lesen die Dateien bei jedem Aufruf; fehlt eine, steht dort "Inhalt folgt.".
+**Impressum und Datenschutzerklärung** liegen als `impressum.txt` und `datenschutz.txt` in `LEGAL_DIR`, außerhalb von Git (Production: `docker/legal/`, schreibgeschützt in den Web-Container gemountet; Gerüst in `docker/legal.example/`). Format: `## ` beginnt eine Überschrift, `- ` einen Listenpunkt, eine Leerzeile beendet einen Absatz; Zeilenumbrüche im Absatz bleiben (Adressen). Die Seiten lesen die Dateien bei jedem Aufruf; fehlt eine, steht dort "Inhalt folgt.". Damit das nicht unbemerkt online geht: Compose bindet `docker/legal` mit `create_host_path: false` ein (fehlt der Ordner, scheitert `up`, statt einen leeren Ordner anzulegen), der Web-Prozess loggt beim Start fehlende oder leere Texte, und die Admin-Seiten zeigen dazu eine Warnung. Der Seitenkopf lädt den Nutzer mit Fehlerbehandlung, damit Impressum und Datenschutz auch bei nicht erreichbarer Datenbank erscheinen.
 
 ### Monitoring
 

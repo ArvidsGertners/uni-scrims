@@ -1,6 +1,7 @@
 import { getBotStatus } from "@uni-scrims/core";
 import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
+import { missingLegalPages } from "@/lib/legal";
 
 const BOT_LOOP_LABELS = [
   { loop: "sweeper", label: "Zeitsteuerung (Reminder, Fristen)" },
@@ -20,6 +21,7 @@ const LINKS = [
  */
 export async function AdminNav({ adminId }: { adminId: string }) {
   const bot = await getBotStatus(adminId, new Date());
+  const missingLegal = await missingLegalPages();
   const lastSeen = (heartbeatAt: Date | null) =>
     heartbeatAt
       ? `letztes Lebenszeichen ${formatDateTime(heartbeatAt)}`
@@ -33,6 +35,12 @@ export async function AdminNav({ adminId }: { adminId: string }) {
           </Link>
         ))}
       </nav>
+      {missingLegal.length > 0 ? (
+        <p className="text-sm text-destructive">
+          Rechtstexte fehlen in LEGAL_DIR ({missingLegal.map((page) => `${page}.txt`).join(", ")}
+          ): Die Seiten zeigen nur „Inhalt folgt.“
+        </p>
+      ) : null}
       {bot.online ? (
         <p className="text-sm">Bot läuft ({lastSeen(bot.loops.sweeper.heartbeatAt)})</p>
       ) : (
