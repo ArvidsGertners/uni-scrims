@@ -19,6 +19,7 @@ import {
   parseNotificationPayload,
   queueNotifications,
 } from "./notifications.ts";
+import { requireAdmin } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
 import { isRequestOpen } from "./requests.ts";
 import { feedbackClosedReason } from "./scrims.ts";
@@ -357,4 +358,31 @@ export async function deliverDueNotifications(
     }
   }
   return counts;
+}
+
+/** The admin list shows at most this many failed entries, newest first. */
+export const MAX_FAILED_SHOWN = 100;
+
+/** Admin: notifications that failed for good (SPEC P0-9), read only. */
+export async function listFailedNotifications(adminId: string) {
+  await requireAdmin(adminId);
+  const rows = await prisma.notification.findMany({
+    where: { status: NotifStatus.FAILED },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    take: MAX_FAILED_SHOWN,
+    select: {
+      id: true,
+      type: true,
+      channel: true,
+      attempts: true,
+      lastError: true,
+      createdAt: true,
+      targetUser: { select: { name: true } },
+      targetTeam: { select: { name: true } },
+    },
+  });
+  return rows.map(({ targetUser, targetTeam, ...row }) => ({
+    ...row,
+    targetName: targetUser?.name ?? targetTeam?.name ?? null,
+  }));
 }

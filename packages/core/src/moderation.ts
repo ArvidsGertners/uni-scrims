@@ -4,6 +4,82 @@ import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAdmin } from "./permissions.ts";
 import { retireTeamActivity } from "./teams.ts";
+import { DISCORD_PROVIDER } from "./users.ts";
+
+export const MIN_SEARCH_LENGTH = 2;
+export const MAX_SEARCH_RESULTS = 20;
+
+/**
+ * Admin search for the ban page: users by part of their Discord name or by exact Discord ID, teams
+ * by part of their name. Only users with a Discord account, so deleted accounts that are not banned
+ * do not show up; dissolved teams neither.
+ */
+export async function searchModerationTargets(input: { adminId: string; query: string }) {
+  await requireAdmin(input.adminId);
+  const query = input.query.trim();
+  if (query.length < MIN_SEARCH_LENGTH) return { users: [], teams: [] };
+
+  const discordAccount = { providerId: DISCORD_PROVIDER };
+  const users = await prisma.user.findMany({
+    where: {
+      accounts: { some: discordAccount },
+      OR: [
+        { name: { contains: query, mode: "insensitive" } },
+        { accounts: { some: { ...discordAccount, accountId: query } } },
+      ],
+    },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    take: MAX_SEARCH_RESULTS,
+    select: {
+      id: true,
+      name: true,
+      image: true,
+      bannedAt: true,
+      accounts: { where: discordAccount, select: { accountId: true } },
+      membership: {
+        select: { team: { select: { id: true, name: true, captainId: true, dissolvedAt: true } } },
+      },
+    },
+  });
+  const teams = await prisma.team.findMany({
+    where: { dissolvedAt: null, name: { contains: query, mode: "insensitive" } },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    take: MAX_SEARCH_RESULTS,
+    select: {
+      id: true,
+      name: true,
+      tag: true,
+      bannedAt: true,
+      captain: { select: { name: true } },
+      _count: { select: { members: true } },
+    },
+  });
+
+  return {
+    users: users.map((user) => {
+      const team = user.membership?.team;
+      return {
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        discordId: user.accounts[0]?.accountId ?? null,
+        banned: user.bannedAt !== null,
+        team:
+          team && !team.dissolvedAt
+            ? { id: team.id, name: team.name, isCaptain: isCaptainOf(user, team) }
+            : null,
+      };
+    }),
+    teams: teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      tag: team.tag,
+      banned: team.bannedAt !== null,
+      captainName: team.captain.name,
+      memberCount: team._count.members,
+    })),
+  };
+}
 
 /**
  * Bans a team that is not dissolved: open requests, own applications and future scrims are retired.

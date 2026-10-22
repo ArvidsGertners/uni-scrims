@@ -279,6 +279,47 @@ export async function resolveDeadlines(now: Date): Promise<number> {
   return resolved;
 }
 
+const disputeTeamSelect = {
+  id: true,
+  name: true,
+  tag: true,
+  captain: { select: { name: true } },
+} satisfies Prisma.TeamSelect;
+
+/**
+ * Admin: open disputes, oldest first, with both answers. The current captains are shown so the
+ * admin can contact them in Discord.
+ */
+export async function listDisputes(adminId: string) {
+  await requireAdmin(adminId);
+  const scrims = await prisma.scrim.findMany({
+    where: { status: ScrimStatus.DISPUTED },
+    orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+    include: {
+      hostTeam: { select: disputeTeamSelect },
+      guestTeam: { select: disputeTeamSelect },
+      feedback: { select: { teamId: true, outcome: true, rating: true, createdAt: true } },
+    },
+  });
+  return scrims.map((scrim) => {
+    const side = (team: (typeof scrim)["hostTeam"]) => ({
+      id: team.id,
+      name: team.name,
+      tag: team.tag,
+      captainName: team.captain.name,
+      feedback: scrim.feedback.find((entry) => entry.teamId === team.id) ?? null,
+    });
+    return {
+      id: scrim.id,
+      startsAt: scrim.startsAt,
+      format: scrim.format,
+      maps: scrim.maps,
+      host: side(scrim.hostTeam),
+      guest: side(scrim.guestTeam),
+    };
+  });
+}
+
 export type DisputeDecision =
   { decision: "PLAYED" } | { decision: "NO_SHOW"; noShowTeamId: string } | { decision: "UNCLEAR" };
 

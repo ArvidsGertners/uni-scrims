@@ -1,6 +1,6 @@
 import { AppStatus, NotifType, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { applyToRequest, banTeam, banUser } from "../src/index.ts";
+import { afterAll, describe, expect, it } from "vitest";
+import { applyToRequest, banTeam, banUser, searchModerationTargets } from "../src/index.ts";
 import {
   NOW,
   SOON,
@@ -9,18 +9,13 @@ import {
   createReadyTeam,
   createSession,
   createUser,
+  uid,
+  useAdmin,
 } from "./helpers.ts";
 
-const previousAdmins = process.env.ADMIN_DISCORD_IDS;
-let admin: Awaited<ReturnType<typeof createUser>>;
-
-beforeAll(async () => {
-  admin = await createUser({ verified: true });
-  process.env.ADMIN_DISCORD_IDS = admin.discordId;
-});
+const admin = useAdmin();
 
 afterAll(async () => {
-  process.env.ADMIN_DISCORD_IDS = previousAdmins;
   await prisma.$disconnect();
 });
 
@@ -170,5 +165,73 @@ describe("banUser", () => {
     await expect(banUser({ adminId: other.id, userId: loner.id, now: NOW })).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
+  });
+});
+
+describe("searchModerationTargets", () => {
+  const search = (query: string) => searchModerationTargets({ adminId: admin.id, query });
+
+  it("is only for admins and needs two characters", async () => {
+    const user = await createUser();
+    await expect(
+      searchModerationTargets({ adminId: user.id, query: user.name }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(search(" a ")).resolves.toEqual({ users: [], teams: [] });
+  });
+
+  it("finds users by part of the name or the exact Discord ID, with their team", async () => {
+    const { team, captain, members } = await createReadyTeam();
+    const byName = await search(captain.name.slice(5).toUpperCase());
+    expect(byName.users).toEqual([
+      {
+        id: captain.id,
+        name: captain.name,
+        image: null,
+        discordId: captain.discordId,
+        banned: false,
+        team: { id: team.id, name: team.name, isCaptain: true },
+      },
+    ]);
+    const player = members[0]!;
+    const byId = await search(player.discordId);
+    expect(byId.users).toMatchObject([{ id: player.id, team: { id: team.id, isCaptain: false } }]);
+    // Only the exact ID, not a part of it.
+    expect((await search(player.discordId.slice(0, -1))).users).not.toContainEqual(
+      expect.objectContaining({ id: player.id }),
+    );
+  });
+
+  it("skips users without a Discord account and dissolved teams, and marks bans", async () => {
+    const marker = uid().slice(0, 8);
+    const deleted = await createUser();
+    await prisma.user.update({ where: { id: deleted.id }, data: { name: `Weg ${marker}` } });
+    await prisma.account.deleteMany({ where: { userId: deleted.id } });
+    const banned = await createUser({ banned: true });
+    await prisma.user.update({ where: { id: banned.id }, data: { name: `Gesperrt ${marker}` } });
+
+    const active = await createReadyTeam();
+    const bannedTeam = await createReadyTeam();
+    const dissolved = await createReadyTeam();
+    for (const [team, data] of [
+      [active.team, { name: `Aktiv ${marker}` }],
+      [bannedTeam.team, { name: `Bann ${marker}`, bannedAt: NOW }],
+      [dissolved.team, { name: `Aufgelöst ${marker}`, dissolvedAt: NOW, nameNormalized: null }],
+    ] as const) {
+      await prisma.team.update({ where: { id: team.id }, data });
+    }
+
+    const result = await search(marker);
+    expect(result.users).toMatchObject([{ id: banned.id, banned: true, team: null }]);
+    expect(result.teams).toEqual([
+      {
+        id: active.team.id,
+        name: `Aktiv ${marker}`,
+        tag: "TST",
+        banned: false,
+        captainName: active.captain.name,
+        memberCount: 5,
+      },
+      expect.objectContaining({ id: bannedTeam.team.id, banned: true }),
+    ]);
   });
 });

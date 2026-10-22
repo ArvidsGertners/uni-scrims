@@ -1,7 +1,7 @@
 import { prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 
-const DISCORD_PROVIDER = "discord";
+export const DISCORD_PROVIDER = "discord";
 
 // The Discord user ID lives in account.accountId (ARCHITECTURE §4); there is no column on User.
 export async function getDiscordId(userId: string, db: Db = prisma): Promise<string | null> {

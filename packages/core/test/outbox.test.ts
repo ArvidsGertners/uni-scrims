@@ -19,6 +19,7 @@ import {
   deliverDueNotifications,
   deliverNotification,
   expireRequests,
+  listFailedNotifications,
   openFeedback,
   retryDelayMs,
   submitFeedback,
@@ -32,6 +33,7 @@ import {
   createReadyTeam,
   createUser,
   uid,
+  useAdmin,
 } from "./helpers.ts";
 
 const MINUTE = 60 * 1000;
@@ -624,5 +626,72 @@ describe("deliverDueNotifications", () => {
     });
     expect(await status(broken.id)).toBe(NotifStatus.PENDING);
     expect(await status(fine.id)).toBe(NotifStatus.SENT);
+  });
+});
+
+describe("listFailedNotifications", () => {
+  const admin = useAdmin();
+  // Later than every entry the other tests create, so these come first.
+  const LATER = new Date(NOW.getTime() + 1000 * 24 * HOUR);
+
+  async function failed(
+    data: Pick<
+      Prisma.NotificationUncheckedCreateInput,
+      "channel" | "targetUserId" | "targetTeamId"
+    >,
+    createdAt: Date,
+    status: NotifStatus = NotifStatus.FAILED,
+  ) {
+    return prisma.notification.create({
+      data: {
+        ...data,
+        type: NotifType.SCRIM_BOOKED,
+        payload: {},
+        scheduledFor: createdAt,
+        status,
+        attempts: 6,
+        lastError: "Discord says no",
+        dedupeKey: uid(),
+        createdAt,
+      },
+    });
+  }
+
+  it("is only for admins", async () => {
+    const user = await createUser();
+    await expect(listFailedNotifications(user.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("lists failed entries newest first with the name of the target", async () => {
+    const user = await createUser();
+    const { team } = await createReadyTeam();
+    const toUser = await failed(
+      { channel: NotifChannel.USER_DM, targetUserId: user.id },
+      new Date(LATER.getTime() - HOUR),
+    );
+    const toTeam = await failed(
+      { channel: NotifChannel.TEAM_CHANNEL, targetTeamId: team.id },
+      LATER,
+    );
+    const sent = await failed(
+      { channel: NotifChannel.USER_DM, targetUserId: user.id },
+      new Date(LATER.getTime() + HOUR),
+      NotifStatus.SENT,
+    );
+
+    const list = await listFailedNotifications(admin.id);
+    expect(list.slice(0, 2)).toEqual([
+      {
+        id: toTeam.id,
+        type: NotifType.SCRIM_BOOKED,
+        channel: NotifChannel.TEAM_CHANNEL,
+        attempts: 6,
+        lastError: "Discord says no",
+        createdAt: LATER,
+        targetName: team.name,
+      },
+      expect.objectContaining({ id: toUser.id, targetName: user.name }),
+    ]);
+    expect(list.map((entry) => entry.id)).not.toContain(sent.id);
   });
 });

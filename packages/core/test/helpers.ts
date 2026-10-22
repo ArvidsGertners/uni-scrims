@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { prisma, Rank, ScrimFormat } from "@uni-scrims/db";
+import { afterAll, beforeAll } from "vitest";
 import type { ValorantMap } from "../config/maps.ts";
 import { applyToRequest, confirmApplication, createRequest } from "../src/index.ts";
 
@@ -35,6 +36,22 @@ export async function createUser(
     },
   });
   return { ...user, discordId };
+}
+
+/** Registers an admin (ADMIN_DISCORD_IDS) for the test file and restores the variable afterwards. */
+export function useAdmin(): { readonly id: string; readonly discordId: string } {
+  const admin = { id: "", discordId: "" };
+  const previous = process.env.ADMIN_DISCORD_IDS;
+  beforeAll(async () => {
+    const user = await createUser({ verified: true });
+    Object.assign(admin, { id: user.id, discordId: user.discordId });
+    process.env.ADMIN_DISCORD_IDS = user.discordId;
+  });
+  afterAll(() => {
+    if (previous === undefined) delete process.env.ADMIN_DISCORD_IDS;
+    else process.env.ADMIN_DISCORD_IDS = previous;
+  });
+  return admin;
 }
 
 /** A Better Auth session row, to check that bans and account deletion end sessions. */

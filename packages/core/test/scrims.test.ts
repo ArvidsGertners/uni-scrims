@@ -15,6 +15,7 @@ import {
   cancelScrim,
   deleteRequest,
   leaveTeam,
+  listDisputes,
   openFeedback,
   resolveDeadlines,
   resolveDispute,
@@ -363,6 +364,44 @@ describe("resolveDispute", () => {
     expect(await prisma.scrim.findUnique({ where: { id: unclear.scrim.id } })).toMatchObject({
       status: ScrimStatus.UNCONFIRMED,
     });
+  });
+
+  it("lists open disputes with both answers for admins only", async () => {
+    const { host, guest, scrim } = await dispute();
+    await expect(listDisputes(host.captain.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const entry = (await listDisputes(admin.id)).find((item) => item.id === scrim.id);
+    expect(entry).toEqual({
+      id: scrim.id,
+      startsAt: REQUEST_STARTS_AT,
+      format: scrim.format,
+      maps: scrim.maps,
+      host: {
+        id: host.team.id,
+        name: host.team.name,
+        tag: host.team.tag,
+        captainName: host.captain.name,
+        feedback: { teamId: host.team.id, outcome: PLAYED, rating: 3, createdAt: AFTER_START },
+      },
+      guest: {
+        id: guest.team.id,
+        name: guest.team.name,
+        tag: guest.team.tag,
+        captainName: guest.captain.name,
+        feedback: {
+          teamId: guest.team.id,
+          outcome: OPPONENT_NO_SHOW,
+          rating: null,
+          createdAt: AFTER_START,
+        },
+      },
+    });
+    await resolveDispute({
+      adminId: admin.id,
+      scrimId: scrim.id,
+      decision: "PLAYED",
+      now: DEADLINE,
+    });
+    expect((await listDisputes(admin.id)).map((item) => item.id)).not.toContain(scrim.id);
   });
 });
 

@@ -1,16 +1,30 @@
 // Sweeper (ARCHITECTURE §6.3): time-driven state changes, run by the bot every minute. Every step is
 // idempotent and derives from the database alone, so after a bot outage the next run catches up.
 import { NotifStatus, prisma } from "@uni-scrims/db";
+import { requireAdmin } from "./permissions.ts";
 import { expireRequests } from "./requests.ts";
 import { openFeedback, resolveDeadlines } from "./scrims.ts";
 
-const DAY = 24 * 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
+const DAY = 24 * 60 * MINUTE;
 
 /** Entries that are no longer pending are kept this long (SPEC §9: notifications 30 days). */
 export const NOTIFICATION_RETENTION_MS = 30 * DAY;
 
 /** SystemStatus row of the bot; the admin page shows it as offline after 3 minutes (§6.3). */
 export const BOT_STATUS_ID = "bot";
+export const BOT_OFFLINE_AFTER_MS = 3 * MINUTE;
+
+/** Admin: last heartbeat of the bot and whether it is recent enough to count as running. */
+export async function getBotStatus(adminId: string, now: Date) {
+  await requireAdmin(adminId);
+  const status = await prisma.systemStatus.findUnique({ where: { id: BOT_STATUS_ID } });
+  const heartbeatAt = status?.heartbeatAt ?? null;
+  return {
+    heartbeatAt,
+    online: heartbeatAt !== null && now.getTime() - heartbeatAt.getTime() <= BOT_OFFLINE_AFTER_MS,
+  };
+}
 
 /** Deletes sent, failed and cancelled entries older than NOTIFICATION_RETENTION_MS. */
 export async function purgeOldNotifications(now: Date): Promise<number> {

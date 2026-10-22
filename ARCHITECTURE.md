@@ -137,7 +137,7 @@ uni-scrims/
 | Anfragen | `createRequest`, `deleteRequest`, `expireRequests` |
 | Bewerbungen | `applyToRequest`, `withdrawApplication`, `confirmApplication` |
 | Scrims | `cancelScrim`, `openFeedback`, `submitFeedback`, `resolveScrimOutcome` (rein), `resolveDeadlines`, `resolveDispute` |
-| Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; nur für den Dev-Login: `listSeedUsers` |
+| Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; für den Admin-Bereich: `listDisputes`, `listFailedNotifications`, `getBotStatus`, `searchModerationTargets` (Suche auf der Sperren-Seite); nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` |
 | Konto | `deleteAccount` |
 | Bot | `deliverNotification`, `deliverDueNotifications` (Outbox-Sender §6.2; der Bot übergibt die Sendefunktion `Deliver`, wie beim Hub-Beitritt), `runSweeper` (alle Schritte aus §6.3), `recordBotHeartbeat` |

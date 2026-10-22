@@ -8,16 +8,26 @@ import {
 } from "@uni-scrims/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  BOT_OFFLINE_AFTER_MS,
   BOT_STATUS_ID,
   NOTIFICATION_RETENTION_MS,
   applyToRequest,
+  getBotStatus,
   purgeOldNotifications,
   recordBotHeartbeat,
   runSweeper,
 } from "../src/index.ts";
 import { queueNotifications } from "../src/notifications.ts";
 import type * as Requests from "../src/requests.ts";
-import { NOW, bookScrim, createOpenRequest, createReadyTeam, createUser, uid } from "./helpers.ts";
+import {
+  NOW,
+  bookScrim,
+  createOpenRequest,
+  createReadyTeam,
+  createUser,
+  uid,
+  useAdmin,
+} from "./helpers.ts";
 
 // Lets a test make the expireRequests step of the sweeper fail; otherwise the real function runs.
 const faults = vi.hoisted(() => ({ expireRequests: false }));
@@ -85,6 +95,27 @@ describe("recordBotHeartbeat", () => {
     expect(await prisma.systemStatus.findMany({ where: { id: BOT_STATUS_ID } })).toEqual([
       { id: BOT_STATUS_ID, heartbeatAt: later },
     ]);
+  });
+});
+
+describe("getBotStatus", () => {
+  const admin = useAdmin();
+
+  it("is only for admins", async () => {
+    const user = await createUser();
+    await expect(getBotStatus(user.id, NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("counts the bot as offline without a heartbeat or after 3 minutes", async () => {
+    await prisma.systemStatus.deleteMany({ where: { id: BOT_STATUS_ID } });
+    expect(await getBotStatus(admin.id, NOW)).toEqual({ heartbeatAt: null, online: false });
+    await recordBotHeartbeat(NOW);
+    const limit = new Date(NOW.getTime() + BOT_OFFLINE_AFTER_MS);
+    expect(await getBotStatus(admin.id, limit)).toEqual({ heartbeatAt: NOW, online: true });
+    expect(await getBotStatus(admin.id, new Date(limit.getTime() + 1))).toEqual({
+      heartbeatAt: NOW,
+      online: false,
+    });
   });
 });
 
