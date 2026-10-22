@@ -10,6 +10,8 @@
     "test-dm": "tsx src/scripts/test-dm.ts"
   },
   "dependencies": {
+    "@uni-scrims/core": "workspace:*",
+    "@uni-scrims/db": "workspace:*",
     "discord.js": "14.27.0",
     "dotenv": "18.0.8",
     "tsx": "4.23.15"
