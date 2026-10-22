@@ -4,6 +4,7 @@ import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { handleSetup, setupCommand } from "./commands/setup.ts";
 import { createDeliver } from "./outbox/deliver.ts";
 import { runOutboxLoop } from "./outbox/loop.ts";
+import { runSweeperLoop } from "./sweeper/loop.ts";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -19,10 +20,12 @@ const baseUrl = requireEnv("PUBLIC_BASE_URL");
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-// once: reconnects do not emit ClientReady again, so the loop starts exactly once.
+// once: reconnects do not emit ClientReady again, so each loop starts exactly once. Sender and
+// sweeper run side by side; the bot runs as exactly one instance (§6.2).
 client.once(Events.ClientReady, (ready) => {
   console.log(`Bot eingeloggt als ${ready.user.tag}`);
   void runOutboxLoop(createDeliver(client.rest, baseUrl));
+  void runSweeperLoop();
   // Global and idempotent: overwrites the command list with /setup on every start.
   ready.application.commands
     .set([setupCommand])
