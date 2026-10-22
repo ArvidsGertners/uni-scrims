@@ -115,8 +115,13 @@ export async function deleteAccount(input: {
     }
     return verifications.flatMap(({ filePath }) => (filePath ? [filePath] : []));
   });
-  // After the commit, as in decideVerification; leftovers are removed by the janitor's orphan step.
+  // After the commit, as in decideVerification. The account is already deleted, so a failure is
+  // only logged; the janitor's orphan step removes leftovers.
   for (const file of files) {
-    await deleteUpload(input.uploadDir, file);
+    try {
+      await deleteUpload(input.uploadDir, file);
+    } catch (error) {
+      console.error(`Could not delete upload ${file} of a deleted account`, error);
+    }
   }
 }

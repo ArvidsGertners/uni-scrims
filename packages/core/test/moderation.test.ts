@@ -166,6 +166,17 @@ describe("banUser", () => {
       code: "FORBIDDEN",
     });
   });
+
+  it("rejects a deleted account, whose ban would not hold at the next login", async () => {
+    const deleted = await createUser();
+    await prisma.account.deleteMany({ where: { userId: deleted.id } });
+    await expect(
+      banUser({ adminId: admin.id, userId: deleted.id, now: NOW }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(await prisma.user.findUnique({ where: { id: deleted.id } })).toMatchObject({
+      bannedAt: null,
+    });
+  });
 });
 
 describe("searchModerationTargets", () => {

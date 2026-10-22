@@ -4,7 +4,7 @@ import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAdmin } from "./permissions.ts";
 import { retireTeamActivity } from "./teams.ts";
-import { DISCORD_PROVIDER } from "./users.ts";
+import { DISCORD_PROVIDER, getDiscordId } from "./users.ts";
 
 export const MIN_SEARCH_LENGTH = 2;
 export const MAX_SEARCH_RESULTS = 20;
@@ -20,40 +20,44 @@ export async function searchModerationTargets(input: { adminId: string; query: s
   if (query.length < MIN_SEARCH_LENGTH) return { users: [], teams: [] };
 
   const discordAccount = { providerId: DISCORD_PROVIDER };
-  const users = await prisma.user.findMany({
-    where: {
-      accounts: { some: discordAccount },
-      OR: [
-        { name: { contains: query, mode: "insensitive" } },
-        { accounts: { some: { ...discordAccount, accountId: query } } },
-      ],
-    },
-    orderBy: [{ name: "asc" }, { id: "asc" }],
-    take: MAX_SEARCH_RESULTS,
-    select: {
-      id: true,
-      name: true,
-      image: true,
-      bannedAt: true,
-      accounts: { where: discordAccount, select: { accountId: true } },
-      membership: {
-        select: { team: { select: { id: true, name: true, captainId: true, dissolvedAt: true } } },
+  const [users, teams] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        accounts: { some: discordAccount },
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { accounts: { some: { ...discordAccount, accountId: query } } },
+        ],
       },
-    },
-  });
-  const teams = await prisma.team.findMany({
-    where: { dissolvedAt: null, name: { contains: query, mode: "insensitive" } },
-    orderBy: [{ name: "asc" }, { id: "asc" }],
-    take: MAX_SEARCH_RESULTS,
-    select: {
-      id: true,
-      name: true,
-      tag: true,
-      bannedAt: true,
-      captain: { select: { name: true } },
-      _count: { select: { members: true } },
-    },
-  });
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+      take: MAX_SEARCH_RESULTS,
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        bannedAt: true,
+        accounts: { where: discordAccount, select: { accountId: true } },
+        membership: {
+          select: {
+            team: { select: { id: true, name: true, captainId: true, dissolvedAt: true } },
+          },
+        },
+      },
+    }),
+    prisma.team.findMany({
+      where: { dissolvedAt: null, name: { contains: query, mode: "insensitive" } },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+      take: MAX_SEARCH_RESULTS,
+      select: {
+        id: true,
+        name: true,
+        tag: true,
+        bannedAt: true,
+        captain: { select: { name: true } },
+        _count: { select: { members: true } },
+      },
+    }),
+  ]);
 
   return {
     users: users.map((user) => {
@@ -119,18 +123,37 @@ export async function banUser(input: { adminId: string; userId: string; now: Dat
   if (input.userId === admin.id) {
     throw new DomainError("INVALID", "Du kannst dich nicht selbst sperren.");
   }
+  const user = { id: input.userId };
   return prisma.$transaction(async (tx) => {
-    // Team before user, in the same order as leaveTeam, so the two cannot deadlock.
-    const membership = await tx.teamMember.findUnique({ where: { userId: input.userId } });
+    // Team before user, in the same order as leaveTeam and deleteAccount, so they cannot deadlock.
+    const membership = await tx.teamMember.findUnique({ where: { userId: user.id } });
     if (membership) await lockTeam(tx, membership.teamId);
-    const user = await tx.user.findUnique({ where: { id: input.userId } });
-    if (!user) throw new DomainError("NOT_FOUND", "Nutzer nicht gefunden.");
-    if (user.bannedAt) throw new DomainError("CONFLICT", "Der Nutzer ist schon gesperrt.");
-    await tx.user.update({ where: { id: user.id }, data: { bannedAt: input.now } });
+    // The update locks the user row, so it waits for a running deleteAccount.
+    const banned = await tx.user.updateMany({
+      where: { id: user.id, bannedAt: null },
+      data: { bannedAt: input.now },
+    });
+    if (banned.count === 0) {
+      throw (await tx.user.findUnique({ where: { id: user.id } }))
+        ? new DomainError("CONFLICT", "Der Nutzer ist schon gesperrt.")
+        : new DomainError("NOT_FOUND", "Nutzer nicht gefunden.");
+    }
+    // A deleted account has no Discord link left: a new login would create a new, unbanned user.
+    if (!(await getDiscordId(user.id, tx))) {
+      throw new DomainError(
+        "CONFLICT",
+        "Das Konto wurde gelöscht, eine Sperre würde nicht greifen.",
+      );
+    }
     await tx.session.deleteMany({ where: { userId: user.id } });
 
     // Read again under the lock: the user may have left or changed teams meanwhile.
     const team = await findOwnTeam(user.id, tx);
+    if (team && team.id !== membership?.teamId) {
+      // Joined another team in between; that one is not locked, and locking it now would invert
+      // the order.
+      throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
+    }
     if (!team) return { teamBanned: false };
     if (isCaptainOf(user, team)) {
       return { teamBanned: await banTeamInTx(tx, team.id, input.now) };
