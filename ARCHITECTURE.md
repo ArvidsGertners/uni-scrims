@@ -702,3 +702,4 @@ Jede Phase endet mit lauffähigem Stand, grünen Tests und einem Commit. **Erst 
 - Production-Compose mit Caddy, Migrate-Job und Log-Rotation; Backup-Skript; README mit Deploy-Anleitung für den VPS
 - **Vorher erledigt (SPEC §9, Punkte 1–4):** Impressum, Datenschutzerklärung, AVV, Hoster-Snapshots aus
 - *Fertig wenn:* Production läuft auf deiner Domain mit HTTPS, und zwei echte Discord-Accounts (z. B. du und ein Teammitglied) verifizieren sich, buchen einen Scrim und geben Feedback.
+- *Stand (22.10.2026):* Phase 4 auf Entscheidung des Betreibers ohne diese Abnahme abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`), Review, Rechtstexte, AVV, Backups und Firewall sind erledigt; Production wurde einmal deployt und wieder gestoppt. Der Live-Test mit zwei echten Accounts wird beim Go-Live nachgeholt.
