@@ -31,6 +31,9 @@ export function generateInviteCode(): string {
   return randomBytes(9).toString("base64url");
 }
 
+/** A captain can only leave or delete the account as the last member (SPEC P0-3, P0-10). */
+export const TRANSFER_CAPTAIN_FIRST = "Übertrage zuerst die Captain-Rolle.";
+
 function nameTaken(): DomainError {
   return new DomainError("CONFLICT", "Der Teamname ist schon vergeben.");
 }
@@ -229,7 +232,7 @@ export async function leaveTeam(input: { userId: string; now: Date }) {
       return { dissolved: false };
     }
     if ((await tx.teamMember.count({ where: { teamId: team.id } })) > 1) {
-      throw new DomainError("CONFLICT", "Übertrage zuerst die Captain-Rolle.");
+      throw new DomainError("CONFLICT", TRANSFER_CAPTAIN_FIRST);
     }
     await dissolveTeam(team.id, input.now, tx);
     return { dissolved: true };
@@ -237,7 +240,7 @@ export async function leaveTeam(input: { userId: string; now: Date }) {
 }
 
 /**
- * Internal building block without permission check (callers: leaveTeam, later deleteAccount).
+ * Internal building block without permission check (callers: leaveTeam, deleteAccount).
  * No hard delete: scrims keep the team ID. Name and invite link become free/invalid.
  */
 export async function dissolveTeam(teamId: string, now: Date, db: Db = prisma): Promise<void> {

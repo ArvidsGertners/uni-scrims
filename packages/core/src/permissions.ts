@@ -63,8 +63,8 @@ export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Proble
   return captainProblem(user, team) ?? captainVerificationProblem(user);
 }
 
-/** Logged in and not banned. */
-export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
+/** Logged in, banned users included: only for deleting the own account (§7). */
+export async function requireAccountUser(userId: string | null | undefined, db: Db = prisma) {
   if (!userId) {
     throw new DomainError("UNAUTHENTICATED", "Bitte melde dich an.");
   }
@@ -72,6 +72,12 @@ export async function requireUser(userId: string | null | undefined, db: Db = pr
   if (!user) {
     throw new DomainError("UNAUTHENTICATED", "Bitte melde dich an.");
   }
+  return user;
+}
+
+/** Logged in and not banned. */
+export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
+  const user = await requireAccountUser(userId, db);
   if (user.bannedAt) {
     throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
   }

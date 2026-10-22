@@ -17,3 +17,4 @@ export * from "./reads.ts";
 export * from "./outbox.ts";
 export * from "./sweeper.ts";
 export * from "./moderation.ts";
+export * from "./account.ts";
