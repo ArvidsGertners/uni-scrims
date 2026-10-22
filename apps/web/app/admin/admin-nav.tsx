@@ -2,6 +2,11 @@ import { getBotStatus } from "@uni-scrims/core";
 import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
 
+const BOT_LOOP_LABELS = [
+  { loop: "sweeper", label: "Zeitsteuerung (Reminder, Fristen)" },
+  { loop: "outbox", label: "Versand der Nachrichten" },
+] as const;
+
 const LINKS = [
   { href: "/admin", label: "Prüf-Queue" },
   { href: "/admin/disputes", label: "Streitfälle" },
@@ -15,9 +20,10 @@ const LINKS = [
  */
 export async function AdminNav({ adminId }: { adminId: string }) {
   const bot = await getBotStatus(adminId, new Date());
-  const lastSeen = bot.heartbeatAt
-    ? `letztes Lebenszeichen ${formatDateTime(bot.heartbeatAt)}`
-    : null;
+  const lastSeen = (heartbeatAt: Date | null) =>
+    heartbeatAt
+      ? `letztes Lebenszeichen ${formatDateTime(heartbeatAt)}`
+      : "noch kein Lebenszeichen";
   return (
     <div className="flex flex-col gap-2">
       <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -27,9 +33,19 @@ export async function AdminNav({ adminId }: { adminId: string }) {
           </Link>
         ))}
       </nav>
-      <p className={bot.online ? "text-sm" : "text-sm text-destructive"}>
-        {bot.online ? "Bot läuft" : "Bot offline"} ({lastSeen ?? "noch kein Lebenszeichen"})
-      </p>
+      {bot.online ? (
+        <p className="text-sm">Bot läuft ({lastSeen(bot.loops.sweeper.heartbeatAt)})</p>
+      ) : (
+        <div className="text-sm text-destructive">
+          <p>Bot offline</p>
+          {BOT_LOOP_LABELS.map(({ loop, label }) => (
+            <p key={loop}>
+              {label}: {bot.loops[loop].online ? "läuft" : "steht"} (
+              {lastSeen(bot.loops[loop].heartbeatAt)})
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

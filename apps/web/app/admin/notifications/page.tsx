@@ -13,8 +13,8 @@ export default async function FailedNotificationsPage() {
       <AdminNav adminId={admin.id} />
       <h1 className="text-2xl font-bold">Fehlgeschlagene Nachrichten</h1>
       <p className="text-sm opacity-80">
-        Nachrichten, die dauerhaft nicht zugestellt werden konnten, neueste zuerst (höchstens{" "}
-        {MAX_FAILED_SHOWN}). Nach 30 Tagen werden sie gelöscht.
+        Nachrichten, die dauerhaft nicht zugestellt werden konnten, zuletzt fehlgeschlagene zuerst
+        (höchstens {MAX_FAILED_SHOWN}). 30 Tage nach dem letzten Versuch werden sie gelöscht.
       </p>
       {failed.length === 0 ? <p>Keine fehlgeschlagenen Nachrichten.</p> : null}
       <ul className="flex flex-col gap-3">
@@ -24,8 +24,8 @@ export default async function FailedNotificationsPage() {
               {NOTIFICATION_TYPE_LABELS[entry.type]} · {NOTIFICATION_CHANNEL_LABELS[entry.channel]}
             </p>
             <p>
-              An: {entry.targetName ?? "unbekannt"} · erstellt {formatDateTime(entry.createdAt)} ·{" "}
-              {entry.attempts} Fehlversuche
+              An: {entry.targetName ?? "unbekannt"} · erstellt {formatDateTime(entry.createdAt)} ·
+              letzter Versuch {formatDateTime(entry.scheduledFor)} · {entry.attempts} Fehlversuche
             </p>
             {entry.lastError ? (
               <p className="font-mono text-xs break-all opacity-70">{entry.lastError}</p>

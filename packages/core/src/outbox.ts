@@ -244,7 +244,14 @@ async function recordFailure(
 ): Promise<DeliveryOutcome | null> {
   const failedSends = notification.attempts + 1;
   const lastError = result.error.slice(0, MAX_ERROR_LENGTH);
-  const failed = { status: NotifStatus.FAILED, attempts: failedSends, lastError };
+  // A failed entry is never sent again, so scheduledFor keeps the time of the last attempt: the
+  // admin list sorts by it and the purge keeps the entry 30 days from then (§6.3).
+  const failed = {
+    status: NotifStatus.FAILED,
+    attempts: failedSends,
+    lastError,
+    scheduledFor: now,
+  };
   const outcome = (settled: boolean, value: DeliveryOutcome) => (settled ? value : null);
   switch (classifyDeliveryError(notification.channel, result.code)) {
     case "DM_BLOCKED": {
@@ -316,6 +323,7 @@ export async function deliverNotification(
     const failed = await settle(prisma, id, {
       status: NotifStatus.FAILED,
       lastError: "Invalid payload",
+      scheduledFor: now,
     });
     return failed ? "FAILED" : null;
   }
@@ -364,7 +372,7 @@ export async function deliverDueNotifications(
   return counts;
 }
 
-/** The admin list shows at most this many failed entries, newest first. */
+/** The admin list shows at most this many failed entries, the latest failures first. */
 export const MAX_FAILED_SHOWN = 100;
 
 /** Admin: notifications that failed for good (SPEC P0-9), read only. */
@@ -372,7 +380,8 @@ export async function listFailedNotifications(adminId: string) {
   await requireAdmin(adminId);
   const rows = await prisma.notification.findMany({
     where: { status: NotifStatus.FAILED },
-    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    // For failed entries scheduledFor is the time of the last attempt (recordFailure).
+    orderBy: [{ scheduledFor: "desc" }, { id: "asc" }],
     take: MAX_FAILED_SHOWN,
     select: {
       id: true,
@@ -381,6 +390,7 @@ export async function listFailedNotifications(adminId: string) {
       attempts: true,
       lastError: true,
       createdAt: true,
+      scheduledFor: true,
       targetUser: { select: { name: true } },
       targetTeam: { select: { name: true } },
     },

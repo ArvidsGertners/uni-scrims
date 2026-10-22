@@ -500,6 +500,7 @@ Für jeden Eintrag (`deliverNotification` in `core`; der Bot übergibt nur die S
    - **50007 (DM nicht möglich):** `FAILED` ohne Retry, `User.dmFailedAt = now` (ebenfalls nicht bei einem inzwischen gelöschten Konto).
    - **Channel-Fehler** (10003 Unknown Channel, 50001 Missing Access, 50013 Missing Permissions): `FAILED`, in einer Transaktion, die zuerst die Team-Zeile sperrt (gleiche Reihenfolge wie `leaveTeam`, sonst Deadlock). `Team.discordChannelId = null` nur, wenn der Team-Channel noch der fehlgeschlagene ist (nicht ein inzwischen per `/setup` neu gesetzter, nicht der Dev-Channel), und nur dann `CHANNEL_BROKEN` anlegen. So kommt der Hinweis einmal, auch wenn mehrere Posts in denselben Channel scheitern.
    - **Alles andere:** Nach dem n-ten Fehlschlag (n = 1…5) `lastError` und `scheduledFor = now + 2^(n−1) Minuten` (1, 2, 4, 8, 16). Der 6. Fehlschlag setzt `FAILED`.
+   - Jedes `FAILED` setzt `scheduledFor = now`: Ein fehlgeschlagener Eintrag wird nie wieder gesendet, das Feld hält dann den Zeitpunkt des letzten Versuchs. Danach sortiert die Admin-Liste, und davon zählt die Aufbewahrung (§6.3).
 6. Reminder, deren `startsAt` beim Retry schon vorbei ist, werden CANCELLED (Relevanzprüfung).
 
 Um den Discord-Aufruf liegt **keine Transaktion**: lesen, senden, Ergebnis schreiben. Das Ergebnis wird nur geschrieben, solange der Eintrag noch PENDING ist (`updateMany … WHERE status = 'PENDING'`). Sonst würde ein Retry einen Eintrag wiederbeleben, den z. B. `cancelScrim` währenddessen storniert hat.
@@ -513,10 +514,11 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 1. `expireRequests(now)`: `ScrimRequest` OPEN mit `startsAt <= now` → `EXPIRED`; PENDING-Bewerbungen → REJECTED; `REQUEST_EXPIRED` an die Bewerber.
 2. `openFeedback(now)`: `Scrim` SCHEDULED mit `feedbackOpensAt <= now` → `AWAITING_FEEDBACK`. **Unabhängig davon, ob der FEEDBACK_PROMPT zugestellt wurde.**
 3. `resolveDeadlines(now)`: `Scrim` AWAITING_FEEDBACK mit `feedbackDeadline <= now` → auswerten mit Zeilensperre (siehe §5.6).
-4. `purgeOldNotifications(now)`: Notifications mit Status ≠ PENDING, älter als 30 Tage (`createdAt`), löschen (einmal pro Stunde reicht).
-5. Heartbeat: `SystemStatus('bot').heartbeatAt = now`. Die Admin-Seite zeigt "Bot offline", wenn der Wert älter als 3 Minuten ist.
+4. `purgeOldNotifications(now)`: Notifications mit Status ≠ PENDING löschen, sobald `createdAt` **und** `scheduledFor` älter als 30 Tage sind (einmal pro Stunde reicht). `scheduledFor` ist bei fehlgeschlagenen Einträgen der letzte Versuch (§6.2), bei anderen der geplante Versand; so bleibt ein Reminder, der Wochen nach der Buchung scheitert, ebenfalls 30 Tage in der Admin-Liste.
+5. `purgeExpiredSessions(now)`: Sessions mit `expiresAt < now` löschen (stündlich mit Schritt 4). Better Auth löscht eine abgelaufene Session nur, wenn ihr Cookie noch einmal kommt; ohne diesen Schritt blieben IP-Adresse und User-Agent nie zurückkehrender Geräte unbegrenzt liegen.
+6. Heartbeat: Nach jedem Durchlauf schreibt die Sweeper-Schleife `SystemStatus('bot').heartbeatAt` mit der Zeit nach den Schritten (nicht der vom Start, sonst wäre er bei langen Durchläufen schon beim Schreiben alt). Die Outbox-Schleife schreibt nach ihren Durchläufen höchstens einmal pro Minute `SystemStatus('outbox')`. Die Admin-Seite zeigt "Bot offline", wenn einer der beiden Werte älter als 3 Minuten ist, und nennt dann die betroffene Schleife; so fällt auch ein hängender Versand auf.
 
-`runSweeper(now, { purge })` führt die Schritte in dieser Reihenfolge aus. Ein fehlschlagender Schritt wird geloggt und hält die anderen nicht auf (der nächste Durchlauf versucht es erneut); der Heartbeat wird immer geschrieben.
+`runSweeper(now, { purge })` führt die Schritte 1–5 in dieser Reihenfolge aus. Ein fehlschlagender Schritt wird geloggt und hält die anderen nicht auf (der nächste Durchlauf versucht es erneut); den Heartbeat schreibt die Schleife danach immer.
 
 ### 6.4 Slash-Command `/setup`
 
@@ -637,7 +639,7 @@ DEV_TIME_OFFSETS=false
 
 ### Monitoring
 
-`docker compose logs`, der Bot-Heartbeat und die Liste fehlgeschlagener Nachrichten auf der Admin-Seite. Optional Uptime Kuma als zusätzlicher Container, der `/api/health` prüft.
+`docker compose logs`, die Heartbeats der beiden Bot-Schleifen (§6.3) und die Liste fehlgeschlagener Nachrichten auf der Admin-Seite. Optional Uptime Kuma als zusätzlicher Container, der `/api/health` prüft.
 
 ---
 

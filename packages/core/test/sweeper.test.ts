@@ -8,13 +8,14 @@ import {
 } from "@uni-scrims/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  BOT_LOOP_STATUS_IDS,
   BOT_OFFLINE_AFTER_MS,
-  BOT_STATUS_ID,
   NOTIFICATION_RETENTION_MS,
   applyToRequest,
   getBotStatus,
+  purgeExpiredSessions,
   purgeOldNotifications,
-  recordBotHeartbeat,
+  recordHeartbeat,
   runSweeper,
 } from "../src/index.ts";
 import { queueNotifications } from "../src/notifications.ts";
@@ -24,6 +25,7 @@ import {
   bookScrim,
   createOpenRequest,
   createReadyTeam,
+  createSession,
   createUser,
   uid,
   useAdmin,
@@ -75,6 +77,13 @@ describe("purgeOldNotifications", () => {
     const kept = await Promise.all([
       queueAt(old, NotifStatus.PENDING),
       queueAt(recent, NotifStatus.SENT),
+      // Created long ago (booked weeks ahead), failed recently at its scheduled time.
+      queueAt(old, NotifStatus.FAILED).then((notification) =>
+        prisma.notification.update({
+          where: { id: notification.id },
+          data: { scheduledFor: recent },
+        }),
+      ),
     ]);
     expect(await purgeOldNotifications(NOW)).toBeGreaterThanOrEqual(3);
     const left = await prisma.notification.findMany({
@@ -87,13 +96,40 @@ describe("purgeOldNotifications", () => {
   });
 });
 
-describe("recordBotHeartbeat", () => {
-  it("keeps one row with the latest time", async () => {
-    await recordBotHeartbeat(NOW);
+describe("purgeExpiredSessions", () => {
+  it("deletes sessions past their expiry and keeps the others", async () => {
+    const user = await createUser();
+    const expired = await createSession(user.id);
+    await prisma.session.update({
+      where: { id: expired.id },
+      data: { expiresAt: new Date(NOW.getTime() - 1) },
+    });
+    const valid = await createSession(user.id);
+
+    expect(await purgeExpiredSessions(NOW)).toBeGreaterThanOrEqual(1);
+
+    expect(
+      (await prisma.session.findMany({ where: { userId: user.id }, select: { id: true } })).map(
+        (session) => session.id,
+      ),
+    ).toEqual([valid.id]);
+  });
+});
+
+describe("recordHeartbeat", () => {
+  it("keeps one row per loop with the latest time", async () => {
+    await recordHeartbeat("sweeper", NOW);
     const later = new Date(NOW.getTime() + 60_000);
-    await recordBotHeartbeat(later);
-    expect(await prisma.systemStatus.findMany({ where: { id: BOT_STATUS_ID } })).toEqual([
-      { id: BOT_STATUS_ID, heartbeatAt: later },
+    await recordHeartbeat("sweeper", later);
+    await recordHeartbeat("outbox", NOW);
+    expect(
+      await prisma.systemStatus.findMany({
+        where: { id: { in: Object.values(BOT_LOOP_STATUS_IDS) } },
+        orderBy: { id: "asc" },
+      }),
+    ).toEqual([
+      { id: BOT_LOOP_STATUS_IDS.sweeper, heartbeatAt: later },
+      { id: BOT_LOOP_STATUS_IDS.outbox, heartbeatAt: NOW },
     ]);
   });
 });
@@ -106,15 +142,36 @@ describe("getBotStatus", () => {
     await expect(getBotStatus(user.id, NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("counts the bot as offline without a heartbeat or after 3 minutes", async () => {
-    await prisma.systemStatus.deleteMany({ where: { id: BOT_STATUS_ID } });
-    expect(await getBotStatus(admin.id, NOW)).toEqual({ heartbeatAt: null, online: false });
-    await recordBotHeartbeat(NOW);
-    const limit = new Date(NOW.getTime() + BOT_OFFLINE_AFTER_MS);
-    expect(await getBotStatus(admin.id, limit)).toEqual({ heartbeatAt: NOW, online: true });
-    expect(await getBotStatus(admin.id, new Date(limit.getTime() + 1))).toEqual({
-      heartbeatAt: NOW,
+  it("counts the bot as offline without heartbeats or when one loop is silent for 3 minutes", async () => {
+    await prisma.systemStatus.deleteMany({
+      where: { id: { in: Object.values(BOT_LOOP_STATUS_IDS) } },
+    });
+    expect(await getBotStatus(admin.id, NOW)).toEqual({
       online: false,
+      loops: {
+        sweeper: { heartbeatAt: null, online: false },
+        outbox: { heartbeatAt: null, online: false },
+      },
+    });
+
+    const outboxAt = new Date(NOW.getTime() - 60_000);
+    await recordHeartbeat("sweeper", NOW);
+    await recordHeartbeat("outbox", outboxAt);
+    const limit = new Date(outboxAt.getTime() + BOT_OFFLINE_AFTER_MS);
+    expect(await getBotStatus(admin.id, limit)).toEqual({
+      online: true,
+      loops: {
+        sweeper: { heartbeatAt: NOW, online: true },
+        outbox: { heartbeatAt: outboxAt, online: true },
+      },
+    });
+    // Only the sender is silent: the bot counts as offline, and the loop is named.
+    expect(await getBotStatus(admin.id, new Date(limit.getTime() + 1))).toEqual({
+      online: false,
+      loops: {
+        sweeper: { heartbeatAt: NOW, online: true },
+        outbox: { heartbeatAt: outboxAt, online: false },
+      },
     });
   });
 });
@@ -125,7 +182,7 @@ describe("runSweeper (§6.3)", () => {
     vi.restoreAllMocks();
   });
 
-  it("expires requests, opens and evaluates scrims and writes the heartbeat in one run", async () => {
+  it("expires requests and opens and evaluates scrims in one run", async () => {
     const host = await createReadyTeam();
     const applicant = await createReadyTeam();
     const request = await createOpenRequest(host.captain.id);
@@ -138,6 +195,7 @@ describe("runSweeper (§6.3)", () => {
     expect(result.openedFeedback).toBeGreaterThanOrEqual(1);
     expect(result.resolvedScrims).toBeGreaterThanOrEqual(1);
     expect(result.purgedNotifications).toBeNull();
+    expect(result.purgedSessions).toBeNull();
     expect(
       await prisma.scrimRequest.findUniqueOrThrow({ where: { id: request.id } }),
     ).toMatchObject({ status: RequestStatus.EXPIRED });
@@ -149,20 +207,17 @@ describe("runSweeper (§6.3)", () => {
         where: { requestId: request.id, type: NotifType.REQUEST_EXPIRED },
       }),
     ).toBe(1);
-    expect(await prisma.systemStatus.findUnique({ where: { id: BOT_STATUS_ID } })).toEqual({
-      id: BOT_STATUS_ID,
-      heartbeatAt: deadline,
-    });
   });
 
   it("purges only when asked to", async () => {
-    expect((await runSweeper(NOW, { purge: true })).purgedNotifications).not.toBeNull();
+    const result = await runSweeper(NOW, { purge: true });
+    expect(result.purgedNotifications).not.toBeNull();
+    expect(result.purgedSessions).not.toBeNull();
   });
 
-  it("runs the other steps and writes the heartbeat when one step fails", async () => {
+  it("runs the other steps when one step fails", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const { scrim } = await bookScrim();
-    // Later than in the other tests, so the heartbeat is surely from this run.
     const now = new Date(scrim.feedbackDeadline.getTime() + 60 * 1000);
     faults.expireRequests = true;
 
@@ -173,10 +228,6 @@ describe("runSweeper (§6.3)", () => {
     expect(errors).toHaveBeenCalledWith("Sweeper step expireRequests failed", expect.any(Error));
     expect(await prisma.scrim.findUniqueOrThrow({ where: { id: scrim.id } })).toMatchObject({
       status: ScrimStatus.UNCONFIRMED,
-    });
-    expect(await prisma.systemStatus.findUnique({ where: { id: BOT_STATUS_ID } })).toEqual({
-      id: BOT_STATUS_ID,
-      heartbeatAt: now,
     });
   });
 });

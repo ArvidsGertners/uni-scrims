@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type Deliver,
   type DeliveryResult,
+  MAX_FAILED_SHOWN,
   MAX_RETRIES,
   type OutboxMessage,
   applyToRequest,
@@ -562,10 +563,13 @@ describe("deliverNotification: results (§6.2)", () => {
       expect(await send(notification.id, new Date(next.getTime() - 1), deliver)).toBeNull();
       at = next;
     }
-    expect(await send(notification.id, at, deliver)).toBe("FAILED");
+    // The last attempt comes late (bot was down); scheduledFor keeps when it happened.
+    const lastAttempt = new Date(at.getTime() + HOUR);
+    expect(await send(notification.id, lastAttempt, deliver)).toBe("FAILED");
     expect(await prisma.notification.findUnique({ where: { id: notification.id } })).toMatchObject({
       status: NotifStatus.FAILED,
       attempts: MAX_RETRIES + 1,
+      scheduledFor: lastAttempt,
     });
     expect(sent).toHaveLength(MAX_RETRIES + 1);
   });
@@ -657,13 +661,14 @@ describe("listFailedNotifications", () => {
     >,
     createdAt: Date,
     status: NotifStatus = NotifStatus.FAILED,
+    failedAt: Date = createdAt,
   ) {
     return prisma.notification.create({
       data: {
         ...data,
         type: NotifType.SCRIM_BOOKED,
         payload: {},
-        scheduledFor: createdAt,
+        scheduledFor: failedAt,
         status,
         attempts: 6,
         lastError: "Discord says no",
@@ -678,16 +683,19 @@ describe("listFailedNotifications", () => {
     await expect(listFailedNotifications(user.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("lists failed entries newest first with the name of the target", async () => {
+  it("lists failed entries by their last attempt, latest first, with the name of the target", async () => {
     const user = await createUser();
     const { team } = await createReadyTeam();
     const toUser = await failed(
       { channel: NotifChannel.USER_DM, targetUserId: user.id },
-      new Date(LATER.getTime() - HOUR),
+      LATER,
+      NotifStatus.FAILED,
+      new Date(LATER.getTime() + 2 * HOUR),
     );
+    // Created later, but failed earlier: comes second.
     const toTeam = await failed(
       { channel: NotifChannel.TEAM_CHANNEL, targetTeamId: team.id },
-      LATER,
+      new Date(LATER.getTime() + HOUR),
     );
     const sent = await failed(
       { channel: NotifChannel.USER_DM, targetUserId: user.id },
@@ -697,17 +705,26 @@ describe("listFailedNotifications", () => {
 
     const list = await listFailedNotifications(admin.id);
     expect(list.slice(0, 2)).toEqual([
+      expect.objectContaining({ id: toUser.id, targetName: user.name }),
       {
         id: toTeam.id,
         type: NotifType.SCRIM_BOOKED,
         channel: NotifChannel.TEAM_CHANNEL,
         attempts: 6,
         lastError: "Discord says no",
-        createdAt: LATER,
+        createdAt: new Date(LATER.getTime() + HOUR),
+        scheduledFor: new Date(LATER.getTime() + HOUR),
         targetName: team.name,
       },
-      expect.objectContaining({ id: toUser.id, targetName: user.name }),
     ]);
     expect(list.map((entry) => entry.id)).not.toContain(sent.id);
+  });
+
+  it(`shows at most ${MAX_FAILED_SHOWN} entries`, async () => {
+    const user = await createUser();
+    for (let i = 0; i <= MAX_FAILED_SHOWN; i++) {
+      await failed({ channel: NotifChannel.USER_DM, targetUserId: user.id }, LATER);
+    }
+    expect(await listFailedNotifications(admin.id)).toHaveLength(MAX_FAILED_SHOWN);
   });
 });
