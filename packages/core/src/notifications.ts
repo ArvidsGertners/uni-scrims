@@ -111,10 +111,18 @@ export async function queueNotifications(
   });
 }
 
-/** Pending entries of a cancelled scrim (reminders, feedback prompt, …) are no longer sent. */
-export async function cancelPendingScrimNotifications(db: Db, scrimId: string): Promise<void> {
+/**
+ * Pending entries of a cancelled scrim (reminders, feedback prompt, …) are no longer sent.
+ * scheduledFor becomes the time of the cancellation: the purge keeps entries 30 days from there
+ * (ARCHITECTURE §6.3), not from a planned send weeks ahead.
+ */
+export async function cancelPendingScrimNotifications(
+  db: Db,
+  scrimId: string,
+  now: Date,
+): Promise<void> {
   await db.notification.updateMany({
     where: { scrimId, status: NotifStatus.PENDING },
-    data: { status: NotifStatus.CANCELLED },
+    data: { status: NotifStatus.CANCELLED, scheduledFor: now },
   });
 }

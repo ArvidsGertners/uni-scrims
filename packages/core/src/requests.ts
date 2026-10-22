@@ -353,11 +353,15 @@ export async function confirmApplication(input: {
       where: { id: input.requestId },
       select: { teamId: true },
     });
-    const unlockedApplication = await tx.application.findUnique({
-      where: { id: input.applicationId },
+    if (!unlockedRequest) throw requestNotFound();
+    // Before any lock, so nobody but the host captain can hold the teams; checked again below.
+    await requireActingCaptain(input.userId, unlockedRequest.teamId, tx);
+    // Only an application to this request names a team to lock; any other ends as NOT_FOUND below.
+    const unlockedApplication = await tx.application.findFirst({
+      where: { id: input.applicationId, requestId: input.requestId },
       select: { teamId: true },
     });
-    const teamIds = [unlockedRequest?.teamId, unlockedApplication?.teamId]
+    const teamIds = [unlockedRequest.teamId, unlockedApplication?.teamId]
       .filter((id): id is string => id !== undefined)
       .sort();
     for (const teamId of new Set(teamIds)) await lockTeam(tx, teamId);

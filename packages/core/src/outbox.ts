@@ -315,8 +315,11 @@ export async function deliverNotification(
   const notification = await loadNotification(id);
   if (!notification || notification.status !== NotifStatus.PENDING) return null;
   if (notification.scheduledFor > now) return null;
+  // scheduledFor keeps when the entry was dropped; the purge counts from there (§6.3).
   const cancel = async () =>
-    (await settle(prisma, id, { status: NotifStatus.CANCELLED })) ? ("CANCELLED" as const) : null;
+    (await settle(prisma, id, { status: NotifStatus.CANCELLED, scheduledFor: now }))
+      ? ("CANCELLED" as const)
+      : null;
   if (!isNotificationRelevant(notification, now)) return cancel();
   const payload = parseNotificationPayload(notification.type, notification.payload);
   if (!payload) {

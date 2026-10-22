@@ -207,7 +207,7 @@ Alle Compose-Befehle laufen dann mit beiden Dateien. `DOMAIN` muss trotzdem in d
 alias dc='docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.vps.yml'
 ```
 
-nginx übernimmt, was sonst im Caddyfile steht: TLS, HSTS und das Body-Limit von 6 MB. Zuerst nur den Block für Port 80 anlegen, `nginx -t && systemctl reload nginx`, dann das Zertifikat holen (`certbot certonly --nginx -d <domain>`, die Erneuerung übernimmt `certbot.timer`) und den Block für 443 ergänzen:
+nginx übernimmt, was sonst im Caddyfile steht: TLS, HSTS und das Body-Limit von 6 MB. Die Logs von Uni Scrims schreibt nginx in einen eigenen Ordner, den es vorher geben muss (sonst scheitert `nginx -t`): `mkdir -p /var/log/uni-scrims`. Zuerst nur den Block für Port 80 anlegen, `nginx -t && systemctl reload nginx`, dann das Zertifikat holen (`certbot certonly --nginx -d <domain>`, die Erneuerung übernimmt `certbot.timer`) und den Block für 443 ergänzen:
 
 ```nginx
 # Der OAuth-Callback trägt den einmaligen Discord-Code in der URL und wird nicht geloggt.
@@ -253,7 +253,7 @@ server {
 }
 ```
 
-Vorher `mkdir -p /var/log/uni-scrims` anlegen. Die Logs von Uni Scrims liegen in diesem eigenen Ordner, damit ihre Frist nicht von der logrotate-Regel der anderen Seiten abhängt (und die Muster sich nicht überschneiden, sonst bricht logrotate mit „duplicate log entry“ ab). Die Datenschutzerklärung sagt 14 Tage; dafür `/etc/logrotate.d/uni-scrims` anlegen (gilt auch für das Backup-Log, siehe Backups):
+Die Logs von Uni Scrims liegen in diesem eigenen Ordner, damit ihre Frist nicht von der logrotate-Regel der anderen Seiten abhängt (und die Muster sich nicht überschneiden, sonst bricht logrotate mit „duplicate log entry“ ab). Die Datenschutzerklärung sagt 14 Tage; dafür `/etc/logrotate.d/uni-scrims` anlegen (gilt auch für das Backup-Log, siehe Backups):
 
 ```
 /var/log/uni-scrims/*.log {
@@ -290,7 +290,7 @@ MAILTO=<deine-mail>
 
 (`BACKUP_SSH_PORT=23` gilt für die Storage Box, sonst weglassen. `mkdir -p /var/log/uni-scrims`; das Log rotiert mit der Regel aus „Variante: Server mit vorhandenem nginx“, auf einem Server ohne nginx dieselbe Datei `/etc/logrotate.d/uni-scrims` ohne den `postrotate`-Block anlegen.)
 
-Die 14 Tage gelten auch, wenn ein Lauf scheitert: Das Skript löscht alte Backups lokal zuerst und spiegelt danach auch ohne neuen Dump (`--delete` entfernt sie extern), endet aber mit Fehlercode. Ist der externe Speicher nicht erreichbar, bricht es ab; dann bleiben extern alte Backups liegen, bis der nächste Lauf durchkommt. Deshalb Fehlermails ernst nehmen.
+Die 14 Tage gelten auch, wenn ein Lauf scheitert: Das Skript löscht alte Backups lokal zuerst und spiegelt danach auch ohne neuen Dump (`--delete` entfernt sie extern), endet aber mit Fehlercode. Nur das jüngste Backup bleibt immer, auch wenn es älter wird; so gibt es bei einem dauerhaft scheiternden Dump noch eines. Sobald wieder ein Dump gelingt, fällt es nach der Frist weg. Ist der externe Speicher nicht erreichbar, bricht es ab; dann bleiben extern alte Backups liegen, bis der nächste Lauf durchkommt. Deshalb Fehlermails ernst nehmen.
 
 Nach einem Neuaufsetzen des Servers zuerst die Backups vom externen Speicher zurückholen, bevor der Cron wieder läuft: `rsync -a -e "ssh -p <port>" <user>@<host>:uni-scrims/ /var/backups/uni-scrims/`. Fehlen lokal Backups der letzten 14 Tage, die extern noch liegen, bricht das Skript ab, statt sie extern per `--delete` zu löschen.
 
@@ -340,7 +340,7 @@ Das Skript zeigt, was es nachgezogen hat; ein zweiter Lauf ändert nichts mehr. 
 
 Ist die alte Datenbank nicht mehr lesbar, gibt es keinen Export: Sperren und Löschungen seit dem Backup (höchstens ein Tag) fehlen dann. Betroffene können die Löschung unter „Konto“ wiederholen oder sich melden; Sperren im Admin-Bereich neu setzen. Das ist in SPEC §9 als Risiko festgehalten und steht in der Datenschutzerklärung.
 
-Offene Prüfungen, deren Datei nach dem Einspielen fehlt (Uploads sind nicht im Backup), lehnt der Janitor beim nächsten Lauf mit „Datei nicht mehr vorhanden, bitte erneut hochladen“ ab; die Nutzer bekommen eine DM.
+Offene Prüfungen, deren Datei nach dem Einspielen fehlt (Uploads sind nicht im Backup), zeigt die Prüf-Queue mit „Datei fehlt“; freigeben geht dann nicht. Mit Grund ablehnen, z. B. „Bitte erneut hochladen“; die Nutzer bekommen eine DM und können neu hochladen.
 
 ## Entsperren per SQL
 

@@ -1,4 +1,4 @@
-import { listPendingVerifications, listUniversities } from "@uni-scrims/core";
+import { listPendingVerifications, listUniversities, resolveUploadDir } from "@uni-scrims/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
 import { requireAdminPage } from "@/lib/session";
@@ -16,7 +16,7 @@ const CHECKLIST = [
 export default async function AdminPage() {
   // Layout and page render in parallel, so the page checks too.
   const admin = await requireAdminPage("/admin");
-  const queue = await listPendingVerifications(admin.id);
+  const queue = await listPendingVerifications(admin.id, resolveUploadDir());
   const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
 
   return (
@@ -40,23 +40,33 @@ export default async function AdminPage() {
               </p>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {isImage ? (
-                // eslint-disable-next-line @next/next/no-img-element -- protected route, no optimisation
-                <img
-                  src={fileUrl}
-                  alt="Immatrikulationsbescheinigung"
-                  className="max-h-[70vh] w-full object-contain"
-                />
+              {!request.fileAvailable ? (
+                // Uploads are not in the backups (ARCHITECTURE §8): after a restore the file can be gone.
+                <p className="text-sm text-destructive">
+                  Die Datei fehlt (z. B. nach dem Einspielen eines Backups). Bitte ablehnen, etwa
+                  mit „Bitte erneut hochladen“; freigeben geht ohne Datei nicht.
+                </p>
               ) : (
-                <iframe
-                  src={fileUrl}
-                  title="Immatrikulationsbescheinigung"
-                  className="h-[70vh] w-full rounded-lg border"
-                />
+                <>
+                  {isImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- protected route, no optimisation
+                    <img
+                      src={fileUrl}
+                      alt="Immatrikulationsbescheinigung"
+                      className="max-h-[70vh] w-full object-contain"
+                    />
+                  ) : (
+                    <iframe
+                      src={fileUrl}
+                      title="Immatrikulationsbescheinigung"
+                      className="h-[70vh] w-full rounded-lg border"
+                    />
+                  )}
+                  <a href={fileUrl} target="_blank" rel="noreferrer" className="text-sm underline">
+                    In neuem Tab öffnen
+                  </a>
+                </>
               )}
-              <a href={fileUrl} target="_blank" rel="noreferrer" className="text-sm underline">
-                In neuem Tab öffnen
-              </a>
               <ul className="list-disc pl-5 text-sm">
                 {CHECKLIST.map((item) => (
                   <li key={item}>{item}</li>

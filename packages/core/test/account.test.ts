@@ -271,4 +271,12 @@ describe("deleteAccount", () => {
   it("needs a login", async () => {
     await expect(remove("")).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
   });
+
+  it("treats a user without a Discord account as logged out", async () => {
+    // What a login that raced the deletion leaves if undoing it fails (ARCHITECTURE §5.1).
+    const user = await createUser();
+    await prisma.account.deleteMany({ where: { userId: user.id } });
+    await expect(requireAccountUser(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    await expect(requireUser(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
 });

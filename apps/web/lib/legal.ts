@@ -51,16 +51,17 @@ export function parseLegalText(text: string): LegalBlock[] {
 export async function readLegalPage(
   page: LegalPage,
   env: Record<string, string | undefined> = process.env,
+  options: { quiet?: boolean } = {},
 ): Promise<LegalBlock[] | null> {
   const dir = env.LEGAL_DIR;
   if (!dir || !path.isAbsolute(dir)) {
-    console.error("LEGAL_DIR must be set to an absolute path");
+    if (!options.quiet) console.error("LEGAL_DIR must be set to an absolute path");
     return null;
   }
   try {
     return parseLegalText(await readFile(path.join(dir, `${page}.txt`), "utf8"));
   } catch (error) {
-    console.error(`Could not read the legal page ${page}`, error);
+    if (!options.quiet) console.error(`Could not read the legal page ${page}`, error);
     return null;
   }
 }
@@ -74,7 +75,8 @@ export async function missingLegalPages(
 ): Promise<LegalPage[]> {
   const missing: LegalPage[] = [];
   for (const page of LEGAL_PAGES) {
-    const blocks = await readLegalPage(page, env);
+    // Quiet: the callers report the result once instead of a line per file.
+    const blocks = await readLegalPage(page, env, { quiet: true });
     if (!blocks || blocks.length === 0) missing.push(page);
   }
   return missing;

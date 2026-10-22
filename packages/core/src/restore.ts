@@ -6,9 +6,10 @@ import { prisma } from "@uni-scrims/db";
 import { z } from "zod";
 import { deleteAccount } from "./account.ts";
 import { isDomainError } from "./errors.ts";
-import { banTeamInTx, banUserInTx, removeClosedVerificationFiles } from "./moderation.ts";
+import { banTeamInTx, banUserInTx } from "./moderation.ts";
 import { findOwnTeam, isCaptainOf } from "./permissions.ts";
 import { TRANSFER_CAPTAIN_FIRST, transferCaptain } from "./teams.ts";
+import { removeFilesAfterCommit } from "./verification.ts";
 import {
   DELETED_USER_NAME,
   DISCORD_PROVIDER,
@@ -74,7 +75,7 @@ export async function reapplyModeration(input: {
       const { closedVerifications } = await prisma.$transaction((tx) =>
         banUserInTx(tx, user.id, now),
       );
-      await removeClosedVerificationFiles(closedVerifications, uploadDir);
+      await removeFilesAfterCommit(closedVerifications, uploadDir);
       report.bannedUsers++;
       continue;
     }
@@ -110,8 +111,7 @@ export async function reapplyModeration(input: {
       if (!isDomainError(error) || error.message !== TRANSFER_CAPTAIN_FIRST) throw error;
       // Captain with members here, but deleted in the old database: the role had been handed over
       // after the backup. The longest-standing member takes it, then the deletion goes through.
-      await transferToLongestMember(id);
-      report.transferredCaptains++;
+      if (await transferToLongestMember(id)) report.transferredCaptains++;
       await deleteAccount({ userId: id, uploadDir, now });
     }
     report.deletedUsers++;
@@ -119,12 +119,15 @@ export async function reapplyModeration(input: {
   return report;
 }
 
-async function transferToLongestMember(userId: string): Promise<void> {
+/** False if the user is no longer captain of a team with members; then nothing is changed. */
+async function transferToLongestMember(userId: string): Promise<boolean> {
   const team = await findOwnTeam(userId);
-  if (!team || !isCaptainOf({ id: userId }, team)) return;
-  const successor = await prisma.teamMember.findFirstOrThrow({
+  if (!team || !isCaptainOf({ id: userId }, team)) return false;
+  const successor = await prisma.teamMember.findFirst({
     where: { teamId: team.id, userId: { not: userId } },
     orderBy: [{ joinedAt: "asc" }, { userId: "asc" }],
   });
+  if (!successor) return false;
   await transferCaptain({ userId, teamId: team.id, newCaptainId: successor.userId });
+  return true;
 }

@@ -77,12 +77,14 @@ describe("purgeOldNotifications", () => {
     const kept = await Promise.all([
       queueAt(old, NotifStatus.PENDING),
       queueAt(recent, NotifStatus.SENT),
-      // Created long ago (booked weeks ahead), failed recently at its scheduled time.
-      queueAt(old, NotifStatus.FAILED).then((notification) =>
-        prisma.notification.update({
-          where: { id: notification.id },
-          data: { scheduledFor: recent },
-        }),
+      // Created long ago (booked weeks ahead), failed or cancelled recently.
+      ...[NotifStatus.FAILED, NotifStatus.CANCELLED].map((status) =>
+        queueAt(old, status).then((notification) =>
+          prisma.notification.update({
+            where: { id: notification.id },
+            data: { scheduledFor: recent },
+          }),
+        ),
       ),
     ]);
     expect(await purgeOldNotifications(NOW)).toBeGreaterThanOrEqual(3);

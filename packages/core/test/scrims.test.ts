@@ -103,10 +103,13 @@ describe("cancelScrim", () => {
       `SCRIM_CANCELLED:${scrim.id}:${host.team.id}:CAPTAIN_DM`,
       `SCRIM_CANCELLED:${scrim.id}:${host.team.id}:TEAM_CHANNEL`,
     ]);
-    // Booking confirmation, reminders and feedback prompt are dropped.
-    expect(
-      notifications.filter((n) => n.status === NotifStatus.CANCELLED).map((n) => n.type),
-    ).toHaveLength(16);
+    // Booking confirmation, reminders and feedback prompt are dropped; their retention counts from
+    // the cancellation, not from a send planned for later (ARCHITECTURE §6.3).
+    const cancelled = notifications.filter((n) => n.status === NotifStatus.CANCELLED);
+    expect(cancelled).toHaveLength(16);
+    expect(new Set(cancelled.map((n) => n.scheduledFor.getTime()))).toEqual(
+      new Set([NOW.getTime()]),
+    );
   });
 
   it("marks cancellations less than 24 h before the start as late", async () => {

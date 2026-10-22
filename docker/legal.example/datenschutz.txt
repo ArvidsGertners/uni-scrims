@@ -22,7 +22,7 @@ TODO: Beitritt zum Uni-Scrims-Server beim Login, Discord-Nachrichten (DMs und Te
 TODO: Hoster, Speicherort; Webserver-Logs (IP-Adresse, User-Agent) 14 Tage, Anwendungs-Logs höchstens 30 MB je Dienst
 
 ## Benachrichtigungen
-TODO: werden 30 Tage nach dem Versand bzw. dem letzten Zustellversuch gelöscht
+TODO: werden 30 Tage nach dem Versand, dem letzten Zustellversuch bzw. der Absage gelöscht
 
 ## Mindestalter
 TODO: 16 Jahre
@@ -31,7 +31,7 @@ TODO: 16 Jahre
 TODO: Was gelöscht wird (auch die Notizen eigener Scrim-Anfragen), was anonymisiert bleibt (Bewerbungsnachrichten gehören zum Team); kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert
 
 ## Backups
-TODO: Datenbank-Backups 14 Tage, gelöschte Konten bis zum Ablauf enthalten; nach einer Wiederherstellung werden Löschungen seit dem Backup nachgezogen, ist das nicht möglich, ist ein gelöschtes Konto mit dem Stand des Backups wieder vorhanden
+TODO: Datenbank-Backups 14 Tage (scheitert die Sicherung, bleibt das letzte Backup bis zur nächsten gelungenen), gelöschte Konten bis zum Ablauf enthalten; nach einer Wiederherstellung werden Löschungen seit dem Backup nachgezogen, ist das nicht möglich, ist ein gelöschtes Konto mit dem Stand des Backups wieder vorhanden
 
 ## Deine Rechte
 TODO: Auskunft (Art. 15), Berichtigung, Löschung, Beschwerde bei einer Aufsichtsbehörde

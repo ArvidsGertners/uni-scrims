@@ -64,8 +64,10 @@ describe("readLegalPage", () => {
     await expect(readLegalPage("impressum", { LEGAL_DIR: "docker/legal" })).resolves.toBeNull();
   });
 
-  it("lists the pages that would show the placeholder", async () => {
+  it("lists the pages that would show the placeholder, without logging each file", async () => {
+    vi.mocked(console.error).mockClear();
     await expect(missingLegalPages({ LEGAL_DIR: dir })).resolves.toEqual(["datenschutz"]);
+    expect(console.error).not.toHaveBeenCalled();
     await writeFile(path.join(dir, "datenschutz.txt"), "\n\n");
     await expect(missingLegalPages({ LEGAL_DIR: dir })).resolves.toEqual(["datenschutz"]);
     await writeFile(path.join(dir, "datenschutz.txt"), "Text");

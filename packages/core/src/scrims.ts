@@ -76,7 +76,7 @@ export async function cancelScheduledScrim(
     data: { status: ScrimStatus.CANCELLED, cancelledByTeamId, cancelledAt: now, lateCancel },
   });
   if (updated.count === 0) return false;
-  await cancelPendingScrimNotifications(tx, scrim.id);
+  await cancelPendingScrimNotifications(tx, scrim.id, now);
   const hostCancelled = cancelledByTeamId === scrim.hostTeamId;
   const otherTeamId = hostCancelled ? scrim.guestTeamId : scrim.hostTeamId;
   const cancellingTeamName = hostCancelled ? scrim.hostTeam.name : scrim.guestTeam.name;

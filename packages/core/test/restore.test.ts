@@ -135,6 +135,10 @@ describe("reapplyModeration", () => {
     const report = await reapply({ deletedUsers: [{ id: captain.id }] });
 
     expect(report).toMatchObject({ deletedUsers: 1, transferredCaptains: 1 });
+    expect(await reapply({ deletedUsers: [{ id: captain.id }] })).toMatchObject({
+      deletedUsers: 0,
+      transferredCaptains: 0,
+    });
     expect(await prisma.team.findUnique({ where: { id: team.id } })).toMatchObject({
       captainId: members[1]!.id,
       dissolvedAt: null,

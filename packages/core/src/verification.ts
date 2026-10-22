@@ -10,8 +10,9 @@ import { requireAdmin, requireUser } from "./permissions.ts";
 import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./uploads.ts";
 
 export const AUTO_REJECT_REASON = "Prüfung nicht rechtzeitig erfolgt";
-/** Janitor: a pending request whose file is gone (restored database backup). */
-export const MISSING_FILE_REASON = "Datei nicht mehr vorhanden, bitte erneut hochladen";
+/** Approving needs the file; after restoring a backup it may be missing (§8). */
+export const MISSING_FILE_MESSAGE =
+  "Die Datei fehlt. Bitte lehne die Prüfung ab, damit der Nutzer neu hochladen kann.";
 /** banUser closes a pending request with this reason and without a message. */
 export const BAN_REJECT_REASON = "Konto gesperrt";
 /** Files in the upload directory without a database row are deleted after this age. */
@@ -150,6 +151,14 @@ export async function decideVerification(input: DecideVerificationInput): Promis
     // User before VerificationRequest (§4), as in deleteAccount: the other order deadlocked with it.
     await lockUser(tx, request.userId);
     const approved = input.decision === "APPROVED";
+    // The admin must have seen the document; without it only a rejection makes sense.
+    if (
+      approved &&
+      request.status === VerifStatus.PENDING &&
+      !(await uploadExists(input.uploadDir, request.filePath))
+    ) {
+      throw new DomainError("CONFLICT", MISSING_FILE_MESSAGE);
+    }
     const universityId = request.universityId ?? (approved ? input.universityId || null : null);
     const updated = await tx.verificationRequest.updateMany({
       where: { id: request.id, status: VerifStatus.PENDING },
@@ -189,13 +198,8 @@ export async function decideVerification(input: DecideVerificationInput): Promis
     return request;
   });
 
-  // After the commit: the file is deleted right after the decision (SPEC P0-2). The decision is
-  // already saved, so a failure here must not look like a failed decision; janitor step 2 retries.
-  try {
-    await removeVerificationFile(request.id, request.filePath, input.uploadDir);
-  } catch (error) {
-    console.error(`Could not delete the upload of verification ${request.id}`, error);
-  }
+  // The file is deleted right after the decision (SPEC P0-2).
+  await removeFilesAfterCommit([request], input.uploadDir);
 }
 
 async function createResultNotification(
@@ -218,10 +222,25 @@ async function createResultNotification(
 }
 
 /**
- * Deletes the file of a decided request and clears filePath. Callers run it after their commit;
- * if it fails, janitor step 2 retries. A request deleted meanwhile (account deletion) is skipped.
+ * After the commit of a decision, rejection or ban: deletes the files and clears filePath. The
+ * decision is already saved, so a failure must not look like a failed decision; it is only logged,
+ * and janitor step 2 retries.
  */
-export async function removeVerificationFile(
+export async function removeFilesAfterCommit(
+  requests: readonly { id: string; filePath: string | null }[],
+  uploadDir: string,
+): Promise<void> {
+  for (const request of requests) {
+    try {
+      await removeVerificationFile(request.id, request.filePath, uploadDir);
+    } catch (error) {
+      console.error(`Could not delete the upload of verification ${request.id}`, error);
+    }
+  }
+}
+
+/** Deletes the file of a decided request and clears filePath; a request deleted meanwhile is skipped. */
+async function removeVerificationFile(
   requestId: string,
   fileName: string | null,
   uploadDir: string,
@@ -278,58 +297,15 @@ export async function autoRejectStaleVerifications(
     });
     if (changed) {
       rejected++;
-      try {
-        await removeVerificationFile(request.id, request.filePath, uploadDir);
-      } catch (error) {
-        console.error(`Could not delete the upload of verification ${request.id}`, error);
-      }
+      await removeFilesAfterCommit([request], uploadDir);
     }
   }
   return rejected;
 }
 
-/**
- * Janitor step 2: pending requests whose file is gone, e.g. after restoring a database backup
- * (uploads are not backed up, ARCHITECTURE §8). They cannot be checked, so the user uploads again.
- */
-export async function rejectPendingWithoutFile(now: Date, uploadDir: string): Promise<number> {
-  // A missing directory means a wrong UPLOAD_DIR or a missing volume, not lost files: reject nothing.
-  if (!(await isDirectory(uploadDir))) {
-    console.error(`Upload directory ${uploadDir} is missing; pending verifications are kept`);
-    return 0;
-  }
-  const pending = await prisma.verificationRequest.findMany({
-    where: { status: VerifStatus.PENDING },
-    select: { id: true, userId: true, filePath: true },
-  });
-  let rejected = 0;
-  for (const request of pending) {
-    if (request.filePath && (await uploadExists(uploadDir, request.filePath))) continue;
-    const changed = await prisma.$transaction(async (tx) => {
-      await lockUser(tx, request.userId);
-      return rejectPending(tx, request, MISSING_FILE_REASON, now);
-    });
-    if (changed) {
-      rejected++;
-      await prisma.verificationRequest.updateMany({
-        where: { id: request.id },
-        data: { filePath: null },
-      });
-    }
-  }
-  return rejected;
-}
-
-async function isDirectory(path: string): Promise<boolean> {
-  try {
-    return (await stat(path)).isDirectory();
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-    throw error;
-  }
-}
-
-async function uploadExists(uploadDir: string, fileName: string): Promise<boolean> {
+/** Whether the file of a request is still there; after restoring a backup it may be gone (§8). */
+async function uploadExists(uploadDir: string, fileName: string | null): Promise<boolean> {
+  if (!fileName) return false;
   try {
     return (await stat(uploadFilePath(uploadDir, fileName))).isFile();
   } catch (error) {
@@ -338,7 +314,7 @@ async function uploadExists(uploadDir: string, fileName: string): Promise<boolea
   }
 }
 
-/** Janitor step 3: decided requests that still reference a file. */
+/** Janitor step 2: decided requests that still reference a file. */
 export async function cleanupDecidedFiles(uploadDir: string): Promise<number> {
   const leftovers = await prisma.verificationRequest.findMany({
     where: { status: { not: VerifStatus.PENDING }, filePath: { not: null } },
@@ -350,7 +326,7 @@ export async function cleanupDecidedFiles(uploadDir: string): Promise<number> {
   return leftovers.length;
 }
 
-/** Janitor step 4: files without a database row that are older than 24 h. */
+/** Janitor step 3: files without a database row that are older than 24 h. */
 export async function cleanupOrphanFiles(uploadDir: string, now: Date): Promise<number> {
   let names: string[];
   try {
@@ -389,16 +365,18 @@ export async function cleanupOrphanFiles(uploadDir: string, now: Date): Promise<
 export async function runUploadJanitor(uploadDir: string, now: Date) {
   return {
     autoRejected: await autoRejectStaleVerifications(now, uploadDir),
-    missingFiles: await rejectPendingWithoutFile(now, uploadDir),
     decidedFiles: await cleanupDecidedFiles(uploadDir),
     orphanFiles: await cleanupOrphanFiles(uploadDir, now),
   };
 }
 
-/** Admin queue, oldest first (SPEC P0-9). */
-export async function listPendingVerifications(adminId: string) {
+/**
+ * Admin queue, oldest first (SPEC P0-9). fileAvailable is false when the file is gone, e.g. after
+ * restoring a database backup (uploads are not backed up, §8); such requests can only be rejected.
+ */
+export async function listPendingVerifications(adminId: string, uploadDir: string) {
   await requireAdmin(adminId);
-  return prisma.verificationRequest.findMany({
+  const requests = await prisma.verificationRequest.findMany({
     where: { status: VerifStatus.PENDING },
     orderBy: { createdAt: "asc" },
     select: {
@@ -409,8 +387,15 @@ export async function listPendingVerifications(adminId: string) {
       universityOther: true,
       university: { select: { name: true, city: true } },
       user: { select: { id: true, name: true, image: true } },
+      filePath: true,
     },
   });
+  return Promise.all(
+    requests.map(async ({ filePath, ...request }) => ({
+      ...request,
+      fileAvailable: await uploadExists(uploadDir, filePath),
+    })),
+  );
 }
 
 /** Protected file access for admins; NOT_FOUND once the file has been deleted. */

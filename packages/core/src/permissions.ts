@@ -6,7 +6,7 @@ import { prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { DomainError, type Problem, problemError } from "./errors.ts";
 import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
-import { isAdmin, isDeletedUser } from "./users.ts";
+import { getDiscordId, isAdmin, isDeletedUser } from "./users.ts";
 
 // Thrown by the require* checks and shown by the pages with the same text.
 const TEAM_BANNED: Problem = {
@@ -65,14 +65,16 @@ export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Proble
 
 /**
  * Logged in, banned users included: only for deleting the own account (§7). A deleted account counts
- * as logged out, so actions that started before the deletion cannot write for it.
+ * as logged out, so actions that started before the deletion cannot write for it. So does a user
+ * without a Discord account: every login has one, and only a deletion removes it (also when a login
+ * raced the deletion and wrote the profile back, §5.1).
  */
 export async function requireAccountUser(userId: string | null | undefined, db: Db = prisma) {
   if (!userId) {
     throw new DomainError("UNAUTHENTICATED", "Bitte melde dich an.");
   }
   const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user || isDeletedUser(user)) {
+  if (!user || isDeletedUser(user) || !(await getDiscordId(user.id, db))) {
     throw new DomainError("UNAUTHENTICATED", "Bitte melde dich an.");
   }
   return user;

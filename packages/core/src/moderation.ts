@@ -5,7 +5,7 @@ import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAdmin } from "./permissions.ts";
 import { retireTeamActivity } from "./teams.ts";
 import { DISCORD_PROVIDER, getDiscordId } from "./users.ts";
-import { BAN_REJECT_REASON, removeVerificationFile } from "./verification.ts";
+import { BAN_REJECT_REASON, removeFilesAfterCommit } from "./verification.ts";
 
 export const MIN_SEARCH_LENGTH = 2;
 export const MAX_SEARCH_RESULTS = 20;
@@ -133,22 +133,8 @@ export async function banUser(input: {
   const { teamBanned, closedVerifications } = await prisma.$transaction((tx) =>
     banUserInTx(tx, input.userId, input.now),
   );
-  await removeClosedVerificationFiles(closedVerifications, input.uploadDir);
+  await removeFilesAfterCommit(closedVerifications, input.uploadDir);
   return { teamBanned };
-}
-
-/** After the commit, as in decideVerification; janitor step 3 retries a failure. */
-export async function removeClosedVerificationFiles(
-  closed: readonly { id: string; filePath: string | null }[],
-  uploadDir: string,
-): Promise<void> {
-  for (const request of closed) {
-    try {
-      await removeVerificationFile(request.id, request.filePath, uploadDir);
-    } catch (error) {
-      console.error(`Could not delete the upload of verification ${request.id}`, error);
-    }
-  }
 }
 
 /** Building block of banUser without permission check (also used after a restore). */

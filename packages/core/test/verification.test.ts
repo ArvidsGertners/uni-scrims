@@ -7,7 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   AUTO_REJECT_REASON,
   MAX_UPLOAD_BYTES,
-  MISSING_FILE_REASON,
+  MISSING_FILE_MESSAGE,
   autoRejectStaleVerifications,
   cleanupDecidedFiles,
   cleanupOrphanFiles,
@@ -15,7 +15,6 @@ import {
   detectUploadType,
   getVerificationFile,
   listPendingVerifications,
-  rejectPendingWithoutFile,
   submitVerification,
 } from "../src/index.ts";
 import { NOW, createUser } from "./helpers.ts";
@@ -279,7 +278,9 @@ describe("decideVerification", () => {
         now: NOW,
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(listPendingVerifications(user.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(listPendingVerifications(user.id, uploadDir)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
     await expect(getVerificationFile(request.id, user.id, uploadDir)).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
@@ -287,12 +288,46 @@ describe("decideVerification", () => {
 });
 
 describe("admin queue", () => {
+  it("marks requests whose file is gone, and only lets them be rejected", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    // E.g. after restoring a database backup: uploads are not backed up (ARCHITECTURE §8).
+    await rm(path.join(uploadDir, request.filePath!));
+
+    const queue = await listPendingVerifications(admin.id, uploadDir);
+    expect(queue.find((entry) => entry.id === request.id)).toMatchObject({ fileAvailable: false });
+    const decide = (decision: "APPROVED" | "REJECTED") =>
+      decideVerification({
+        requestId: request.id,
+        adminId: admin.id,
+        decision,
+        rejectReason: decision === "REJECTED" ? "Bitte erneut hochladen" : null,
+        uploadDir,
+        now: NOW,
+      });
+    await expect(decide("APPROVED")).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: MISSING_FILE_MESSAGE,
+    });
+    await expect(decide("REJECTED")).resolves.toBeUndefined();
+    expect(
+      await prisma.verificationRequest.findUnique({ where: { id: request.id } }),
+    ).toMatchObject({ status: VerifStatus.REJECTED, filePath: null });
+    expect(await prisma.user.findUnique({ where: { id: user.id } })).toMatchObject({
+      verifiedAt: null,
+    });
+  });
+
   it("lists pending requests oldest first and serves their files", async () => {
     const older = await createUser();
     const newer = await createUser();
     const first = await submit(older.id, PDF, { now: new Date(NOW.getTime() - 1000) });
     const second = await submit(newer.id, PNG);
-    const ids = (await listPendingVerifications(admin.id)).map((request) => request.id);
+    const queue = await listPendingVerifications(admin.id, uploadDir);
+    const ids = queue.map((request) => request.id);
+    expect(queue.find((request) => request.id === second.id)).toMatchObject({
+      fileAvailable: true,
+    });
     expect(ids.indexOf(first.id)).toBeLessThan(ids.indexOf(second.id));
     expect(await getVerificationFile(second.id, admin.id, uploadDir)).toEqual({
       path: path.join(uploadDir, second.filePath!),
@@ -302,44 +337,6 @@ describe("admin queue", () => {
 });
 
 describe("janitor", () => {
-  it("rejects pending requests whose file is gone and tells the user", async () => {
-    const user = await createUser();
-    const request = await submit(user.id);
-    const kept = await submit((await createUser()).id);
-    await rm(path.join(uploadDir, request.filePath!));
-
-    // Earlier tests leave pending requests whose files were in other directories.
-    expect(await rejectPendingWithoutFile(NOW, uploadDir)).toBeGreaterThanOrEqual(1);
-
-    expect(
-      await prisma.verificationRequest.findUnique({ where: { id: request.id } }),
-    ).toMatchObject({
-      status: VerifStatus.REJECTED,
-      rejectReason: MISSING_FILE_REASON,
-      decidedById: null,
-      pendingUserId: null,
-      filePath: null,
-    });
-    expect(await prisma.verificationRequest.findUnique({ where: { id: kept.id } })).toMatchObject({
-      status: VerifStatus.PENDING,
-    });
-    expect(
-      await prisma.notification.findFirst({
-        where: { targetUserId: user.id, type: NotifType.VERIFICATION_RESULT },
-      }),
-    ).toMatchObject({ payload: { approved: false, rejectReason: MISSING_FILE_REASON } });
-    // The user can upload again.
-    await expect(submit(user.id)).resolves.toBeTruthy();
-  });
-
-  it("keeps pending requests when the upload directory itself is missing", async () => {
-    const request = await submit((await createUser()).id);
-    expect(await rejectPendingWithoutFile(NOW, path.join(uploadDir, "missing"))).toBe(0);
-    expect(
-      await prisma.verificationRequest.findUnique({ where: { id: request.id } }),
-    ).toMatchObject({ status: VerifStatus.PENDING });
-  });
-
   it("auto-rejects pending requests after the TTL and deletes the file", async () => {
     const user = await createUser();
     const request = await submit(user.id);
