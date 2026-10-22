@@ -71,9 +71,7 @@ FROM manifests AS migrate
 # Prisma's schema engine needs OpenSSL.
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-# Own store: pnpm caches postinstall results per platform, not per OpenSSL version. In the shared store,
-# @prisma/engines carries the schema engine downloaded without OpenSSL (openssl-1.1.x), which fails here.
-RUN --mount=type=cache,id=pnpm-migrate,target=/pnpm/store \
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @uni-scrims/db
 COPY tsconfig.base.json ./
 COPY packages/db/tsconfig.json packages/db/prisma.config.ts packages/db/
@@ -82,5 +80,9 @@ COPY packages/db/prisma packages/db/prisma
 COPY packages/db/src/index.ts packages/db/src/
 COPY --from=bot-build /app/packages/db/src/generated ./packages/db/src/generated
 WORKDIR /app/packages/db
+# The installed schema engine can be built for another OpenSSL than this image has (seen: openssl-1.1.x when the
+# build shared the pnpm store with stages without OpenSSL). Prisma then fetches the right one at runtime, which
+# the node user may not write. As root, `prisma version` fetches it now.
+RUN ./node_modules/.bin/prisma version
 USER node
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
