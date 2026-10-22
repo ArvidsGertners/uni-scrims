@@ -37,6 +37,14 @@ export async function createUser(
   return { ...user, discordId };
 }
 
+/** A Better Auth session row, to check that bans and account deletion end sessions. */
+export async function createSession(userId: string) {
+  const id = uid();
+  return prisma.session.create({
+    data: { id, token: id, userId, expiresAt: new Date(NOW.getTime() + 7 * 24 * HOUR) },
+  });
+}
+
 /** Team with the captain as first member and `extraMembers` further members. */
 export async function createTeamWithMembers(
   options: {
