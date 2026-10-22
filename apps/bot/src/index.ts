@@ -14,9 +14,19 @@ function requireEnv(name: string): string {
   return value;
 }
 
+/** Links in bot messages point here; the web app runs at the root of an http(s) origin. */
+function requirePublicBaseUrl(): string {
+  const value = requireEnv("PUBLIC_BASE_URL");
+  const url = URL.canParse(value) ? new URL(value) : null;
+  if (!url || !["http:", "https:"].includes(url.protocol) || url.pathname !== "/") {
+    throw new Error(`PUBLIC_BASE_URL must be an origin like https://example.de, got "${value}"`);
+  }
+  return url.origin;
+}
+
 const token = requireEnv("DISCORD_BOT_TOKEN");
-// Links in bot messages point here.
-const baseUrl = requireEnv("PUBLIC_BASE_URL");
+// Checked at start: a broken URL would otherwise fail every message until it is marked FAILED.
+const baseUrl = requirePublicBaseUrl();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
