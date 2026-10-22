@@ -1,8 +1,15 @@
 // Idempotent dev seed: universities and two ready-to-play test teams (5 verified users each).
 // With --universities-only (production) just the university list.
 import { randomBytes } from "node:crypto";
+import path from "node:path";
+import { config } from "dotenv";
 import { prisma, Rank } from "../src/index.ts";
 import { universities } from "./seed-data/universities.ts";
+
+// As in prisma.config.ts: `seed:universities` runs this file without the Prisma CLI, so the monorepo
+// .env is loaded here too. Variables already set (Docker, `prisma db seed`) take precedence; the
+// client is only created on first use, after this.
+config({ path: path.resolve(import.meta.dirname, "../../../.env"), quiet: true });
 
 type SeedTeam = {
   id: string;
