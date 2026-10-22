@@ -1,5 +1,10 @@
 import { prisma } from "@uni-scrims/db";
-import { clearOAuthTokens, recordHubJoinResult } from "./users.ts";
+import {
+  DELETED_USER_NAME,
+  clearOAuthTokens,
+  deletedUserEmail,
+  recordHubJoinResult,
+} from "./users.ts";
 
 /** Adds the user to the hub server; resolves to true on success. Must not throw. */
 export type HubJoiner = (discordId: string, accessToken: string) => Promise<boolean>;
@@ -18,16 +23,33 @@ export async function handleDiscordLogin(
       where: { id: userId },
       select: { bannedAt: true },
     });
-    if (!user || user.bannedAt) return;
+    if (!user) return;
     const account = await prisma.account.findFirst({
       where: { userId, providerId: "discord" },
       select: { accountId: true, accessToken: true },
     });
-    const joined = account?.accessToken
+    if (!account) {
+      // The account was deleted while this login ran: Better Auth wrote the Discord profile back
+      // onto the anonymized user. Undo that and end the new session (ARCHITECTURE §5.1).
+      await finishRacingDeletion(userId);
+      return;
+    }
+    if (user.bannedAt) return;
+    const joined = account.accessToken
       ? await joinHub(account.accountId, account.accessToken)
       : false;
     await recordHubJoinResult(userId, joined, now);
   } finally {
     await clearOAuthTokens(userId);
   }
+}
+
+async function finishRacingDeletion(userId: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { name: DELETED_USER_NAME, email: deletedUserEmail(userId), image: null },
+    }),
+    prisma.session.deleteMany({ where: { userId } }),
+  ]);
 }

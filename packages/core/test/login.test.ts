@@ -1,7 +1,7 @@
 import { prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
-import { handleDiscordLogin } from "../src/index.ts";
-import { NOW, createUser } from "./helpers.ts";
+import { DELETED_USER_NAME, deletedUserEmail, handleDiscordLogin } from "../src/index.ts";
+import { NOW, createSession, createUser } from "./helpers.ts";
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -53,5 +53,22 @@ describe("handleDiscordLogin", () => {
     );
     expect(called).toBe(false);
     expect(await tokensOf(user.id)).toEqual({ accessToken: null, refreshToken: null });
+  });
+
+  it("undoes the profile Better Auth wrote back when the account was deleted during the login", async () => {
+    const user = await createUser();
+    await createSession(user.id);
+    // State after the race: deleteAccount removed the account, Better Auth then restored the profile.
+    await prisma.account.deleteMany({ where: { userId: user.id } });
+    await prisma.user.update({ where: { id: user.id }, data: { image: "https://cdn/avatar.png" } });
+
+    await handleDiscordLogin(user.id, async () => true, NOW);
+
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
+      name: DELETED_USER_NAME,
+      email: deletedUserEmail(user.id),
+      image: null,
+    });
+    expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
   });
 });

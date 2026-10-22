@@ -3,6 +3,8 @@ import type { Db } from "./db.ts";
 
 export const DISCORD_PROVIDER = "discord";
 
+export const DELETED_USER_NAME = "Gelöschter Nutzer";
+
 /**
  * Email of a deleted account (ARCHITECTURE §4). A new placeholder instead of `<discordId>@…`: email
  * is unique, and a later login with the same Discord account creates a new user with the original

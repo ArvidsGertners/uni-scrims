@@ -6,9 +6,12 @@ import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
-import { DISCORD_PROVIDER, clearOAuthTokens, deletedUserEmail } from "./users.ts";
-
-export const DELETED_USER_NAME = "Gelöschter Nutzer";
+import {
+  DELETED_USER_NAME,
+  DISCORD_PROVIDER,
+  clearOAuthTokens,
+  deletedUserEmail,
+} from "./users.ts";
 
 /**
  * Why the account cannot be deleted right now, or null. Only the captain of a team that is not

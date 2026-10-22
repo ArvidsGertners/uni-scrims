@@ -305,6 +305,7 @@ SystemStatus
 - **Danach werden Access- und Refresh-Token aus der `account`-Tabelle entfernt.** Sie werden nur für den Beitritt gebraucht.
 - `name` und `image` werden bei jedem Login aktualisiert.
 - **Nur die genutzten Better-Auth-Endpunkte sind erreichbar:** `/sign-in/social`, `/callback/:id`, `/sign-out`, `/get-session`, `/error` und der Dev-Login `/dev/sign-in` (der außerhalb der Entwicklung selbst 404 antwortet). Ein before-Hook mit dieser Liste (`apps/web/lib/auth-paths.ts`) beantwortet alle anderen mit 404, z. B. `/update-user`, `/change-email`, `/link-social` oder `/unlink-account`. Sonst könnte jede Session, auch die eines gesperrten Nutzers, Name und Avatar an Discord und an `requireUser` vorbei ändern; Sperren-Suche, Streitfall-Seite und Gegner verlassen sich aber auf den Discord-Username.
+- **Löschung während eines Logins:** Better Auth schreibt beim Login ohne Transaktion erst die `account`-Zeile, dann Name, Avatar und Mail. Fehlt die Discord-Verknüpfung danach, weil das Konto genau währenddessen gelöscht wurde, setzt `handleDiscordLogin` den User wieder auf die Lösch-Werte und löscht seine Sessions. Ist die `account`-Zeile schon weg, wenn Better Auth sie aktualisieren will, bricht der Login ab; war die Löschung vor dem Login fertig, legt er wie immer einen neuen User an.
 - Der Login-Screen erklärt vorher, dass der Nutzer dem Server hinzugefügt wird und warum.
 
 **In Phase 1 zu verifizieren (mit der gepinnten Version):**
