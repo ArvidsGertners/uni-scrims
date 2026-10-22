@@ -103,6 +103,16 @@ describe("buildMessage", () => {
     expect(embedOf(message).description).toContain(`**${escaped}**`);
   });
 
+  it.each([
+    ["<@&123> Team", "\\<@&123> Team"],
+    ["<@456> <#789> <t:1>", "\\<@456> \\<#789> \\<t:1>"],
+  ])("shows mentions in %j as text", (teamName, escaped) => {
+    const message = sample(NotifType.SCRIM_CANCELLED, {
+      payload: { ...scrimPayload, opponentTeamName: teamName },
+    });
+    expect(embedOf(message).description).toContain(`**${escaped}**`);
+  });
+
   it("shows start, format and the opponent's captain with name and mention", () => {
     expect(embedOf(sample(NotifType.SCRIM_BOOKED)).fields).toEqual([
       { name: "Start", value: START_TEXT },

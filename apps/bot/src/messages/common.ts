@@ -27,12 +27,13 @@ const EMBED_COLOR = 0xff4655;
 
 /**
  * User text in bot messages: no markdown and no masked links (SPEC P0-7). Every bracket is escaped
- * by hand: escapeMarkdown's maskedLink option only escapes the first link of a text.
+ * by hand: escapeMarkdown's maskedLink option only escapes the first link of a text. "<" is escaped
+ * too, so a name like <@&id> shows as text and does not render as a role or user mention.
  * escapeMarkdown escapes backslashes first, so user text cannot undo the escaping.
  */
 export function plain(text: string): string {
   const escaped = escapeMarkdown(text, { heading: true, bulletedList: true, numberedList: true });
-  return escaped.replace(/[[\]]/g, "\\$&");
+  return escaped.replace(/[[\]<]/g, "\\$&");
 }
 
 export function startField(startsAt: string) {
