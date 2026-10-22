@@ -37,6 +37,8 @@ ENV PORT=3000
 COPY --from=web-build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=web-build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=web-build --chown=node:node /app/apps/web/public ./apps/web/public
+# A new uploads volume takes over owner and mode of this directory; as root-owned, uploads would fail.
+RUN mkdir -p /data/uploads && chown node:node /data/uploads && chmod 700 /data/uploads
 USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
@@ -71,8 +73,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
     && rm -rf /var/lib/apt/lists/*
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @uni-scrims/db
-COPY packages/db/prisma.config.ts packages/db/
+COPY tsconfig.base.json ./
+COPY packages/db/tsconfig.json packages/db/prisma.config.ts packages/db/
 COPY packages/db/prisma packages/db/prisma
+# Client and seed, for the one-off university seed in production (README).
+COPY packages/db/src/index.ts packages/db/src/
+COPY --from=bot-build /app/packages/db/src/generated ./packages/db/src/generated
 WORKDIR /app/packages/db
 USER node
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]

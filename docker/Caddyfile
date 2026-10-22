@@ -1,0 +1,9 @@
+# Production reverse proxy with automatic HTTPS (ARCHITECTURE §8). DOMAIN comes from the caddy service.
+{$DOMAIN} {
+	# Verification uploads are up to 5 MB (§5.2), like the server action body limit.
+	request_body {
+		max_size 6MB
+	}
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy web:3000
+}

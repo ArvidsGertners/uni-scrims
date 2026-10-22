@@ -11,6 +11,7 @@
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "prisma db seed",
+    "seed:universities": "tsx prisma/seed.ts --universities-only",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

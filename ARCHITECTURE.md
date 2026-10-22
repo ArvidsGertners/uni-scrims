@@ -570,12 +570,14 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Service | Image / Build | Details |
 |---|---|---|
 | `caddy` | `caddy:2` | Reverse Proxy mit automatischem HTTPS. Ports 80/443. `request_body { max_size 6MB }`. |
-| `web` | Build `apps/web` (Next.js `output: standalone`, `node:24-slim`) | `ENV HOSTNAME=0.0.0.0` und `ENV PORT=3000` im Web-Target (Docker setzt `HOSTNAME` sonst auf die Container-ID, und der Standalone-Server lauscht nicht auf localhost). Volume `uploads:/data/uploads`. Healthcheck per Node, weil `node:24-slim` weder `curl` noch `wget` enthält: `node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"` |
+| `web` | Build `apps/web` (Next.js `output: standalone`, `node:24-slim`) | `ENV HOSTNAME=0.0.0.0` und `ENV PORT=3000` im Web-Target (Docker setzt `HOSTNAME` sonst auf die Container-ID, und der Standalone-Server lauscht nicht auf localhost). Volume `uploads:/data/uploads`; das Image legt `/data/uploads` für den Nutzer `node` an, weil ein neues Volume Besitzer und Rechte dieses Ordners übernimmt. `docker/legal` schreibgeschützt nach `/config/legal`. Healthcheck per Node, weil `node:24-slim` weder `curl` noch `wget` enthält: `node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"` |
 | `bot` | Build `apps/bot` (`node:24-slim`) | Kein offener Port. Kein Zugriff auf das Upload-Volume. Läuft ohne eigenen Build-Schritt per `node --import tsx` (kein Bundler nötig). Den Prisma-Client erzeugt die Stage `bot-build` (die CLI ist eine Dev-Abhängigkeit), das Target `bot` kopiert ihn. |
-| `migrate` | **eigenes Build-Target** `migrate` im Dockerfile, basierend auf `packages/db` mit Prisma-CLI, `prisma.config.ts` und `migrations/`; installiert `openssl` für die Schema-Engine | Einmal-Job: `prisma migrate deploy`. Das Web-Image (standalone) enthält weder CLI noch Migrationen. `web` und `bot` starten erst danach (`depends_on: condition: service_completed_successfully`). |
+| `migrate` | **eigenes Build-Target** `migrate` im Dockerfile, basierend auf `packages/db` mit Prisma-CLI, `prisma.config.ts` und `migrations/`; installiert `openssl` für die Schema-Engine | Einmal-Job: `prisma migrate deploy`. Das Web-Image (standalone) enthält weder CLI noch Migrationen. `web` und `bot` starten erst danach (`depends_on: condition: service_completed_successfully`). Enthält außerdem den generierten Client (aus `bot-build`) und den Seed, damit sich die Hochschul-Liste in Production einmalig einspielen lässt: `seed.ts --universities-only` legt nur die Hochschulen an, ohne Test-Teams (README). |
 | `db` | `postgres:17` | Volume `pgdata`. Port nicht nach außen freigeben. |
 
 Alle Services mit Log-Rotation: `logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }`.
+
+Die Datei ist `docker/docker-compose.yml` und wird aus dem Repo-Root mit `docker compose --env-file .env -f docker/docker-compose.yml …` aufgerufen. Die Container von `web` und `bot` bekommen die Root-`.env` per `env_file`; `DATABASE_URL` setzt die Compose-Datei selbst aus `POSTGRES_PASSWORD` zusammen (deshalb hex, URL-sicher). Caddy bekommt nur `DOMAIN`, die Datenbank nur ihr Passwort.
 
 **Stolperstelle Docker-Build:** Next.js `standalone` im pnpm-Monorepo mit dem Prisma-7-Client außerhalb von `node_modules`. Lösung: `outputFileTracingRoot` auf das Monorepo-Root setzen, `packages/db` und `packages/core` per `transpilePackages` einbinden, Prisma-Client im Build-Schritt explizit generieren. Der Client wird erst beim ersten Zugriff erzeugt, weil `next build` die Route-Module ohne `DATABASE_URL` lädt. Die Root-`.env` lädt `next.config.ts` per `dotenv`, weil Next selbst nur `apps/web/.env*` liest. **Der Docker-Build muss schon in Phase 0 einmal grün laufen.**
 
@@ -613,6 +615,8 @@ ADMIN_DISCORD_IDS=123,456
 UPLOAD_DIR=/data/uploads
 PUBLIC_BASE_URL=https://deine-domain.de   # für Links in Bot-Nachrichten
 LEGAL_DIR=/config/legal                   # absoluter Pfad zu impressum.txt und datenschutz.txt
+DOMAIN=deine-domain.de                    # nur Production: Caddy
+POSTGRES_PASSWORD=                        # nur Production: hex, z. B. openssl rand -hex 32
 DEV_LOGIN=false
 DEV_DM_REDIRECT_DISCORD_ID=
 DEV_CHANNEL_ID=

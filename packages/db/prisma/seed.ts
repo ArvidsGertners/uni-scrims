@@ -1,4 +1,5 @@
 // Idempotent dev seed: universities and two ready-to-play test teams (5 verified users each).
+// With --universities-only (production) just the university list.
 import { randomBytes } from "node:crypto";
 import { prisma, Rank } from "../src/index.ts";
 import { universities } from "./seed-data/universities.ts";
@@ -110,6 +111,10 @@ async function seedTeam(team: SeedTeam, now: Date): Promise<void> {
 async function main(): Promise<void> {
   const now = new Date();
   await seedUniversities();
+  if (process.argv.includes("--universities-only")) {
+    console.log(`Seed fertig: ${universities.length} Hochschulen.`);
+    return;
+  }
   for (const team of seedTeams) {
     await seedTeam(team, now);
   }
