@@ -5,8 +5,9 @@ TODO: Name, Anschrift, E-Mail
 
 ## Welche Daten wir verarbeiten
 - TODO: Discord-Login (Discord-ID, Username, Avatar)
-- TODO: Sitzungen mit IP-Adresse und User-Agent
+- TODO: Sitzungen mit IP-Adresse und User-Agent; laufen spätestens 7 Tage nach der letzten Nutzung ab und werden dann innerhalb einer Stunde gelöscht
 - TODO: Teams, Anfragen, Scrims und Feedback
+- TODO: Sperren: offene Prüfung wird abgelehnt und die Datei gelöscht
 
 ## Upload der Immatrikulationsbescheinigung
 TODO: Zweck, Rechtsgrundlage, Löschung direkt nach der Prüfung, spätestens nach 14 Tagen; gespeichert bleiben nur Status, Hochschule, Dateityp, Dateigröße, Ablehnungsgrund, Zeitpunkte und wer geprüft hat
@@ -18,19 +19,19 @@ TODO
 TODO: Beitritt zum Uni-Scrims-Server beim Login, Discord-Nachrichten (DMs und Team-Channel)
 
 ## Hosting und Server-Logs
-TODO: Hoster, Speicherort, Log-Rotation
+TODO: Hoster, Speicherort; Webserver-Logs (IP-Adresse, User-Agent) 14 Tage, Anwendungs-Logs höchstens 30 MB je Dienst
 
 ## Benachrichtigungen
-TODO: werden nach 30 Tagen gelöscht
+TODO: werden 30 Tage nach dem Versand bzw. dem letzten Zustellversuch gelöscht
 
 ## Mindestalter
 TODO: 16 Jahre
 
 ## Kontolöschung
-TODO: Was gelöscht wird, was anonymisiert bleibt; kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert
+TODO: Was gelöscht wird (auch die Notizen eigener Scrim-Anfragen), was anonymisiert bleibt (Bewerbungsnachrichten gehören zum Team); kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert
 
 ## Backups
-TODO: Datenbank-Backups 14 Tage, gelöschte Konten bis zum Ablauf enthalten
+TODO: Datenbank-Backups 14 Tage, gelöschte Konten bis zum Ablauf enthalten; nach einer Wiederherstellung werden Löschungen seit dem Backup nachgezogen, ist das nicht möglich, ist ein gelöschtes Konto mit dem Stand des Backups wieder vorhanden
 
 ## Deine Rechte
 TODO: Auskunft (Art. 15), Berichtigung, Löschung, Beschwerde bei einer Aufsichtsbehörde

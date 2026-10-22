@@ -170,6 +170,8 @@ mkdir docker/legal && cp docker/legal.example/*.txt docker/legal/
 # docker/legal/impressum.txt und docker/legal/datenschutz.txt mit den echten Texten füllen
 ```
 
+Fehlt `docker/legal`, bricht `dc up` ab (der Ordner wird bewusst nicht automatisch leer angelegt). Fehlt eine der Dateien oder ist sie leer, zeigt die Seite „Inhalt folgt.“; das steht dann beim Start im Log von `web` und als Warnung im Admin-Bereich.
+
 Starten, aus dem Repo-Root:
 
 ```sh
@@ -180,7 +182,7 @@ dc run --rm migrate ./node_modules/.bin/tsx prisma/seed.ts --universities-only
 dc ps    # web "healthy", bot läuft, migrate mit Exit-Code 0 beendet
 ```
 
-Prüfen: `https://<domain>/api/health` antwortet, `/impressum` und `/datenschutz` zeigen deine Texte (nicht „Inhalt folgt.“), der Login klappt, und der Admin-Bereich zeigt „Bot läuft“.
+Prüfen: `https://<domain>/api/health` antwortet, `/impressum` und `/datenschutz` zeigen deine Texte (nicht „Inhalt folgt.“), der Login klappt, und der Admin-Bereich zeigt „Bot läuft“ und keine Warnung zu Rechtstexten.
 
 - **Updates:** `git pull && dc up -d --build`. Der Migrate-Job läuft dabei jedes Mal mit; `web` und `bot` starten erst danach.
 - **Logs:** `dc logs -f web bot`. Docker rotiert sie (3 × 10 MB pro Container).
@@ -218,6 +220,8 @@ server {
     listen 80;
     listen [::]:80;
     server_name <domain>;
+    access_log /var/log/uni-scrims/nginx-access.log combined if=$uniscrims_loggable;
+    error_log /var/log/uni-scrims/nginx-error.log;
     location / {
         return 301 https://$host$request_uri;
     }
@@ -233,7 +237,8 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    access_log /var/log/nginx/access.log combined if=$uniscrims_loggable;
+    access_log /var/log/uni-scrims/nginx-access.log combined if=$uniscrims_loggable;
+    error_log /var/log/uni-scrims/nginx-error.log;
     client_max_body_size 6m;
     add_header Strict-Transport-Security "max-age=31536000" always;
 
@@ -248,6 +253,26 @@ server {
 }
 ```
 
+Vorher `mkdir -p /var/log/uni-scrims` anlegen. Die Logs von Uni Scrims liegen in diesem eigenen Ordner, damit ihre Frist nicht von der logrotate-Regel der anderen Seiten abhängt (und die Muster sich nicht überschneiden, sonst bricht logrotate mit „duplicate log entry“ ab). Die Datenschutzerklärung sagt 14 Tage; dafür `/etc/logrotate.d/uni-scrims` anlegen (gilt auch für das Backup-Log, siehe Backups):
+
+```
+/var/log/uni-scrims/*.log {
+    daily
+    rotate 13
+    maxage 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    sharedscripts
+    postrotate
+        [ -s /run/nginx.pid ] && kill -USR1 "$(cat /run/nginx.pid)" || true
+    endscript
+}
+```
+
+Täglich rotiert, 13 alte Dateien plus die aktuelle: höchstens 14 Tage. Prüfen mit `logrotate -d /etc/logrotate.d/uni-scrims` und `systemctl status logrotate.timer` (läuft täglich).
+
 Ohne gemeinsames Git-Remote lässt sich der Code direkt auf den Server pushen: dort einmal `git init -b main /opt/uni-scrims && git -C /opt/uni-scrims config receive.denyCurrentBranch updateInstead`, danach lokal `git push <ssh-host>:/opt/uni-scrims main` statt `git pull`, dann `dc up -d --build`.
 
 ### Backups
@@ -255,27 +280,67 @@ Ohne gemeinsames Git-Remote lässt sich der Code direkt auf den Server pushen: d
 `docker/backup.sh` sichert die Datenbank: `pg_dump`, verschlüsselt mit deinem öffentlichen GPG-Schlüssel, 14 Tage lokal in `/var/backups/uni-scrims` und per `rsync --delete` gespiegelt auf einen externen Speicher (z. B. Hetzner Storage Box). Uploads werden bewusst nicht gesichert.
 
 1. Auf deinem eigenen Rechner ein Schlüsselpaar erzeugen (`gpg --quick-generate-key "Uni Scrims Backup"`) und den öffentlichen Schlüssel exportieren (`gpg --export --armor <key-id> > backup.asc`). Der private Schlüssel bleibt dort; ohne ihn sind die Backups wertlos.
-2. Auf dem Server: `apt install gpg rsync`, `gpg --import backup.asc`, einen SSH-Key für root beim externen Speicher hinterlegen und dort den Zielordner anlegen. Einmal als root `ssh -p <port> <user>@<host>` aufrufen und den Host-Key bestätigen; sonst scheitert `rsync` im Cron mit „Host key verification failed“.
-3. Cron für root (`crontab -e`), jede Nacht um 3:30 Uhr:
+2. Auf dem Server, **alles als root** (der Cron-Job läuft als root und liest dessen Schlüsselbund und SSH-Schlüssel): `apt install gpg rsync`, `gpg --import backup.asc`, einen SSH-Key für root beim externen Speicher hinterlegen und dort den Zielordner anlegen. Einmal `ssh -p <port> <user>@<host>` aufrufen und den Host-Key bestätigen; sonst scheitert `rsync` im Cron mit „Host key verification failed“.
+3. Cron für root (`crontab -e`), jede Nacht um 3:30 Uhr. `MAILTO` schickt die Ausgabe gescheiterter Läufe per Mail (braucht einen Mailer auf dem Server, z. B. `apt install bsd-mailx` mit einem Relay); ohne Mailer stehen Fehler nur im Log:
 
 ```
-30 3 * * * BACKUP_GPG_RECIPIENT=<key-id> BACKUP_REMOTE=<user>@<host>:uni-scrims BACKUP_SSH_PORT=23 /opt/uni-scrims/docker/backup.sh >> /var/log/uni-scrims-backup.log 2>&1
+MAILTO=<deine-mail>
+30 3 * * * BACKUP_GPG_RECIPIENT=<key-id> BACKUP_REMOTE=<user>@<host>:uni-scrims BACKUP_SSH_PORT=23 /opt/uni-scrims/docker/backup.sh >> /var/log/uni-scrims/backup.log 2>&1 || tail -n 20 /var/log/uni-scrims/backup.log
 ```
 
-(`BACKUP_SSH_PORT=23` gilt für die Storage Box, sonst weglassen.)
+(`BACKUP_SSH_PORT=23` gilt für die Storage Box, sonst weglassen. `mkdir -p /var/log/uni-scrims`; das Log rotiert mit der Regel aus „Variante: Server mit vorhandenem nginx“, auf einem Server ohne nginx dieselbe Datei `/etc/logrotate.d/uni-scrims` ohne den `postrotate`-Block anlegen.)
 
-Wiederherstellen:
+Die 14 Tage gelten auch, wenn ein Lauf scheitert: Das Skript löscht alte Backups lokal zuerst und spiegelt danach auch ohne neuen Dump (`--delete` entfernt sie extern), endet aber mit Fehlercode. Ist der externe Speicher nicht erreichbar, bricht es ab; dann bleiben extern alte Backups liegen, bis der nächste Lauf durchkommt. Deshalb Fehlermails ernst nehmen.
 
-```sh
-gpg --decrypt uniscrims-<zeit>.dump.gpg > restore.dump    # auf dem Rechner mit dem privaten Schlüssel
-dc stop web bot
-dc exec -T db pg_restore -U uniscrims -d uniscrims --clean --if-exists < restore.dump
-dc start web bot
-```
-
-Nach einem Neuaufsetzen des Servers zuerst die Backups vom externen Speicher zurückholen, bevor der Cron wieder läuft: `rsync -a -e "ssh -p <port>" <user>@<host>:uni-scrims/ /var/backups/uni-scrims/`. Fehlen lokal Backups, die extern noch liegen, bricht das Skript ab, statt die externe Kopie per `--delete` zu leeren.
+Nach einem Neuaufsetzen des Servers zuerst die Backups vom externen Speicher zurückholen, bevor der Cron wieder läuft: `rsync -a -e "ssh -p <port>" <user>@<host>:uni-scrims/ /var/backups/uni-scrims/`. Fehlen lokal Backups der letzten 14 Tage, die extern noch liegen, bricht das Skript ab, statt sie extern per `--delete` zu löschen.
 
 Gelöschte Konten stehen bis zum Ablauf (14 Tage) noch in den Backups; das steht in der Datenschutzerklärung.
+
+#### Wiederherstellen
+
+Die Wiederherstellung ersetzt die Datenbank durch den Stand des Backups. Sperren und Kontolöschungen danach fehlen dann; sie werden aus der alten Datenbank exportiert und mit einem Skript nachgezogen. Auf dem Server, im Repo-Ordner, mit dem `dc`-Alias:
+
+1. Solange die alte Datenbank noch lesbar ist, Sperren und Löschungen exportieren:
+
+```sh
+dc exec -T db psql -U uniscrims -d uniscrims -At > moderation.json <<'SQL'
+SELECT json_build_object(
+  'bannedTeams', COALESCE((SELECT json_agg(json_build_object('id', t.id))
+    FROM "Team" t WHERE t."bannedAt" IS NOT NULL AND t."dissolvedAt" IS NULL), '[]'),
+  'bannedUsers', COALESCE((SELECT json_agg(json_build_object('id', u.id, 'discordId', a."accountId"))
+    FROM "user" u JOIN account a ON a."userId" = u.id AND a."providerId" = 'discord'
+    WHERE u."bannedAt" IS NOT NULL), '[]'),
+  'deletedUsers', COALESCE((SELECT json_agg(json_build_object('id', u.id))
+    FROM "user" u WHERE u.email = 'deleted-' || u.id || '@users.uniscrims.invalid'), '[]')
+);
+SQL
+chmod 600 moderation.json
+```
+
+2. Web und Bot anhalten und das Backup einspielen. Entschlüsselt wird auf dem Rechner mit dem privaten Schlüssel und direkt per SSH eingespielt, so liegt nirgends ein unverschlüsselter Dump:
+
+```sh
+dc stop web bot
+# auf deinem Rechner (Backup vorher vom externen Speicher holen):
+gpg --decrypt uniscrims-<zeit>.dump.gpg | ssh root@<server> \
+  'cd /opt/uni-scrims && docker compose --env-file .env -f docker/docker-compose.yml exec -T db pg_restore -U uniscrims -d uniscrims --clean --if-exists'
+```
+
+3. Schema auf den Stand des Codes bringen, Sperren und Löschungen nachziehen, dann starten:
+
+```sh
+dc run --rm migrate
+dc run --rm --no-deps -v "$PWD/moderation.json:/tmp/moderation.json:ro" bot \
+  node --import tsx src/scripts/reapply-moderation.ts /tmp/moderation.json
+dc start web bot
+shred -u moderation.json
+```
+
+Das Skript zeigt, was es nachgezogen hat; ein zweiter Lauf ändert nichts mehr. Es sperrt Teams und Nutzer erneut (mit allen Folgen der Sperre), behält für unbekannte gesperrte Discord-Konten einen gesperrten Platzhalter und löscht Konten erneut. War ein gelöschter Nutzer im Backup noch Captain mit Mitgliedern, übernimmt das am längsten dabei befindliche Mitglied die Rolle. Dateien von dabei entfernten Prüfungen löscht der Janitor im Web-Prozess (verwaiste Dateien, nach spätestens einem Tag).
+
+Ist die alte Datenbank nicht mehr lesbar, gibt es keinen Export: Sperren und Löschungen seit dem Backup (höchstens ein Tag) fehlen dann. Betroffene können die Löschung unter „Konto“ wiederholen oder sich melden; Sperren im Admin-Bereich neu setzen. Das ist in SPEC §9 als Risiko festgehalten und steht in der Datenschutzerklärung.
+
+Offene Prüfungen, deren Datei nach dem Einspielen fehlt (Uploads sind nicht im Backup), lehnt der Janitor beim nächsten Lauf mit „Datei nicht mehr vorhanden, bitte erneut hochladen“ ab; die Nutzer bekommen eine DM.
 
 ## Entsperren per SQL
 
@@ -297,5 +362,15 @@ Was das Entsperren **nicht** zurückholt:
 
 - Abgesagte Scrims, gelöschte Anfragen und zurückgezogene Bewerbungen bleiben so.
 - Ein gesperrter Spieler wurde aus seinem Team entfernt und muss per Einladungslink neu beitreten.
-- Bei einem gesperrten Captain Nutzer und Team zusammen entsperren. Soll nur das Team wieder spielen, im selben Schritt einen anderen Captain setzen (`UPDATE "Team" SET "captainId" = '<user-id eines Mitglieds>', "bannedAt" = NULL WHERE id = '<team-id>';`). Ein gesperrter Captain eines aktiven Teams kann weder die Rolle übertragen noch sein Konto löschen.
+- Bei einem gesperrten Captain Nutzer und Team zusammen entsperren. Soll nur das Team wieder spielen, in einer Transaktion einen anderen Captain setzen und den gesperrten Ex-Captain aus dem Team nehmen (wie bei jedem gesperrten Spieler, SPEC Edge Cases):
+
+```sql
+BEGIN;
+UPDATE "Team" SET "captainId" = '<user-id eines Mitglieds>', "bannedAt" = NULL WHERE id = '<team-id>';
+DELETE FROM "TeamMember" WHERE "userId" = '<user-id des gesperrten Ex-Captains>';
+COMMIT;
+```
+
+  Ein gesperrter Captain eines aktiven Teams könnte weder die Rolle übertragen noch sein Konto löschen.
+- Eine offene Prüfung wurde bei der Sperre abgelehnt und die Datei gelöscht; nach dem Entsperren muss der Nutzer die Bescheinigung neu hochladen.
 - Hat ein gesperrter Nutzer sein Konto gelöscht, landet ein neuer Login nach dem Entsperren beim alten Konto (Name und Avatar kommen beim Login wieder aus Discord), aber ohne Verifizierung und ohne Team.

@@ -596,7 +596,11 @@ Belegt auf dem Server schon ein nginx die Ports 80/443, bleibt `caddy` per Compo
 
 ### Backups
 
-Nächtlich `pg_dump` per Cron auf dem Host, verschlüsselt auf einen externen Speicher (z. B. Storage Box) kopieren und 14 Tage aufbewahren. Uploads werden **nicht** gesichert. Gelöschte Konten bleiben bis zum Ablauf in den Backups; das steht in der Datenschutzerklärung. **Hoster-Snapshots für den VPS deaktivieren**, sonst landen Uploads doch in Backups.
+Nächtlich `pg_dump` per Cron auf dem Host (`docker/backup.sh`), verschlüsselt auf einen externen Speicher (z. B. Storage Box) kopieren und 14 Tage aufbewahren. Die Frist gilt auch bei gescheiterten Läufen: Das Skript löscht alte Backups lokal vor dem Dump und spiegelt mit `--delete` auch ohne neuen Dump; es bricht nur ab, wenn der externe Speicher nicht auflistbar ist oder dort Backups der letzten 14 Tage liegen, die lokal fehlen (neu aufgesetzter Server). Fehlschläge enden mit Fehlercode und kommen per Cron-Mail. Uploads werden **nicht** gesichert. Gelöschte Konten bleiben bis zum Ablauf in den Backups; das steht in der Datenschutzerklärung. **Hoster-Snapshots für den VPS deaktivieren**, sonst landen Uploads doch in Backups.
+
+**Wiederherstellen** (README): Der Dump wird auf dem Rechner mit dem privaten Schlüssel entschlüsselt und per SSH direkt eingespielt (kein unverschlüsselter Dump auf Platte), danach läuft der Migrate-Job. Sperren und Kontolöschungen nach dem Backup fehlen dann; solange die alte Datenbank lesbar ist, exportiert eine SQL-Abfrage sie, und `reapplyModeration` (Skript `apps/bot/src/scripts/reapply-moderation.ts`, im Bot-Image) zieht sie nach: Teams sperren, Nutzer über ihre Discord-ID sperren (unbekannte als gesperrter Platzhalter wie nach einer Löschung), Konten erneut löschen; ein gelöschter Nutzer, der im Backup noch Captain mit Mitgliedern ist, gibt die Rolle vorher an das am längsten dabei befindliche Mitglied ab. Idempotent, ohne Berechtigungsprüfung, nur für den Betrieb. Ist die alte Datenbank verloren, fehlen diese Änderungen (höchstens ein Tag; SPEC §9). Offene Prüfungen ohne Datei lehnt der Janitor ab (§5.2).
+
+**Log-Fristen:** Container-Logs rotieren nach Größe (oben). Die nginx-Logs mit IP-Adressen (Variante mit vorhandenem nginx) und das Backup-Log liegen in `/var/log/uni-scrims/` mit eigener logrotate-Regel (täglich, höchstens 14 Tage, README); ein eigener Ordner, damit die Frist nicht von den Regeln anderer Seiten auf dem Server abhängt.
 
 ### Server
 

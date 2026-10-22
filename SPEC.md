@@ -314,13 +314,14 @@ Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind 
 | Nur Discord als Kanal | Blockierte DMs sind ein stiller Ausfall. Fallback: Team-Channel und Hinweis auf der Website. |
 | Eigener VPS | Du betreibst ein System, das kurzzeitig ausweisähnliche Dokumente hält: Updates, Zugangsschutz und Vorfallreaktion liegen bei dir. |
 | Altersbestätigung nur per Checkbox | Wer den Login-Endpunkt direkt aufruft, umgeht sie, und es wird kein Nachweis gespeichert. Im MVP bewusst akzeptiert. |
+| Wiederherstellung aus dem Backup | Sperren und Kontolöschungen nach dem Backup (höchstens ein Tag) werden aus der alten Datenbank nachgezogen. Ist sie verloren, fehlen sie: Gelöschte Konten stehen dann wieder mit den Daten vom Backup-Zeitpunkt in der Datenbank, bis sie erneut gelöscht werden, und Sperren müssen neu gesetzt werden. Steht in der Datenschutzerklärung. |
 
 **Vor dem Launch geklärt** (Texte liegen außerhalb von Git in `LEGAL_DIR`, siehe ARCHITECTURE §8)
 
 | # | Frage | Ergebnis |
 |---|---|---|
 | 1 | Impressum nach § 5 DDG: Nicht-kommerziell befreit nicht sicher von der Pflicht. Eigene Adresse oder Impressums-Service? | Impressum mit der eigenen Anschrift des Betreibers und E-Mail. |
-| 2 | Datenschutzerklärung: Upload sensibler Dokumente, Rechtsgrundlage, Löschfristen, Discord (USA) als Empfänger durch Server-Beitritt und DMs, Hoster, Logs, IP-Adresse und User-Agent in der Session, Benachrichtigungen (30 Tage), Mindestalter 16, kein automatischer Kick nach Kontolöschung, Discord-ID gesperrter Nutzer nach Löschung, Backups (14 Tage) mit gelöschten Konten. | Geschrieben, deckt alle genannten Punkte ab. Hoster: IONOS (Rechenzentrum Berlin); Backups: Hetzner Storage Box (Falkenstein); nginx-Logs 14 Tage. Sessions (mit IP-Adresse und User-Agent) laufen spätestens 7 Tage nach der letzten Nutzung ab und werden höchstens eine Stunde danach gelöscht; Benachrichtigungen 30 Tage nach dem letzten Versand bzw. Versuch. |
+| 2 | Datenschutzerklärung: Upload sensibler Dokumente, Rechtsgrundlage, Löschfristen, Discord (USA) als Empfänger durch Server-Beitritt und DMs, Hoster, Logs, IP-Adresse und User-Agent in der Session, Benachrichtigungen (30 Tage), Mindestalter 16, kein automatischer Kick nach Kontolöschung, Discord-ID gesperrter Nutzer nach Löschung, Backups (14 Tage) mit gelöschten Konten. | Geschrieben, deckt alle genannten Punkte ab. Hoster: IONOS (Rechenzentrum Berlin); Backups: Hetzner Storage Box (Falkenstein); nginx-Logs 14 Tage (eigene logrotate-Regel, ARCHITECTURE §8). Sessions (mit IP-Adresse und User-Agent) laufen spätestens 7 Tage nach der letzten Nutzung ab und werden höchstens eine Stunde danach gelöscht; Benachrichtigungen 30 Tage nach dem letzten Versand bzw. Versuch. |
 | 3 | AVV mit dem VPS-Hoster; Snapshots/Backups des Hosters aus oder in der Datenschutzerklärung nennen. | AVV mit IONOS und Hetzner abgeschlossen; bei IONOS sind keine Snapshots oder Backups aktiv. |
 | 4 | Ablauf für Datenauskunft (Art. 15). | Formlos per E-Mail an die Adresse aus dem Impressum; Antwort innerhalb eines Monats, im MVP manuell per DB-Abfrage. |
 
@@ -342,7 +343,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 1 | Login mit Server-Beitritt, Upload-Verifizierung inkl. Admin-Queue, Teams und Einladungen | Du kannst dich einloggen, hochladen, als Admin freigeben und ein Team mit Einladungslink anlegen |
 | 2 | Scrim-Anfragen, Board, Bewerben, Bestätigen, "Meine Scrims", Absagen, Feedback-Formular | Zwei Test-Teams buchen, sagen ab und geben Feedback; die Auswertung stimmt |
 | 3 | Discord-Bot: `/setup`, alle Benachrichtigungen, Reminder, Sweeper | Der komplette Flow läuft mit echten Discord-Nachrichten durch (mit verkürzten Zeiten) |
-| 4 | Admin-Bereich komplett, Datenschutz-Funktionen, Deployment | Production läuft mit HTTPS; zwei echte Discord-Accounts buchen und bewerten einen Scrim |
+| 4 | Admin-Bereich komplett, Datenschutz-Funktionen, Deployment | Production läuft mit HTTPS; zwei echte Discord-Accounts buchen und bewerten einen Scrim. Stand 22.10.2026: auf Entscheidung des Betreibers ohne diese Live-Abnahme abgeschlossen, sie folgt beim Go-Live (ARCHITECTURE §11) |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
