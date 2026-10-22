@@ -539,6 +539,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Team anlegen, beitreten, verlassen; Upload | eingeloggt, nicht gesperrt |
 | Konto löschen (`/account`, nur die Löschaktion) | eingeloggt, **auch gesperrt** |
 | Team bearbeiten, Einladung erneuern, Captain übertragen, Mitglied entfernen | aktueller Captain (Verifizierung nicht nötig, damit er das Team aufbauen kann) |
+| Team-Channel verknüpfen (`/setup` in Discord) | aktueller Captain, nicht gesperrt (Verifizierung nicht nötig); nicht auf dem Hub-Server (§6.4) |
 | Anfrage erstellen/löschen, bewerben, zurückziehen, bestätigen, Scrim absagen, Feedback | aktueller Captain, **selbst verifiziert**, nicht gesperrt |
 | Admin-Bereich, Datei-Abruf | Admin |
 
