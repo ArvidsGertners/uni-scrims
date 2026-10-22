@@ -184,6 +184,70 @@ Prüfen: `https://<domain>/api/health` antwortet, `/impressum` und `/datenschutz
 - **Logs:** `dc logs -f web bot`. Docker rotiert sie (3 × 10 MB pro Container).
 - **Datenbank-Konsole:** `dc exec db psql -U uniscrims uniscrims`
 
+### Variante: Server mit vorhandenem nginx
+
+Belegt auf dem Server schon nginx die Ports 80/443 (z. B. weil dort weitere Seiten laufen), bleibt Caddy aus. Eine Ergänzung zur Compose-Datei, nur auf dem Server, `docker/docker-compose.vps.yml` (in `.git/info/exclude` eintragen):
+
+```yaml
+services:
+  caddy:
+    profiles: ["caddy"]
+  web:
+    ports:
+      - "127.0.0.1:3100:3000"
+```
+
+Alle Compose-Befehle laufen dann mit beiden Dateien. `DOMAIN` muss trotzdem in der `.env` stehen, weil die Compose-Datei es verlangt:
+
+```sh
+alias dc='docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.vps.yml'
+```
+
+nginx übernimmt, was sonst im Caddyfile steht: TLS, HSTS und das Body-Limit von 6 MB. Zuerst nur den Block für Port 80 anlegen, `nginx -t && systemctl reload nginx`, dann das Zertifikat holen (`certbot certonly --nginx -d <domain>`, die Erneuerung übernimmt `certbot.timer`) und den Block für 443 ergänzen:
+
+```nginx
+# Der OAuth-Callback trägt den einmaligen Discord-Code in der URL und wird nicht geloggt.
+map $request_uri $uniscrims_loggable {
+    ~^/api/auth/callback 0;
+    default 1;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name <domain>;
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name <domain>;
+
+    ssl_certificate /etc/letsencrypt/live/<domain>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<domain>/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    access_log /var/log/nginx/access.log combined if=$uniscrims_loggable;
+    client_max_body_size 6m;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:3100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Ohne gemeinsames Git-Remote lässt sich der Code direkt auf den Server pushen: dort einmal `git init -b main /opt/uni-scrims && git -C /opt/uni-scrims config receive.denyCurrentBranch updateInstead`, danach lokal `git push <ssh-host>:/opt/uni-scrims main` statt `git pull`, dann `dc up -d --build`.
+
 ### Backups
 
 `docker/backup.sh` sichert die Datenbank: `pg_dump`, verschlüsselt mit deinem öffentlichen GPG-Schlüssel, 14 Tage lokal in `/var/backups/uni-scrims` und per `rsync --delete` gespiegelt auf einen externen Speicher (z. B. Hetzner Storage Box). Uploads werden bewusst nicht gesichert.

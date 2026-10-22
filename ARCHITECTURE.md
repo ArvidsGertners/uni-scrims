@@ -580,6 +580,8 @@ Alle Services mit Log-Rotation: `logging: { driver: json-file, options: { max-si
 
 Die Datei ist `docker/docker-compose.yml` und wird aus dem Repo-Root mit `docker compose --env-file .env -f docker/docker-compose.yml …` aufgerufen. Die Container von `web` und `bot` bekommen die Root-`.env` per `env_file`; `DATABASE_URL` setzt die Compose-Datei selbst aus `POSTGRES_PASSWORD` zusammen (deshalb hex, URL-sicher). Caddy bekommt nur `DOMAIN`, die Datenbank nur ihr Passwort.
 
+Belegt auf dem Server schon ein nginx die Ports 80/443, bleibt `caddy` per Compose-Ergänzung aus, `web` wird nur auf `127.0.0.1` veröffentlicht, und nginx übernimmt TLS, HSTS und das Body-Limit (README, „Variante: Server mit vorhandenem nginx“).
+
 **Stolperstelle Docker-Build:** Next.js `standalone` im pnpm-Monorepo mit dem Prisma-7-Client außerhalb von `node_modules`. Lösung: `outputFileTracingRoot` auf das Monorepo-Root setzen, `packages/db` und `packages/core` per `transpilePackages` einbinden, Prisma-Client im Build-Schritt explizit generieren. Der Client wird erst beim ersten Zugriff erzeugt, weil `next build` die Route-Module ohne `DATABASE_URL` lädt. Die Root-`.env` lädt `next.config.ts` per `dotenv`, weil Next selbst nur `apps/web/.env*` liest. **Der Docker-Build muss schon in Phase 0 einmal grün laufen.**
 
 ### Backups
