@@ -27,6 +27,8 @@ function requirePublicBaseUrl(): string {
 const token = requireEnv("DISCORD_BOT_TOKEN");
 // Checked at start: a broken URL would otherwise fail every message until it is marked FAILED.
 const baseUrl = requirePublicBaseUrl();
+// /setup refuses the hub server by this ID (§6.4); without it, the hub could be linked unnoticed.
+requireEnv("HUB_GUILD_ID");
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
