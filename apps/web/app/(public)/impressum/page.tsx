@@ -1,9 +1,6 @@
-// Placeholder until phase 4 loads the content from a config file (SPEC P0-10).
+import { LegalContent } from "@/components/legal-content";
+
+// Content from <LEGAL_DIR>/impressum.txt (SPEC P0-10).
 export default function ImpressumPage() {
-  return (
-    <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-12">
-      <h1 className="text-2xl font-bold">Impressum</h1>
-      <p>Folgt.</p>
-    </main>
-  );
+  return <LegalContent page="impressum" title="Impressum" />;
 }

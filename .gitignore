@@ -9,3 +9,4 @@ coverage/
 next-env.d.ts
 packages/db/src/generated/
 .DS_Store
+docker/legal/

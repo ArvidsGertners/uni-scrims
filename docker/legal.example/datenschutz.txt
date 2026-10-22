@@ -1,0 +1,36 @@
+TODO: Diese Datei ist nur ein Gerüst mit den Punkten aus SPEC §9, offener Punkt 2. Den Text schreibst du selbst bzw. lässt ihn prüfen.
+
+## Verantwortlicher
+TODO: Name, Anschrift, E-Mail
+
+## Welche Daten wir verarbeiten
+- TODO: Discord-Login (Discord-ID, Username, Avatar)
+- TODO: Sitzungen mit IP-Adresse und User-Agent
+- TODO: Teams, Anfragen, Scrims und Feedback
+
+## Upload der Immatrikulationsbescheinigung
+TODO: Zweck, Rechtsgrundlage, Löschung direkt nach der Prüfung, spätestens nach 14 Tagen; gespeichert bleiben nur Status, Hochschule, Dateityp, Dateigröße, Ablehnungsgrund, Zeitpunkte und wer geprüft hat
+
+## Rechtsgrundlagen
+TODO
+
+## Discord als Empfänger (USA)
+TODO: Beitritt zum Uni-Scrims-Server beim Login, Discord-Nachrichten (DMs und Team-Channel)
+
+## Hosting und Server-Logs
+TODO: Hoster, Speicherort, Log-Rotation
+
+## Benachrichtigungen
+TODO: werden nach 30 Tagen gelöscht
+
+## Mindestalter
+TODO: 16 Jahre
+
+## Kontolöschung
+TODO: Was gelöscht wird, was anonymisiert bleibt; kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert
+
+## Backups
+TODO: Datenbank-Backups 14 Tage, gelöschte Konten bis zum Ablauf enthalten
+
+## Deine Rechte
+TODO: Auskunft (Art. 15), Berichtigung, Löschung, Beschwerde bei einer Aufsichtsbehörde

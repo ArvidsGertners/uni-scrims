@@ -612,11 +612,14 @@ HUB_INVITE_URL=
 ADMIN_DISCORD_IDS=123,456
 UPLOAD_DIR=/data/uploads
 PUBLIC_BASE_URL=https://deine-domain.de   # für Links in Bot-Nachrichten
+LEGAL_DIR=/config/legal                   # absoluter Pfad zu impressum.txt und datenschutz.txt
 DEV_LOGIN=false
 DEV_DM_REDIRECT_DISCORD_ID=
 DEV_CHANNEL_ID=
 DEV_TIME_OFFSETS=false
 ```
+
+**Impressum und Datenschutzerklärung** liegen als `impressum.txt` und `datenschutz.txt` in `LEGAL_DIR`, außerhalb von Git (Production: `docker/legal/`, schreibgeschützt in den Web-Container gemountet; Gerüst in `docker/legal.example/`). Format: `## ` beginnt eine Überschrift, `- ` einen Listenpunkt, eine Leerzeile beendet einen Absatz; Zeilenumbrüche im Absatz bleiben (Adressen). Die Seiten lesen die Dateien bei jedem Aufruf; fehlt eine, steht dort "Inhalt folgt.".
 
 ### Monitoring
 
