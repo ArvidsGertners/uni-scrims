@@ -1,6 +1,23 @@
-import { AppStatus, NotifType, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
-import { afterAll, describe, expect, it } from "vitest";
-import { applyToRequest, banTeam, banUser, searchModerationTargets } from "../src/index.ts";
+import { existsSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import {
+  AppStatus,
+  NotifType,
+  RequestStatus,
+  ScrimStatus,
+  VerifStatus,
+  prisma,
+} from "@uni-scrims/db";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  BAN_REJECT_REASON,
+  applyToRequest,
+  banTeam,
+  banUser,
+  searchModerationTargets,
+} from "../src/index.ts";
 import {
   NOW,
   SOON,
@@ -14,6 +31,13 @@ import {
 } from "./helpers.ts";
 
 const admin = useAdmin();
+
+let uploadDir: string;
+
+beforeEach(async () => {
+  uploadDir = await mkdtemp(path.join(tmpdir(), "uni-scrims-moderation-"));
+  return () => rm(uploadDir, { recursive: true, force: true });
+});
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -99,7 +123,9 @@ describe("banUser", () => {
     const player = members[0]!;
     await createSession(player.id);
 
-    await expect(banUser({ adminId: admin.id, userId: player.id, now: NOW })).resolves.toEqual({
+    await expect(
+      banUser({ adminId: admin.id, userId: player.id, uploadDir, now: NOW }),
+    ).resolves.toEqual({
       teamBanned: false,
     });
 
@@ -118,7 +144,7 @@ describe("banUser", () => {
     await createSession(host.captain.id);
 
     await expect(
-      banUser({ adminId: admin.id, userId: host.captain.id, now: NOW }),
+      banUser({ adminId: admin.id, userId: host.captain.id, uploadDir, now: NOW }),
     ).resolves.toEqual({ teamBanned: true });
 
     expect(await prisma.session.count({ where: { userId: host.captain.id } })).toBe(0);
@@ -138,7 +164,9 @@ describe("banUser", () => {
   it("bans the captain of an already banned team", async () => {
     const { team, captain } = await createReadyTeam();
     await banTeam({ adminId: admin.id, teamId: team.id, now: NOW });
-    await expect(banUser({ adminId: admin.id, userId: captain.id, now: NOW })).resolves.toEqual({
+    await expect(
+      banUser({ adminId: admin.id, userId: captain.id, uploadDir, now: NOW }),
+    ).resolves.toEqual({
       teamBanned: false,
     });
     expect(await prisma.user.findUnique({ where: { id: captain.id } })).toMatchObject({
@@ -148,30 +176,71 @@ describe("banUser", () => {
 
   it("bans users without a team and rejects bans that make no sense", async () => {
     const loner = await createUser();
-    await banUser({ adminId: admin.id, userId: loner.id, now: NOW });
+    await banUser({ adminId: admin.id, userId: loner.id, uploadDir, now: NOW });
     expect(await prisma.user.findUnique({ where: { id: loner.id } })).toMatchObject({
       bannedAt: NOW,
     });
-    await expect(banUser({ adminId: admin.id, userId: loner.id, now: NOW })).rejects.toMatchObject({
+    await expect(
+      banUser({ adminId: admin.id, userId: loner.id, uploadDir, now: NOW }),
+    ).rejects.toMatchObject({
       code: "CONFLICT",
     });
-    await expect(banUser({ adminId: admin.id, userId: admin.id, now: NOW })).rejects.toMatchObject({
+    await expect(
+      banUser({ adminId: admin.id, userId: admin.id, uploadDir, now: NOW }),
+    ).rejects.toMatchObject({
       code: "INVALID",
     });
-    await expect(banUser({ adminId: admin.id, userId: "unknown", now: NOW })).rejects.toMatchObject(
-      { code: "NOT_FOUND" },
-    );
+    await expect(
+      banUser({ adminId: admin.id, userId: "unknown", uploadDir, now: NOW }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
     const other = await createUser();
-    await expect(banUser({ adminId: other.id, userId: loner.id, now: NOW })).rejects.toMatchObject({
+    await expect(
+      banUser({ adminId: other.id, userId: loner.id, uploadDir, now: NOW }),
+    ).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
+  });
+
+  it("closes a pending verification without a message and deletes its file", async () => {
+    const user = await createUser();
+    const file = `${uid()}.pdf`;
+    await writeFile(path.join(uploadDir, file), "file");
+    const base = { userId: user.id, mimeType: "application/pdf", sizeBytes: 4, createdAt: NOW };
+    const decided = await prisma.verificationRequest.create({
+      data: { ...base, status: VerifStatus.REJECTED, rejectReason: "unlesbar" },
+    });
+    const pending = await prisma.verificationRequest.create({
+      data: { ...base, filePath: file, status: VerifStatus.PENDING, pendingUserId: user.id },
+    });
+
+    await banUser({ adminId: admin.id, userId: user.id, uploadDir, now: NOW });
+
+    expect(
+      await prisma.verificationRequest.findUnique({ where: { id: pending.id } }),
+    ).toMatchObject({
+      status: VerifStatus.REJECTED,
+      rejectReason: BAN_REJECT_REASON,
+      decidedAt: NOW,
+      decidedById: null,
+      pendingUserId: null,
+      filePath: null,
+    });
+    expect(existsSync(path.join(uploadDir, file))).toBe(false);
+    expect(
+      await prisma.verificationRequest.findUnique({ where: { id: decided.id } }),
+    ).toMatchObject({ rejectReason: "unlesbar" });
+    expect(
+      await prisma.notification.count({
+        where: { targetUserId: user.id, type: NotifType.VERIFICATION_RESULT },
+      }),
+    ).toBe(0);
   });
 
   it("rejects a deleted account, whose ban would not hold at the next login", async () => {
     const deleted = await createUser();
     await prisma.account.deleteMany({ where: { userId: deleted.id } });
     await expect(
-      banUser({ adminId: admin.id, userId: deleted.id, now: NOW }),
+      banUser({ adminId: admin.id, userId: deleted.id, uploadDir, now: NOW }),
     ).rejects.toMatchObject({ code: "CONFLICT" });
     expect(await prisma.user.findUnique({ where: { id: deleted.id } })).toMatchObject({
       bannedAt: null,

@@ -5,10 +5,15 @@ import { TIMING } from "../config/timing.ts";
 import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { queueNotifications } from "./notifications.ts";
+import { lockUser } from "./locks.ts";
 import { requireAdmin, requireUser } from "./permissions.ts";
 import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./uploads.ts";
 
 export const AUTO_REJECT_REASON = "Prüfung nicht rechtzeitig erfolgt";
+/** Janitor: a pending request whose file is gone (restored database backup). */
+export const MISSING_FILE_REASON = "Datei nicht mehr vorhanden, bitte erneut hochladen";
+/** banUser closes a pending request with this reason and without a message. */
+export const BAN_REJECT_REASON = "Konto gesperrt";
 /** Files in the upload directory without a database row are deleted after this age. */
 export const ORPHAN_FILE_AGE_MS = 24 * 60 * 60 * 1000;
 export const MAX_UNIVERSITY_OTHER_LENGTH = 200;
@@ -72,18 +77,30 @@ export async function submitVerification(input: SubmitVerificationInput) {
   const type = await detectUploadType(input.file);
   const fileName = await storeUpload(input.uploadDir, input.file, type.ext);
   try {
-    return await prisma.verificationRequest.create({
-      data: {
-        userId: user.id,
-        pendingUserId: user.id,
-        universityId,
-        universityOther,
-        filePath: fileName,
-        mimeType: type.mimeType,
-        sizeBytes: input.file.byteLength,
-        status: VerifStatus.PENDING,
-        createdAt: input.now,
-      },
+    return await prisma.$transaction(async (tx) => {
+      // User before VerificationRequest (§4), as in deleteAccount, banUser and decideVerification:
+      // a deletion or ban that commits meanwhile is seen here, a later one finds this request.
+      await lockUser(tx, user.id);
+      const current = await requireUser(user.id, tx);
+      if (current.verifiedAt) {
+        throw new DomainError("CONFLICT", "Du bist bereits verifiziert.");
+      }
+      if (await tx.verificationRequest.findUnique({ where: { pendingUserId: user.id } })) {
+        throw pendingConflict();
+      }
+      return tx.verificationRequest.create({
+        data: {
+          userId: user.id,
+          pendingUserId: user.id,
+          universityId,
+          universityOther,
+          filePath: fileName,
+          mimeType: type.mimeType,
+          sizeBytes: input.file.byteLength,
+          status: VerifStatus.PENDING,
+          createdAt: input.now,
+        },
+      });
     });
   } catch (error) {
     await deleteUpload(input.uploadDir, fileName);
@@ -130,6 +147,8 @@ export async function decideVerification(input: DecideVerificationInput): Promis
     if (!request) {
       throw new DomainError("NOT_FOUND", "Prüfung nicht gefunden.");
     }
+    // User before VerificationRequest (§4), as in deleteAccount: the other order deadlocked with it.
+    await lockUser(tx, request.userId);
     const approved = input.decision === "APPROVED";
     const universityId = request.universityId ?? (approved ? input.universityId || null : null);
     const updated = await tx.verificationRequest.updateMany({
@@ -144,7 +163,10 @@ export async function decideVerification(input: DecideVerificationInput): Promis
       },
     });
     if (updated.count === 0) {
-      throw new DomainError("CONFLICT", "Diese Prüfung ist bereits entschieden.");
+      // Decided meanwhile, or deleted with the account.
+      throw (await tx.verificationRequest.findUnique({ where: { id: request.id } }))
+        ? new DomainError("CONFLICT", "Diese Prüfung ist bereits entschieden.")
+        : new DomainError("NOT_FOUND", "Prüfung nicht gefunden.");
     }
     if (approved) {
       await tx.user.update({
@@ -170,7 +192,7 @@ export async function decideVerification(input: DecideVerificationInput): Promis
   // After the commit: the file is deleted right after the decision (SPEC P0-2). The decision is
   // already saved, so a failure here must not look like a failed decision; janitor step 2 retries.
   try {
-    await removeFile(request.id, request.filePath, input.uploadDir);
+    await removeVerificationFile(request.id, request.filePath, input.uploadDir);
   } catch (error) {
     console.error(`Could not delete the upload of verification ${request.id}`, error);
   }
@@ -195,10 +217,46 @@ async function createResultNotification(
   ]);
 }
 
-async function removeFile(requestId: string, fileName: string | null, uploadDir: string) {
+/**
+ * Deletes the file of a decided request and clears filePath. Callers run it after their commit;
+ * if it fails, janitor step 2 retries. A request deleted meanwhile (account deletion) is skipped.
+ */
+export async function removeVerificationFile(
+  requestId: string,
+  fileName: string | null,
+  uploadDir: string,
+): Promise<void> {
   if (!fileName) return;
   await deleteUpload(uploadDir, fileName);
-  await prisma.verificationRequest.update({ where: { id: requestId }, data: { filePath: null } });
+  await prisma.verificationRequest.updateMany({
+    where: { id: requestId },
+    data: { filePath: null },
+  });
+}
+
+/**
+ * Rejects a pending request without the user's doing, in the caller's transaction. The caller holds
+ * the user row (§4). Returns false if the request was no longer pending.
+ */
+async function rejectPending(
+  tx: Prisma.TransactionClient,
+  request: { id: string; userId: string },
+  reason: string,
+  now: Date,
+): Promise<boolean> {
+  const updated = await tx.verificationRequest.updateMany({
+    where: { id: request.id, status: VerifStatus.PENDING },
+    data: {
+      status: VerifStatus.REJECTED,
+      rejectReason: reason,
+      decidedAt: now,
+      decidedById: null,
+      pendingUserId: null,
+    },
+  });
+  if (updated.count === 0) return false;
+  await createResultNotification(tx, request.id, request.userId, false, reason, now);
+  return true;
 }
 
 /** Janitor step 1: pending requests older than VERIFICATION_TTL are rejected automatically. */
@@ -214,31 +272,14 @@ export async function autoRejectStaleVerifications(
   let rejected = 0;
   for (const request of stale) {
     const changed = await prisma.$transaction(async (tx) => {
-      const updated = await tx.verificationRequest.updateMany({
-        where: { id: request.id, status: VerifStatus.PENDING },
-        data: {
-          status: VerifStatus.REJECTED,
-          rejectReason: AUTO_REJECT_REASON,
-          decidedAt: now,
-          decidedById: null,
-          pendingUserId: null,
-        },
-      });
-      if (updated.count === 0) return false;
-      await createResultNotification(
-        tx,
-        request.id,
-        request.userId,
-        false,
-        AUTO_REJECT_REASON,
-        now,
-      );
-      return true;
+      // User before VerificationRequest (§4), as in decideVerification.
+      await lockUser(tx, request.userId);
+      return rejectPending(tx, request, AUTO_REJECT_REASON, now);
     });
     if (changed) {
       rejected++;
       try {
-        await removeFile(request.id, request.filePath, uploadDir);
+        await removeVerificationFile(request.id, request.filePath, uploadDir);
       } catch (error) {
         console.error(`Could not delete the upload of verification ${request.id}`, error);
       }
@@ -247,19 +288,69 @@ export async function autoRejectStaleVerifications(
   return rejected;
 }
 
-/** Janitor step 2: decided requests that still reference a file. */
+/**
+ * Janitor step 2: pending requests whose file is gone, e.g. after restoring a database backup
+ * (uploads are not backed up, ARCHITECTURE §8). They cannot be checked, so the user uploads again.
+ */
+export async function rejectPendingWithoutFile(now: Date, uploadDir: string): Promise<number> {
+  // A missing directory means a wrong UPLOAD_DIR or a missing volume, not lost files: reject nothing.
+  if (!(await isDirectory(uploadDir))) {
+    console.error(`Upload directory ${uploadDir} is missing; pending verifications are kept`);
+    return 0;
+  }
+  const pending = await prisma.verificationRequest.findMany({
+    where: { status: VerifStatus.PENDING },
+    select: { id: true, userId: true, filePath: true },
+  });
+  let rejected = 0;
+  for (const request of pending) {
+    if (request.filePath && (await uploadExists(uploadDir, request.filePath))) continue;
+    const changed = await prisma.$transaction(async (tx) => {
+      await lockUser(tx, request.userId);
+      return rejectPending(tx, request, MISSING_FILE_REASON, now);
+    });
+    if (changed) {
+      rejected++;
+      await prisma.verificationRequest.updateMany({
+        where: { id: request.id },
+        data: { filePath: null },
+      });
+    }
+  }
+  return rejected;
+}
+
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+async function uploadExists(uploadDir: string, fileName: string): Promise<boolean> {
+  try {
+    return (await stat(uploadFilePath(uploadDir, fileName))).isFile();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+/** Janitor step 3: decided requests that still reference a file. */
 export async function cleanupDecidedFiles(uploadDir: string): Promise<number> {
   const leftovers = await prisma.verificationRequest.findMany({
     where: { status: { not: VerifStatus.PENDING }, filePath: { not: null } },
     select: { id: true, filePath: true },
   });
   for (const request of leftovers) {
-    await removeFile(request.id, request.filePath, uploadDir);
+    await removeVerificationFile(request.id, request.filePath, uploadDir);
   }
   return leftovers.length;
 }
 
-/** Janitor step 3: files without a database row that are older than 24 h. */
+/** Janitor step 4: files without a database row that are older than 24 h. */
 export async function cleanupOrphanFiles(uploadDir: string, now: Date): Promise<number> {
   let names: string[];
   try {
@@ -298,6 +389,7 @@ export async function cleanupOrphanFiles(uploadDir: string, now: Date): Promise<
 export async function runUploadJanitor(uploadDir: string, now: Date) {
   return {
     autoRejected: await autoRejectStaleVerifications(now, uploadDir),
+    missingFiles: await rejectPendingWithoutFile(now, uploadDir),
     decidedFiles: await cleanupDecidedFiles(uploadDir),
     orphanFiles: await cleanupOrphanFiles(uploadDir, now),
   };

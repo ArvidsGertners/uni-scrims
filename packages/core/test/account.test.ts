@@ -13,12 +13,14 @@ import {
   findUserByDiscordId,
   getAccount,
   getReliability,
+  requireAccountUser,
   requireUser,
 } from "../src/index.ts";
 import { queueNotifications } from "../src/notifications.ts";
 import {
   NOW,
   bookScrim,
+  createOpenRequest,
   createReadyTeam,
   createSession,
   createTeamWithMembers,
@@ -62,6 +64,11 @@ async function personalData(userId: string) {
     },
   ]);
   await createSession(userId);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { hubJoinFailedAt: NOW, dmFailedAt: NOW },
+  });
+  await prisma.account.updateMany({ where: { userId }, data: { scope: "identify guilds.join" } });
   return files;
 }
 
@@ -80,6 +87,8 @@ describe("deleteAccount", () => {
       verifiedAt: null,
       universityId: null,
       universityOther: null,
+      hubJoinFailedAt: null,
+      dmFailedAt: null,
       bannedAt: null,
     });
     expect(await prisma.teamMember.findUnique({ where: { userId: player.id } })).toBeNull();
@@ -101,19 +110,87 @@ describe("deleteAccount", () => {
 
   it("keeps only the Discord ID of a banned user, so the ban survives a new login", async () => {
     const user = await createUser({ verified: true });
-    await banUser({ adminId: admin.id, userId: user.id, now: NOW });
+    await banUser({ adminId: admin.id, userId: user.id, uploadDir, now: NOW });
     await personalData(user.id);
 
     await remove(user.id);
 
     expect(await prisma.account.findMany({ where: { userId: user.id } })).toMatchObject([
-      { providerId: "discord", accountId: user.discordId, accessToken: null, refreshToken: null },
+      {
+        providerId: "discord",
+        accountId: user.discordId,
+        accessToken: null,
+        refreshToken: null,
+        scope: null,
+      },
     ]);
     const again = await findUserByDiscordId(user.discordId);
-    expect(again).toMatchObject({ id: user.id, name: DELETED_USER_NAME, bannedAt: NOW });
-    await expect(requireUser(again?.id)).rejects.toMatchObject({ code: "BANNED" });
+    expect(again).toMatchObject({
+      id: user.id,
+      name: DELETED_USER_NAME,
+      email: deletedUserEmail(user.id),
+      image: null,
+      verifiedAt: null,
+      universityId: null,
+      universityOther: null,
+      hubJoinFailedAt: null,
+      dmFailedAt: null,
+      bannedAt: NOW,
+    });
     expect(await prisma.verificationRequest.count({ where: { userId: user.id } })).toBe(0);
+    expect(await prisma.notification.count({ where: { targetUserId: user.id } })).toBe(0);
     expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+
+    // A new login lands on the same user; Better Auth writes the original placeholder back (§4).
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { email: `${user.discordId}@users.uniscrims.invalid` },
+    });
+    await expect(requireUser(user.id)).rejects.toMatchObject({ code: "BANNED" });
+  });
+
+  it("treats a deleted account as logged out", async () => {
+    const user = await createUser();
+    await remove(user.id);
+    await expect(requireAccountUser(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    await expect(getAccount(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    await expect(remove(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+
+  it("clears the notes of the user's own requests and keeps the requests", async () => {
+    const { host, request } = await bookScrim({ note: "Discord: kontakt#1234" });
+    const open = await createOpenRequest(host.captain.id, { note: "Meldet euch", time: "21:00" });
+    await prisma.teamMember.deleteMany({
+      where: { teamId: host.team.id, userId: { not: host.captain.id } },
+    });
+
+    await remove(host.captain.id);
+
+    expect(await prisma.scrimRequest.findUnique({ where: { id: request.id } })).toMatchObject({
+      note: null,
+    });
+    expect(await prisma.scrimRequest.findUnique({ where: { id: open.id } })).toMatchObject({
+      note: null,
+    });
+  });
+
+  it("dissolves a banned team whose unbanned captain deletes the account", async () => {
+    const { team, captain, members } = await createTeamWithMembers({
+      extraMembers: 2,
+      banned: true,
+    });
+    expect(await getAccount(captain.id)).toMatchObject({ banned: false, deletionProblem: null });
+
+    await remove(captain.id);
+
+    expect(await prisma.team.findUnique({ where: { id: team.id } })).toMatchObject({
+      bannedAt: NOW,
+      dissolvedAt: NOW,
+    });
+    for (const member of members) {
+      expect(await prisma.teamMember.findUnique({ where: { userId: member.id } })).toBeNull();
+    }
+    expect(await prisma.account.count({ where: { userId: captain.id } })).toBe(0);
   });
 
   it("needs a captain with members to hand over the role first", async () => {
@@ -163,7 +240,7 @@ describe("deleteAccount", () => {
 
   it("dissolves the banned team of a banned captain with members", async () => {
     const { team, captain, members } = await createTeamWithMembers({ extraMembers: 2 });
-    await banUser({ adminId: admin.id, userId: captain.id, now: NOW });
+    await banUser({ adminId: admin.id, userId: captain.id, uploadDir, now: NOW });
     expect(await getAccount(captain.id)).toMatchObject({ banned: true, deletionProblem: null });
 
     await remove(captain.id);

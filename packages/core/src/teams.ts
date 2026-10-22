@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
-import { inTransaction, lockRequest, lockTeam } from "./locks.ts";
+import { inTransaction, lockRequest, lockTeam, lockUser } from "./locks.ts";
 import {
   findOwnTeam,
   isCaptainOf,
@@ -50,6 +50,13 @@ export async function createTeam(input: TeamInput & { userId: string; now: Date 
   }
   try {
     return await prisma.$transaction(async (tx) => {
+      // Nobody sees the new team yet, so the user row is the first lock (§4). A ban or deletion that
+      // holds it finishes first and is seen here; a later one sees the membership and asks to retry.
+      await lockUser(tx, user.id);
+      await requireUser(user.id, tx);
+      if (await tx.teamMember.findUnique({ where: { userId: user.id } })) {
+        throw alreadyInTeam();
+      }
       const team = await tx.team.create({
         data: {
           name: data.name,
@@ -186,6 +193,10 @@ export async function joinTeam(input: { userId: string; inviteCode: string; now:
       if (team.inviteCode !== input.inviteCode || !isTeamActive(team)) {
         throw invalidInvite();
       }
+      // Team before user (§4), as in banUser and deleteAccount: a ban or deletion that holds the user
+      // row finishes first and is seen here; a later one sees the membership and asks to retry.
+      await lockUser(tx, user.id);
+      await requireUser(user.id, tx);
       const membership = await tx.teamMember.findUnique({ where: { userId: user.id } });
       if (membership) {
         throw membership.teamId === team.id

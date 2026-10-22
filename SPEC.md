@@ -94,7 +94,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 - Ein Team hat seine Bewerbung zurückgezogen: Es kann sich auf dieselbe Anfrage nicht erneut bewerben.
 - Der Captain verlässt das Team: nur nach Übertragung der Captain-Rolle. Ist er das einzige Mitglied, wird das Team beim Verlassen aufgelöst.
 - Ein Team wird gesperrt oder aufgelöst: Seine offenen Anfragen werden gelöscht, seine offenen Bewerbungen zurückgezogen und seine künftigen Scrims abgesagt. Das Gegnerteam bekommt Bescheid, und die Absage zählt für niemanden als kurzfristig.
-- Ein Spieler wird gesperrt: Er wird aus seinem Team entfernt. Ein gesperrter Captain bleibt im Team, das Team wird mitgesperrt. Die übrigen Mitglieder können das gesperrte Team verlassen und ein neues gründen oder einem anderen beitreten.
+- Ein Spieler wird gesperrt: Er wird aus seinem Team entfernt. Ein gesperrter Captain bleibt im Team, das Team wird mitgesperrt. Die übrigen Mitglieder können das gesperrte Team verlassen und ein neues gründen oder einem anderen beitreten. Eine offene Prüfung seiner Bescheinigung wird ohne Nachricht abgelehnt und die Datei gelöscht.
 - Der Captain ist selbst noch nicht verifiziert: Er kann das Team verwalten und einladen, aber keine Scrim-Aktionen ausführen.
 - Der Bot ist nicht auf dem Team-Server: Benachrichtigungen gehen dann nur per DM an den Captain.
 - DMs kommen nicht an (Hub-Server-Beitritt gescheitert, DMs blockiert): dauerhafter Hinweis auf der Website, bis eine DM wieder zugestellt wurde.
@@ -230,7 +230,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 **P0-10 Rechtliches und Datenschutz**
 - [ ] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
-- [ ] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert, damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Meldet sich ein gesperrter Nutzer nach der Löschung erneut an, werden Discord-Name, Avatar und Session wie bei jedem Login wieder gespeichert (bewusst akzeptiert); er kann das Konto danach erneut löschen. Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
+- [ ] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert, damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Meldet sich ein gesperrter Nutzer nach der Löschung erneut an, werden Discord-Name, Avatar und Session wie bei jedem Login wieder gespeichert (bewusst akzeptiert); er kann das Konto danach erneut löschen. Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
 - [ ] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus
 - [ ] Server-Logs werden begrenzt aufbewahrt (Rotation)
 

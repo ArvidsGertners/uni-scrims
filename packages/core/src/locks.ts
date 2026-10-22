@@ -3,11 +3,18 @@
 // FOR KEY SHARE locks that foreign key checks take. With FOR UPDATE, dissolving a team (holds the
 // Team lock, then locks its requests) deadlocked with applying to one of its requests (holds the
 // request lock, then inserts a notification referencing the Team).
+// Lock order in every transaction (ARCHITECTURE §4): Team → User → ScrimRequest (several by id) →
+// Scrim; VerificationRequest, Application and Notification rows only after that.
 import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 
 export async function lockTeam(tx: Prisma.TransactionClient, teamId: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "Team" WHERE id = ${teamId} FOR NO KEY UPDATE`;
+}
+
+/** The Better Auth table "user" keeps its @@map; the only lock on a table that is not a domain model. */
+export async function lockUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "user" WHERE id = ${userId} FOR NO KEY UPDATE`;
 }
 
 export async function lockRequest(tx: Prisma.TransactionClient, requestId: string): Promise<void> {

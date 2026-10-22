@@ -1,10 +1,11 @@
 // Bans by admins (SPEC P0-9, edge cases; ARCHITECTURE §5.5). Unbanning is manual SQL in the MVP.
-import { type Prisma, prisma } from "@uni-scrims/db";
+import { type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAdmin } from "./permissions.ts";
 import { retireTeamActivity } from "./teams.ts";
 import { DISCORD_PROVIDER, getDiscordId } from "./users.ts";
+import { BAN_REJECT_REASON, removeVerificationFile } from "./verification.ts";
 
 export const MIN_SEARCH_LENGTH = 2;
 export const MAX_SEARCH_RESULTS = 20;
@@ -89,7 +90,7 @@ export async function searchModerationTargets(input: { adminId: string; query: s
  * Bans a team that is not dissolved: open requests, own applications and future scrims are retired.
  * Returns false if the team was already banned. Building block without permission check.
  */
-async function banTeamInTx(
+export async function banTeamInTx(
   tx: Prisma.TransactionClient,
   teamId: string,
   now: Date,
@@ -116,49 +117,89 @@ export async function banTeam(input: { adminId: string; teamId: string; now: Dat
 
 /**
  * Bans a user and ends their sessions. A player is removed from the team; a captain stays member
- * and captain, and the team is banned with them.
+ * and captain, and the team is banned with them. A pending verification is closed without a message
+ * and its file deleted.
  */
-export async function banUser(input: { adminId: string; userId: string; now: Date }) {
+export async function banUser(input: {
+  adminId: string;
+  userId: string;
+  uploadDir: string;
+  now: Date;
+}) {
   const admin = await requireAdmin(input.adminId);
   if (input.userId === admin.id) {
     throw new DomainError("INVALID", "Du kannst dich nicht selbst sperren.");
   }
-  const user = { id: input.userId };
-  return prisma.$transaction(async (tx) => {
-    // Team before user, in the same order as leaveTeam and deleteAccount, so they cannot deadlock.
-    const membership = await tx.teamMember.findUnique({ where: { userId: user.id } });
-    if (membership) await lockTeam(tx, membership.teamId);
-    // The update locks the user row, so it waits for a running deleteAccount.
-    const banned = await tx.user.updateMany({
-      where: { id: user.id, bannedAt: null },
-      data: { bannedAt: input.now },
-    });
-    if (banned.count === 0) {
-      throw (await tx.user.findUnique({ where: { id: user.id } }))
-        ? new DomainError("CONFLICT", "Der Nutzer ist schon gesperrt.")
-        : new DomainError("NOT_FOUND", "Nutzer nicht gefunden.");
-    }
-    // A deleted account has no Discord link left: a new login would create a new, unbanned user.
-    if (!(await getDiscordId(user.id, tx))) {
-      throw new DomainError(
-        "CONFLICT",
-        "Das Konto wurde gelöscht, eine Sperre würde nicht greifen.",
-      );
-    }
-    await tx.session.deleteMany({ where: { userId: user.id } });
+  const { teamBanned, closedVerifications } = await prisma.$transaction((tx) =>
+    banUserInTx(tx, input.userId, input.now),
+  );
+  await removeClosedVerificationFiles(closedVerifications, input.uploadDir);
+  return { teamBanned };
+}
 
-    // Read again under the lock: the user may have left or changed teams meanwhile.
-    const team = await findOwnTeam(user.id, tx);
-    if (team && team.id !== membership?.teamId) {
-      // Joined another team in between; that one is not locked, and locking it now would invert
-      // the order.
-      throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
+/** After the commit, as in decideVerification; janitor step 3 retries a failure. */
+export async function removeClosedVerificationFiles(
+  closed: readonly { id: string; filePath: string | null }[],
+  uploadDir: string,
+): Promise<void> {
+  for (const request of closed) {
+    try {
+      await removeVerificationFile(request.id, request.filePath, uploadDir);
+    } catch (error) {
+      console.error(`Could not delete the upload of verification ${request.id}`, error);
     }
-    if (!team) return { teamBanned: false };
-    if (isCaptainOf(user, team)) {
-      return { teamBanned: await banTeamInTx(tx, team.id, input.now) };
-    }
-    await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
-    return { teamBanned: false };
+  }
+}
+
+/** Building block of banUser without permission check (also used after a restore). */
+export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, now: Date) {
+  const user = { id: userId };
+  // Team before user, in the same order as leaveTeam, joinTeam and deleteAccount (§4).
+  const membership = await tx.teamMember.findUnique({ where: { userId: user.id } });
+  if (membership) await lockTeam(tx, membership.teamId);
+  // The update locks the user row, so it waits for a running deleteAccount, joinTeam, createTeam or
+  // submitVerification, and they wait for it.
+  const banned = await tx.user.updateMany({
+    where: { id: user.id, bannedAt: null },
+    data: { bannedAt: now },
   });
+  if (banned.count === 0) {
+    throw (await tx.user.findUnique({ where: { id: user.id } }))
+      ? new DomainError("CONFLICT", "Der Nutzer ist schon gesperrt.")
+      : new DomainError("NOT_FOUND", "Nutzer nicht gefunden.");
+  }
+  // A deleted account has no Discord link left: a new login would create a new, unbanned user.
+  if (!(await getDiscordId(user.id, tx))) {
+    throw new DomainError("CONFLICT", "Das Konto wurde gelöscht, eine Sperre würde nicht greifen.");
+  }
+  await tx.session.deleteMany({ where: { userId: user.id } });
+
+  // After the user row is locked, so an upload that committed first is included. A cascade, not a
+  // review of the document: no admin, no message.
+  const closedVerifications = await tx.verificationRequest.updateManyAndReturn({
+    where: { userId: user.id, status: VerifStatus.PENDING },
+    data: {
+      status: VerifStatus.REJECTED,
+      rejectReason: BAN_REJECT_REASON,
+      decidedAt: now,
+      decidedById: null,
+      pendingUserId: null,
+    },
+    select: { id: true, filePath: true },
+  });
+
+  // Read again under the lock: the user may have left or changed teams meanwhile.
+  const team = await findOwnTeam(user.id, tx);
+  if (team && team.id !== membership?.teamId) {
+    // Joined another team in between; that one is not locked, and locking it now would invert
+    // the order.
+    throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
+  }
+  let teamBanned = false;
+  if (team && isCaptainOf(user, team)) {
+    teamBanned = await banTeamInTx(tx, team.id, now);
+  } else if (team) {
+    await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+  }
+  return { teamBanned, closedVerifications };
 }

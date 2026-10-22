@@ -6,17 +6,9 @@ import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
-import { DISCORD_PROVIDER, clearOAuthTokens } from "./users.ts";
+import { DISCORD_PROVIDER, clearOAuthTokens, deletedUserEmail } from "./users.ts";
 
 export const DELETED_USER_NAME = "Gelöschter Nutzer";
-
-/**
- * A new placeholder instead of `<discordId>@…`: email is unique, and a later login with the same
- * Discord account creates a new user with the original placeholder.
- */
-export function deletedUserEmail(userId: string): string {
-  return `deleted-${userId}@users.uniscrims.invalid`;
-}
 
 /**
  * Why the account cannot be deleted right now, or null. Only the captain of a team that is not
@@ -59,7 +51,8 @@ export async function deleteAccount(input: {
 }): Promise<void> {
   const user = await requireAccountUser(input.userId);
   const files = await prisma.$transaction(async (tx) => {
-    // Team before user, in the same order as leaveTeam and banUser, so they cannot deadlock.
+    // Team before user (§4), in the same order as leaveTeam, joinTeam and banUser, so they cannot
+    // deadlock.
     const ownTeam = await findOwnTeam(user.id, tx);
     if (ownTeam) await lockTeam(tx, ownTeam.id);
 
@@ -102,6 +95,12 @@ export async function deleteAccount(input: {
       select: { filePath: true },
     });
     await tx.verificationRequest.deleteMany({ where: { userId: user.id } });
+    // A note is free text the user wrote, often with contact details (§4). Application messages
+    // have no author and stay with the team.
+    await tx.scrimRequest.updateMany({
+      where: { createdById: user.id, note: { not: null } },
+      data: { note: null },
+    });
     await tx.notification.deleteMany({ where: { targetUserId: user.id } });
     await tx.session.deleteMany({ where: { userId: user.id } });
     if (bannedAt) {
@@ -110,6 +109,10 @@ export async function deleteAccount(input: {
         where: { userId: user.id, providerId: { not: DISCORD_PROVIDER } },
       });
       await clearOAuthTokens(user.id, tx);
+      await tx.account.updateMany({
+        where: { userId: user.id, providerId: DISCORD_PROVIDER },
+        data: { scope: null },
+      });
     } else {
       await tx.account.deleteMany({ where: { userId: user.id } });
     }

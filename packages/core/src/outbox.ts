@@ -23,7 +23,7 @@ import { requireAdmin } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
 import { isRequestOpen } from "./requests.ts";
 import { feedbackClosedReason } from "./scrims.ts";
-import { getDiscordId } from "./users.ts";
+import { getDiscordId, notDeletedUserWhere } from "./users.ts";
 
 const MINUTE = 60 * 1000;
 
@@ -228,7 +228,11 @@ const MAX_ERROR_LENGTH = 500;
 /** dmFailedAt drives the banner (§5.1); a redirected dev DM says nothing about the user. */
 async function recordDmResult(recipient: Recipient, dmFailedAt: Date | null): Promise<void> {
   if (recipient.kind !== "DM" || recipient.redirectedFrom !== null) return;
-  await prisma.user.update({ where: { id: recipient.userId }, data: { dmFailedAt } });
+  // updateMany: an account deleted during the send keeps dmFailedAt at null (§4).
+  await prisma.user.updateMany({
+    where: notDeletedUserWhere(recipient.userId),
+    data: { dmFailedAt },
+  });
 }
 
 /** null if the entry was no longer pending, so nothing was written. */

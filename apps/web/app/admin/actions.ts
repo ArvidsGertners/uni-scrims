@@ -77,7 +77,7 @@ export async function banUserAction(_state: ActionState, formData: FormData): Pr
   const userId = idSchema.safeParse(formField(formData, "userId"));
   if (!userId.success) return invalidInput;
   const state = await runAction(async () => {
-    await banUser({ adminId, userId: userId.data, now: new Date() });
+    await banUser({ adminId, userId: userId.data, uploadDir: resolveUploadDir(), now: new Date() });
   });
   revalidatePath("/admin/bans");
   return state;

@@ -3,6 +3,25 @@ import type { Db } from "./db.ts";
 
 export const DISCORD_PROVIDER = "discord";
 
+/**
+ * Email of a deleted account (ARCHITECTURE §4). A new placeholder instead of `<discordId>@…`: email
+ * is unique, and a later login with the same Discord account creates a new user with the original
+ * placeholder. A banned user who logs in again gets the original placeholder back.
+ */
+export function deletedUserEmail(userId: string): string {
+  return `deleted-${userId}@users.uniscrims.invalid`;
+}
+
+/** Deleted and not logged in again since; counts as logged out everywhere. */
+export function isDeletedUser(user: { id: string; email: string }): boolean {
+  return user.email === deletedUserEmail(user.id);
+}
+
+/** The user, unless the account was deleted; for writes that must not touch a deleted account. */
+export function notDeletedUserWhere(userId: string) {
+  return { id: userId, email: { not: deletedUserEmail(userId) } };
+}
+
 // The Discord user ID lives in account.accountId (ARCHITECTURE §4); there is no column on User.
 export async function getDiscordId(userId: string, db: Db = prisma): Promise<string | null> {
   const account = await db.account.findFirst({
@@ -59,8 +78,9 @@ export async function recordHubJoinResult(
   now: Date,
   db: Db = prisma,
 ): Promise<void> {
-  await db.user.update({
-    where: { id: userId },
+  // updateMany: a deletion that commits meanwhile keeps hubJoinFailedAt at null (§4).
+  await db.user.updateMany({
+    where: notDeletedUserWhere(userId),
     data: { hubJoinFailedAt: joined ? null : now },
   });
 }

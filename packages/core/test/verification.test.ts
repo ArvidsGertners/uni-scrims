@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   AUTO_REJECT_REASON,
   MAX_UPLOAD_BYTES,
+  MISSING_FILE_REASON,
   autoRejectStaleVerifications,
   cleanupDecidedFiles,
   cleanupOrphanFiles,
@@ -14,6 +15,7 @@ import {
   detectUploadType,
   getVerificationFile,
   listPendingVerifications,
+  rejectPendingWithoutFile,
   submitVerification,
 } from "../src/index.ts";
 import { NOW, createUser } from "./helpers.ts";
@@ -300,6 +302,44 @@ describe("admin queue", () => {
 });
 
 describe("janitor", () => {
+  it("rejects pending requests whose file is gone and tells the user", async () => {
+    const user = await createUser();
+    const request = await submit(user.id);
+    const kept = await submit((await createUser()).id);
+    await rm(path.join(uploadDir, request.filePath!));
+
+    // Earlier tests leave pending requests whose files were in other directories.
+    expect(await rejectPendingWithoutFile(NOW, uploadDir)).toBeGreaterThanOrEqual(1);
+
+    expect(
+      await prisma.verificationRequest.findUnique({ where: { id: request.id } }),
+    ).toMatchObject({
+      status: VerifStatus.REJECTED,
+      rejectReason: MISSING_FILE_REASON,
+      decidedById: null,
+      pendingUserId: null,
+      filePath: null,
+    });
+    expect(await prisma.verificationRequest.findUnique({ where: { id: kept.id } })).toMatchObject({
+      status: VerifStatus.PENDING,
+    });
+    expect(
+      await prisma.notification.findFirst({
+        where: { targetUserId: user.id, type: NotifType.VERIFICATION_RESULT },
+      }),
+    ).toMatchObject({ payload: { approved: false, rejectReason: MISSING_FILE_REASON } });
+    // The user can upload again.
+    await expect(submit(user.id)).resolves.toBeTruthy();
+  });
+
+  it("keeps pending requests when the upload directory itself is missing", async () => {
+    const request = await submit((await createUser()).id);
+    expect(await rejectPendingWithoutFile(NOW, path.join(uploadDir, "missing"))).toBe(0);
+    expect(
+      await prisma.verificationRequest.findUnique({ where: { id: request.id } }),
+    ).toMatchObject({ status: VerifStatus.PENDING });
+  });
+
   it("auto-rejects pending requests after the TTL and deletes the file", async () => {
     const user = await createUser();
     const request = await submit(user.id);

@@ -1,5 +1,6 @@
 // Scrim requests and applications (SPEC P0-4, P0-5, ARCHITECTURE §5.3, §5.4).
-// apply, delete, confirm and expire lock the request row first, so they run one after another.
+// apply, delete, confirm and expire lock the request row, so they run one after another; apply locks
+// the applicant's team and confirm both teams before it (lock order in ARCHITECTURE §4).
 import {
   AppStatus,
   NotifChannel,
@@ -259,10 +260,15 @@ export async function applyToRequest(input: {
 }) {
   try {
     return await prisma.$transaction(async (tx) => {
+      // Own team before the request, as in retireTeamActivity (§4): a ban or dissolution of the
+      // applicant team either commits first (seen below) or waits and then withdraws this application.
+      const { team: ownTeam } = await requireOwnActingCaptain(input.userId, tx);
+      await lockTeam(tx, ownTeam.id);
       await lockRequest(tx, input.requestId);
       const request = await tx.scrimRequest.findUnique({ where: { id: input.requestId } });
       if (!request) throw requestNotFound();
-      const { team } = await requireOwnActingCaptain(input.userId, tx);
+      // Read again under the lock: role, ban, verification or membership may have changed meanwhile.
+      const { team } = await requireActingCaptain(input.userId, ownTeam.id, tx);
       const message = parseInput(applicationMessageSchema, input.message);
       if (team.id === request.teamId) {
         throw new DomainError("INVALID", "Ihr könnt euch nicht auf eure eigene Anfrage bewerben.");
@@ -340,6 +346,21 @@ export async function confirmApplication(input: {
 }) {
   const { now } = input;
   return prisma.$transaction(async (tx) => {
+    // Both teams before the request (§4), sorted by id: a ban or dissolution of either team either
+    // commits first (seen by the checks below) or waits until the scrim is booked and cancels it.
+    // Request and application keep their team for good, so the unlocked reads name the right rows.
+    const unlockedRequest = await tx.scrimRequest.findUnique({
+      where: { id: input.requestId },
+      select: { teamId: true },
+    });
+    const unlockedApplication = await tx.application.findUnique({
+      where: { id: input.applicationId },
+      select: { teamId: true },
+    });
+    const teamIds = [unlockedRequest?.teamId, unlockedApplication?.teamId]
+      .filter((id): id is string => id !== undefined)
+      .sort();
+    for (const teamId of new Set(teamIds)) await lockTeam(tx, teamId);
     await lockRequest(tx, input.requestId);
     const request = await tx.scrimRequest.findUnique({ where: { id: input.requestId } });
     if (!request) throw requestNotFound();

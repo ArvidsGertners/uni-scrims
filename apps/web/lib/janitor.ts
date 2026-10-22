@@ -18,7 +18,7 @@ async function loop(): Promise<never> {
   for (;;) {
     try {
       const result = await runUploadJanitor(resolveUploadDir(), new Date());
-      if (result.autoRejected + result.decidedFiles + result.orphanFiles > 0) {
+      if (Object.values(result).some((count) => count > 0)) {
         console.log("Upload janitor", result);
       }
     } catch (error) {

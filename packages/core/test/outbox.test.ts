@@ -6,6 +6,7 @@ import {
   type Prisma,
   prisma,
 } from "@uni-scrims/db";
+import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type Deliver,
@@ -15,6 +16,7 @@ import {
   applyToRequest,
   cancelScrim,
   classifyDeliveryError,
+  deleteAccount,
   deleteRequest,
   deliverDueNotifications,
   deliverNotification,
@@ -279,7 +281,7 @@ describe("deliverNotification: relevance (§6.1)", () => {
     const reminderAt = new Date(REQUEST_STARTS_AT.getTime() - HOUR);
     const booked = await scrimNotification(scrim.id, NotifType.SCRIM_BOOKED, host.team.id);
     const reminder = await scrimNotification(scrim.id, NotifType.REMINDER_1H, host.team.id);
-    // Accepted in §6.1: a team banned during the confirmation; the messages are suppressed.
+    // A second line of defence (§6.1): e.g. a team banned by hand in the database.
     await prisma.team.update({ where: { id: guest.team.id }, data: { bannedAt: NOW } });
     expect(await send(booked.id)).toBe("CANCELLED");
     expect(await send(reminder.id, reminderAt)).toBe("CANCELLED");
@@ -432,6 +434,20 @@ describe("deliverNotification: results (§6.2)", () => {
     const next = await queueVerificationResult(user.id);
     expect(await send(next.id)).toBe("SENT");
     expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).dmFailedAt).toBeNull();
+  });
+
+  it("does not mark a DM as failed for an account deleted during the send", async () => {
+    const user = await createUser();
+    const notification = await queueVerificationResult(user.id);
+    const deliver: Deliver = async () => {
+      await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
+      return { ok: false, code: 50007, error: "Cannot send messages to this user" };
+    };
+    // The deletion removed the entry, so nothing is written.
+    expect(await send(notification.id, NOW, deliver)).toBeNull();
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
+      dmFailedAt: null,
+    });
   });
 
   it("leaves dmFailedAt alone when the DM was redirected in development", async () => {
