@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev ${DEV_HOST:+-H $DEV_HOST}",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit"

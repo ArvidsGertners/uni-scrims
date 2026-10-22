@@ -39,6 +39,8 @@ pnpm dev
 
 Die App-DB läuft auf `localhost:5433`, die Test-DB auf `localhost:5434` (tmpfs, ohne dauerhafte Daten). Ist Port 5433 belegt, kann die App-DB mit `DB_PORT=<port>` auf einen anderen Host-Port gelegt werden.
 
+Entwickeln auf einem Server: `next dev` lauscht sonst auf allen Schnittstellen, mit dem Dev-Login also öffentlich. Dort in der Shell `DEV_HOST=127.0.0.1` setzen (und bei belegtem Port 3000 `PORT=<port>`), die Seite per SSH-Portweiterleitung öffnen und `BETTER_AUTH_URL` sowie `PUBLIC_BASE_URL` auf `http://localhost:<port>` setzen.
+
 ## Befehle
 
 | Befehl | Wirkung |
