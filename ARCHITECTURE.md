@@ -466,7 +466,7 @@ Test: Zwei Bewerbungen auf dieselbe Anfrage erzeugen zwei `APPLICATION_RECEIVED`
 
 Alle Nachrichten enthalten einen **Link-Button** zur passenden Seite (`PUBLIC_BASE_URL/...`). Der gegnerische Captain wird immer mit **Name und Mention** `<@discordId>` ausgegeben (die Mention kann auf fremden Servern als unbekannter Nutzer erscheinen). Er wird wie der Empfänger erst beim Senden aufgelöst (aktueller Captain des anderen Scrim-Teams) und steht in allen Scrim-Nachrichten (`SCRIM_BOOKED`, `SCRIM_CANCELLED`, Reminder, `FEEDBACK_PROMPT`). Alle Nachrichten senden mit `allowedMentions: { parse: [] }`, damit niemand gepingt wird.
 
-**Nutzertext wird entschärft:** Teamnamen und andere Nutzereingaben laufen vor dem Einbetten durch `escapeMarkdown` aus discord.js (in `messages/*`), damit niemand über den Bot maskierte Links verschicken kann. Anfrage-Notizen und Bewerbungsnachrichten werden **nicht** in Bot-Nachrichten übernommen, nur auf der Website angezeigt.
+**Nutzertext wird entschärft:** Teamnamen und andere Nutzereingaben laufen vor dem Einbetten durch `escapeMarkdown` aus discord.js (in `messages/*`), damit niemand über den Bot maskierte Links verschicken kann. Eckige Klammern werden zusätzlich alle von Hand escapt, weil die Option `maskedLink` nur den ersten Link eines Textes erwischt. Anfrage-Notizen und Bewerbungsnachrichten werden **nicht** in Bot-Nachrichten übernommen, nur auf der Website angezeigt.
 
 **Bewusst akzeptiert:** Wird ein Team genau während einer Bestätigung gesperrt, kann ein Scrim mit einem gesperrten Team entstehen. Die Relevanzprüfung unterdrückt dann Bestätigung und Reminder; ohne Feedback endet der Scrim nach der Frist als unbestätigt.
 

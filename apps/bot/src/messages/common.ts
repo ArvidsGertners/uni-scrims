@@ -25,14 +25,14 @@ export type MessageBody = RESTPostAPIChannelMessageJSONBody;
 
 const EMBED_COLOR = 0xff4655;
 
-/** User text in bot messages: no markdown and no masked links (SPEC P0-7). */
+/**
+ * User text in bot messages: no markdown and no masked links (SPEC P0-7). Every bracket is escaped
+ * by hand: escapeMarkdown's maskedLink option only escapes the first link of a text.
+ * escapeMarkdown escapes backslashes first, so user text cannot undo the escaping.
+ */
 export function plain(text: string): string {
-  return escapeMarkdown(text, {
-    maskedLink: true,
-    heading: true,
-    bulletedList: true,
-    numberedList: true,
-  });
+  const escaped = escapeMarkdown(text, { heading: true, bulletedList: true, numberedList: true });
+  return escaped.replace(/[[\]]/g, "\\$&");
 }
 
 export function startField(startsAt: string) {

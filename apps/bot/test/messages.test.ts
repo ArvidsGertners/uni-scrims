@@ -37,7 +37,6 @@ function sample<T extends NotifType>(
     recipient: { kind: "DM", userId: "user-1", discordId: "111", redirectedFrom: null },
     requestId: "request-1",
     scrimId: "scrim-1",
-    teamName: "Team A",
     opponentCaptain: { name: "captain_b", discordId: "222" },
     feedbackDeadline: new Date("2026-10-25T21:00:00.000Z"),
     ...overrides,
@@ -87,7 +86,21 @@ describe("buildMessage", () => {
     const message = sample(NotifType.APPLICATION_RECEIVED, {
       payload: { teamName: "**Bold** [x](https://evil.example)", startsAt: STARTS_AT },
     });
-    expect(embedOf(message).description).toContain("\\*\\*Bold\\*\\* \\[x](https://evil.example)");
+    expect(embedOf(message).description).toContain(
+      "\\*\\*Bold\\*\\* \\[x\\](https://evil.example)",
+    );
+  });
+
+  it.each([
+    ["[ [Login](https://e.co)", "\\[ \\[Login\\](https://e.co)"],
+    ["[a](https://x.co) [b](https://y.co)", "\\[a\\](https://x.co) \\[b\\](https://y.co)"],
+    // A backslash of the user is escaped itself and cannot cancel the escaped bracket.
+    ["\\[x](https://e.co)", "\\\\\\[x\\](https://e.co)"],
+  ])("escapes every masked link in %j", (teamName, escaped) => {
+    const message = sample(NotifType.APPLICATION_RECEIVED, {
+      payload: { teamName, startsAt: STARTS_AT },
+    });
+    expect(embedOf(message).description).toContain(`**${escaped}**`);
   });
 
   it("shows start, format and the opponent's captain with name and mention", () => {
