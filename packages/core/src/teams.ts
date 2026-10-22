@@ -104,19 +104,30 @@ export async function regenerateInvite(input: { userId: string; teamId: string }
 
 /**
  * /setup (ARCHITECTURE §6.4): links a Discord server and channel to the caller's team, so bookings,
- * cancellations and reminders are also posted there. Only the captain of a team that is not banned.
+ * cancellations and reminders are also posted there. Only the captain of a team that is not banned,
+ * and not on the hub server: the bot can post there, and every team would post in public.
  */
-export async function linkTeamChannel(input: {
-  discordUserId: string;
-  guildId: string;
-  channelId: string;
-}) {
+export async function linkTeamChannel(
+  input: { discordUserId: string; guildId: string; channelId: string },
+  env: Record<string, string | undefined> = process.env,
+) {
+  if (input.guildId === env.HUB_GUILD_ID) {
+    throw new DomainError(
+      "INVALID",
+      "Auf dem Uni-Scrims-Server geht das nicht. Nutze /setup auf eurem Team-Server.",
+    );
+  }
   const user = await findUserByDiscordId(input.discordUserId);
   const { team } = await requireOwnCaptain(user?.id);
-  return prisma.team.update({
-    where: { id: team.id },
-    data: { discordGuildId: input.guildId, discordChannelId: input.channelId },
-    select: { id: true, name: true },
+  return prisma.$transaction(async (tx) => {
+    // Checked again under the team lock: the role or the ban may have changed meanwhile.
+    await lockTeam(tx, team.id);
+    await requireCaptain(user?.id, team.id, tx);
+    return tx.team.update({
+      where: { id: team.id },
+      data: { discordGuildId: input.guildId, discordChannelId: input.channelId },
+      select: { id: true, name: true },
+    });
   });
 }
 

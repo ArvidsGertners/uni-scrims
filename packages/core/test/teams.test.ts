@@ -279,6 +279,16 @@ describe("linkTeamChannel (/setup)", () => {
     });
   });
 
+  it("refuses the hub server", async () => {
+    const { captain } = await createTeamWithMembers();
+    await expect(
+      linkTeamChannel(
+        { discordUserId: captain.discordId, guildId: "500", channelId: "501" },
+        { HUB_GUILD_ID: "500" },
+      ),
+    ).rejects.toMatchObject({ code: "INVALID" });
+  });
+
   it("rejects members, banned teams, users without a team and unknown Discord users", async () => {
     const { members } = await createTeamWithMembers({ extraMembers: 1 });
     await expect(link(members[0]!.discordId)).rejects.toThrow("Das kann nur euer Captain.");

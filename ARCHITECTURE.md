@@ -513,7 +513,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 ### 6.4 Slash-Command `/setup`
 
 - Option `channel` (Text-Channel), Pflicht.
-- Prüft: Der aufrufende Discord-User ist Captain eines nicht gesperrten Teams (`linkTeamChannel` in core über `findUserByDiscordId` und `requireOwnCaptain`; Verifizierung ist wie bei der Teamverwaltung nicht nötig); der Bot hat in dem Channel `ViewChannel`, `SendMessages` und `EmbedLinks`.
+- Prüft: Der aufrufende Discord-User ist Captain eines nicht gesperrten Teams (`linkTeamChannel` in core über `findUserByDiscordId` und `requireOwnCaptain`, unter der Team-Sperre erneut geprüft; Verifizierung ist wie bei der Teamverwaltung nicht nötig); der Server ist nicht der Hub (`HUB_GUILD_ID`), denn dort darf der Bot schreiben, und jedes verknüpfte Team würde öffentlich posten; der Bot hat in dem Channel `ViewChannel`, `SendMessages` und `EmbedLinks`.
 - Speichert `discordGuildId` und `discordChannelId` und postet eine Test-Nachricht.
 - Antwortet ephemeral mit Erfolg oder einer konkreten Fehlermeldung.
 
