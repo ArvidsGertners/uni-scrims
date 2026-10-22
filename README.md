@@ -88,6 +88,33 @@ Die Prüfpunkte aus ARCHITECTURE §5.1, geprüft am Quellcode von `better-auth@1
 
 Mit `NODE_ENV=development` und `DEV_LOGIN=true` gibt es unter `/dev-login` eine Liste der Seed-Nutzer. Ein Klick loggt dich ohne Discord als dieser Nutzer ein. So kannst du zwei Teams parallel testen (normales und privates Fenster). In Production ist die Seite aus, und der Endpoint `/api/auth/dev/sign-in` antwortet mit 404.
 
+## Discord-Bot
+
+Der Bot (`apps/bot`) verschickt die Benachrichtigungen aus der Outbox (alle 5 s), führt die Zeit-Jobs aus (Sweeper, jede Minute: Anfragen verfallen lassen, Feedback öffnen, Scrims auswerten, alte Benachrichtigungen löschen, Heartbeat) und bietet `/setup`. Er muss als **genau eine Instanz** laufen. Nach einem Neustart holt er alles nach, was in der Zwischenzeit fällig wurde; Reminder, deren Scrim schon begonnen hat, verwirft er.
+
+**Team-Channel verknüpfen:** Der Captain lädt den Bot mit dem Einladungslink für Team-Server (Discord-Einrichtung, Schritt 4) auf seinen Server und ruft dort `/setup channel:#kanal` auf. Der Bot braucht in dem Channel die Rechte „Kanal ansehen“, „Nachrichten senden“ und „Links einbetten“ und postet zur Bestätigung eine Test-Nachricht. Kann er später nicht mehr in den Channel schreiben, entfernt er die Verknüpfung und schreibt dem Captain eine DM. Der Bot registriert `/setup` bei jedem Start global.
+
+### Lokal mit echten Discord-Nachrichten testen
+
+Seed-Nutzer haben erfundene Discord-IDs. Mit diesen Variablen in der `.env` landet trotzdem alles bei dir (nur mit `NODE_ENV=development`, das `pnpm dev` setzt):
+
+| Variable | Wirkung |
+|---|---|
+| `DEV_DM_REDIRECT_DISCORD_ID` | deine Discord-ID: alle DMs gehen an dich, mit Präfix „[an: <Name>]“ |
+| `DEV_CHANNEL_ID` | alle Team-Channel-Posts gehen in diesen Channel, auch von Teams ohne `/setup`, mit Präfix „[an: <Teamname>]“ |
+| `DEV_TIME_OFFSETS=true` | Reminder 3 und 1 min vor Start, Feedback-Hinweis 2 min nach Start, Feedback-Frist 5 min danach; Startzeiten ab 5 min in der Zukunft |
+| `PUBLIC_BASE_URL` | `http://localhost:3000`, damit die Link-Buttons lokal funktionieren |
+
+Ablauf eines kompletten Scrims (mit `DEV_LOGIN=true`):
+
+1. `pnpm dev`. Im normalen Fenster als Captain von Team A einloggen, im privaten Fenster als Captain von Team B (`/dev-login`).
+2. A erstellt eine Anfrage zum nächsten 15-Minuten-Slot, der mindestens 5 Minuten entfernt ist. B bewirbt sich → DM „Neue Bewerbung“.
+3. A bestätigt → je eine DM „Scrim gebucht“ und ein Channel-Post für beide Teams.
+4. 3 und 1 Minute vor Start: Reminder. 2 Minuten nach Start: Feedback-Hinweis. Über den Button „Feedback geben“ antworten beide Captains → der Scrim ist sofort ausgewertet. Antwortet nur einer, wertet der Sweeper nach der Frist (Start + 7 min) aus.
+5. Neustart-Test: den Bot zwischendurch beenden und später wieder starten. Fällige Nachrichten und Zeit-Jobs werden nachgeholt.
+
+Den Stand zeigt die Tabelle `Notification` (`status`, `attempts`, `lastError`); `SystemStatus` enthält den Heartbeat des Bots.
+
 ## Discord-Einrichtung
 
 1. Im [Discord Developer Portal](https://discord.com/developers/applications) eine Application anlegen. Unter **OAuth2** den Redirect `<BETTER_AUTH_URL>/api/auth/callback/discord` eintragen, einmal für lokal (`http://localhost:3000/api/auth/callback/discord`) und einmal für Production. Client-ID und Client-Secret nach `DISCORD_CLIENT_ID` und `DISCORD_CLIENT_SECRET`.
