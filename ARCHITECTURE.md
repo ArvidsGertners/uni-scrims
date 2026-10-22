@@ -304,6 +304,7 @@ SystemStatus
 - Bei Fehler wird `User.hubJoinFailedAt` gesetzt, sonst `null`. Häufigster Fehler: Der Nutzer ist schon in 100 Servern (200 mit Nitro), Discord-Fehler 30001.
 - **Danach werden Access- und Refresh-Token aus der `account`-Tabelle entfernt.** Sie werden nur für den Beitritt gebraucht.
 - `name` und `image` werden bei jedem Login aktualisiert.
+- **Nur die genutzten Better-Auth-Endpunkte sind erreichbar:** `/sign-in/social`, `/callback/:id`, `/sign-out`, `/get-session`, `/error` und der Dev-Login `/dev/sign-in` (der außerhalb der Entwicklung selbst 404 antwortet). Ein before-Hook mit dieser Liste (`apps/web/lib/auth-paths.ts`) beantwortet alle anderen mit 404, z. B. `/update-user`, `/change-email`, `/link-social` oder `/unlink-account`. Sonst könnte jede Session, auch die eines gesperrten Nutzers, Name und Avatar an Discord und an `requireUser` vorbei ändern; Sperren-Suche, Streitfall-Seite und Gegner verlassen sich aber auf den Discord-Username.
 - Der Login-Screen erklärt vorher, dass der Nutzer dem Server hinzugefügt wird und warum.
 
 **In Phase 1 zu verifizieren (mit der gepinnten Version):**

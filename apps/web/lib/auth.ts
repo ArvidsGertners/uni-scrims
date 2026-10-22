@@ -4,8 +4,9 @@ import { handleDiscordLogin } from "@uni-scrims/core";
 import { prisma } from "@uni-scrims/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
+import { isAllowedAuthPath } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
 import { joinHubGuild } from "./hub-join.ts";
 
@@ -47,6 +48,9 @@ export const auth = betterAuth({
     },
   },
   hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (!isAllowedAuthPath(ctx.path)) throw new APIError("NOT_FOUND");
+    }),
     // After the OAuth callback the account row holds the fresh Discord tokens (created on the first
     // login, updated on every further one). Join the hub, then remove them. The login always continues.
     after: createAuthMiddleware(async (ctx) => {
