@@ -700,5 +700,5 @@ Jede Phase endet mit lauffähigem Stand, grünen Tests und einem Commit. **Erst 
 - Streitfälle entscheiden (inkl. Anzeige "Streitfall" auf der Scrim-Seite), Nutzer/Teams sperren (mit Kaskaden laut §5.5), Liste fehlgeschlagener Nachrichten, Bot-Status; README-Abschnitt "Entsperren per SQL"
 - Konto löschen (Anonymisierung laut §4, Captain-Regeln laut §5.5), Impressum- und Datenschutz-Seiten aus Config
 - Production-Compose mit Caddy, Migrate-Job und Log-Rotation; Backup-Skript; README mit Deploy-Anleitung für den VPS
-- **Vorher erledigt (SPEC §9, offene Punkte 1–4):** Impressum, Datenschutzerklärung, AVV, Hoster-Snapshots aus
+- **Vorher erledigt (SPEC §9, Punkte 1–4):** Impressum, Datenschutzerklärung, AVV, Hoster-Snapshots aus
 - *Fertig wenn:* Production läuft auf deiner Domain mit HTTPS, und zwei echte Discord-Accounts (z. B. du und ein Teammitglied) verifizieren sich, buchen einen Scrim und geben Feedback.

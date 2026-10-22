@@ -130,7 +130,7 @@ Discord-IDs kopieren: In Discord unter Einstellungen → Erweitert den Entwickle
 
 ## Production (VPS)
 
-**Vorher erledigt** (SPEC §9, offene Punkte 1–4): Impressum geklärt, Datenschutzerklärung geschrieben, AVV mit dem Hoster abgeschlossen, Hoster-Snapshots und -Backups ausgeschaltet (sonst landen Uploads doch in Backups), Ablauf für die Datenauskunft festgelegt.
+**Vorher erledigt** (SPEC §9, Punkte 1–4): Impressum geklärt, Datenschutzerklärung geschrieben, AVV mit dem Hoster abgeschlossen, Hoster-Snapshots und -Backups ausgeschaltet (sonst landen Uploads doch in Backups), Ablauf für die Datenauskunft festgelegt.
 
 ### Server vorbereiten
 

@@ -315,14 +315,19 @@ Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind 
 | Eigener VPS | Du betreibst ein System, das kurzzeitig ausweisähnliche Dokumente hält: Updates, Zugangsschutz und Vorfallreaktion liegen bei dir. |
 | Altersbestätigung nur per Checkbox | Wer den Login-Endpunkt direkt aufruft, umgeht sie, und es wird kein Nachweis gespeichert. Im MVP bewusst akzeptiert. |
 
+**Vor dem Launch geklärt** (Texte liegen außerhalb von Git in `LEGAL_DIR`, siehe ARCHITECTURE §8)
+
+| # | Frage | Ergebnis |
+|---|---|---|
+| 1 | Impressum nach § 5 DDG: Nicht-kommerziell befreit nicht sicher von der Pflicht. Eigene Adresse oder Impressums-Service? | Impressum mit der eigenen Anschrift des Betreibers und E-Mail. |
+| 2 | Datenschutzerklärung: Upload sensibler Dokumente, Rechtsgrundlage, Löschfristen, Discord (USA) als Empfänger durch Server-Beitritt und DMs, Hoster, Logs, IP-Adresse und User-Agent in der Session, Benachrichtigungen (30 Tage), Mindestalter 16, kein automatischer Kick nach Kontolöschung, Discord-ID gesperrter Nutzer nach Löschung, Backups (14 Tage) mit gelöschten Konten. | Geschrieben, deckt alle genannten Punkte ab. Hoster: IONOS (Rechenzentrum Berlin); Backups: Hetzner Storage Box (Falkenstein); nginx-Logs 14 Tage. |
+| 3 | AVV mit dem VPS-Hoster; Snapshots/Backups des Hosters aus oder in der Datenschutzerklärung nennen. | AVV mit IONOS und Hetzner abgeschlossen; bei IONOS sind keine Snapshots oder Backups aktiv. |
+| 4 | Ablauf für Datenauskunft (Art. 15). | Formlos per E-Mail an die Adresse aus dem Impressum; Antwort innerhalb eines Monats, im MVP manuell per DB-Abfrage. |
+
 **Noch offen**
 
 | # | Frage | Wann klären |
 |---|---|---|
-| 1 | Impressum nach § 5 DDG: Nicht-kommerziell befreit nicht sicher von der Pflicht. Klären, ob eine eigene Adresse nötig ist oder ein Impressums-Service reicht. | **Bevor die Seite öffentlich erreichbar ist (vor Phase 4)** |
-| 2 | Datenschutzerklärung: Upload sensibler Dokumente, Rechtsgrundlage, Löschfristen, Discord (USA) als Empfänger durch Server-Beitritt und DMs, Hoster, Logs, IP-Adresse und User-Agent in der Session, Benachrichtigungen (30 Tage), Mindestalter 16. Außerdem: Nach einer Kontolöschung verlässt der Nutzer den Uni-Scrims-Server selbst; es gibt keinen automatischen Kick. Bei gesperrten Nutzern bleibt die Discord-ID nach der Löschung zur Durchsetzung der Sperre gespeichert. Datenbank-Backups (14 Tage) enthalten gelöschte Konten noch bis zum Ablauf. | Vor Phase 4 |
-| 3 | Auftragsverarbeitungsvertrag (AVV) mit dem VPS-Hoster abschließen; Server-Snapshots/Backups des Hosters deaktivieren oder in der Datenschutzerklärung nennen. | Vor Phase 4 |
-| 4 | Ablauf für Datenauskunft (Art. 15) festlegen; im MVP manuell per DB-Abfrage. | Vor Phase 4 |
 | 5 | Wer prüft außer dir? Bei Wachstum braucht es weitere Prüfer. | Nach den ersten 2 Wochen |
 
 ---

@@ -1,4 +1,4 @@
-TODO: Diese Datei ist nur ein Gerüst mit den Punkten aus SPEC §9, offener Punkt 2. Den Text schreibst du selbst bzw. lässt ihn prüfen.
+TODO: Diese Datei ist nur ein Gerüst mit den Punkten aus SPEC §9, Punkt 2. Den Text schreibst du selbst bzw. lässt ihn prüfen.
 
 ## Verantwortlicher
 TODO: Name, Anschrift, E-Mail
