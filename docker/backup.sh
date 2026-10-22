@@ -30,5 +30,16 @@ mv "$tmp" "$BACKUP_DIR/$name"
 
 # Keep the last KEEP_DAYS days, here and (through --delete) on the external storage.
 find "$BACKUP_DIR" -maxdepth 1 -name 'uniscrims-*.dump.gpg' -mtime +$((KEEP_DAYS - 1)) -delete
+
+# A local directory that lost its backups (e.g. a rebuilt server) must not empty the external copy
+# through --delete. Normally the external side has at most one file more (the one that aged out).
+remote_count=$(rsync --list-only -e "ssh -p $BACKUP_SSH_PORT" "$BACKUP_REMOTE/" |
+  grep -c 'uniscrims-.*\.dump\.gpg$' || true)
+local_count=$(find "$BACKUP_DIR" -maxdepth 1 -name 'uniscrims-*.dump.gpg' | wc -l)
+if ((local_count < remote_count - 1)); then
+  echo "Only $local_count local backups but $remote_count external ones: not mirroring." >&2
+  echo "Copy the external backups back to $BACKUP_DIR first (README, Backups)." >&2
+  exit 1
+fi
 rsync -a --delete --exclude '.*.tmp' -e "ssh -p $BACKUP_SSH_PORT" "$BACKUP_DIR/" "$BACKUP_REMOTE/"
 echo "Backup $name done"

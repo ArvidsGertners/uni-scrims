@@ -178,7 +178,7 @@ dc run --rm migrate ./node_modules/.bin/tsx prisma/seed.ts --universities-only
 dc ps    # web "healthy", bot läuft, migrate mit Exit-Code 0 beendet
 ```
 
-Prüfen: `https://<domain>/api/health` antwortet, der Login klappt, und der Admin-Bereich zeigt „Bot läuft“.
+Prüfen: `https://<domain>/api/health` antwortet, `/impressum` und `/datenschutz` zeigen deine Texte (nicht „Inhalt folgt.“), der Login klappt, und der Admin-Bereich zeigt „Bot läuft“.
 
 - **Updates:** `git pull && dc up -d --build`. Der Migrate-Job läuft dabei jedes Mal mit; `web` und `bot` starten erst danach.
 - **Logs:** `dc logs -f web bot`. Docker rotiert sie (3 × 10 MB pro Container).
@@ -189,7 +189,7 @@ Prüfen: `https://<domain>/api/health` antwortet, der Login klappt, und der Admi
 `docker/backup.sh` sichert die Datenbank: `pg_dump`, verschlüsselt mit deinem öffentlichen GPG-Schlüssel, 14 Tage lokal in `/var/backups/uni-scrims` und per `rsync --delete` gespiegelt auf einen externen Speicher (z. B. Hetzner Storage Box). Uploads werden bewusst nicht gesichert.
 
 1. Auf deinem eigenen Rechner ein Schlüsselpaar erzeugen (`gpg --quick-generate-key "Uni Scrims Backup"`) und den öffentlichen Schlüssel exportieren (`gpg --export --armor <key-id> > backup.asc`). Der private Schlüssel bleibt dort; ohne ihn sind die Backups wertlos.
-2. Auf dem Server: `apt install gpg rsync`, `gpg --import backup.asc`, einen SSH-Key für root beim externen Speicher hinterlegen und dort den Zielordner anlegen.
+2. Auf dem Server: `apt install gpg rsync`, `gpg --import backup.asc`, einen SSH-Key für root beim externen Speicher hinterlegen und dort den Zielordner anlegen. Einmal als root `ssh -p <port> <user>@<host>` aufrufen und den Host-Key bestätigen; sonst scheitert `rsync` im Cron mit „Host key verification failed“.
 3. Cron für root (`crontab -e`), jede Nacht um 3:30 Uhr:
 
 ```
@@ -206,6 +206,8 @@ dc stop web bot
 dc exec -T db pg_restore -U uniscrims -d uniscrims --clean --if-exists < restore.dump
 dc start web bot
 ```
+
+Nach einem Neuaufsetzen des Servers zuerst die Backups vom externen Speicher zurückholen, bevor der Cron wieder läuft: `rsync -a -e "ssh -p <port>" <user>@<host>:uni-scrims/ /var/backups/uni-scrims/`. Fehlen lokal Backups, die extern noch liegen, bricht das Skript ab, statt die externe Kopie per `--delete` zu leeren.
 
 Gelöschte Konten stehen bis zum Ablauf (14 Tage) noch in den Backups; das steht in der Datenschutzerklärung.
 
@@ -229,5 +231,5 @@ Was das Entsperren **nicht** zurückholt:
 
 - Abgesagte Scrims, gelöschte Anfragen und zurückgezogene Bewerbungen bleiben so.
 - Ein gesperrter Spieler wurde aus seinem Team entfernt und muss per Einladungslink neu beitreten.
-- Bei einem gesperrten Captain sind Nutzer und Team getrennt zu entsperren.
+- Bei einem gesperrten Captain Nutzer und Team zusammen entsperren. Soll nur das Team wieder spielen, im selben Schritt einen anderen Captain setzen (`UPDATE "Team" SET "captainId" = '<user-id eines Mitglieds>', "bannedAt" = NULL WHERE id = '<team-id>';`). Ein gesperrter Captain eines aktiven Teams kann weder die Rolle übertragen noch sein Konto löschen.
 - Hat ein gesperrter Nutzer sein Konto gelöscht, landet ein neuer Login nach dem Entsperren beim anonymisierten Konto, ohne Verifizierung und ohne Team.
