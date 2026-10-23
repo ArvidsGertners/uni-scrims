@@ -21,7 +21,7 @@ export function TeamAvatar({
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center font-label font-bold",
+        "flex shrink-0 items-center justify-center font-label font-bold uppercase",
         SIZES[size],
         own
           ? "bg-primary text-primary-foreground"

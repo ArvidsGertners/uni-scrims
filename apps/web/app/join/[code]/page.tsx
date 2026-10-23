@@ -1,8 +1,11 @@
-import { getMyTeam, getTeamByInviteCode } from "@uni-scrims/core";
+import { RANK_LABELS, getMyTeam, getTeamByInviteCode } from "@uni-scrims/core";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
-import { TeamCard } from "@/components/team-card";
+import { PageMain } from "@/components/page-main";
+import { TeamAvatar } from "@/components/team-avatar";
+import { Alert } from "@/components/ui/alert";
+import { formatUniversities } from "@/lib/scrim-format";
 import { getSessionUserId, loginUrl, requirePageUser } from "@/lib/session";
 import { joinTeamAction } from "../../team/actions";
 
@@ -16,40 +19,62 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   const team = await getTeamByInviteCode(user.id, code);
   if (!team) {
     return (
-      <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
-        <h1 className="text-2xl font-bold">Einladung</h1>
-        <p>Dieser Einladungslink ist ungültig. Frag deinen Captain nach einem neuen Link.</p>
-      </main>
+      <PageMain className="gap-7">
+        <div className="flex flex-col gap-2.5">
+          <span className="type-label text-muted-foreground">Einladung</span>
+          <h1 className="type-h1">Dieser Link ist ungültig</h1>
+          <p className="text-pretty text-muted-foreground">
+            Frag deinen Captain nach einem neuen Einladungslink.
+          </p>
+        </div>
+      </PageMain>
     );
   }
 
   const myTeam = await getMyTeam(user.id);
+  const linkClass = "font-semibold underline underline-offset-2";
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-8">
-      <h1 className="text-2xl font-bold">Einladung</h1>
-      <TeamCard
-        name={team.name}
-        tag={team.tag}
-        rank={team.rank}
-        universities={team.universities}
-        memberCount={team.memberCount}
-      />
+    <PageMain className="gap-7">
+      <span className="type-label text-muted-foreground">Einladung</span>
+      <div className="flex items-center gap-4">
+        <TeamAvatar tag={team.tag} size="lg" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="type-h1">{team.name}</h1>
+          <span className="text-[14px] text-muted-foreground">
+            {formatUniversities(team.universities)} · Teamrang {RANK_LABELS[team.rank]} ·{" "}
+            {team.memberCount} Spieler
+          </span>
+        </div>
+      </div>
       {myTeam?.id === team.id ? (
-        <p>
-          Du bist schon in diesem Team.{" "}
-          <Link href="/team" className="underline">
-            Zum Team
-          </Link>
-        </p>
+        <Alert variant="success">
+          <span>
+            Du bist schon in diesem Team.{" "}
+            <Link href="/team" className={linkClass}>
+              Zum Team
+            </Link>
+          </span>
+        </Alert>
       ) : myTeam ? (
-        <p>Du bist schon im Team {myTeam.name}. Verlasse es zuerst, um diesem Team beizutreten.</p>
+        <Alert>
+          <span>
+            Du bist schon im Team {myTeam.name}. Verlasse es zuerst, um diesem Team beizutreten.
+          </span>
+        </Alert>
       ) : team.full ? (
-        <p>Das Team ist voll.</p>
+        <Alert>
+          <span>Das Team ist voll.</span>
+        </Alert>
       ) : (
-        <ActionForm action={joinTeamAction} submitLabel="Team beitreten">
+        <ActionForm
+          action={joinTeamAction}
+          submitLabel="Team beitreten"
+          size="lg"
+          submitClassName="w-full"
+        >
           <input type="hidden" name="code" value={code} />
         </ActionForm>
       )}
-    </main>
+    </PageMain>
   );
 }

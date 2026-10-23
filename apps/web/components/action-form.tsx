@@ -12,7 +12,7 @@ type Props = {
   children?: ReactNode;
   /** Asks before submitting, for destructive actions. */
   confirmText?: string;
-  variant?: "default" | "outline" | "destructive" | "link";
+  variant?: "default" | "outline" | "destructive" | "ghost" | "link";
   size?: "sm" | "default" | "lg" | "bare";
   className?: string;
   /** Classes of the submit button, e.g. "w-full" for block buttons. */
