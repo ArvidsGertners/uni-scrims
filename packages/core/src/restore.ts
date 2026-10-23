@@ -8,7 +8,7 @@ import { deleteAccount } from "./account.ts";
 import { isDomainError } from "./errors.ts";
 import { banTeamInTx, banUserInTx } from "./moderation.ts";
 import { findOwnTeam, isCaptainOf } from "./permissions.ts";
-import { TRANSFER_CAPTAIN_FIRST, transferCaptain } from "./teams.ts";
+import { TRANSFER_CAPTAIN_FIRST, leaveTeam, transferCaptain } from "./teams.ts";
 import { removeFilesAfterCommit } from "./verification.ts";
 import {
   DISCORD_PROVIDER,
@@ -31,14 +31,21 @@ export type ReapplyReport = {
   /** Banned in the old database, unknown in the restored one: kept as a banned, deleted user. */
   bannedPlaceholders: number;
   deletedUsers: number;
-  /** Deleted captains whose role went to the longest-standing member first. */
+  /**
+   * Captains here, but no longer in the old database when they were banned or deleted: the role went
+   * to the longest-standing member first.
+   */
   transferredCaptains: number;
+  /** Banned ex-captains who were the only member here: they left, which dissolved the team. */
+  leftTeams: number;
 };
 
 /**
  * Applies bans and deletions again, in this order: teams, users, deletions (a banned user who also
- * deleted the account ends up banned and deleted, as in the old database). Idempotent: what the
- * restored database already has is skipped, so a second run changes nothing.
+ * deleted the account ends up banned and deleted, as in the old database). The export contains every
+ * banned team, dissolved ones too, so a team banned and then dissolved in the old database is banned
+ * here before its captain's deletion dissolves it again. Idempotent: what the restored database
+ * already has is skipped, so a second run changes nothing.
  */
 export async function reapplyModeration(input: {
   /** The export, checked against moderationExportSchema. */
@@ -54,6 +61,7 @@ export async function reapplyModeration(input: {
     bannedPlaceholders: 0,
     deletedUsers: 0,
     transferredCaptains: 0,
+    leftTeams: 0,
   };
 
   for (const { id } of entries.bannedTeams) {
@@ -71,6 +79,18 @@ export async function reapplyModeration(input: {
     const user = await findUserByDiscordId(discordId);
     if (user?.bannedAt) continue;
     if (user) {
+      const team = await findOwnTeam(user.id);
+      if (team && isCaptainOf(user, team) && !team.bannedAt) {
+        // Captain here, but the team is not banned after the first loop: in the old database a ban
+        // of its captain would have banned it, so the role had been handed over (or the team left)
+        // after the backup, and only the player was banned. As there, the ban must not hit the team.
+        if (await transferToLongestMember(user.id)) {
+          report.transferredCaptains++;
+        } else {
+          await leaveTeam({ userId: user.id, now });
+          report.leftTeams++;
+        }
+      }
       const { closedVerifications } = await prisma.$transaction((tx) =>
         banUserInTx(tx, user.id, now),
       );

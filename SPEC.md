@@ -314,7 +314,7 @@ Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind 
 | Nur Discord als Kanal | Blockierte DMs sind ein stiller Ausfall. Fallback: Team-Channel und Hinweis auf der Website. |
 | Eigener VPS | Du betreibst ein System, das kurzzeitig ausweisähnliche Dokumente hält: Updates, Zugangsschutz und Vorfallreaktion liegen bei dir. |
 | Altersbestätigung nur per Checkbox | Wer den Login-Endpunkt direkt aufruft, umgeht sie, und es wird kein Nachweis gespeichert. Im MVP bewusst akzeptiert. |
-| Wiederherstellung aus dem Backup | Sperren und Kontolöschungen nach dem Backup (höchstens ein Tag) werden aus der alten Datenbank nachgezogen. Ist sie verloren, fehlen sie: Gelöschte Konten stehen dann wieder mit den Daten vom Backup-Zeitpunkt in der Datenbank, bis sie erneut gelöscht werden, und Sperren müssen neu gesetzt werden. Steht in der Datenschutzerklärung. |
+| Wiederherstellung aus dem Backup | Sperren und Kontolöschungen nach dem Backup (seit dem letzten gelungenen Backup, normalerweise höchstens ein Tag) werden aus der alten Datenbank nachgezogen. Ist sie verloren, fehlen sie: Gelöschte Konten stehen dann wieder mit den Daten vom Backup-Zeitpunkt in der Datenbank, bis sie erneut gelöscht werden, und Sperren müssen neu gesetzt werden. Steht in der Datenschutzerklärung. |
 
 **Vor dem Launch geklärt** (Texte liegen außerhalb von Git in `LEGAL_DIR`, siehe ARCHITECTURE §8)
 

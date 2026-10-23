@@ -173,6 +173,67 @@ describe("reapplyModeration", () => {
       bannedPlaceholders: 0,
       deletedUsers: 0,
       transferredCaptains: 0,
+      leftTeams: 0,
+    });
+  });
+
+  it("bans a team banned and then dissolved in the old database before deleting its captain", async () => {
+    // Old database: the team was banned, then its (unbanned) captain deleted the account, which
+    // dissolves a banned team. Here the team is still active with its members.
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 2 });
+
+    const report = await reapply({
+      bannedTeams: [{ id: team.id }],
+      deletedUsers: [{ id: captain.id }],
+    });
+
+    expect(report).toMatchObject({ bannedTeams: 1, deletedUsers: 1, transferredCaptains: 0 });
+    expect(await prisma.team.findUnique({ where: { id: team.id } })).toMatchObject({
+      bannedAt: NOW,
+      dissolvedAt: NOW,
+    });
+    for (const member of members) {
+      expect(await prisma.teamMember.findUnique({ where: { userId: member.id } })).toBeNull();
+    }
+  });
+
+  it("bans an ex-captain only as a player when the team was not banned in the old database", async () => {
+    // Old database: the captain handed the role over after the backup and was banned as a player.
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 2 });
+    await prisma.teamMember.update({
+      where: { userId: members[1]!.id },
+      data: { joinedAt: new Date(NOW.getTime() - 60_000) },
+    });
+
+    const report = await reapply({
+      bannedUsers: [{ id: captain.id, discordId: captain.discordId }],
+      deletedUsers: [{ id: captain.id }],
+    });
+
+    expect(report).toMatchObject({ bannedUsers: 1, deletedUsers: 1, transferredCaptains: 1 });
+    expect(await prisma.team.findUnique({ where: { id: team.id } })).toMatchObject({
+      captainId: members[1]!.id,
+      bannedAt: null,
+      dissolvedAt: null,
+    });
+    expect(await prisma.teamMember.findUnique({ where: { userId: captain.id } })).toBeNull();
+    expect(await findUserByDiscordId(captain.discordId)).toMatchObject({ bannedAt: NOW });
+  });
+
+  it("lets a banned ex-captain leave a team of which he is the only member here", async () => {
+    const { team, captain } = await createTeamWithMembers();
+
+    const report = await reapply({
+      bannedUsers: [{ id: captain.id, discordId: captain.discordId }],
+    });
+
+    expect(report).toMatchObject({ bannedUsers: 1, leftTeams: 1, bannedTeams: 0 });
+    expect(await prisma.team.findUnique({ where: { id: team.id } })).toMatchObject({
+      bannedAt: null,
+      dissolvedAt: NOW,
+    });
+    expect(await prisma.user.findUnique({ where: { id: captain.id } })).toMatchObject({
+      bannedAt: NOW,
     });
   });
 

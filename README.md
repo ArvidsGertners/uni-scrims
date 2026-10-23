@@ -161,7 +161,7 @@ In der `.env`:
 - `DOMAIN=<domain>`, `BETTER_AUTH_URL=https://<domain>`, `PUBLIC_BASE_URL=https://<domain>`
 - `BETTER_AUTH_SECRET` mit `openssl rand -base64 32`, `POSTGRES_PASSWORD` mit `openssl rand -hex 32` (hex, weil es in `DATABASE_URL` steht)
 - Discord-Werte, `HUB_GUILD_ID`, `HUB_INVITE_URL`, `ADMIN_DISCORD_IDS`
-- `DATABASE_URL`, `UPLOAD_DIR` und `LEGAL_DIR` setzt die Compose-Datei selbst. Die `DEV_*`-Schalter sind in Production ohnehin aus.
+- `DATABASE_URL` setzt die Compose-Datei selbst, ebenso `UPLOAD_DIR` und `LEGAL_DIR` für `web` (der Bot braucht beide nicht; nur das Skript beim Wiederherstellen bekommt `UPLOAD_DIR` im Aufruf). Die `DEV_*`-Schalter sind in Production ohnehin aus.
 
 Rechtstexte anlegen (Format siehe ARCHITECTURE §8):
 
@@ -201,7 +201,7 @@ services:
       - "127.0.0.1:3100:3000"
 ```
 
-Alle Compose-Befehle laufen dann mit beiden Dateien. `DOMAIN` muss trotzdem in der `.env` stehen, weil die Compose-Datei es verlangt:
+Die Compose-Befehle laufen dann mit beiden Dateien (`backup.sh` und das Einspielen beim Wiederherstellen nehmen nur die Haupt-Datei; für `exec db` ist das dasselbe, weil die Ergänzung `db` nicht ändert). `DOMAIN` muss trotzdem in der `.env` stehen, weil die Compose-Datei es verlangt:
 
 ```sh
 alias dc='docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.vps.yml'
@@ -298,47 +298,57 @@ Gelöschte Konten stehen bis zum Ablauf (14 Tage) noch in den Backups; das steht
 
 #### Wiederherstellen
 
-Die Wiederherstellung ersetzt die Datenbank durch den Stand des Backups. Sperren und Kontolöschungen danach fehlen dann; sie werden aus der alten Datenbank exportiert und mit einem Skript nachgezogen. Auf dem Server, im Repo-Ordner, mit dem `dc`-Alias:
+Die Wiederherstellung ersetzt die Datenbank durch den Stand des Backups. Sperren und Kontolöschungen danach fehlen dann; sie werden aus der alten Datenbank exportiert und mit einem Skript nachgezogen. Auf dem Server als root, im Repo-Ordner, mit dem `dc`-Alias:
 
-1. Solange die alte Datenbank noch lesbar ist, Sperren und Löschungen exportieren:
+1. Web und Bot anhalten, damit sich nichts mehr ändert, dann Sperren und Löschungen exportieren, solange die alte Datenbank noch lesbar ist. Die Datei ist nur für root lesbar:
 
 ```sh
+dc stop web bot
+install -m 600 /dev/null moderation.json
 dc exec -T db psql -U uniscrims -d uniscrims -At > moderation.json <<'SQL'
 SELECT json_build_object(
   'bannedTeams', COALESCE((SELECT json_agg(json_build_object('id', t.id))
-    FROM "Team" t WHERE t."bannedAt" IS NOT NULL AND t."dissolvedAt" IS NULL), '[]'),
+    FROM "Team" t WHERE t."bannedAt" IS NOT NULL), '[]'),
   'bannedUsers', COALESCE((SELECT json_agg(json_build_object('id', u.id, 'discordId', a."accountId"))
     FROM "user" u JOIN account a ON a."userId" = u.id AND a."providerId" = 'discord'
     WHERE u."bannedAt" IS NOT NULL), '[]'),
   'deletedUsers', COALESCE((SELECT json_agg(json_build_object('id', u.id))
-    FROM "user" u WHERE u.email = 'deleted-' || u.id || '@users.uniscrims.invalid'), '[]')
+    FROM "user" u WHERE u."deletedAt" IS NOT NULL), '[]')
 );
 SQL
-chmod 600 moderation.json
+head -c 200 moderation.json; echo
 ```
 
-2. Web und Bot anhalten und das Backup einspielen. Entschlüsselt wird auf dem Rechner mit dem privaten Schlüssel und direkt per SSH eingespielt, so liegt nirgends ein unverschlüsselter Dump:
+Auch aufgelöste gesperrte Teams gehören in den Export: Im Backup sind sie vielleicht noch aktiv, und ohne die Sperre würde das Skript beim Löschen ihres Captains die Rolle übergeben, statt das Team wieder aufzulösen.
+
+2. Die alte Datenbank durch eine leere ersetzen und das Backup einspielen. In eine leere Datenbank, damit Tabellen oder Typen späterer Migrationen nicht stehen bleiben; `--single-transaction` spielt alles oder nichts ein. Entschlüsselt wird auf dem Rechner mit dem privaten Schlüssel und direkt per SSH eingespielt, so liegt nirgends ein unverschlüsselter Dump. Ab dem `dropdb` ist die alte Datenbank weg; der Export aus Schritt 1 ist dann die einzige Quelle für das Nachziehen.
 
 ```sh
-dc stop web bot
-# auf deinem Rechner (Backup vorher vom externen Speicher holen):
+# auf deinem Rechner: das Backup vom externen Speicher holen
+rsync -e "ssh -p <port>" <user>@<host>:uni-scrims/uniscrims-<zeit>.dump.gpg .
+# auf dem Server
+dc exec -T db dropdb -U uniscrims --force uniscrims && dc exec -T db createdb -U uniscrims uniscrims
+# auf deinem Rechner: einspielen, danach die heruntergeladene Kopie löschen
 gpg --decrypt uniscrims-<zeit>.dump.gpg | ssh root@<server> \
-  'cd /opt/uni-scrims && docker compose --env-file .env -f docker/docker-compose.yml exec -T db pg_restore -U uniscrims -d uniscrims --clean --if-exists'
+  'cd /opt/uni-scrims && docker compose --env-file .env -f docker/docker-compose.yml exec -T db pg_restore -U uniscrims -d uniscrims --single-transaction --exit-on-error' \
+  && rm uniscrims-<zeit>.dump.gpg
 ```
 
-3. Schema auf den Stand des Codes bringen, Sperren und Löschungen nachziehen, dann starten:
+Scheitert das Einspielen, bleibt die Datenbank leer: Ursache beheben und `dropdb`/`createdb` und das Einspielen wiederholen.
+
+3. Schema auf den Stand des Codes bringen, Sperren und Löschungen nachziehen und erst dann starten. Das Skript liest den Export von stdin, weil der Bot-Container als anderer Nutzer läuft und die Datei nicht lesen darf. Scheitert ein Schritt, startet nichts, und der Export bleibt erhalten; nach der Fehlerbehebung den Block wiederholen (Migrate-Job und Skript sind idempotent):
 
 ```sh
-dc run --rm migrate
-dc run --rm --no-deps -v "$PWD/moderation.json:/tmp/moderation.json:ro" bot \
-  node --import tsx src/scripts/reapply-moderation.ts /tmp/moderation.json
-dc start web bot
-shred -u moderation.json
+dc run --rm migrate \
+  && dc run --rm --no-deps -T -e UPLOAD_DIR=/data/uploads bot \
+    node --import tsx src/scripts/reapply-moderation.ts < moderation.json \
+  && dc start web bot \
+  && shred -u moderation.json
 ```
 
-Das Skript zeigt, was es nachgezogen hat; ein zweiter Lauf ändert nichts mehr. Es sperrt Teams und Nutzer erneut (mit allen Folgen der Sperre), behält für unbekannte gesperrte Discord-Konten einen gesperrten Platzhalter und löscht Konten erneut. War ein gelöschter Nutzer im Backup noch Captain mit Mitgliedern, übernimmt das am längsten dabei befindliche Mitglied die Rolle. Dateien von dabei entfernten Prüfungen löscht der Janitor im Web-Prozess (verwaiste Dateien, nach spätestens einem Tag).
+Das Skript zeigt, was es nachgezogen hat; ein zweiter Lauf ändert nichts mehr. Es sperrt Teams (auch inzwischen aufgelöste, damit die Löschung ihres Captains sie danach wieder auflöst) und Nutzer erneut (mit allen Folgen der Sperre), legt für gesperrte Discord-Konten, die das Backup nicht kennt, einen Sperr-Platzhalter an und löscht Konten erneut. Ist ein gesperrter oder gelöschter Nutzer im Backup noch Captain eines Teams, das in der alten Datenbank nicht gesperrt war, hatte er die Rolle danach abgegeben: Das am längsten dabei befindliche Mitglied übernimmt sie, und gesperrt bzw. gelöscht wird nur er; war er im Backup das einzige Mitglied, verlässt er das Team, das sich damit auflöst. Dateien von dabei entfernten Prüfungen löscht der Janitor im Web-Prozess (verwaiste Dateien, nach spätestens einem Tag).
 
-Ist die alte Datenbank nicht mehr lesbar, gibt es keinen Export: Sperren und Löschungen seit dem Backup (höchstens ein Tag) fehlen dann. Betroffene können die Löschung unter „Konto“ wiederholen oder sich melden; Sperren im Admin-Bereich neu setzen. Das ist in SPEC §9 als Risiko festgehalten und steht in der Datenschutzerklärung.
+Ist die alte Datenbank nicht mehr lesbar, gibt es keinen Export: Sperren und Löschungen seit dem letzten gelungenen Backup (normalerweise höchstens ein Tag) fehlen dann. Betroffene können die Löschung unter „Konto“ wiederholen oder sich melden; Sperren im Admin-Bereich neu setzen. Das ist in SPEC §9 als Risiko festgehalten und steht in der Datenschutzerklärung.
 
 Offene Prüfungen, deren Datei nach dem Einspielen fehlt (Uploads sind nicht im Backup), zeigt die Prüf-Queue mit „Datei fehlt“; freigeben geht dann nicht. Mit Grund ablehnen, z. B. „Bitte erneut hochladen“; die Nutzer bekommen eine DM und können neu hochladen.
 
