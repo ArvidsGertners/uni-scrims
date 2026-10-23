@@ -784,7 +784,7 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - *Fertig wenn:* Ein Admin sieht alle Kennzahlen aus SPEC §8 für beide Zeiträume mit Fallzahl, Ziel und Stretch; Tests mit festem `now` decken jede Kennzahl, die Grenzen der Zeitfenster und den Fall ohne Daten ab; Tests und Lint sind grün.
 
 **Phase 7: Konto mit E-Mail, Passwort und Klarname** (SPEC N-3, §5.8)
-- Voraussetzungen (erledigt am 23.10.2026): Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting S), SMTP-Zugang in der `.env`, MX, SPF, DKIM und DMARC bei Cloudflare, eine Testmail ist angekommen. Offen bis zum Deploy: AVV-Abdeckung des Webhostings prüfen, Datenschutzerklärung ergänzen (E-Mail, Passwort-Hash, Klarname, Hetzner als Mail-Dienst).
+- Voraussetzungen (erledigt am 23.10.2026): Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting S), SMTP-Zugang in der `.env`, MX, SPF, DKIM und DMARC bei Cloudflare, eine Testmail ist angekommen; die Datenschutzerklärung ist in der Dev-Kopie ergänzt (E-Mail, Passwort-Hash, Klarname, Hetzner als Mail-Dienst, Zählung pro IP). Offen bis zum Deploy: AVV-Abdeckung des Webhostings prüfen, `SMTP_*` und `MAIL_FROM` in die Production-`.env`, Datenschutzerklärung nach Production kopieren.
 - **Prüfpunkte zuerst** (mit 1.7.12 verifizieren, Ergebnis ins README):
   1. `/sign-up/email` ist von außen gesperrt, der Aufruf aus der Server Action geht durch.
   2. Wo beim Verknüpfen und bei der Anmeldung die frischen Discord-Tokens ankommen (z. B. Datenbank-Hook auf `account`), damit Hub-Beitritt und Token-Löschung für beide laufen.
@@ -794,6 +794,7 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - `core`: Registrierungs-Schema, `accountSetupStep` und `ACCOUNT_INCOMPLETE` in `requireUser`, `completeAccount`, `updateRealName`, `resetLegacyVerifications` im Upload-Janitor, Klarname in der Prüf-Queue, `deletedUserData` und `deleteAccount` erweitert
 - Web: Better-Auth-Konfiguration (§5.8), Seiten Registrieren, Anmelden, Mail bestätigt, Passwort vergessen und neu setzen, Konto vervollständigen, Discord verknüpfen; Konto-Seite mit Klarname, Passwort und E-Mail ändern; Mail-Versand; Prüf-Queue mit Name und neuem Checklisten-Punkt
 - *Fertig wenn:* Lokal laufen Registrierung, Bestätigungsmail, Anmeldung, Passwort vergessen und ändern, E-Mail ändern und das Verknüpfen mit einem echten Discord-Konto samt Hub-Beitritt durch; ein Discord-Konto ohne Uni-Scrims-Konto legt keines an; ein Altkonto wird beim Discord-Login zum Vervollständigen geführt, behält sein Team und verliert seine Verifizierung (offene Prüfungen werden abgelehnt); die Prüf-Queue zeigt den Klarnamen; die Kontolöschung entfernt E-Mail, Passwort und Klarname; Tests und Lint sind grün.
+- *Stand (23.10.2026):* abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`, dazu ein `next build`), Review samt Fixes; die Abläufe im Browser gegen eine Wegwerf-DB, und das Verknüpfen und Anmelden mit einem echten Discord-Konto samt Hub-Beitritt auf dem Dev-Server (dafür musste `http://localhost:3200/api/auth/callback/discord` als Redirect in der Discord-Application stehen). Production läuft noch ohne die Phasen 5–7.
 
 **Geplant** (Details folgen jeweils zu Beginn der Phase):
 - Phase 8: Admins und Prüfer über die Oberfläche (Betreiber vergibt Rollen), Anmeldung mit Passwort und Pflicht-2FA

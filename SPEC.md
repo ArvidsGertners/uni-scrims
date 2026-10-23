@@ -265,34 +265,34 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 **N-3 Konto mit E-Mail, Passwort und Klarname** (Phase 7)
 
 *Registrierung und Anmeldung*
-- [ ] Registrierung mit Vorname, Nachname (je 1–50 Zeichen), E-Mail und Passwort (10–128 Zeichen, sonst keine Regeln) und der Pflicht-Checkbox „mindestens 16 Jahre, Datenschutzerklärung gelesen“
-- [ ] Bestätigungslink per Mail, 24 Stunden gültig; anmelden kann man sich erst danach, ein neuer Link lässt sich anfordern. Ob eine Adresse schon registriert ist, verrät die Seite nicht.
-- [ ] Anmeldung mit E-Mail und Passwort; „Mit Discord anmelden“ geht nur für Konten, die Discord schon verknüpft haben. Ein Discord-Konto ohne Uni-Scrims-Konto legt kein Konto an, die Seite verweist auf die Registrierung.
-- [ ] Passwort vergessen: Link per Mail, 1 Stunde gültig; danach sind alle Sitzungen beendet. Die Antwort verrät nicht, ob es die Adresse gibt.
-- [ ] Auf der Konto-Seite: Passwort ändern (mit dem alten Passwort; beendet die anderen Sitzungen) und E-Mail ändern (Bestätigungslink an die neue Adresse; bis dahin gilt die alte)
-- [ ] Anmelden, Registrieren und das Anfordern von Mails sind pro IP-Adresse begrenzt
+- [x] Registrierung mit Vorname, Nachname (je 1–50 Zeichen), E-Mail und Passwort (10–128 Zeichen, sonst keine Regeln) und der Pflicht-Checkbox „mindestens 16 Jahre, Datenschutzerklärung gelesen“
+- [x] Bestätigungslink per Mail, 24 Stunden gültig; anmelden kann man sich erst danach, ein neuer Link lässt sich anfordern. Ob eine Adresse schon registriert ist, verrät die Seite nicht.
+- [x] Anmeldung mit E-Mail und Passwort; „Mit Discord anmelden“ geht nur für Konten, die Discord schon verknüpft haben. Ein Discord-Konto ohne Uni-Scrims-Konto legt kein Konto an, die Seite verweist auf die Registrierung.
+- [x] Passwort vergessen: Link per Mail, 1 Stunde gültig; danach sind alle Sitzungen beendet. Die Antwort verrät nicht, ob es die Adresse gibt.
+- [x] Auf der Konto-Seite: Passwort ändern (mit dem alten Passwort; beendet die anderen Sitzungen) und E-Mail ändern (Bestätigungslink an die neue Adresse; bis dahin gilt die alte)
+- [x] Anmelden, Registrieren und das Anfordern von Mails sind pro IP-Adresse begrenzt
 
 *Discord verknüpfen*
-- [ ] Nach der ersten Anmeldung ist Discord verknüpfen Pflicht, bevor man hochladen, ein Team gründen oder beitreten kann. Die Seite erklärt wie bisher vor dem Discord-Login, dass man dabei dem Hub-Server beitritt.
-- [ ] Beim Verknüpfen und bei jedem Discord-Login gilt alles aus P0-1: Hub-Beitritt, Discord-Name und Avatar werden übernommen, die Discord-Tokens danach gelöscht. Die E-Mail des Kontos bleibt dabei unverändert.
-- [ ] Eine Discord-ID, die schon zu einem anderen Konto gehört oder gesperrt ist, lässt sich nicht verknüpfen. Die Sperre bleibt an der Discord-ID.
-- [ ] Der Anzeigename auf der Seite (Header, Team, gegnerischer Captain) bleibt der Discord-Name; bis Discord verknüpft ist, heißt das Konto „Neues Konto“, nie mit dem Klarnamen
-- [ ] Auf der Konto-Seite lässt sich dasselbe Discord-Konto erneut verbinden, z. B. wenn der Hub-Beitritt gescheitert ist; ein anderes Discord-Konto geht nicht
+- [x] Nach der ersten Anmeldung ist Discord verknüpfen Pflicht, bevor man hochladen, ein Team gründen oder beitreten kann. Die Seite erklärt wie bisher vor dem Discord-Login, dass man dabei dem Hub-Server beitritt.
+- [x] Beim Verknüpfen und bei jedem Discord-Login gilt alles aus P0-1: Hub-Beitritt, Discord-Name und Avatar werden übernommen, die Discord-Tokens danach gelöscht. Die E-Mail des Kontos bleibt dabei unverändert.
+- [x] Eine Discord-ID, die schon zu einem anderen Konto gehört oder gesperrt ist, lässt sich nicht verknüpfen. Die Sperre bleibt an der Discord-ID.
+- [x] Der Anzeigename auf der Seite (Header, Team, gegnerischer Captain) bleibt der Discord-Name; bis Discord verknüpft ist, heißt das Konto „Neues Konto“, nie mit dem Klarnamen
+- [x] Auf der Konto-Seite lässt sich dasselbe Discord-Konto erneut verbinden, z. B. wenn der Hub-Beitritt gescheitert ist; ein anderes Discord-Konto geht nicht
 
 *Klarname*
-- [ ] Vor- und Nachname sehen nur die Person selbst (Konto-Seite) und Prüfer bzw. Admins in der Prüf-Queue, nie Teams oder Gegner
-- [ ] Die Prüf-Queue zeigt den Namen neben der Bescheinigung; die Checkliste hat den Punkt „Name stimmt überein“
-- [ ] Ändern kann man den Namen auf der Konto-Seite, solange man nicht verifiziert ist und keine Prüfung offen ist; danach nur per Mail an die Adresse aus dem Impressum
+- [x] Vor- und Nachname sehen nur die Person selbst (Konto-Seite) und Prüfer bzw. Admins in der Prüf-Queue, nie Teams oder Gegner
+- [x] Die Prüf-Queue zeigt den Namen neben der Bescheinigung; die Checkliste hat den Punkt „Name stimmt überein“
+- [x] Ändern kann man den Namen auf der Konto-Seite, solange man nicht verifiziert ist und keine Prüfung offen ist; danach nur per Mail an die Adresse aus dem Impressum
 
 *Bestehende Konten*
-- [ ] Wer sich vor Phase 7 nur mit Discord angemeldet hat, wird beim nächsten Discord-Login durch „Konto vervollständigen“ geführt: Vorname, Nachname, E-Mail, Passwort, dann der Bestätigungslink. Bis dahin gehen nur diese Seite und die Konto-Seite (Löschen, Abmelden). Ist die angegebene Adresse schon vergeben, sagt die Seite das (nur hier, für angemeldete Altkonten).
-- [ ] Ein Captain mit Altkonto kann die Captain-Rolle auf der Konto-Seite übertragen, damit er sein Konto löschen kann, ohne es vorher zu vervollständigen
-- [ ] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
+- [x] Wer sich vor Phase 7 nur mit Discord angemeldet hat, wird beim nächsten Discord-Login durch „Konto vervollständigen“ geführt: Vorname, Nachname, E-Mail, Passwort, dann der Bestätigungslink. Bis dahin gehen nur diese Seite und die Konto-Seite (Löschen, Abmelden). Ist die angegebene Adresse schon vergeben, sagt die Seite das (nur hier, für angemeldete Altkonten).
+- [x] Ein Captain mit Altkonto kann die Captain-Rolle auf der Konto-Seite übertragen, damit er sein Konto löschen kann, ohne es vorher zu vervollständigen
+- [x] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
 
 *Mails, Löschen, Sperren*
-- [ ] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com`
-- [ ] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
-- [ ] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen; Name, E-Mail und Passwort ändern sie nicht
+- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com`
+- [x] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
+- [x] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen; Name, E-Mail und Passwort ändern sie nicht
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
