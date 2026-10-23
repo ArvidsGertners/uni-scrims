@@ -140,8 +140,8 @@ uni-scrims/
 | Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; für den Admin-Bereich: `listDisputes`, `listFailedNotifications`, `getBotStatus`, `searchModerationTargets` (Suche auf der Sperren-Seite); nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` (Bausteine ohne Berechtigungsprüfung in einer Transaktion: `banUserInTx`, `banTeamInTx`, auch für `reapplyModeration`) |
 | Konto | `deleteAccount`, `getAccount` (Konto-Seite: ob Löschen gerade geht), `finishInterruptedDeletions` (Sweeper: eine solche Rücknahme nachholen) |
-| Bot | `deliverNotification`, `deliverDueNotifications` (Outbox-Sender §6.2; der Bot übergibt die Sendefunktion `Deliver`, wie beim Hub-Beitritt), `runSweeper` (Schritte 1–6 aus §6.3), `recordHeartbeat` (Heartbeat beider Bot-Schleifen) |
-| Wartung | `purgeOldNotifications`, `purgeExpiredSessions`, `reapplyModeration` (Sperren und Löschungen nach dem Einspielen eines Backups nachziehen, §8) |
+| Bot | `deliverNotification`, `deliverDueNotifications` (Outbox-Sender §6.2; der Bot übergibt die Sendefunktion `Deliver`, wie beim Hub-Beitritt), `runSweeper` (Schritte 1–7 aus §6.3), `recordHeartbeat` (Heartbeat beider Bot-Schleifen) |
+| Wartung | `purgeOldNotifications`, `purgeExpiredSessions`, `purgeStaleOAuthTokens`, `reapplyModeration` (Sperren und Löschungen nach dem Einspielen eines Backups nachziehen, §8) |
 
 Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Rang-Utils (`ranks.ts`) Upload-Helfer (`uploads.ts`: Magic-Bytes-Prüfung, Speichern, Löschen), Startzeiten (`time.ts`: 15-Minuten-Raster, Berlin → UTC, Anzeige mit "(Nacht auf …)"), Anzeigenamen für Format und Feedback (`labels.ts`), Outbox-Einträge mit einem Zod-Schema für den Payload jedes Typs (`notifications.ts`), Outbox-Sender (`outbox.ts`: Relevanz, Empfänger, Fehlerklassen, Backoff), Sweeper (`sweeper.ts`) und Zeilensperren (`locks.ts`). `config/dev.ts` kapselt die Dev-Schalter `DEV_LOGIN`, `DEV_DM_REDIRECT_DISCORD_ID` und `DEV_CHANNEL_ID`.
 
@@ -267,7 +267,7 @@ Notification   (Outbox)
   Index: (status, scheduledFor)
 
 SystemStatus
-  id ('bot'), heartbeatAt
+  id ('bot' = Sweeper, 'outbox' = Sender), heartbeatAt   # eine Zeile pro Bot-Schleife (§6.3)
 ```
 
 ### Warum so?
@@ -302,7 +302,7 @@ SystemStatus
 - Bei **jedem** Login (nicht nur beim ersten) versucht ein Better-Auth-Hook den Beitritt (für gesperrte Nutzer übersprungen): `PUT /guilds/{HUB_GUILD_ID}/members/{account.accountId}` mit dem Access-Token des Nutzers im Body und dem Bot-Token im Header. Antwort 201 heißt beigetreten, 204 heißt schon Mitglied. Voraussetzung: Der Bot ist im Hub und hat `CREATE_INSTANT_INVITE`.
 - Der Beitritt läuft mit **5 s Timeout**. Jeder Fehler (auch ein Timeout) setzt nur `hubJoinFailedAt`; **der Login läuft immer weiter.**
 - Bei Fehler wird `User.hubJoinFailedAt` gesetzt, sonst `null`. Häufigster Fehler: Der Nutzer ist schon in 100 Servern (200 mit Nitro), Discord-Fehler 30001.
-- **Danach werden Access- und Refresh-Token aus der `account`-Tabelle entfernt.** Sie werden nur für den Beitritt gebraucht.
+- **Danach werden Access- und Refresh-Token aus der `account`-Tabelle entfernt.** Sie werden nur für den Beitritt gebraucht. Scheitert das oder läuft der Hook nicht (Absturz, Fehler vor dem Anlegen der Session), löscht der Sweeper sie spätestens 10 Minuten später (§6.3).
 - `name` und `image` werden bei jedem Login aktualisiert.
 - **Nur die genutzten Better-Auth-Endpunkte sind erreichbar:** `/sign-in/social`, `/callback/:id`, `/sign-out`, `/get-session`, `/error` und der Dev-Login `/dev/sign-in` (der außerhalb der Entwicklung selbst 404 antwortet). Ein before-Hook mit dieser Liste (`apps/web/lib/auth-paths.ts`) beantwortet alle anderen mit 404, z. B. `/update-user`, `/change-email`, `/link-social` oder `/unlink-account`. Sonst könnte jede Session, auch die eines gesperrten Nutzers, Name und Avatar an Discord und an `requireUser` vorbei ändern; Sperren-Suche, Streitfall-Seite und Gegner verlassen sich aber auf den Discord-Username.
 - **Löschung während eines Logins:** Better Auth schreibt beim Login ohne Transaktion erst die `account`-Zeile, dann Name, Avatar und Mail. Fehlt die Discord-Verknüpfung danach, weil das Konto genau währenddessen gelöscht wurde, setzt `handleDiscordLogin` den User wieder auf die Lösch-Werte und löscht seine Sessions (`restoreDeletedUser`). Scheitert das (der Hook loggt Fehler nur) oder läuft der Hook gar nicht (Absturz), holt es der Sweeper im nächsten Durchlauf nach (`finishInterruptedDeletions`: `deletedAt` gesetzt, keine `account`-Zeile, aber nicht die Lösch-Mail; §6.3). Bis dahin ist die Session nutzlos: `requireAccountUser` behandelt einen Nutzer ohne Discord-Verknüpfung als abgemeldet, und `getCurrentUser` liefert für ihn `null`, sodass Kopfzeile, Startseite und Login-Seite ihn als abgemeldet zeigen. Erst nach der Rücknahme passt die Platzhalter-Mail nicht mehr, und ein neuer Login legt wieder einen neuen User an (vorher bräche Better Auth ihn mit „account not linked“ ab, weil es den User über die Mail fände). Ist die `account`-Zeile schon weg, wenn Better Auth sie aktualisieren will, bricht der Login ab; war die Löschung vor dem Login fertig, legt er wie immer einen neuen User an.
@@ -512,17 +512,18 @@ Um den Discord-Aufruf liegt **keine Transaktion**: lesen, senden, Ergebnis schre
 
 ### 6.3 Sweeper (jede Minute)
 
-Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach einem Bot-Ausfall holt der Sweeper alles nach.
+Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach einem Bot-Ausfall holt der Sweeper alles nach. Die Sweeper-Schleife startet mit dem Bot-Prozess und braucht keine Discord-Verbindung; der Sender startet erst nach dem Login, und ein gescheiterter Login wird jede Minute wiederholt, ohne den Prozess zu beenden. So laufen Fristen und Löschungen auch weiter, solange sich der Bot nicht bei Discord anmelden kann.
 
 1. `expireRequests(now)`: `ScrimRequest` OPEN mit `startsAt <= now` → `EXPIRED`; PENDING-Bewerbungen → REJECTED; `REQUEST_EXPIRED` an die Bewerber.
 2. `openFeedback(now)`: `Scrim` SCHEDULED mit `feedbackOpensAt <= now` → `AWAITING_FEEDBACK`. **Unabhängig davon, ob der FEEDBACK_PROMPT zugestellt wurde.**
 3. `resolveDeadlines(now)`: `Scrim` AWAITING_FEEDBACK mit `feedbackDeadline <= now` → auswerten mit Zeilensperre (siehe §5.6).
 4. `finishInterruptedDeletions()`: gelöschte Konten (`deletedAt` gesetzt), denen ein überholender Login Name, Avatar und Mail zurückgeschrieben hat und deren Rücknahme im Login-Hook scheiterte (§5.1), wieder auf die Lösch-Werte setzen und ihre Sessions löschen.
-5. `purgeOldNotifications(now)`: Notifications mit Status ≠ PENDING löschen, sobald `createdAt` **und** `scheduledFor` älter als 30 Tage sind (einmal pro Stunde reicht). `scheduledFor` ist bei fehlgeschlagenen Einträgen der letzte Versuch, bei abgesagten der Zeitpunkt der Absage (§6.2), bei gesendeten der geplante Versand; so bleibt ein Reminder, der Wochen nach der Buchung scheitert, 30 Tage in der Admin-Liste, und ein abgesagter Reminder für einen Scrim in vielen Wochen wird trotzdem 30 Tage nach der Absage gelöscht.
-6. `purgeExpiredSessions(now)`: Sessions mit `expiresAt < now` löschen (stündlich mit Schritt 5). Better Auth löscht eine abgelaufene Session nur, wenn ihr Cookie noch einmal kommt; ohne diesen Schritt blieben IP-Adresse und User-Agent nie zurückkehrender Geräte unbegrenzt liegen.
-7. Heartbeat: Nach jedem Durchlauf schreibt die Sweeper-Schleife `SystemStatus('bot').heartbeatAt` mit der Zeit nach den Schritten (nicht der vom Start, sonst wäre er bei langen Durchläufen schon beim Schreiben alt). Die Outbox-Schleife schreibt nach jedem Durchlauf und nach jeder Nachricht innerhalb eines Durchlaufs höchstens einmal pro Minute `SystemStatus('outbox')`; so zeigt ein durch Rate-Limits langsamer Versand nicht "offline", ein hängender schon. Die Admin-Seite zeigt "Bot offline", wenn einer der beiden Werte älter als 3 Minuten ist, und nennt dann die betroffene Schleife; so fällt auch ein hängender Versand auf.
+5. `purgeExpiredSessions(now)`: Sessions mit `expiresAt < now` löschen. Better Auth löscht eine abgelaufene Session nur, wenn ihr Cookie noch einmal kommt; ohne diesen Schritt blieben IP-Adresse und User-Agent nie zurückkehrender Geräte unbegrenzt liegen.
+6. `purgeStaleOAuthTokens(now)`: Discord-Tokens, deren `account`-Zeile seit mehr als 10 Minuten unverändert ist, löschen. Der Login-Hook löscht sie Sekunden nach dem Login (§5.1); dieser Schritt fängt einen Hook ab, der scheiterte oder wegen eines Absturzes nicht lief.
+7. `purgeOldNotifications(now)`: Notifications mit Status ≠ PENDING löschen, sobald `createdAt`, `scheduledFor` **und** (falls gesetzt) `sentAt` älter als 30 Tage sind. `scheduledFor` ist bei fehlgeschlagenen Einträgen der letzte Versuch, bei abgesagten der Zeitpunkt der Absage (§6.2); `sentAt` der tatsächliche Versand, auch wenn er sich nach einem Bot-Ausfall verspätet. So bleibt ein Reminder, der Wochen nach der Buchung scheitert, 30 Tage in der Admin-Liste, und ein abgesagter Reminder für einen Scrim in vielen Wochen wird trotzdem 30 Tage nach der Absage gelöscht. Dieser Schritt läuft nur einmal pro Stunde (direkt nach dem Start, dann eine Stunde nach dem letzten gelungenen Lauf; ein gescheiterter wird im nächsten Durchlauf wiederholt).
+8. Heartbeat: Nach jedem Durchlauf schreibt die Sweeper-Schleife `SystemStatus('bot').heartbeatAt` mit der Zeit nach den Schritten (nicht der vom Start, sonst wäre er bei langen Durchläufen schon beim Schreiben alt). Die Outbox-Schleife schreibt nach jedem Durchlauf und nach jeder Nachricht innerhalb eines Durchlaufs höchstens einmal pro Minute `SystemStatus('outbox')`; so zeigt ein durch Rate-Limits langsamer Versand nicht "offline", ein hängender schon. Die Admin-Seite zeigt "Bot offline", wenn einer der beiden Werte älter als 3 Minuten ist, und nennt dann die betroffene Schleife; so fällt auch ein hängender Versand auf. "Bot läuft" heißt also, dass beide Schleifen arbeiten, nicht, dass Discord jede Nachricht annimmt: Scheitert die Zustellung, wiederholt der Sender sie (§6.2), und dauerhaft gescheiterte Nachrichten stehen in der Liste fehlgeschlagener Nachrichten.
 
-`runSweeper(now, { purge })` führt die Schritte 1–6 in dieser Reihenfolge aus. Ein fehlschlagender Schritt wird geloggt und hält die anderen nicht auf (der nächste Durchlauf versucht es erneut); den Heartbeat schreibt die Schleife danach immer.
+`runSweeper(now, { purge })` führt die Schritte 1–7 in dieser Reihenfolge aus, Schritt 7 nur mit `purge`. Ein fehlschlagender Schritt wird geloggt und hält die anderen nicht auf (der nächste Durchlauf versucht es erneut); den Heartbeat schreibt die Schleife danach immer. Die Takt-Entscheidungen der Schleifen (Heartbeat-Drossel, Fälligkeit des Aufräumens) liegen in testbaren Funktionen im Bot (`createHeartbeat`, `outboxTick`, `createPurgeSchedule`, `sweeperTick`).
 
 ### 6.4 Slash-Command `/setup`
 
@@ -648,7 +649,7 @@ DEV_TIME_OFFSETS=false
 
 ### Monitoring
 
-`docker compose logs`, die Heartbeats der beiden Bot-Schleifen (§6.3) und die Liste fehlgeschlagener Nachrichten auf der Admin-Seite. Optional Uptime Kuma als zusätzlicher Container, der `/api/health` prüft.
+`docker compose logs`, die Heartbeats der beiden Bot-Schleifen (§6.3) und die Liste fehlgeschlagener Nachrichten auf der Admin-Seite (die 100 zuletzt gescheiterten; wie viele ältere es gibt, steht darunter). Optional Uptime Kuma als zusätzlicher Container, der `/api/health` prüft.
 
 ---
 

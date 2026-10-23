@@ -4,8 +4,8 @@ import { formatDateTime } from "@/lib/format";
 import { missingLegalPages } from "@/lib/legal";
 
 const BOT_LOOP_LABELS = [
-  { loop: "sweeper", label: "Zeitsteuerung (Reminder, Fristen)" },
-  { loop: "outbox", label: "Versand der Nachrichten" },
+  { loop: "sweeper", label: "Zeitsteuerung (Verfall, Feedback-Fristen, Aufräumen)" },
+  { loop: "outbox", label: "Versand der Nachrichten (auch Reminder)" },
 ] as const;
 
 const LINKS = [

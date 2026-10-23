@@ -93,7 +93,7 @@ Mit `NODE_ENV=development` und `DEV_LOGIN=true` gibt es unter `/dev-login` eine 
 
 ## Discord-Bot
 
-Der Bot (`apps/bot`) verschickt die Benachrichtigungen aus der Outbox (alle 5 s), führt die Zeit-Jobs aus (Sweeper, jede Minute: Anfragen verfallen lassen, Feedback öffnen, Scrims auswerten, alte Benachrichtigungen löschen, Heartbeat) und bietet `/setup`. Er muss als **genau eine Instanz** laufen. Nach einem Neustart holt er alles nach, was in der Zwischenzeit fällig wurde; Reminder, deren Scrim schon begonnen hat, verwirft er.
+Der Bot (`apps/bot`) verschickt die Benachrichtigungen aus der Outbox (alle 5 s), führt die Zeit-Jobs aus (Sweeper, jede Minute: Anfragen verfallen lassen, Feedback öffnen, Scrims auswerten, abgebrochene Kontolöschungen abschließen, abgelaufene Sessions und liegengebliebene Discord-Tokens löschen, stündlich alte Benachrichtigungen löschen) und bietet `/setup`. Beide Schleifen schreiben einen Heartbeat. Der Sweeper läuft ab dem Start des Prozesses, auch wenn der Discord-Login scheitert (der wird jede Minute wiederholt). Er muss als **genau eine Instanz** laufen. Nach einem Neustart holt er alles nach, was in der Zwischenzeit fällig wurde; Reminder, deren Scrim schon begonnen hat, verwirft er.
 
 **Team-Channel verknüpfen:** Der Captain lädt den Bot mit dem Einladungslink für Team-Server (Discord-Einrichtung, Schritt 4) auf seinen Server und ruft dort `/setup channel:#kanal` auf. Der Bot braucht in dem Channel die Rechte „Kanal ansehen“, „Nachrichten senden“ und „Links einbetten“ und postet zur Bestätigung eine Test-Nachricht. Kann er später nicht mehr in den Channel schreiben, entfernt er die Verknüpfung und schreibt dem Captain eine DM. Der Bot registriert `/setup` bei jedem Start global.
 
@@ -116,7 +116,7 @@ Ablauf eines kompletten Scrims (mit `DEV_LOGIN=true`):
 4. 3 und 1 Minute vor Start: Reminder. 2 Minuten nach Start: Feedback-Hinweis. Über den Button „Feedback geben“ antworten beide Captains → der Scrim ist sofort ausgewertet. Antwortet nur einer, wertet der Sweeper nach der Frist (Start + 7 min) aus.
 5. Neustart-Test: den Bot zwischendurch beenden und später wieder starten. Fällige Nachrichten und Zeit-Jobs werden nachgeholt.
 
-Den Stand zeigt die Tabelle `Notification` (`status`, `attempts`, `lastError`); `SystemStatus` enthält den Heartbeat des Bots.
+Den Stand zeigt die Tabelle `Notification` (`status`, `attempts`, `lastError`); `SystemStatus` enthält die Heartbeats der beiden Bot-Schleifen (`bot` für den Sweeper, `outbox` für den Versand).
 
 ## Discord-Einrichtung
 

@@ -4,7 +4,7 @@ TODO: Diese Datei ist nur ein Gerüst mit den Punkten aus SPEC §9, Punkt 2. Den
 TODO: Name, Anschrift, E-Mail
 
 ## Welche Daten wir verarbeiten
-- TODO: Discord-Login (Discord-ID, Username, Avatar)
+- TODO: Discord-Login (Discord-ID, Username, Avatar); das Zugriffstoken wird direkt nach dem Server-Beitritt gelöscht, spätestens nach 10 Minuten
 - TODO: Sitzungen mit IP-Adresse und User-Agent; laufen spätestens 7 Tage nach der letzten Nutzung ab und werden dann innerhalb einer Stunde gelöscht
 - TODO: Teams, Anfragen, Scrims und Feedback
 - TODO: Sperren: offene Prüfung wird abgelehnt und die Datei gelöscht

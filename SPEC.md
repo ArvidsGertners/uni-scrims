@@ -225,7 +225,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [ ] Streitfälle mit Entscheidung "Gespielt", "No-Show von Team X" oder "Unklar"
 - [ ] Nutzer bzw. Team sperren (mit den Folgen aus den Edge Cases). Wird ein Captain gesperrt, wird sein Team mitgesperrt. **Entsperren ist im MVP nur manuell per Datenbank** (im README beschrieben).
 - [ ] Liste dauerhaft fehlgeschlagener Benachrichtigungen (nur lesen)
-- [ ] Anzeige, ob der Bot läuft
+- [ ] Anzeige, ob der Bot läuft (ob seine beiden Schleifen arbeiten; Zustellfehler zeigt die Liste)
 - [ ] Admin-Rolle wird per Konfiguration (Liste von Discord-IDs) vergeben
 
 **P0-10 Rechtliches und Datenschutz**

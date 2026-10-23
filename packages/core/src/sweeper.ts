@@ -1,17 +1,23 @@
-// Sweeper (ARCHITECTURE §6.3): time-driven state changes, run by the bot every minute. Every step is
-// idempotent and derives from the database alone, so after a bot outage the next run catches up.
-// Also the heartbeats of both bot loops for the admin page.
+// Sweeper (ARCHITECTURE §6.3): time-driven state changes and purges, run by the bot every minute,
+// also while it cannot log in to Discord. Every step is idempotent and derives from the database
+// alone, so after a bot outage the next run catches up. Also the heartbeats of both bot loops.
 import { NotifStatus, prisma } from "@uni-scrims/db";
 import { requireAdmin } from "./permissions.ts";
 import { expireRequests } from "./requests.ts";
 import { openFeedback, resolveDeadlines } from "./scrims.ts";
-import { finishInterruptedDeletions } from "./users.ts";
+import { NO_OAUTH_TOKENS, finishInterruptedDeletions } from "./users.ts";
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
 
 /** Entries that are no longer pending are kept this long (SPEC §9: notifications 30 days). */
 export const NOTIFICATION_RETENTION_MS = 30 * DAY;
+
+/**
+ * Discord tokens older than this are removed by the sweeper (§6.3). The login hook removes them
+ * seconds after the login; this only catches a hook that failed or did not run.
+ */
+export const OAUTH_TOKEN_MAX_AGE_MS = 10 * MINUTE;
 
 /**
  * SystemStatus rows of the two bot loops (§6.3): each writes its heartbeat after a run. "bot" is the
@@ -42,9 +48,10 @@ export async function getBotStatus(adminId: string, now: Date) {
 }
 
 /**
- * Deletes sent, failed and cancelled entries once both their creation and their last planned send
- * (scheduledFor, moved by every retry) are older than NOTIFICATION_RETENTION_MS. A reminder booked
- * weeks ahead that fails at its time therefore stays in the admin list for 30 days too.
+ * Deletes sent, failed and cancelled entries once their creation, their last planned send
+ * (scheduledFor: the last attempt of a failed entry, the cancellation of a cancelled one) and their
+ * actual send (sentAt) are all older than NOTIFICATION_RETENTION_MS. A reminder booked weeks ahead
+ * that fails at its time therefore stays in the admin list for 30 days too.
  */
 export async function purgeOldNotifications(now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - NOTIFICATION_RETENTION_MS);
@@ -53,6 +60,7 @@ export async function purgeOldNotifications(now: Date): Promise<number> {
       status: { not: NotifStatus.PENDING },
       createdAt: { lt: cutoff },
       scheduledFor: { lt: cutoff },
+      OR: [{ sentAt: null }, { sentAt: { lt: cutoff } }],
     },
   });
   return deleted.count;
@@ -67,6 +75,22 @@ export async function purgeExpiredSessions(now: Date): Promise<number> {
   return deleted.count;
 }
 
+/** Discord tokens the login hook could not remove (§5.1): at most OAUTH_TOKEN_MAX_AGE_MS old. */
+export async function purgeStaleOAuthTokens(now: Date): Promise<number> {
+  const cleared = await prisma.account.updateMany({
+    where: {
+      updatedAt: { lt: new Date(now.getTime() - OAUTH_TOKEN_MAX_AGE_MS) },
+      OR: [
+        { accessToken: { not: null } },
+        { refreshToken: { not: null } },
+        { idToken: { not: null } },
+      ],
+    },
+    data: NO_OAUTH_TOKENS,
+  });
+  return cleared.count;
+}
+
 /** Written by each bot loop after a run, with the time after the run (not its start). */
 export async function recordHeartbeat(loop: BotLoop, now: Date): Promise<void> {
   const id = BOT_LOOP_STATUS_IDS[loop];
@@ -79,8 +103,9 @@ export async function recordHeartbeat(loop: BotLoop, now: Date): Promise<void> {
 
 /**
  * One sweeper run in the order of §6.3. A failing step is logged and does not stop the others;
- * the next run tries again. Purging hourly is enough. Counts are null for steps that failed or were
- * skipped. The bot loop writes the heartbeat afterwards, with the time the run ended.
+ * the next run tries again. Old notifications are purged only with `purge` (hourly is enough), the
+ * rest in every run. Counts are null for steps that failed or were skipped. The bot loop writes the
+ * heartbeat afterwards, with the time the run ended.
  */
 export async function runSweeper(now: Date, options: { purge: boolean }) {
   const step = async (name: string, run: () => Promise<number>): Promise<number | null> => {
@@ -91,17 +116,15 @@ export async function runSweeper(now: Date, options: { purge: boolean }) {
       return null;
     }
   };
-  const result = {
+  return {
     expiredRequests: await step("expireRequests", () => expireRequests(now)),
     openedFeedback: await step("openFeedback", () => openFeedback(now)),
     resolvedScrims: await step("resolveDeadlines", () => resolveDeadlines(now)),
     finishedDeletions: await step("finishInterruptedDeletions", () => finishInterruptedDeletions()),
+    purgedSessions: await step("purgeExpiredSessions", () => purgeExpiredSessions(now)),
+    clearedTokens: await step("purgeStaleOAuthTokens", () => purgeStaleOAuthTokens(now)),
     purgedNotifications: options.purge
       ? await step("purgeOldNotifications", () => purgeOldNotifications(now))
       : null,
-    purgedSessions: options.purge
-      ? await step("purgeExpiredSessions", () => purgeExpiredSessions(now))
-      : null,
   };
-  return result;
 }

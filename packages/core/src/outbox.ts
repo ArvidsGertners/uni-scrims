@@ -378,9 +378,13 @@ export async function deliverDueNotifications(
 /** The admin list shows at most this many failed entries, the latest failures first. */
 export const MAX_FAILED_SHOWN = 100;
 
-/** Admin: notifications that failed for good (SPEC P0-9), read only. */
+/**
+ * Admin: notifications that failed for good (SPEC P0-9), read only. The latest MAX_FAILED_SHOWN
+ * entries and how many there are in all, so the page can say that older ones are not shown.
+ */
 export async function listFailedNotifications(adminId: string) {
   await requireAdmin(adminId);
+  const total = await prisma.notification.count({ where: { status: NotifStatus.FAILED } });
   const rows = await prisma.notification.findMany({
     where: { status: NotifStatus.FAILED },
     // For failed entries scheduledFor is the time of the last attempt (recordFailure).
@@ -398,8 +402,9 @@ export async function listFailedNotifications(adminId: string) {
       targetTeam: { select: { name: true } },
     },
   });
-  return rows.map(({ targetUser, targetTeam, ...row }) => ({
+  const entries = rows.map(({ targetUser, targetTeam, ...row }) => ({
     ...row,
     targetName: targetUser?.name ?? targetTeam?.name ?? null,
   }));
+  return { entries, total };
 }

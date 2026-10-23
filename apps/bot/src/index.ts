@@ -1,5 +1,6 @@
 // Must stay the first import: core reads the environment (e.g. DEV_TIME_OFFSETS) when loaded.
 import "./env.ts";
+import { setTimeout as sleep } from "node:timers/promises";
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { handleSetup, setupCommand } from "./commands/setup.ts";
 import { createDeliver } from "./outbox/deliver.ts";
@@ -30,14 +31,18 @@ const baseUrl = requirePublicBaseUrl();
 // /setup refuses the hub server by this ID (§6.4); without it, the hub could be linked unnoticed.
 requireEnv("HUB_GUILD_ID");
 
+const LOGIN_RETRY_MS = 60 * 1000;
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-// once: reconnects do not emit ClientReady again, so each loop starts exactly once. Sender and
-// sweeper run side by side; the bot runs as exactly one instance (§6.2).
+// The sweeper needs no Discord connection: deadlines, evaluations and the purges of sessions and
+// tokens go on while the login fails (§6.3). The bot runs as exactly one instance (§6.2).
+void runSweeperLoop();
+
+// once: reconnects do not emit ClientReady again, so the sender starts exactly once.
 client.once(Events.ClientReady, (ready) => {
   console.log(`Bot eingeloggt als ${ready.user.tag}`);
   void runOutboxLoop(createDeliver(client.rest, baseUrl));
-  void runSweeperLoop();
   // Global and idempotent: overwrites the command list with /setup on every start.
   ready.application.commands
     .set([setupCommand])
@@ -68,4 +73,14 @@ async function shutdown(signal: string): Promise<void> {
 process.once("SIGINT", () => void shutdown("SIGINT"));
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
-await client.login(token);
+// Retried instead of ending the process, so the sweeper keeps running; the admin page shows the
+// sender as stopped meanwhile.
+for (;;) {
+  try {
+    await client.login(token);
+    break;
+  } catch (error) {
+    console.error(`Discord login failed, next try in ${LOGIN_RETRY_MS / 1000} s`, error);
+    await sleep(LOGIN_RETRY_MS);
+  }
+}

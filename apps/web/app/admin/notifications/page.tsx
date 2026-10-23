@@ -6,7 +6,7 @@ import { AdminNav } from "../admin-nav";
 
 export default async function FailedNotificationsPage() {
   const admin = await requireAdminPage("/admin/notifications");
-  const failed = await listFailedNotifications(admin.id);
+  const { entries: failed, total } = await listFailedNotifications(admin.id);
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
@@ -17,6 +17,11 @@ export default async function FailedNotificationsPage() {
         (höchstens {MAX_FAILED_SHOWN}). 30 Tage nach dem letzten Versuch werden sie gelöscht.
       </p>
       {failed.length === 0 ? <p>Keine fehlgeschlagenen Nachrichten.</p> : null}
+      {total > failed.length ? (
+        <p className="text-sm">
+          {total - failed.length} ältere fehlgeschlagene Nachrichten werden nicht angezeigt.
+        </p>
+      ) : null}
       <ul className="flex flex-col gap-3">
         {failed.map((entry) => (
           <li key={entry.id} className="flex flex-col gap-1 rounded-lg border p-3 text-sm">

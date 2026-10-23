@@ -11,10 +11,12 @@ import {
   BOT_LOOP_STATUS_IDS,
   BOT_OFFLINE_AFTER_MS,
   NOTIFICATION_RETENTION_MS,
+  OAUTH_TOKEN_MAX_AGE_MS,
   applyToRequest,
   getBotStatus,
   purgeExpiredSessions,
   purgeOldNotifications,
+  purgeStaleOAuthTokens,
   recordHeartbeat,
   runSweeper,
 } from "../src/index.ts";
@@ -77,6 +79,10 @@ describe("purgeOldNotifications", () => {
     const kept = await Promise.all([
       queueAt(old, NotifStatus.PENDING),
       queueAt(recent, NotifStatus.SENT),
+      // Planned long ago, but sent only recently (after a bot outage): 30 days from the send.
+      queueAt(old, NotifStatus.SENT).then((notification) =>
+        prisma.notification.update({ where: { id: notification.id }, data: { sentAt: recent } }),
+      ),
       // Created long ago (booked weeks ahead), failed or cancelled recently.
       ...[NotifStatus.FAILED, NotifStatus.CANCELLED].map((status) =>
         queueAt(old, status).then((notification) =>
@@ -115,6 +121,36 @@ describe("purgeExpiredSessions", () => {
         (session) => session.id,
       ),
     ).toEqual([valid.id]);
+  });
+});
+
+describe("purgeStaleOAuthTokens", () => {
+  it("removes tokens the login hook left behind, but not those of a login in progress", async () => {
+    // updatedAt comes from the database client's clock, so the test runs the purge from a time
+    // after it: the left-behind tokens are then older than the limit, the fresh ones are not.
+    const purgeAt = new Date(Date.now() + OAUTH_TOKEN_MAX_AGE_MS + 60_000);
+    const left = await createUser();
+    await prisma.account.updateMany({
+      where: { userId: left.id },
+      data: { idToken: "id", accessTokenExpiresAt: NOW, refreshTokenExpiresAt: NOW },
+    });
+    const fresh = await createUser();
+    await prisma.account.updateMany({ where: { userId: fresh.id }, data: { updatedAt: purgeAt } });
+
+    expect(await purgeStaleOAuthTokens(purgeAt)).toBeGreaterThanOrEqual(1);
+
+    expect(await prisma.account.findFirstOrThrow({ where: { userId: left.id } })).toMatchObject({
+      accountId: left.discordId,
+      accessToken: null,
+      refreshToken: null,
+      idToken: null,
+      accessTokenExpiresAt: null,
+      refreshTokenExpiresAt: null,
+    });
+    expect(await prisma.account.findFirstOrThrow({ where: { userId: fresh.id } })).toMatchObject({
+      accessToken: "access",
+      refreshToken: "refresh",
+    });
   });
 });
 
@@ -197,7 +233,10 @@ describe("runSweeper (§6.3)", () => {
     expect(result.openedFeedback).toBeGreaterThanOrEqual(1);
     expect(result.resolvedScrims).toBeGreaterThanOrEqual(1);
     expect(result.purgedNotifications).toBeNull();
-    expect(result.purgedSessions).toBeNull();
+    // Sessions, tokens and interrupted deletions are handled in every run.
+    expect(result.purgedSessions).not.toBeNull();
+    expect(result.clearedTokens).not.toBeNull();
+    expect(result.finishedDeletions).not.toBeNull();
     expect(
       await prisma.scrimRequest.findUniqueOrThrow({ where: { id: request.id } }),
     ).toMatchObject({ status: RequestStatus.EXPIRED });
@@ -211,10 +250,9 @@ describe("runSweeper (§6.3)", () => {
     ).toBe(1);
   });
 
-  it("purges only when asked to", async () => {
-    const result = await runSweeper(NOW, { purge: true });
-    expect(result.purgedNotifications).not.toBeNull();
-    expect(result.purgedSessions).not.toBeNull();
+  it("purges old notifications only when asked to", async () => {
+    expect((await runSweeper(NOW, { purge: true })).purgedNotifications).not.toBeNull();
+    expect((await runSweeper(NOW, { purge: false })).purgedNotifications).toBeNull();
   });
 
   it("runs the other steps when one step fails", async () => {

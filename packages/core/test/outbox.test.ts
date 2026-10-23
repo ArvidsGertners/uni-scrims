@@ -628,6 +628,47 @@ describe("deliverNotification: results (§6.2)", () => {
     expect(await send(reminder.id, REQUEST_STARTS_AT)).toBe("CANCELLED");
   });
 
+  it("keeps the time of the result in scheduledFor for every FAILED and CANCELLED entry (§6.2)", async () => {
+    // All entries are due at NOW, the bot handles them an hour late (e.g. after an outage).
+    const late = new Date(NOW.getTime() + HOUR);
+    const settledAt = async (id: string) =>
+      (await prisma.notification.findUniqueOrThrow({ where: { id } })).scheduledFor;
+
+    const user = await createUser();
+    const invalid = await queueVerificationResult(user.id);
+    await prisma.notification.update({ where: { id: invalid.id }, data: { payload: {} } });
+    expect(await send(invalid.id, late)).toBe("FAILED");
+    const blocked = await queueVerificationResult(user.id);
+    const dmBlocked = recorder({ ok: false, code: 50007, error: "Cannot send" }).deliver;
+    expect(await send(blocked.id, late, dmBlocked)).toBe("FAILED");
+
+    const { host, guest, scrim, request } = await bookScrim();
+    await prisma.team.update({ where: { id: host.team.id }, data: { discordChannelId: "401" } });
+    const post = await scrimNotification(
+      scrim.id,
+      NotifType.SCRIM_BOOKED,
+      host.team.id,
+      NotifChannel.TEAM_CHANNEL,
+    );
+    const channelBroken = recorder({ ok: false, code: 10003, error: "Unknown Channel" }).deliver;
+    expect(await send(post.id, late, channelBroken)).toBe("FAILED");
+    // No channel linked: dropped when the recipient is resolved.
+    const noChannel = await scrimNotification(
+      scrim.id,
+      NotifType.SCRIM_BOOKED,
+      guest.team.id,
+      NotifChannel.TEAM_CHANNEL,
+    );
+    expect(await send(noChannel.id, late)).toBe("CANCELLED");
+    // No longer relevant: the application arrived for a request that is booked now.
+    const received = await find({ requestId: request.id, type: NotifType.APPLICATION_RECEIVED });
+    expect(await send(received.id, late)).toBe("CANCELLED");
+
+    for (const { id } of [invalid, blocked, post, noChannel, received]) {
+      expect(await settledAt(id)).toEqual(late);
+    }
+  });
+
   it("fails an entry whose payload does not match its type", async () => {
     const user = await createUser();
     const notification = await queueVerificationResult(user.id);
@@ -748,7 +789,7 @@ describe("listFailedNotifications", () => {
       NotifStatus.SENT,
     );
 
-    const list = await listFailedNotifications(admin.id);
+    const { entries: list } = await listFailedNotifications(admin.id);
     expect(list.slice(0, 2)).toEqual([
       expect.objectContaining({ id: toUser.id, targetName: user.name }),
       {
@@ -765,11 +806,14 @@ describe("listFailedNotifications", () => {
     expect(list.map((entry) => entry.id)).not.toContain(sent.id);
   });
 
-  it(`shows at most ${MAX_FAILED_SHOWN} entries`, async () => {
+  it(`shows at most ${MAX_FAILED_SHOWN} entries and counts all of them`, async () => {
     const user = await createUser();
     for (let i = 0; i <= MAX_FAILED_SHOWN; i++) {
       await failed({ channel: NotifChannel.USER_DM, targetUserId: user.id }, LATER);
     }
-    expect(await listFailedNotifications(admin.id)).toHaveLength(MAX_FAILED_SHOWN);
+    const { entries, total } = await listFailedNotifications(admin.id);
+    expect(entries).toHaveLength(MAX_FAILED_SHOWN);
+    expect(total).toBe(await prisma.notification.count({ where: { status: NotifStatus.FAILED } }));
+    expect(total).toBeGreaterThan(MAX_FAILED_SHOWN);
   });
 });
