@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/admin/disputes", label: "Streitfälle" },
   { href: "/admin/bans", label: "Sperren" },
   { href: "/admin/notifications", label: "Fehlgeschlagene Nachrichten" },
+  { href: "/admin/stats", label: "Statistik" },
 ];
 
 /**
