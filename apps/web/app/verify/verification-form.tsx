@@ -78,7 +78,7 @@ export function VerificationForm({ universities }: { universities: University[] 
           Wir nutzen deine Bescheinigung nur, um zu prüfen, ob du studierst. Die Datei sehen nur
           Admins. Sie wird direkt nach der Prüfung gelöscht, spätestens nach 14 Tagen. Danach
           speichern wir nur Status, Hochschule, Dateityp, Dateigröße, einen Ablehnungsgrund, die
-          Zeitpunkte und wer geprüft hat. Ich bin damit einverstanden.
+          Zeitpunkte und wer geprüft hat. Ich habe diese Hinweise gelesen.
         </span>
       </label>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

@@ -66,9 +66,20 @@ export async function readLegalPage(
   }
 }
 
+/** Marks what is still to be written; the scaffold in docker/legal.example uses it on every point. */
+export const LEGAL_TODO_MARKER = "TODO";
+
+function isUnfinished(blocks: LegalBlock[]): boolean {
+  const text = blocks.flatMap((block) =>
+    block.type === "heading" ? [block.text] : block.type === "list" ? block.items : block.lines,
+  );
+  return text.some((line) => line.includes(LEGAL_TODO_MARKER));
+}
+
 /**
- * Pages whose text is missing or empty; they show "Inhalt folgt." (ARCHITECTURE §8). The admin page
- * and the start of the web process report them, so a server without its legal texts is noticed.
+ * Pages whose text is missing, empty or still contains "TODO" (the scaffold copied but not filled
+ * in); missing and empty ones show "Inhalt folgt." (ARCHITECTURE §8). The admin page and the start
+ * of the web process report them, so a server without its legal texts is noticed.
  */
 export async function missingLegalPages(
   env: Record<string, string | undefined> = process.env,
@@ -77,7 +88,7 @@ export async function missingLegalPages(
   for (const page of LEGAL_PAGES) {
     // Quiet: the callers report the result once instead of a line per file.
     const blocks = await readLegalPage(page, env, { quiet: true });
-    if (!blocks || blocks.length === 0) missing.push(page);
+    if (!blocks || blocks.length === 0 || isUnfinished(blocks)) missing.push(page);
   }
   return missing;
 }

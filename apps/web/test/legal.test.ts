@@ -74,4 +74,14 @@ describe("readLegalPage", () => {
     await expect(missingLegalPages({ LEGAL_DIR: dir })).resolves.toEqual([]);
     await expect(missingLegalPages({})).resolves.toEqual(["impressum", "datenschutz"]);
   });
+
+  it("reports the scaffold that was copied but not filled in", async () => {
+    const scaffold = path.resolve(import.meta.dirname, "../../../docker/legal.example");
+    await expect(missingLegalPages({ LEGAL_DIR: scaffold })).resolves.toEqual([
+      "impressum",
+      "datenschutz",
+    ]);
+    await writeFile(path.join(dir, "datenschutz.txt"), "## Rechte\n- TODO: Auskunft");
+    await expect(missingLegalPages({ LEGAL_DIR: dir })).resolves.toEqual(["datenschutz"]);
+  });
 });

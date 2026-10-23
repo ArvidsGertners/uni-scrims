@@ -8,7 +8,11 @@ function createClient(): PrismaClient {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set");
   }
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  // Without a timeout, a database that accepts no connections would hold every request forever,
+  // also the legal pages, whose header only shows a logged-out state on an error (ARCHITECTURE §8).
+  return new PrismaClient({
+    adapter: new PrismaPg({ connectionString, connectionTimeoutMillis: 10_000 }),
+  });
 }
 
 // Reuse a single client across hot reloads in Next.js dev.

@@ -145,6 +145,8 @@ systemctl reload ssh
 apt install unattended-upgrades && dpkg-reconfigure -plow unattended-upgrades
 ```
 
+Auf einem geteilten Server (siehe „Variante: Server mit vorhandenem nginx“) vor `ufw enable` auch die Ports der anderen Dienste freigeben (`ss -tlnp` zeigt, was lauscht) und SSH auf dem Port, den der Server tatsächlich nutzt; sonst sperrt `ufw enable` sie aus. Uni Scrims selbst braucht dort keinen eigenen Port, `web` lauscht nur auf `127.0.0.1`.
+
 Docker nach der [offiziellen Anleitung](https://docs.docker.com/engine/install/) installieren. Docker umgeht mit veröffentlichten Ports die ufw-Regeln; veröffentlicht werden nur 80 und 443 (Caddy), die Datenbank nicht.
 
 Beim Domain-Anbieter einen A-Eintrag (und ggf. AAAA) auf die Server-IP setzen. In der Discord-Application den Redirect `https://<domain>/api/auth/callback/discord` eintragen (Discord-Einrichtung, Schritt 1).
@@ -170,7 +172,7 @@ mkdir docker/legal && cp docker/legal.example/*.txt docker/legal/
 # docker/legal/impressum.txt und docker/legal/datenschutz.txt mit den echten Texten füllen
 ```
 
-Fehlt `docker/legal`, bricht `dc up` ab (der Ordner wird bewusst nicht automatisch leer angelegt). Fehlt eine der Dateien oder ist sie leer, zeigt die Seite „Inhalt folgt.“; das steht dann beim Start im Log von `web` und als Warnung im Admin-Bereich.
+Fehlt `docker/legal`, bricht `dc up` ab (der Ordner wird bewusst nicht automatisch leer angelegt). Fehlt eine der Dateien oder ist sie leer, zeigt die Seite „Inhalt folgt.“; das steht dann beim Start im Log von `web` und als Warnung im Admin-Bereich, ebenso, solange ein Text noch „TODO“ enthält (das Gerüst ist nicht fertig ausgefüllt).
 
 Starten, aus dem Repo-Root:
 
@@ -184,9 +186,20 @@ dc ps    # web "healthy", bot läuft, migrate mit Exit-Code 0 beendet
 
 Prüfen: `https://<domain>/api/health` antwortet, `/impressum` und `/datenschutz` zeigen deine Texte (nicht „Inhalt folgt.“), der Login klappt, und der Admin-Bereich zeigt „Bot läuft“ und keine Warnung zu Rechtstexten.
 
-- **Updates:** `git pull && dc up -d --build`. Der Migrate-Job läuft dabei jedes Mal mit; `web` und `bot` starten erst danach.
+- **Updates:** `git pull && dc up -d --build`. Der Migrate-Job läuft dabei jedes Mal mit; `web` und `bot` starten erst danach. Nicht in Git und deshalb von Hand nachzuziehen: die Rechtstexte in `docker/legal/` (beschreibt ein Update die Datenverarbeitung anders, die Datenschutzerklärung anpassen; die Seiten lesen sie bei jedem Aufruf) und die Einrichtung auf dem Server aus diesem README (nginx, logrotate, Cron).
 - **Logs:** `dc logs -f web bot`. Docker rotiert sie (3 × 10 MB pro Container).
 - **Datenbank-Konsole:** `dc exec db psql -U uniscrims uniscrims`
+
+### Go-Live-Checkliste
+
+Production wurde nach Phase 4 einmal deployt und wieder gestoppt (ARCHITECTURE §11). Vor dem Start mit echten Nutzern auf dem Server:
+
+1. Code auf den aktuellen Stand bringen (`git pull` bzw. `git push` wie unten) und `dc up -d --build`.
+2. `docker/legal/impressum.txt` und `docker/legal/datenschutz.txt` auf den aktuellen Stand bringen; der Admin-Bereich darf keine Warnung zu Rechtstexten zeigen.
+3. Mit vorhandenem nginx: Server-Blöcke mit den Logs in `/var/log/uni-scrims/` und `/etc/logrotate.d/uni-scrims` wie unten anlegen, dann `nginx -t && systemctl reload nginx` und `logrotate -d /etc/logrotate.d/uni-scrims`.
+4. Backups einrichten (Schlüssel, Cron mit `MAILTO`, siehe Backups), `docker/backup.sh` einmal von Hand laufen lassen, prüfen, dass das Backup extern liegt, und es auf deinem Rechner probeweise entschlüsseln: `gpg --decrypt uniscrims-<zeit>.dump.gpg | head -c 5` zeigt `PGDMP`.
+5. Prüfen wie oben (Health über HTTPS, Rechtstexte, Login, „Bot läuft“), dazu: Der Login fügt dich dem Hub-Server hinzu, eine DM des Bots kommt an (z. B. das Prüfergebnis), und eine Bescheinigung knapp unter 5 MB lässt sich hochladen (Body-Limit von Caddy bzw. nginx).
+6. Abnahme aus ARCHITECTURE §11 (Phase 4): Posten, Bewerben und Bestätigen brauchen spielbereite Teams (je mindestens 5 verifizierte Mitglieder, SPEC P0-3). Zwei solche Teams aus echten Accounts buchen einen Scrim, bekommen Buchung und Reminder per Discord und geben Feedback.
 
 ### Variante: Server mit vorhandenem nginx
 

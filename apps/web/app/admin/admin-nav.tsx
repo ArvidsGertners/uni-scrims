@@ -37,8 +37,8 @@ export async function AdminNav({ adminId }: { adminId: string }) {
       </nav>
       {missingLegal.length > 0 ? (
         <p className="text-sm text-destructive">
-          Rechtstexte fehlen in LEGAL_DIR ({missingLegal.map((page) => `${page}.txt`).join(", ")}
-          ): Die Seiten zeigen nur „Inhalt folgt.“
+          Rechtstexte fehlen in LEGAL_DIR oder enthalten noch „TODO“ (
+          {missingLegal.map((page) => `${page}.txt`).join(", ")}): Bitte vor dem Go-Live ausfüllen.
         </p>
       ) : null}
       {bot.online ? (

@@ -550,7 +550,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Board, Anfrage-Detail (ohne Bewerbungen), Team-Karten | eingeloggt, nicht gesperrt |
 | Bewerbungen einer Anfrage | Mitglieder des Ersteller-Teams |
 | Scrim-Detail, "Meine Scrims" | Mitglieder der beiden beteiligten Teams |
-| Gegnerischer Captain | erst nach der Buchung, für Mitglieder beider Teams |
+| Gegnerischer Captain | erst nach der Buchung, für Mitglieder beider Teams; in den Scrim-Nachrichten des Bots mit Discord-Mention auch im verknüpften Team-Channel des Gegners, also für alle, die diesen Channel lesen (§6.1, steht in der Datenschutzerklärung) |
 | Team anlegen, beitreten, verlassen; Upload | eingeloggt, nicht gesperrt |
 | Konto löschen (`/account`, nur die Löschaktion) | eingeloggt, **auch gesperrt** |
 | Team bearbeiten, Einladung erneuern, Captain übertragen, Mitglied entfernen | aktueller Captain (Verifizierung nicht nötig, damit er das Team aufbauen kann) |
@@ -645,7 +645,7 @@ DEV_CHANNEL_ID=
 DEV_TIME_OFFSETS=false
 ```
 
-**Impressum und Datenschutzerklärung** liegen als `impressum.txt` und `datenschutz.txt` in `LEGAL_DIR`, außerhalb von Git (Production: `docker/legal/`, schreibgeschützt in den Web-Container gemountet; Gerüst in `docker/legal.example/`). Format: `## ` beginnt eine Überschrift, `- ` einen Listenpunkt, eine Leerzeile beendet einen Absatz; Zeilenumbrüche im Absatz bleiben (Adressen). Die Seiten lesen die Dateien bei jedem Aufruf; fehlt eine, steht dort "Inhalt folgt.". Damit das nicht unbemerkt online geht: Compose bindet `docker/legal` mit `create_host_path: false` ein (fehlt der Ordner, scheitert `up`, statt einen leeren Ordner anzulegen), der Web-Prozess loggt beim Start fehlende oder leere Texte, und die Admin-Seiten zeigen dazu eine Warnung. Der Seitenkopf lädt den Nutzer mit Fehlerbehandlung, damit Impressum und Datenschutz auch bei nicht erreichbarer Datenbank erscheinen.
+**Impressum und Datenschutzerklärung** liegen als `impressum.txt` und `datenschutz.txt` in `LEGAL_DIR`, außerhalb von Git (Production: `docker/legal/`, schreibgeschützt in den Web-Container gemountet; Gerüst in `docker/legal.example/`). Format: `## ` beginnt eine Überschrift, `- ` einen Listenpunkt, eine Leerzeile beendet einen Absatz; Zeilenumbrüche im Absatz bleiben (Adressen). Die Seiten lesen die Dateien bei jedem Aufruf; fehlt eine, steht dort "Inhalt folgt.". Damit das nicht unbemerkt online geht: Compose bindet `docker/legal` mit `create_host_path: false` ein (fehlt der Ordner, scheitert `up`, statt einen leeren Ordner anzulegen), der Web-Prozess loggt beim Start fehlende oder leere Texte und solche, die noch „TODO“ enthalten (das kopierte, nicht ausgefüllte Gerüst), und die Admin-Seiten zeigen dazu eine Warnung. Der Seitenkopf lädt den Nutzer mit Fehlerbehandlung (getestet in `apps/web/test/header-user.test.ts`), damit Impressum und Datenschutz auch bei nicht erreichbarer Datenbank erscheinen; der Datenbank-Client gibt einen Verbindungsversuch nach 10 s auf, damit eine hängende Datenbank die Seiten nicht unbegrenzt aufhält.
 
 ### Monitoring
 
@@ -721,4 +721,4 @@ Jede Phase endet mit lauffähigem Stand, grünen Tests und einem Commit. **Erst 
 - Production-Compose mit Caddy, Migrate-Job und Log-Rotation; Backup-Skript; README mit Deploy-Anleitung für den VPS
 - **Vorher erledigt (SPEC §9, Punkte 1–4):** Impressum, Datenschutzerklärung, AVV, Hoster-Snapshots aus
 - *Fertig wenn:* Production läuft auf deiner Domain mit HTTPS, und zwei echte Discord-Accounts (z. B. du und ein Teammitglied) verifizieren sich, buchen einen Scrim und geben Feedback.
-- *Stand (22.10.2026):* Phase 4 auf Entscheidung des Betreibers ohne diese Abnahme abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`), Review, Rechtstexte, AVV, Backups und Firewall sind erledigt; Production wurde einmal deployt und wieder gestoppt. Der Live-Test mit zwei echten Accounts wird beim Go-Live nachgeholt.
+- *Stand (23.10.2026):* Phase 4 auf Entscheidung des Betreibers ohne diese Abnahme abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`), Review, Rechtstexte, AVV, Firewall sowie Backup-Skript und Anleitung sind erledigt; Production wurde einmal deployt und wieder gestoppt. Beim Go-Live wird der Server nach der Go-Live-Checkliste im README auf den aktuellen Stand gebracht (Code, Rechtstexte, nginx-Logs mit logrotate, Backup-Cron mit einem ersten geprüften Lauf), und die Abnahme folgt. Weil Posten, Bewerben und Bestätigen spielbereite Teams brauchen (je 5 verifizierte Mitglieder, SPEC P0-3), geht sie nicht mit nur zwei Accounts: Zwei Teams aus echten Accounts buchen einen Scrim und geben Feedback.

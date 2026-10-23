@@ -16,7 +16,7 @@ TODO: Zweck, Rechtsgrundlage, Löschung direkt nach der Prüfung, spätestens na
 TODO
 
 ## Discord als Empfänger (USA)
-TODO: Beitritt zum Uni-Scrims-Server beim Login, Discord-Nachrichten (DMs und Team-Channel)
+TODO: Beitritt zum Uni-Scrims-Server beim Login, Discord-Nachrichten (DMs und Team-Channel); Name und Discord-Erwähnung des Captains auch im verknüpften Team-Channel des Gegners; verschickte Nachrichten bleiben bei Discord
 
 ## Hosting und Server-Logs
 TODO: Hoster, Speicherort; Webserver-Logs (IP-Adresse, User-Agent) 14 Tage, Anwendungs-Logs höchstens 30 MB je Dienst

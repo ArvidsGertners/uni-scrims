@@ -343,7 +343,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 1 | Login mit Server-Beitritt, Upload-Verifizierung inkl. Admin-Queue, Teams und Einladungen | Du kannst dich einloggen, hochladen, als Admin freigeben und ein Team mit Einladungslink anlegen |
 | 2 | Scrim-Anfragen, Board, Bewerben, Bestätigen, "Meine Scrims", Absagen, Feedback-Formular | Zwei Test-Teams buchen, sagen ab und geben Feedback; die Auswertung stimmt |
 | 3 | Discord-Bot: `/setup`, alle Benachrichtigungen, Reminder, Sweeper | Der komplette Flow läuft mit echten Discord-Nachrichten durch (mit verkürzten Zeiten) |
-| 4 | Admin-Bereich komplett, Datenschutz-Funktionen, Deployment | Production läuft mit HTTPS; zwei echte Discord-Accounts buchen und bewerten einen Scrim. Stand 22.10.2026: auf Entscheidung des Betreibers ohne diese Live-Abnahme abgeschlossen, sie folgt beim Go-Live (ARCHITECTURE §11) |
+| 4 | Admin-Bereich komplett, Datenschutz-Funktionen, Deployment | Production läuft mit HTTPS; zwei echte Discord-Accounts buchen und bewerten einen Scrim. Stand 23.10.2026: auf Entscheidung des Betreibers ohne diese Live-Abnahme abgeschlossen; sie folgt beim Go-Live mit zwei spielbereiten Teams aus echten Accounts (Go-Live-Checkliste im README, ARCHITECTURE §11) |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 

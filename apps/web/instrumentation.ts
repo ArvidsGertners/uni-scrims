@@ -7,7 +7,7 @@ export async function register(): Promise<void> {
   const missing = await missingLegalPages();
   if (missing.length > 0) {
     console.error(
-      `Legal texts missing in LEGAL_DIR, the pages show a placeholder: ${missing.join(", ")}`,
+      `Legal texts missing in LEGAL_DIR or still containing TODO: ${missing.join(", ")}`,
     );
   }
 }
