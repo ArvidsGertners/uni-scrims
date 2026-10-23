@@ -14,7 +14,7 @@ export default async function TwoFactorSetupPage() {
         <p className="text-pretty text-muted-foreground">
           Für den Admin-Bereich brauchst du zusätzlich zum Passwort einen Code aus einer
           Authenticator-App. Danach meldest du dich einmal neu an, ab dann immer mit Passwort und
-          Code. Mit Discord kannst du dich dann nicht mehr anmelden.
+          Code. Solange du eine Rolle hast, geht die Anmeldung mit Discord nicht.
         </p>
       </div>
       <TwoFactorSetup />

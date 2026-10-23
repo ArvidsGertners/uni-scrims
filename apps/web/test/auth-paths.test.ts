@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedAuthPath } from "../lib/auth-paths.ts";
+import { isAllowedAuthPath, staffSessionAllowed } from "../lib/auth-paths.ts";
 
 describe("isAllowedAuthPath", () => {
   it("allows the endpoints the app uses over HTTP", () => {
@@ -59,5 +59,23 @@ describe("isAllowedAuthPath", () => {
       expect(isAllowedAuthPath(path, false), path).toBe(false);
       expect(isAllowedAuthPath(path, true), path).toBe(false);
     }
+  });
+});
+
+describe("staffSessionAllowed (§5.9)", () => {
+  it("lets staff get sessions from password and code only", () => {
+    for (const path of [
+      "/sign-in/email",
+      "/two-factor/verify-totp",
+      "/two-factor/verify-backup-code",
+      "/change-password",
+      "/dev/sign-in",
+    ]) {
+      expect(staffSessionAllowed(path), path).toBe(true);
+    }
+    for (const path of ["/callback/:id", "/verify-email", "/sign-in/social", "/sign-up/email"]) {
+      expect(staffSessionAllowed(path), path).toBe(false);
+    }
+    expect(staffSessionAllowed(undefined)).toBe(false);
   });
 });

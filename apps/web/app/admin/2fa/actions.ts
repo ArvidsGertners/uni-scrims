@@ -42,8 +42,8 @@ export async function startTwoFactorAction(
 }
 
 /**
- * The first code switches the 2FA on. Then every session ends (core), so the next login goes
- * through password and code.
+ * The first code switches the 2FA on; the auth config then ends every session (core), here once
+ * more for the one Better Auth just created, so the next login goes through password and code.
  */
 export async function confirmTwoFactorAction(
   _state: TwoFactorSetupState,
@@ -52,12 +52,17 @@ export async function confirmTwoFactorAction(
   if (!(await allowAttempt("code"))) return { error: RATE_LIMITED };
   // Read before the code: Better Auth replaces the session when it switches the 2FA on.
   const userId = (await getSessionUserId()) ?? "";
+  let enabled = false;
   const state = await runAction(async () => {
+    await requireStaffMember(userId);
     const code = String(formField(formData, "code") ?? "").replaceAll(/\s/g, "");
     await auth.api.verifyTOTP({ body: { code }, headers: await headers() });
-    await finishTwoFactorSetup(userId);
+    enabled = await finishTwoFactorSetup(userId);
   });
   if (state.error) return state;
+  // The role was removed or the 2FA reset while the code was checked.
+  if (!enabled)
+    return { error: "Die Zwei-Faktor-Anmeldung wurde zurückgesetzt. Lade die Seite neu." };
   await setFlash("Zwei-Faktor-Anmeldung eingerichtet. Melde dich jetzt mit Passwort und Code an");
   redirect("/login?callbackURL=%2Fadmin");
 }

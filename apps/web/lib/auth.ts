@@ -5,9 +5,10 @@ import {
   PASSWORD_MAX,
   PASSWORD_MIN,
   accountCreateProblem,
-  discordLoginBlocked,
   discordLoginUserInfo,
+  finishTwoFactorSetup,
   handleDiscordLogin,
+  hasStaffRole,
 } from "@uni-scrims/core";
 import { prisma } from "@uni-scrims/db";
 import { betterAuth } from "better-auth";
@@ -15,7 +16,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins";
-import { isAllowedAuthPath } from "./auth-paths.ts";
+import { isAllowedAuthPath, staffSessionAllowed, staffSessionError } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
 import { joinHubGuild } from "./hub-join.ts";
 import { MAIL_FAILED, type Mail, passwordResetMail, sendMail, verificationMail } from "./mail.ts";
@@ -139,11 +140,21 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        // Staff log in with password and code only; the code is not asked on a Discord login, so
-        // its session is refused (§5.9). Linking Discord creates no session and still works.
+        // Staff get sessions from password and code only (§5.9); a Discord login or a mail link
+        // would skip the code, so it goes back to the login page with a hint. Linking Discord
+        // creates no session and still works.
         before: async (session, ctx) => {
-          if (!ctx?.path.startsWith("/callback/")) return;
-          if (await discordLoginBlocked(session.userId)) return false;
+          if (staffSessionAllowed(ctx?.path) || !(await hasStaffRole(session.userId))) return;
+          if (!ctx) return false;
+          throw ctx.redirect(`/login?error=${staffSessionError(ctx.path)}`);
+        },
+      },
+    },
+    user: {
+      update: {
+        // The setup's first code switches the 2FA on, from whichever page it came (§5.9).
+        after: async (user, ctx) => {
+          if (ctx?.path === "/two-factor/verify-totp") await finishTwoFactorSetup(user.id);
         },
       },
     },

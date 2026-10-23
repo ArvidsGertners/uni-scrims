@@ -310,10 +310,16 @@ function totpFromUri(uri: string, time = Date.now()): string {
 
 const cookieHeaders = (jar: CookieJar) => new Headers({ cookie: jar.header(), origin: BASE });
 
-/** A confirmed account made reviewer, with the 2FA set up through the plugin (§5.9). */
-async function staffWithTwoFactor() {
+/** A confirmed account made reviewer, still without 2FA; its jar holds the password session. */
+async function newStaff() {
   const { jar, user } = await confirmedUser();
   await prisma.user.update({ where: { id: user.id }, data: { staffRole: StaffRole.REVIEWER } });
+  return { jar, user };
+}
+
+/** A reviewer with the 2FA set up through the plugin (§5.9). */
+async function staffWithTwoFactor(staff?: Awaited<ReturnType<typeof newStaff>>) {
+  const { jar, user } = staff ?? (await newStaff());
   const enabled = await auth.api.enableTwoFactor({
     body: { password: "lang-genug1", method: "totp" },
     headers: cookieHeaders(jar),
@@ -338,6 +344,22 @@ describe("staff 2FA (Phase 8, checks 1 to 3)", () => {
     expect(await prisma.twoFactor.findFirstOrThrow({ where: { userId: user.id } })).toMatchObject({
       verified: true,
     });
+  });
+
+  it("ends every session from the password alone when the 2FA comes on", async () => {
+    const staff = await newStaff();
+    const other = new CookieJar();
+    other.take(
+      await auth.api.signInEmail({
+        body: { email: staff.user.email, password: "lang-genug1" },
+        asResponse: true,
+      }),
+    );
+    expect(await (await http(other, "/get-session")).json()).toMatchObject({
+      user: { id: staff.user.id },
+    });
+    await staffWithTwoFactor(staff);
+    expect(await (await http(other, "/get-session")).json()).toBeNull();
   });
 
   it("logs staff in with password, then code; a backup code works once", async () => {
@@ -396,7 +418,40 @@ describe("staff 2FA (Phase 8, checks 1 to 3)", () => {
 
     const fresh = new CookieJar();
     const refused = await throughDiscord(fresh, "/sign-in/social");
-    expect(refused.headers.get("location")).toMatch(/error=unable_to_create_session/);
+    expect(refused.headers.get("location")).toBe("/login?error=staff_discord");
     expect(await (await http(fresh, "/get-session")).json()).toBeNull();
+  });
+
+  it("opens the link to a new address for staff only with a session", async () => {
+    const { user, totpURI } = await staffWithTwoFactor();
+    const jar = new CookieJar();
+    jar.take(
+      await auth.api.signInEmail({
+        body: { email: user.email, password: "lang-genug1" },
+        asResponse: true,
+      }),
+    );
+    jar.take(
+      await auth.api.verifyTOTP({
+        body: { code: totpFromUri(totpURI) },
+        headers: cookieHeaders(jar),
+        asResponse: true,
+      }),
+    );
+    const newEmail = uniqueEmail();
+    await auth.api.changeEmail({ body: { newEmail }, headers: cookieHeaders(jar) });
+    const link = sentMails.findLast((mail) => mail.to === newEmail)!.text.match(/https?:\S+/)![0];
+
+    // Without a session, Better Auth would sign in here, past password and code.
+    const fresh = new CookieJar();
+    const refused = await http(fresh, link);
+    expect(refused.headers.get("location")).toBe("/login?error=staff_link");
+    expect(await (await http(fresh, "/get-session")).json()).toBeNull();
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).email).toBe(
+      user.email,
+    );
+
+    expect((await http(jar, link)).status).toBe(302);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).email).toBe(newEmail);
   });
 });

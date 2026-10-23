@@ -185,6 +185,7 @@ describe("reapplyModeration", () => {
       transferredCaptains: 0,
       leftTeams: 0,
       staffRoles: 0,
+      twoFactorResets: 0,
     });
   });
 

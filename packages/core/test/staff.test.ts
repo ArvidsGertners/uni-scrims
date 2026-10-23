@@ -8,9 +8,9 @@ import {
   banUser,
   decideVerification,
   deleteAccount,
-  discordLoginBlocked,
   findStaffCandidates,
   finishTwoFactorSetup,
+  hasStaffRole,
   isDomainError,
   listStaff,
   reapplyModeration,
@@ -176,18 +176,40 @@ describe("setOperator (script)", () => {
 });
 
 describe("staff logins and the 2FA setup", () => {
-  it("blocks Discord logins for staff only", async () => {
-    expect(await discordLoginBlocked((await createUser()).id)).toBe(false);
-    expect(await discordLoginBlocked(operator.id)).toBe(true);
+  it("tells staff apart, whose sessions come from password and code only", async () => {
+    expect(await hasStaffRole((await createUser()).id)).toBe(false);
+    expect(await hasStaffRole(operator.id)).toBe(true);
   });
 
-  it("ends every session once the 2FA is set up", async () => {
+  it("ends every session once the 2FA is on", async () => {
     const user = await candidate({ staffRole: StaffRole.REVIEWER, twoFactor: false });
+    await twoFactorOf(user.id);
     await createSession(user.id);
-    await expect(finishTwoFactorSetup(user.id)).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(await finishTwoFactorSetup(user.id)).toBe(false);
+    expect(await prisma.session.count({ where: { userId: user.id } })).toBe(1);
     await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
-    await finishTwoFactorSetup(user.id);
+    expect(await finishTwoFactorSetup(user.id)).toBe(true);
     expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+    expect(await prisma.twoFactor.count({ where: { userId: user.id } })).toBe(1);
+  });
+
+  it("switches a 2FA off that came on after the role was removed or the 2FA reset", async () => {
+    // Better Auth set the flag after setStaffRole(null) or resetStaffTwoFactor had run.
+    const withoutRole = await candidate({ twoFactor: false });
+    const withoutSecret = await candidate({ staffRole: StaffRole.ADMIN });
+    for (const user of [withoutRole, withoutSecret]) {
+      await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
+      await createSession(user.id);
+    }
+    await twoFactorOf(withoutRole.id);
+    for (const user of [withoutRole, withoutSecret]) {
+      expect(await finishTwoFactorSetup(user.id)).toBe(false);
+      expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
+        twoFactorEnabled: false,
+      });
+      expect(await prisma.twoFactor.count({ where: { userId: user.id } })).toBe(0);
+      expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+    }
   });
 });
 
@@ -216,8 +238,10 @@ describe("bans and deletions of staff", () => {
 });
 
 describe("reapplyModeration and roles", () => {
-  it("sets the roles of the old database, removed ones included", async () => {
+  it("sets the roles of the old database, removed ones included, and resets every 2FA", async () => {
     const kept = await createUser({ staffRole: StaffRole.ADMIN });
+    await twoFactorOf(kept.id);
+    await createSession(kept.id);
     // Removed after the backup: the restored database still has it.
     const removed = await createUser({ staffRole: StaffRole.REVIEWER });
     await twoFactorOf(removed.id);
@@ -241,13 +265,23 @@ describe("reapplyModeration and roles", () => {
       uploadDir,
       now: NOW,
     });
+    // The operator's 2FA went too; switched on again for the next tests.
+    await prisma.user.update({ where: { id: operator.id }, data: { twoFactorEnabled: true } });
     expect(report.staffRoles).toBe(2);
+    expect(report.twoFactorResets).toBeGreaterThanOrEqual(1);
     expect([await role(kept.id), await role(removed.id), await role(changed.id)]).toEqual([
       StaffRole.ADMIN,
       null,
       StaffRole.ADMIN,
     ]);
     expect(await prisma.twoFactor.count({ where: { userId: removed.id } })).toBe(0);
+    // The secret might be one reset after the backup: set up again at the next login.
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: kept.id } })).toMatchObject({
+      staffRole: StaffRole.ADMIN,
+      twoFactorEnabled: false,
+    });
+    expect(await prisma.twoFactor.count({ where: { userId: kept.id } })).toBe(0);
+    expect(await prisma.session.count({ where: { userId: kept.id } })).toBe(0);
   });
 });
 

@@ -5,7 +5,7 @@ import { type Prisma, StaffRole, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { lockUser } from "./locks.ts";
-import { requireOperator, requireStaffMember } from "./permissions.ts";
+import { requireOperator } from "./permissions.ts";
 import { emailSchema } from "./schemas.ts";
 import { CREDENTIAL_PROVIDER } from "./account.ts";
 import { DISCORD_PROVIDER, accountSetupStep, isDeletedUser } from "./users.ts";
@@ -51,8 +51,15 @@ async function staffCandidateProblem(userId: string, db: Db): Promise<string | n
   return null;
 }
 
-/** Ends every session and removes the 2FA of a user; in the caller's transaction (§5.9). */
-async function endSessions(tx: Prisma.TransactionClient, userId: string, removeTwoFactor: boolean) {
+/**
+ * Ends every session of a user and, with removeTwoFactor, removes the 2FA; in the caller's
+ * transaction, under the user's lock (§5.9). Also used by the restore.
+ */
+export async function endStaffSessions(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  removeTwoFactor: boolean,
+) {
   await tx.session.deleteMany({ where: { userId } });
   if (removeTwoFactor) {
     await tx.twoFactor.deleteMany({ where: { userId } });
@@ -138,7 +145,7 @@ export async function setStaffRole(input: {
     }
     if (target?.staffRole === input.role) return;
     await tx.user.update({ where: { id: input.userId }, data: { staffRole: input.role } });
-    await endSessions(tx, input.userId, input.role === null);
+    await endStaffSessions(tx, input.userId, input.role === null);
   });
 }
 
@@ -158,7 +165,7 @@ export async function resetStaffTwoFactor(input: { operatorId: string; userId: s
     if (!target?.staffRole || target.staffRole === StaffRole.OPERATOR) {
       throw new DomainError("NOT_FOUND", "Das Konto hat keine Rolle, die du ändern kannst.");
     }
-    await endSessions(tx, input.userId, true);
+    await endStaffSessions(tx, input.userId, true);
   });
 }
 
@@ -181,28 +188,39 @@ export async function setOperator(email: string) {
       data: { staffRole: StaffRole.OPERATOR },
       select: staffSelect,
     });
-    await endSessions(tx, user.id, false);
+    await endStaffSessions(tx, user.id, false);
     return updated;
   });
 }
 
 /**
- * Staff log in with password and code only (§5.9): Better Auth asks for the code on the password
- * login but not on a Discord login, so a session from Discord is refused for them.
+ * Staff get sessions only from password and code (§5.9). The auth config refuses them every other
+ * way to a session (a Discord login, the link in a mail), which would skip the code.
  */
-export async function discordLoginBlocked(userId: string, db: Db = prisma): Promise<boolean> {
+export async function hasStaffRole(userId: string, db: Db = prisma): Promise<boolean> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { staffRole: true } });
   return !!user?.staffRole;
 }
 
 /**
- * After the 2FA was set up: every session ends, so the next login goes through password and code
- * (§5.9). For the signed-in staff member only.
+ * When the first code switched the 2FA on: every session ends, so no session from the password
+ * alone survives and the next login asks for the code (§5.9). Runs from the auth config whenever
+ * Better Auth switches it on, and once more after the setup page's code.
+ *
+ * Better Auth checks the code and switches the flag on outside our locks. If the role was removed
+ * or the 2FA reset meanwhile, the flag is on without a role or secret, which would lock the account
+ * out of the password login; it is switched off again here. Returns whether the 2FA is on.
  */
-export async function finishTwoFactorSetup(userId: string): Promise<void> {
-  const user = await requireStaffMember(userId);
-  if (!user.twoFactorEnabled) {
-    throw new DomainError("CONFLICT", "Die Zwei-Faktor-Anmeldung ist noch nicht eingerichtet.");
-  }
-  await prisma.session.deleteMany({ where: { userId: user.id } });
+export async function finishTwoFactorSetup(userId: string): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    await lockUser(tx, userId);
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { staffRole: true, twoFactorEnabled: true, _count: { select: { twoFactors: true } } },
+    });
+    if (!user?.twoFactorEnabled) return false;
+    const complete = !!user.staffRole && user._count.twoFactors > 0;
+    await endStaffSessions(tx, userId, !complete);
+    return complete;
+  });
 }

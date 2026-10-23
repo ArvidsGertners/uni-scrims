@@ -34,6 +34,31 @@ const SERVER_PATHS = new Set([
 const DEV_LOGIN_PATH = "/dev/sign-in";
 
 /**
+ * The only endpoints that may create a session for staff (§5.9): the password login (with the 2FA
+ * on, Better Auth swaps that session for the code step), the code step, the password change of a
+ * signed-in person, and the dev login. Everything else, a Discord login or the link in a mail,
+ * would skip the code.
+ */
+const STAFF_SESSION_PATHS = new Set([
+  "/sign-in/email",
+  "/two-factor/verify-totp",
+  "/two-factor/verify-backup-code",
+  "/change-password",
+  DEV_LOGIN_PATH,
+]);
+
+export function staffSessionAllowed(path: string | undefined): boolean {
+  return path !== undefined && STAFF_SESSION_PATHS.has(path);
+}
+
+/** Login page errors (?error=) for a refused staff session, by the endpoint that refused it. */
+export const STAFF_SESSION_ERRORS = { discord: "staff_discord", link: "staff_link" } as const;
+
+export function staffSessionError(path: string): string {
+  return path.startsWith("/callback/") ? STAFF_SESSION_ERRORS.discord : STAFF_SESSION_ERRORS.link;
+}
+
+/**
  * `path` is the Better Auth endpoint path, e.g. "/callback/:id" or "/sign-out"; `fromServer` is true
  * for calls through auth.api, which come without an HTTP request.
  */

@@ -9,6 +9,7 @@ import { isDomainError } from "./errors.ts";
 import { banTeamInTx, banUserInTx } from "./moderation.ts";
 import { lockUser } from "./locks.ts";
 import { findOwnTeam, isCaptainOf } from "./permissions.ts";
+import { endStaffSessions } from "./staff.ts";
 import { TRANSFER_CAPTAIN_FIRST, handOverCaptain, leaveTeam } from "./teams.ts";
 import { removeFilesAfterCommit } from "./verification.ts";
 import {
@@ -43,12 +44,17 @@ export type ReapplyReport = {
   leftTeams: number;
   /** Accounts whose role differed here and was set as in the old database (§5.9). */
   staffRoles: number;
+  /**
+   * Accounts whose 2FA came back with the backup: removed, so no secret reset after the backup
+   * works again; staff set it up anew at the next login (§5.9).
+   */
+  twoFactorResets: number;
 };
 
 /**
  * Applies roles, bans and deletions again, in this order: roles, teams, users, deletions. Roles come
  * first: a ban needs an account without a role, and a role removed after the backup must not come
- * back (§5.9). A banned user who also deleted the account ends up banned and deleted, as in the old
+ * back (§5.9). Every 2FA is reset with them. A banned user who also deleted the account ends up banned and deleted, as in the old
  * database. The export contains every banned team, dissolved ones too, so a team banned and then
  * dissolved in the old database is banned here before its captain's deletion dissolves it again.
  * Idempotent: what the restored database already has is skipped, so a second run changes nothing.
@@ -69,6 +75,7 @@ export async function reapplyModeration(input: {
     transferredCaptains: 0,
     leftTeams: 0,
     staffRoles: 0,
+    twoFactorResets: 0,
   };
 
   const roles = new Map(entries.staff.map(({ id, role }) => [id, role]));
@@ -83,13 +90,23 @@ export async function reapplyModeration(input: {
       await lockUser(tx, user.id);
       await tx.user.update({ where: { id: user.id }, data: { staffRole: role } });
       // As for any role change (§5.9): sessions end, and without a role the 2FA goes too.
-      await tx.session.deleteMany({ where: { userId: user.id } });
-      if (!role) {
-        await tx.twoFactor.deleteMany({ where: { userId: user.id } });
-        await tx.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false } });
-      }
+      await endStaffSessions(tx, user.id, role === null);
     });
     report.staffRoles++;
+  }
+
+  // The export holds no secrets, so the restored ones may be outdated (a lost device reset after
+  // the backup); every 2FA is set up again. A second run finds none of them any more.
+  const withTwoFactor = await prisma.user.findMany({
+    where: { OR: [{ twoFactorEnabled: true }, { twoFactors: { some: {} } }] },
+    select: { id: true },
+  });
+  for (const { id } of withTwoFactor) {
+    await prisma.$transaction(async (tx) => {
+      await lockUser(tx, id);
+      await endStaffSessions(tx, id, true);
+    });
+    report.twoFactorResets++;
   }
 
   for (const { id } of entries.bannedTeams) {
