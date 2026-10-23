@@ -2,12 +2,8 @@
 // the data is small (ARCHITECTURE §1), so medians and rates are computed here from plain reads.
 import { RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { requireAdmin } from "./permissions.ts";
-import {
-  READY_MEMBER_COUNT,
-  activeTeamWhere,
-  countReadyMembers,
-  isReadyCount,
-} from "./readiness.ts";
+import { READY_MEMBER_COUNT, activeTeamWhere, hasReadyMembers } from "./readiness.ts";
+import { OUTCOME_STATUSES } from "./scrims.ts";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -18,30 +14,22 @@ export const STATS_WINDOW_DAYS = 28;
 export const ACTIVE_TEAM_DAYS = 30;
 export const ACTIVE_TEAM_MIN_SCRIMS = 2;
 
-/** Scrim states that count as evaluated for the feedback response rate (SPEC §8). */
-const EVALUATED_STATUSES: readonly ScrimStatus[] = [
-  ScrimStatus.COMPLETED,
-  ScrimStatus.NO_SHOW,
-  ScrimStatus.DISPUTED,
-  ScrimStatus.UNCONFIRMED,
-];
-
-export type MetricKey =
-  | "readyTeams"
+/** Snapshot metrics describe now; all others have a value per window. */
+type SnapshotKey = "readyTeams" | "activeTeams";
+type WindowedKey =
   | "reviewTime"
   | "confirmationRate"
   | "timeToBooking"
   | "showUpRate"
   | "feedbackRate"
-  | "activeTeams"
   | "noShowRate"
   | "averageRating";
+export type MetricKey = SnapshotKey | WindowedKey;
 
 /** count: teams; duration: milliseconds; rate: 0–1; rating: 1–5. */
 export type MetricUnit = "count" | "duration" | "rate" | "rating";
 
 type MetricDefinition = {
-  key: MetricKey;
   /** Early indicators (first 4 weeks) or late ones (after 2–3 months), as in SPEC §8. */
   group: "early" | "late";
   label: string;
@@ -52,9 +40,7 @@ type MetricDefinition = {
   goal: "atLeast" | "below";
   target: number;
   stretch: number | null;
-  /** Snapshot metrics describe now and have no windows. */
-  snapshot: boolean;
-};
+} & ({ key: SnapshotKey; snapshot: true } | { key: WindowedKey; snapshot: false });
 
 /** SPEC §8, in its order, with targets and stretch goals. */
 export const SUCCESS_METRICS: readonly MetricDefinition[] = [
@@ -208,6 +194,8 @@ function average(values: readonly number[]): number | null {
   return values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+type Value = [value: number | null, cases: number];
+
 /**
  * The metrics of SPEC §8 for the last 28 days and in total, both up to `now` (SPEC N-2). Admins
  * only; the page shows sums, never names.
@@ -231,10 +219,12 @@ export async function getSuccessMetrics(input: {
       where: { decidedById: { not: null }, decidedAt: { lte: now } },
       select: { createdAt: true, decidedAt: true },
     }),
-    // Deleted requests (CANCELLED) and open ones do not count.
+    // Booked and expired requests that have started. One still OPEN after its start expires with
+    // the sweeper's next run, so it counts as expired already; a sweeper that lags or stands still
+    // would otherwise leave it out and inflate the rate. Deleted requests (CANCELLED) never count.
     prisma.scrimRequest.findMany({
       where: {
-        status: { in: [RequestStatus.BOOKED, RequestStatus.EXPIRED] },
+        status: { in: [RequestStatus.BOOKED, RequestStatus.EXPIRED, RequestStatus.OPEN] },
         startsAt: { lte: now },
       },
       select: { status: true, startsAt: true },
@@ -248,16 +238,18 @@ export async function getSuccessMetrics(input: {
         hostTeamId: true,
         guestTeamId: true,
         request: { select: { createdAt: true } },
-        feedback: { select: { rating: true } },
+        feedback: { where: { rating: { not: null } }, select: { rating: true } },
+        _count: { select: { feedback: true } },
       },
     }),
   ]);
 
-  const windowStart = new Date(now.getTime() - STATS_WINDOW_DAYS * DAY);
-  const within = (date: Date, from: Date | null) => date <= now && (!from || date >= from);
+  // All rows are up to now already; a window only needs its start (null: in total).
+  const within = (date: Date, from: Date | null) => !from || date >= from;
   const started = scrims.filter((scrim) => scrim.startsAt <= now);
+  const statuses: readonly ScrimStatus[] = OUTCOME_STATUSES;
 
-  const windowed = (from: Date | null) => {
+  const windowed = (from: Date | null): Record<WindowedKey, Value> => {
     const decided = decisions.filter((decision) => within(decision.decidedAt!, from));
     const requestsIn = requests.filter((request) => within(request.startsAt, from));
     const booked = requestsIn.filter((request) => request.status === RequestStatus.BOOKED).length;
@@ -265,10 +257,8 @@ export async function getSuccessMetrics(input: {
     const startedIn = started.filter((scrim) => within(scrim.startsAt, from));
     const played = startedIn.filter((scrim) => scrim.status === ScrimStatus.COMPLETED);
     const noShows = startedIn.filter((scrim) => scrim.status === ScrimStatus.NO_SHOW).length;
-    const evaluated = startedIn.filter((scrim) => EVALUATED_STATUSES.includes(scrim.status));
-    const ratings = played.flatMap((scrim) =>
-      scrim.feedback.flatMap(({ rating }) => (rating === null ? [] : [rating])),
-    );
+    const evaluated = startedIn.filter((scrim) => statuses.includes(scrim.status));
+    const ratings = played.flatMap((scrim) => scrim.feedback.map(({ rating }) => rating!));
     const outcomes = played.length + noShows;
     return {
       reviewTime: [
@@ -286,19 +276,17 @@ export async function getSuccessMetrics(input: {
       ],
       showUpRate: [rate(played.length, outcomes), outcomes],
       feedbackRate: [
-        rate(evaluated.filter((scrim) => scrim.feedback.length > 0).length, evaluated.length),
+        rate(evaluated.filter((scrim) => scrim._count.feedback > 0).length, evaluated.length),
         evaluated.length,
       ],
       noShowRate: [rate(noShows, outcomes), outcomes],
       averageRating: [average(ratings), ratings.length],
-    } satisfies Partial<Record<MetricKey, [number | null, number]>>;
+    };
   };
-  const last28Days = windowed(windowStart);
+  const last28Days = windowed(new Date(now.getTime() - STATS_WINDOW_DAYS * DAY));
   const total = windowed(null);
 
-  const readyTeamIds = teams
-    .filter((team) => isReadyCount(countReadyMembers(team.members)))
-    .map((team) => team.id);
+  const readyTeamIds = teams.filter((team) => hasReadyMembers(team.members)).map(({ id }) => id);
   const activeStart = new Date(now.getTime() - ACTIVE_TEAM_DAYS * DAY);
   const playedPerTeam = new Map<string, number>();
   for (const scrim of started) {
@@ -310,22 +298,21 @@ export async function getSuccessMetrics(input: {
   const activeTeams = readyTeamIds.filter(
     (teamId) => (playedPerTeam.get(teamId) ?? 0) >= ACTIVE_TEAM_MIN_SCRIMS,
   ).length;
-  const snapshots: Partial<Record<MetricKey, [number | null, number]>> = {
+  const snapshots: Record<SnapshotKey, Value> = {
+    // A count: no ready teams is 0, not "no value", even without any active team.
     readyTeams: [readyTeamIds.length, teams.length],
     activeTeams: [rate(activeTeams, readyTeamIds.length), readyTeamIds.length],
   };
 
   return SUCCESS_METRICS.map((definition): SuccessMetric => {
     if (definition.snapshot) {
-      const [value, cases] = snapshots[definition.key]!;
-      return { ...definition, snapshot: true, now: result(definition, value, cases) };
+      const [value, cases] = snapshots[definition.key];
+      return { ...definition, now: result(definition, value, cases) };
     }
-    const key = definition.key as keyof typeof total;
     return {
       ...definition,
-      snapshot: false,
-      last28Days: result(definition, ...last28Days[key]),
-      total: result(definition, ...total[key]),
+      last28Days: result(definition, ...last28Days[definition.key]),
+      total: result(definition, ...total[definition.key]),
     };
   });
 }

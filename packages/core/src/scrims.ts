@@ -120,12 +120,16 @@ export async function cancelScrim(input: { userId: string; scrimId: string; now:
 
 export type FeedbackSide = { teamId: string; outcome: FeedbackOutcome | null };
 
+/** The states a scrim's evaluation ends in (ARCHITECTURE §5.6), also "ausgewertet" in SPEC §8. */
+export const OUTCOME_STATUSES = [
+  ScrimStatus.COMPLETED,
+  ScrimStatus.NO_SHOW,
+  ScrimStatus.DISPUTED,
+  ScrimStatus.UNCONFIRMED,
+] as const;
+
 export type ScrimOutcome = {
-  status:
-    | typeof ScrimStatus.COMPLETED
-    | typeof ScrimStatus.NO_SHOW
-    | typeof ScrimStatus.DISPUTED
-    | typeof ScrimStatus.UNCONFIRMED;
+  status: (typeof OUTCOME_STATUSES)[number];
   noShowTeamId: string | null;
 };
 

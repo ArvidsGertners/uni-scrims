@@ -1,5 +1,6 @@
-// The success metrics count everything in the database, so this file starts from empty domain
-// tables. Test files run one after another (vitest.config.ts) and create their own data.
+// The success metrics count everything in the database, so every test here starts from empty
+// domain tables, and the file leaves them empty. Test files run one after another
+// (vitest.config.ts) and create their own data.
 import {
   FeedbackOutcome,
   MemberRole,
@@ -10,14 +11,22 @@ import {
   prisma,
   Rank,
 } from "@uni-scrims/db";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type MetricKey, type SuccessMetric, getSuccessMetrics, median } from "../src/index.ts";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  type MetricKey,
+  STATS_WINDOW_DAYS,
+  SUCCESS_METRICS,
+  type SuccessMetric,
+  getSuccessMetrics,
+  median,
+} from "../src/index.ts";
 import { createTeamWithMembers, createUser, useAdmin } from "./helpers.ts";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const NOW = new Date("2026-11-30T12:00:00Z");
 const ago = (ms: number) => new Date(NOW.getTime() - ms);
+const WINDOW_START = ago(STATS_WINDOW_DAYS * DAY);
 
 const admin = useAdmin();
 
@@ -32,9 +41,10 @@ async function clearDomainTables() {
   await prisma.verificationRequest.deleteMany();
 }
 
-beforeAll(clearDomainTables);
+beforeEach(clearDomainTables);
 
 afterAll(async () => {
+  await clearDomainTables();
   await prisma.$disconnect();
 });
 
@@ -122,6 +132,16 @@ function byKey(metrics: SuccessMetric[]) {
   >;
 }
 
+async function metricsAt(now = NOW) {
+  const metrics = byKey(await getSuccessMetrics({ adminId: admin.id, now }));
+  const windows = (key: MetricKey) => {
+    const metric = metrics[key];
+    if (metric.snapshot) throw new Error(`${key} is a snapshot`);
+    return [metric.last28Days, metric.total];
+  };
+  return { metrics, windows };
+}
+
 describe("median", () => {
   it("takes the middle value, or the mean of the two middle ones", () => {
     expect(median([])).toBeNull();
@@ -148,11 +168,11 @@ describe("getSuccessMetrics", () => {
     expect(metrics.activeTeams).toMatchObject({
       now: { value: null, cases: 0, reached: null, stretchReached: null },
     });
-    for (const key of ["reviewTime", "confirmationRate", "showUpRate", "averageRating"] as const) {
+    for (const { key, snapshot } of SUCCESS_METRICS) {
+      if (snapshot) continue;
       expect(metrics[key]).toMatchObject({
-        snapshot: false,
-        last28Days: { value: null, cases: 0, reached: null },
-        total: { value: null, cases: 0, reached: null },
+        last28Days: { value: null, cases: 0, reached: null, stretchReached: null },
+        total: { value: null, cases: 0, reached: null, stretchReached: null },
       });
     }
   });
@@ -264,27 +284,24 @@ describe("getSuccessMetrics", () => {
       bookedAfter: HOUR / 2,
     });
 
-    // Requests without a scrim: expired ones count, deleted and open ones do not. The first starts
-    // exactly at the window start, which still belongs to the last 28 days.
-    await createRequest(a, RequestStatus.EXPIRED, ago(28 * DAY), ago(30 * DAY));
+    // Requests without a scrim: expired ones count, and so does one still open after its start
+    // (the sweeper has not expired it yet). Deleted ones and future open ones do not.
+    await createRequest(a, RequestStatus.EXPIRED, ago(20 * DAY), ago(21 * DAY));
     await createRequest(a, RequestStatus.EXPIRED, ago(50 * DAY), ago(51 * DAY));
+    await createRequest(b, RequestStatus.OPEN, ago(DAY), ago(2 * DAY));
     await createRequest(a, RequestStatus.CANCELLED, ago(2 * DAY), ago(3 * DAY));
     await createRequest(b, RequestStatus.OPEN, new Date(NOW.getTime() + DAY), ago(DAY));
 
-    // Verifications decided by hand count; automatic rejections and decisions after now do not.
+    // Verifications decided by hand count. Automatic and ban rejections (no decidedById) do not,
+    // nor do decisions after now.
     await createDecision(ago(3 * DAY), 2 * HOUR, admin.id);
     await createDecision(ago(5 * DAY), 10 * HOUR, admin.id);
     await createDecision(ago(10 * DAY), 30 * HOUR, admin.id);
     await createDecision(ago(40 * DAY), HOUR, admin.id);
-    await createDecision(ago(2 * DAY), 14 * DAY, null);
+    await createDecision(ago(2 * DAY), HOUR, null);
     await createDecision(ago(HOUR), 2 * HOUR, admin.id);
 
-    const metrics = byKey(await getSuccessMetrics({ adminId: admin.id, now: NOW }));
-    const windows = (key: MetricKey) => {
-      const metric = metrics[key];
-      if (metric.snapshot) throw new Error(`${key} is a snapshot`);
-      return [metric.last28Days, metric.total];
-    };
+    const { metrics, windows } = await metricsAt();
 
     // A, B and F are ready; C misses a player, E has a coach as fifth, the banned team is out.
     expect(metrics.readyTeams).toMatchObject({
@@ -301,10 +318,10 @@ describe("getSuccessMetrics", () => {
       // Mean of 2 h and 10 h; 6 h is not below the stretch goal of 6 h.
       { value: 6 * HOUR, cases: 4, reached: true, stretchReached: false },
     ]);
-    // Booked with a start up to now: 6 in the window, 8 in total; expired: 1 and 2.
+    // Booked with a start up to now: 6 in the window, 8 in total; expired or overdue: 2 and 3.
     expect(windows("confirmationRate")).toMatchObject([
-      { value: 6 / 7, cases: 7, reached: true, stretchReached: true },
-      { value: 0.8, cases: 10, reached: true, stretchReached: true },
+      { value: 0.75, cases: 8, reached: true, stretchReached: true },
+      { value: 8 / 11, cases: 11, reached: true, stretchReached: true },
     ]);
     // Bookings in the window: 1, 2, 4, 6, 10, 12, 30 h; in total also 0.5 h and 1 h.
     expect(windows("timeToBooking")).toMatchObject([
@@ -329,5 +346,58 @@ describe("getSuccessMetrics", () => {
       { value: 4, cases: 3, reached: true, stretchReached: null },
       { value: 3.2, cases: 5, reached: false, stretchReached: null },
     ]);
+  });
+
+  it("counts teams with 2 played scrims that started in the last 30 days", async () => {
+    const opponent = await createTeamWithMembers({ extraMembers: 3 });
+    const scrim = (host: Team, status: ScrimStatus, startsAt: Date) =>
+      createScrim({
+        host,
+        guest: opponent,
+        status,
+        startsAt,
+        requestCreatedAt: new Date(startsAt.getTime() - DAY),
+        bookedAfter: HOUR,
+      });
+    // The second scrim exactly 30 days ago still counts, 1 ms earlier it does not.
+    const inside = await createTeamWithMembers({ extraMembers: 4 });
+    await scrim(inside, ScrimStatus.COMPLETED, ago(2 * DAY));
+    await scrim(inside, ScrimStatus.COMPLETED, ago(30 * DAY));
+    const outside = await createTeamWithMembers({ extraMembers: 4 });
+    await scrim(outside, ScrimStatus.COMPLETED, ago(2 * DAY));
+    await scrim(outside, ScrimStatus.COMPLETED, new Date(ago(30 * DAY).getTime() - 1));
+    // Only played scrims count, not a no-show.
+    const noShow = await createTeamWithMembers({ extraMembers: 4 });
+    await scrim(noShow, ScrimStatus.COMPLETED, ago(2 * DAY));
+    await scrim(noShow, ScrimStatus.NO_SHOW, ago(3 * DAY));
+
+    // The opponent played all of them but is not ready, so it is in neither number.
+    const { metrics } = await metricsAt();
+    expect(metrics.activeTeams).toMatchObject({
+      now: { value: 1 / 3, cases: 3, reached: false, stretchReached: null },
+    });
+  });
+
+  it("puts entries exactly at the window start and at now into the last 28 days", async () => {
+    const a = await createTeamWithMembers({ extraMembers: 4 });
+    const b = await createTeamWithMembers({ extraMembers: 4 });
+    const justBefore = new Date(WINDOW_START.getTime() - 1);
+    // Start, booking and the decision each at now, at the window start, and 1 ms before it.
+    for (const at of [NOW, WINDOW_START, justBefore]) {
+      await createScrim({
+        host: a,
+        guest: b,
+        status: ScrimStatus.COMPLETED,
+        startsAt: at,
+        requestCreatedAt: new Date(at.getTime() - 2 * HOUR),
+        bookedAfter: 2 * HOUR,
+      });
+      await createDecision(new Date(at.getTime() - HOUR), HOUR, admin.id);
+    }
+
+    const { windows } = await metricsAt();
+    for (const key of ["reviewTime", "confirmationRate", "timeToBooking", "showUpRate"] as const) {
+      expect(windows(key).map(({ cases }) => cases)).toEqual([2, 3]);
+    }
   });
 });
