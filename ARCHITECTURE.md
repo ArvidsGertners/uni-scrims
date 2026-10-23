@@ -79,6 +79,7 @@ In Phase 0 werden **exakte Versionen** in `package.json` gepinnt (ohne `^`/`~`) 
 | date-fns + @date-fns/tz | 4.4.0 / 1.5.0 | Zeitzonen (Startzeiten in `core/src/time.ts`). In Phase 2 installiert. |
 | file-type | 22.2.0 | MIME-Prüfung über Magic Bytes. Wird erst in Phase 1 installiert. |
 | nodemailer | in Phase 7 exakt gepinnt (mindestens zwei Wochen alte Version) | Versand der Konto-Mails per SMTP (§5.8) |
+| uqr | 0.1.3 (Phase 8) | QR-Code der 2FA-Einrichtung als SVG, ohne Abhängigkeiten (§5.9) |
 
 **Warum Better Auth statt Auth.js (next-auth):** Auth.js wird seit 2025 vom Better-Auth-Team nur noch mit Sicherheitsfixes gepflegt, und next-auth v5 ist weiterhin Beta. Für ein neues Projekt ist Better Auth der aktiv entwickelte Weg.
 
@@ -98,7 +99,7 @@ uni-scrims/
 │  │  │  ├─ join/[code]/   # Einladungslink
 │  │  │  ├─ verify/        # Upload der Immatrikulationsbescheinigung
 │  │  │  ├─ account/       # Konto, Löschen
-│  │  │  ├─ admin/         # Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik
+│  │  │  ├─ admin/         # Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik, Rollen (ab Phase 8)
 │  │  │  └─ api/
 │  │  │     ├─ auth/[...all]/           # Better Auth
 │  │  │     ├─ admin/uploads/[id]/      # geschützter Datei-Abruf
@@ -140,6 +141,7 @@ uni-scrims/
 | Scrims | `cancelScrim`, `openFeedback`, `submitFeedback`, `resolveScrimOutcome` (rein), `resolveDeadlines`, `resolveDispute` |
 | Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; für den Admin-Bereich: `listDisputes`, `listFailedNotifications`, `getBotStatus`, `searchModerationTargets` (Suche auf der Sperren-Seite), `getSuccessMetrics` (Statistik-Seite, Phase 6); nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` (Bausteine ohne Berechtigungsprüfung in einer Transaktion: `banUserInTx`, `banTeamInTx`, auch für `reapplyModeration`) |
+| Rollen (Phase 8) | `listStaff`, `findStaffCandidates` (Suche auf der Rollen-Seite), `setStaffRole`, `resetStaffTwoFactor`, `setOperator` (nur das Skript, ohne Berechtigungsprüfung), `discordLoginBlocked` (Staff meldet sich nicht per Discord an), `staffArea` (welche Admin-Seiten eine Rolle sieht) |
 | Konto | `deleteAccount`, `getAccount` (Konto-Seite: ob Löschen gerade geht), `finishInterruptedDeletions` (Sweeper: eine solche Rücknahme nachholen); ab Phase 7 `accountSetupStep` (was dem Konto noch fehlt, §5.8), `completeAccount` (Altkonto vervollständigen), `updateRealName`, `handOverCaptain` (Captain-Rolle von der Konto-Seite, für unvollständige Konten) |
 | Bot | `deliverNotification`, `deliverDueNotifications` (Outbox-Sender §6.2; der Bot übergibt die Sendefunktion `Deliver`, wie beim Hub-Beitritt), `runSweeper` (Schritte 1–7 aus §6.3), `recordHeartbeat` (Heartbeat beider Bot-Schleifen) |
 | Wartung | `purgeOldNotifications`, `purgeExpiredSessions`, `purgeStaleOAuthTokens`, `reapplyModeration` (Sperren und Löschungen nach dem Einspielen eines Backups nachziehen, §8) |
@@ -186,6 +188,10 @@ User                                     # Better-Auth-Tabelle "user" + zusätzl
                                           # Platzhalter nur noch bei Altkonten bis zum Vervollständigen und bei gelöschten Konten
   emailVerified                           # Better-Auth-Feld; ab Phase 7 Voraussetzung für alles außer der Konto-Seite
   firstName?, lastName?                   # Klarname, je 1–50 Zeichen (Phase 7); null bei Altkonten bis zum Vervollständigen
+  staffRole? (StaffRole)                  # Phase 8: OPERATOR | ADMIN | REVIEWER, null = keine Rolle (§5.9)
+  twoFactorEnabled                        # Better-Auth-Feld des twoFactor-Plugins (Phase 8)
+  (Phase 8: Better-Auth-Tabelle twoFactor: secret (verschlüsselt), backupCodes (verschlüsselt), userId, verified,
+   failedVerificationCount, lockedUntil; mit @@map wie die anderen Better-Auth-Modelle)
   universityId? ──► University            # gesetzt bei Freigabe
   universityOther?                        # Freitext bei "Andere"
   verifiedAt?                             # != null ⇒ verifiziert
@@ -487,6 +493,24 @@ Better Auth bekommt `emailAndPassword` dazu; Discord bleibt Social Provider, wir
 
 **Seed und Dev-Login:** Seed-Nutzer bekommen Klarname, eine Adresse unter `seed.uniscrims.invalid` und `emailVerified = true`, damit der Dev-Login vollständige Konten liefert.
 
+### 5.9 Admins, Prüfer und 2FA (ab Phase 8)
+
+**Rollen:** `User.staffRole` (`OPERATOR`, `ADMIN`, `REVIEWER`, sonst null). `ADMIN_DISCORD_IDS` entfällt; `isAdmin` und alle Admin-Prüfungen lesen die Rolle. Welche Admin-Seite welche Rolle sieht, legt `staffArea` in `core` fest: Prüf-Queue und Datei-Abruf ab Prüfer, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status und Statistik ab Admin, Rollen-Seite nur Betreiber.
+
+**Berechtigung:** `requireStaff(userId, roles)` = `requireUser` (vollständiges Konto, nicht gesperrt), Rolle in `roles` und `twoFactorEnabled`; ohne eingerichtete 2FA wirft es `TwoFactorRequiredError` (Code `TWO_FACTOR_REQUIRED`), und die Admin-Seiten leiten zur Einrichtung. Darauf `requireReviewer`, `requireAdmin` (Admin und Betreiber) und `requireOperator`. `decideVerification` prüft wie bisher unter der Sperre der Prüfer-Zeile erneut, jetzt mit `requireReviewer`; ein gleichzeitiger Rollenentzug (sperrt dieselbe Zeile) kommt also vorher oder danach.
+
+**Woher eine Staff-Session kommt:** Das `twoFactor`-Plugin verlangt den Code nur bei `/sign-in/email`, nicht beim Discord-Login. Deshalb: (1) Ein `databaseHooks.session.create.before` lehnt Sessions aus einem OAuth-Callback für Nutzer mit Rolle ab (`discordLoginBlocked`); die Login-Seite erklärt das Ergebnis `error=unable_to_create_session`. Discord verknüpfen bleibt möglich, das legt keine Session an. (2) Jede Rollenänderung löscht die Sessions der Person, ebenso das Einrichten der 2FA (danach meldet sie sich mit Passwort und Code neu an) und das Zurücksetzen. Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit Passwort und Code. Der Dev-Login umgeht das, er ist nur in der Entwicklung an.
+
+**2FA:** Better-Auth-Plugin `twoFactor` mit TOTP (Aussteller „Uni Scrims“, 6 Stellen, 30 s) und 10 Backup-Codes; kein E-Mail-OTP, kein „Gerät merken“ (das Plugin überspränge damit den Code). Einrichten über Server Actions: `/two-factor/enable` mit dem Passwort liefert die `otpauth`-URI und die Backup-Codes (QR-Code als SVG mit `uqr`, darunter der Schlüssel zum Abtippen), `/two-factor/verify-totp` mit dem ersten Code setzt `twoFactorEnabled`; dann löscht `core` alle Sessions. Anmelden: Die Server Action ruft `signInEmail`; bei `twoFactorRedirect` setzt Better Auth ein Cookie für die laufende Anmeldung (10 min), und `/login/2fa` schickt Code oder Backup-Code an `/two-factor/verify-totp` bzw. `/two-factor/verify-backup-code`. Diese Endpunkte sind wie die anderen Konto-Aktionen nur vom Server erreichbar (§5.8) und zählen in der Begrenzung „Anmelden“; das Plugin sperrt nach mehreren Fehlversuchen zusätzlich selbst. Nur Konten mit Rolle können 2FA einrichten.
+
+**Rollen-Seite** (`/admin/staff`, nur Betreiber): Liste aller Konten mit Rolle; Suche nach E-Mail (genau) oder Discord-Name (enthält, ab 3 Zeichen) unter vollständigen, nicht gesperrten Konten mit Passwort. `setStaffRole` sperrt die User-Zeile, prüft darunter erneut (nicht der Betreiber selbst, nicht Betreiber als Ziel, vollständig, nicht gesperrt, nicht gelöscht, mit Passwort), setzt die Rolle und löscht die Sessions. Ein Entzug löscht auch die `twoFactor`-Zeile und setzt `twoFactorEnabled = false`. `resetStaffTwoFactor` macht dasselbe ohne die Rolle anzufassen.
+
+**Betreiber:** `setOperator(email)` setzt die Rolle `OPERATOR` (Konto vollständig, mit Passwort, nicht gesperrt) und löscht die Sessions; Skript `apps/bot/src/scripts/set-operator.ts` im Bot-Image (README). Mehrere Betreiber sind möglich, über die Oberfläche lässt sich keiner ändern.
+
+**Sperren und Löschen:** `banUser` lehnt Konten mit Rolle ab („Entziehe zuerst die Rolle.“). `deletedUserData` leert `staffRole` und `twoFactorEnabled`; `deleteAccount` löscht die `twoFactor`-Zeilen.
+
+**Wiederherstellen:** Der Export der alten Datenbank (§8, README) enthält zusätzlich alle Konten mit Rolle; `reapplyModeration` setzt die Rollen genau so, also auch entzogene zurück auf null, und löscht bei jeder Änderung die Sessions.
+
 ---
 
 ## 6. Bot
@@ -592,9 +616,12 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Team bearbeiten, Einladung erneuern, Captain übertragen, Mitglied entfernen, Rollen setzen (Spieler, Ersatz, Coach) | aktueller Captain (Verifizierung nicht nötig, damit er das Team aufbauen kann) |
 | Team-Channel verknüpfen (`/setup` in Discord) | aktueller Captain, nicht gesperrt (Verifizierung nicht nötig); nicht auf dem Hub-Server (§6.4) |
 | Anfrage erstellen/löschen, bewerben, zurückziehen, bestätigen, Scrim absagen, Feedback | aktueller Captain, **selbst verifiziert**, nicht gesperrt |
-| Admin-Bereich, Datei-Abruf | Admin |
+| Admin-Bereich, Datei-Abruf | Admin (ab Phase 8 nach Rolle, §5.9) |
+| Ab Phase 8: Prüf-Queue, Datei-Abruf | Prüfer, Admin, Betreiber, jeweils mit eingerichteter 2FA |
+| Ab Phase 8: Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik | Admin, Betreiber, mit 2FA |
+| Ab Phase 8: Rollen vergeben, 2FA zurücksetzen (`/admin/staff`) | Betreiber, mit 2FA |
 | Ab Phase 7: Konto-Seite, „Konto vervollständigen“, „Discord verknüpfen“ | eingeloggt, auch mit unvollständigem Konto (§5.8); alles andere aus dieser Tabelle zusätzlich nur mit vollständigem Konto |
-| Ab Phase 7: Klarname | die Person selbst und Admins (Prüf-Queue) |
+| Ab Phase 7: Klarname | die Person selbst und Admins (Prüf-Queue); ab Phase 8 auch Prüfer, und der Betreiber auf der Rollen-Seite |
 
 `leaveTeam` funktioniert für Nicht-Captains auch in gesperrten Teams. Nach Verlassen oder Auflösen sind vergangene Scrims für ehemalige Mitglieder nicht mehr sichtbar (gewollt).
 - **Zeit:** Eingabe im Formular in Europe/Berlin, Umrechnung nach UTC in `core`. Keine Zeitlogik im Browser.
@@ -671,7 +698,7 @@ DISCORD_CLIENT_SECRET=
 DISCORD_BOT_TOKEN=
 HUB_GUILD_ID=
 HUB_INVITE_URL=
-ADMIN_DISCORD_IDS=123,456
+ADMIN_DISCORD_IDS=123,456                 # bis Phase 7; ab Phase 8 Rollen in der Datenbank (§5.9)
 UPLOAD_DIR=/data/uploads
 PUBLIC_BASE_URL=https://deine-domain.de   # für Links in Bot-Nachrichten
 LEGAL_DIR=                                # absoluter Pfad zu impressum.txt und datenschutz.txt; Production: setzt Compose (/config/legal)
@@ -796,6 +823,15 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - *Fertig wenn:* Lokal laufen Registrierung, Bestätigungsmail, Anmeldung, Passwort vergessen und ändern, E-Mail ändern und das Verknüpfen mit einem echten Discord-Konto samt Hub-Beitritt durch; ein Discord-Konto ohne Uni-Scrims-Konto legt keines an; ein Altkonto wird beim Discord-Login zum Vervollständigen geführt, behält sein Team und verliert seine Verifizierung (offene Prüfungen werden abgelehnt); die Prüf-Queue zeigt den Klarnamen; die Kontolöschung entfernt E-Mail, Passwort und Klarname; Tests und Lint sind grün.
 - *Stand (23.10.2026):* abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`, dazu ein `next build`), Review samt Fixes; die Abläufe im Browser gegen eine Wegwerf-DB, und das Verknüpfen und Anmelden mit einem echten Discord-Konto samt Hub-Beitritt auf dem Dev-Server (dafür musste `http://localhost:3200/api/auth/callback/discord` als Redirect in der Discord-Application stehen). Production läuft noch ohne die Phasen 5–7.
 
+**Phase 8: Admins und Prüfer über die Oberfläche, mit 2FA** (SPEC N-4, §5.9)
+- **Prüfpunkte zuerst** (mit 1.7.12 verifizieren, Ergebnis ins README):
+  1. `signInEmail` aus der Server Action liefert bei eingerichteter 2FA `twoFactorRedirect` und setzt das Cookie der laufenden Anmeldung; `verifyTOTP` bzw. `verifyBackupCode` vom Server legen danach die Session an.
+  2. `/two-factor/enable` mit Passwort und `/two-factor/verify-totp` mit Session setzen `twoFactorEnabled`.
+  3. `databaseHooks.session.create.before` sieht beim OAuth-Callback den Pfad und kann die Session für Staff ablehnen; der Callback leitet mit einem Fehler weiter.
+- Schema: Enum `StaffRole`, `User.staffRole`, `User.twoFactorEnabled`, Tabelle `twoFactor` (§4)
+- `core`: `requireStaff` und die drei Rollen-Prüfungen statt `ADMIN_DISCORD_IDS`, `staffArea`, Rollen-Funktionen (§3), `banUser`, `deletedUserData`, `deleteAccount` und `reapplyModeration` erweitert; Tests für jede Rolle gegen jede Admin-Funktion, Vergabe und Entzug nur durch den Betreiber, Sperre und Löschung, Rollenentzug parallel zu `decideVerification`
+- Web: `twoFactor`-Plugin, Session-Hook, Allowlist; Seiten 2FA einrichten, Code bei der Anmeldung, Rollen-Seite; Admin-Navigation nach Rolle; Skript `set-operator`
+- *Fertig wenn:* Der Betreiber (per Skript gesetzt) richtet 2FA ein und meldet sich mit Passwort und Code an; er macht ein bestehendes Konto per E-Mail zum Prüfer; das richtet 2FA ein, sieht nur die Prüf-Queue und kann entscheiden; nach dem Entzug ist der Zugang sofort weg; ein Konto mit Rolle kann sich nicht per Discord anmelden; Tests und Lint sind grün.
+
 **Geplant** (Details folgen jeweils zu Beginn der Phase):
-- Phase 8: Admins und Prüfer über die Oberfläche (Betreiber vergibt Rollen), Anmeldung mit Passwort und Pflicht-2FA
 - Phase 9: Datenauskunft (Art. 15 DSGVO) per Knopfdruck auf der Konto-Seite

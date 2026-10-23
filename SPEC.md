@@ -49,7 +49,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 
 - **Captain:** Organisiert Scrims für sein Team. Hauptnutzer.
 - **Spieler:** Mitglied im Team, muss sich verifizieren.
-- **Admin:** Du bzw. ein kleines Team. Prüft Immatrikulationsbescheinigungen, klärt Streitfälle, sperrt Teams.
+- **Admin:** Du bzw. ein kleines Team. Prüft Immatrikulationsbescheinigungen, klärt Streitfälle, sperrt Teams. Seit Phase 8 drei Rollen: Betreiber (du), Admins und Prüfer, die nur Bescheinigungen prüfen (N-4).
 
 ---
 
@@ -169,7 +169,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Hochschul-Auswahl aus einer Seed-Liste (mindestens alle großen Universitäten, alle DHBW-Standorte und alle Hochschulen mit bekannten Uniliga-Valorant-Teams; nur Name und Ort) plus "Andere" mit Freitext
 - [x] Pflicht-Checkbox mit Kurzinfo zum Datenschutz (was, wozu, wann gelöscht)
 - [x] Upload als PDF/JPG/PNG, max. 5 MB; HEIC wird mit Hinweis "Foto bitte als JPG/PNG" abgelehnt
-- [x] Dateien sind nie öffentlich erreichbar; nur Admins können sie ansehen
+- [x] Dateien sind nie öffentlich erreichbar; nur Admins können sie ansehen (seit Phase 8 auch Prüfer, N-4)
 - [x] Freigeben oder Ablehnen mit Grund; beim Ablehnen ist ein erneuter Upload möglich
 - [x] Nach der Entscheidung wird die Datei sofort physisch gelöscht
 - [x] Offene Prüfungen werden nach 14 Tagen automatisch abgelehnt, die Datei wird gelöscht
@@ -233,7 +233,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Nutzer bzw. Team sperren (mit den Folgen aus den Edge Cases). Wird ein Captain gesperrt, wird sein Team mitgesperrt. **Entsperren ist im MVP nur manuell per Datenbank** (im README beschrieben).
 - [x] Liste dauerhaft fehlgeschlagener Benachrichtigungen (nur lesen)
 - [x] Anzeige, ob der Bot läuft (ob seine beiden Schleifen arbeiten; Zustellfehler zeigt die Liste)
-- [x] Admin-Rolle wird per Konfiguration (Liste von Discord-IDs) vergeben
+- [x] Admin-Rolle wird per Konfiguration (Liste von Discord-IDs) vergeben (seit Phase 8 über die Oberfläche, N-4)
 
 **P0-10 Rechtliches und Datenschutz**
 - [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
@@ -294,6 +294,28 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
 - [x] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen; Name, E-Mail und Passwort ändern sie nicht
 
+**N-4 Admins und Prüfer über die Oberfläche, mit 2FA** (Phase 8)
+
+*Rollen*
+- [ ] Drei Rollen: **Betreiber**, **Admin** und **Prüfer**. Prüfer sehen nur die Prüf-Queue mit Dateien und Klarnamen und entscheiden dort. Admins dürfen alles im Admin-Bereich außer Rollen vergeben: Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik. Der Betreiber darf zusätzlich Rollen vergeben.
+- [ ] Den Betreiber setzt einmalig ein Skript auf dem Server; über die Oberfläche lässt er sich weder vergeben noch entziehen. Die Liste von Discord-IDs in der Konfiguration (`ADMIN_DISCORD_IDS`) entfällt.
+- [ ] Der Betreiber findet bestehende Konten über die E-Mail-Adresse (genau) oder den Discord-Namen und macht sie zu Admins oder Prüfern, ändert die Rolle oder entzieht sie. Ein Konto braucht dafür ein vollständiges Konto mit Passwort; gesperrte Konten bekommen keine Rolle.
+- [ ] Die Seite zeigt alle Admins und Prüfer mit Discord-Name, Klarname, E-Mail-Adresse, Rolle und ob 2FA eingerichtet ist
+- [ ] Jede Änderung einer Rolle meldet die Person überall ab, damit sie sofort gilt. Wer die Rolle verliert, verliert auch die 2FA und meldet sich danach wieder wie jeder andere an.
+- [ ] Admins und Prüfer lassen sich nicht sperren, solange sie die Rolle haben; der Betreiber entzieht sie vorher
+- [ ] Bei einer Kontolöschung verfallen Rolle und 2FA
+
+*Anmeldung mit 2FA*
+- [ ] Wer eine Rolle hat, braucht für den Admin-Bereich eine eingerichtete 2FA mit einer Authenticator-App (TOTP)
+- [ ] Einrichten beim ersten Aufruf des Admin-Bereichs: Passwort bestätigen, QR-Code scannen (oder Schlüssel abtippen), einen Code eingeben; dazu 10 Backup-Codes, die nur einmal angezeigt werden. Danach meldet die Seite ab, und die nächste Anmeldung läuft mit Passwort und Code.
+- [ ] Mit Rolle meldet man sich nur mit E-Mail, Passwort und Code an, nicht mit Discord. Statt des Codes geht einmalig ein Backup-Code.
+- [ ] Falsche Codes sind begrenzt (pro IP wie die Anmeldung, dazu sperrt Better Auth nach mehreren Fehlversuchen kurz)
+- [ ] Ein verlorenes Gerät: Der Betreiber setzt die 2FA einer Person auf der Rollen-Seite zurück; die Person richtet sie beim nächsten Aufruf neu ein. Für den Betreiber selbst steht das im README.
+
+*Betrieb*
+- [ ] Nach dem Einspielen eines Backups gelten die Rollen aus der alten Datenbank, damit entzogene Rechte nicht zurückkommen (README)
+- [ ] Keine Benachrichtigung über Rollenänderungen
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -301,7 +323,6 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - **Feedback-Kommentar** als Freitext, mit Admin-Ansicht.
 - **Uniliga-Division** als optionales Team-Feld und als Filter.
 - **Wiederkehrende Anfragen**, z. B. "jeden Dienstag 20 Uhr".
-- **Weitere Admins/Prüfer** über die Oberfläche hinzufügen statt per Konfiguration.
 - **Datenauskunft (Art. 15 DSGVO) per Knopfdruck** statt manuell.
 
 ### P2: Später, aber jetzt schon mitdenken
@@ -390,7 +411,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 
 | # | Frage | Wann klären |
 |---|---|---|
-| 5 | Wer prüft außer dir? Bei Wachstum braucht es weitere Prüfer. | Nach den ersten 2 Wochen |
+| 5 | Wer prüft außer dir? Bei Wachstum braucht es weitere Prüfer. | Technisch seit Phase 8 möglich (N-4); wer es wird, entscheidet der Betreiber |
 
 ---
 
@@ -408,6 +429,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 5 | Ersatzspieler und Coach (nach dem MVP, N-1) | Der Captain setzt Rollen, und ein Team mit einem Coach als fünftem verifiziertem Mitglied ist nicht spielbereit |
 | 6 | Statistik-Seite für die Erfolgskriterien (N-2) | Ein Admin sieht alle Kennzahlen aus §8 für die letzten 28 Tage und gesamt, und sie stimmen mit den Testdaten überein |
 | 7 | Konto mit E-Mail, Passwort und Klarname (N-3) | Registrierung, Bestätigung, Anmeldung, Passwort vergessen und Discord verknüpfen laufen durch; ein Altkonto wird zum Vervollständigen geführt, und die Prüf-Queue zeigt den Klarnamen |
+| 8 | Admins und Prüfer über die Oberfläche, mit 2FA (N-4) | Der Betreiber macht ein Konto zum Prüfer; es richtet 2FA ein, sieht nur die Prüf-Queue und entscheidet; nach dem Entzug ist der Zugang sofort weg |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
