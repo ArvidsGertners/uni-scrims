@@ -68,7 +68,11 @@ export function FeedbackForm({ scrimId, outcomes, ratings }: Props) {
               value={value}
               label={label}
               required
-              onChange={() => setOutcome(value)}
+              onChange={() => {
+                setOutcome(value);
+                // The rating radios unmount for other outcomes and come back unchecked.
+                setRating(null);
+              }}
             />
           ))}
         </div>

@@ -38,12 +38,12 @@ export async function createTeamAction(_state: ActionState, formData: FormData) 
   const userId = (await getSessionUserId()) ?? "";
   const input = teamInput(formData);
   if (!input) return invalidInput;
-  return finish(
-    await runAction(async () => {
-      const team = await createTeam({ ...input, userId, now: new Date() });
-      await setFlash(`Willkommen bei ${team.name}`);
-    }),
-  );
+  let teamName = "";
+  const state = await runAction(async () => {
+    teamName = (await createTeam({ ...input, userId, now: new Date() })).name;
+  });
+  if (state.done) await setFlash(`Willkommen bei ${teamName}`);
+  return finish(state);
 }
 
 export async function updateTeamAction(_state: ActionState, formData: FormData) {
@@ -103,23 +103,26 @@ export async function removeMemberAction(_state: ActionState, formData: FormData
 
 export async function leaveTeamAction(_state: ActionState, _formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
-  return finish(
-    await runAction(async () => {
-      const { dissolved } = await leaveTeam({ userId, now: new Date() });
-      await setFlash(dissolved ? "Du hast das Team aufgelöst" : "Du hast das Team verlassen");
-    }),
-  );
+  let dissolved = false;
+  const state = await runAction(async () => {
+    ({ dissolved } = await leaveTeam({ userId, now: new Date() }));
+  });
+  if (state.done) {
+    await setFlash(dissolved ? "Du hast das Team aufgelöst" : "Du hast das Team verlassen");
+  }
+  return finish(state);
 }
 
 export async function joinTeamAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
   const code = idSchema.safeParse(formField(formData, "code"));
   if (!code.success) return invalidInput;
+  let teamName = "";
   const state = await runAction(async () => {
-    const team = await joinTeam({ userId, inviteCode: code.data, now: new Date() });
-    await setFlash(`Willkommen bei ${team.name}`);
+    teamName = (await joinTeam({ userId, inviteCode: code.data, now: new Date() })).name;
   });
   if (!state.done) return state;
+  await setFlash(`Willkommen bei ${teamName}`);
   // redirect() throws, so it must stay outside runAction.
   revalidatePath("/team");
   redirect("/team");

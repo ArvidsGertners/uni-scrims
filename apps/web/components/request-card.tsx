@@ -1,5 +1,5 @@
 import type { TeamCardData } from "@uni-scrims/core";
-import { describeStartTime, RANK_LABELS } from "@uni-scrims/core";
+import { describeStart, describeStartTime, RANK_LABELS } from "@uni-scrims/core";
 import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
 import { CheckIcon, ChevronRightIcon, ClockIcon, LayersIcon, MapPinIcon } from "@/components/icons";
@@ -26,7 +26,7 @@ type Props = {
     team: TeamCardData;
     ownApplicationStatus: AppStatus | null;
   };
-  /** A request of the user's own team: avatar on accent. */
+  /** A request of the user's own team: avatar on accent, and the date, as these are not grouped by day. */
   own?: boolean;
 };
 
@@ -57,7 +57,7 @@ export function RequestCard({ request, own = false }: Props) {
         <div className="flex flex-wrap gap-x-[18px] gap-y-2 text-[14px] text-muted-foreground">
           <span className="flex items-center gap-1.5 text-foreground">
             <ClockIcon />
-            {describeStartTime(request.startsAt)}
+            {own ? describeStart(request.startsAt) : describeStartTime(request.startsAt)}
           </span>
           <span className="flex items-center gap-1.5">
             <LayersIcon />
@@ -73,18 +73,20 @@ export function RequestCard({ request, own = false }: Props) {
         </p>
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3.5">
-        {request.ownApplicationStatus === "PENDING" ? (
-          <Badge variant="accent">
-            <CheckIcon size={14} strokeWidth={3} />
-            Beworben
-          </Badge>
-        ) : request.ownApplicationStatus ? (
-          <Badge>{APPLICATION_STATUS_LABELS[request.ownApplicationStatus]}</Badge>
-        ) : (
+        {/* The count stays next to the own application's status (SPEC P0-4). */}
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          {request.ownApplicationStatus === "PENDING" ? (
+            <Badge variant="accent">
+              <CheckIcon size={14} strokeWidth={3} />
+              Beworben
+            </Badge>
+          ) : request.ownApplicationStatus ? (
+            <Badge>{APPLICATION_STATUS_LABELS[request.ownApplicationStatus]}</Badge>
+          ) : null}
           <span className="text-[13px] text-muted-foreground">
             {applicationCountLabel(request.applicationCount)}
           </span>
-        )}
+        </div>
         <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
           Ansehen
           <ChevronRightIcon strokeWidth={2.5} />

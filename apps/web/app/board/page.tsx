@@ -56,6 +56,7 @@ export default async function BoardPage({
   });
   const filtered = board.filter.date !== null || board.filter.rank !== null;
   const count = board.requests.length;
+  const total = count + board.ownRequests.length;
   const createLink = board.ownTeam?.isCaptain ? (
     <Link href="/requests/new" className={buttonVariants({ className: "max-sm:basis-full" })}>
       <PlusIcon size={18} strokeWidth={2.5} />
@@ -68,11 +69,11 @@ export default async function BoardPage({
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div className="flex flex-col gap-2">
           <span className="type-label text-muted-foreground">
-            {count === 0
+            {total === 0
               ? "Keine offenen Anfragen"
-              : count === 1
+              : total === 1
                 ? "1 offene Anfrage"
-                : `${count} offene Anfragen`}
+                : `${total} offene Anfragen`}
           </span>
           <h1 className="type-h1">Scrim-Board</h1>
         </div>
@@ -115,7 +116,15 @@ export default async function BoardPage({
         </ListGroup>
       ) : null}
 
-      {count === 0 ? (
+      {count === 0 && board.ownRequests.length > 0 ? (
+        <EmptyState
+          title={
+            filtered ? "Keine passenden Anfragen anderer Teams" : "Noch keine anderen Anfragen"
+          }
+        >
+          Eure Anfragen stehen auf dem Board. Anfragen anderer Uni-Teams erscheinen hier.
+        </EmptyState>
+      ) : count === 0 ? (
         <EmptyState
           icon={<CalendarIcon size={26} strokeWidth={1.8} />}
           title={filtered ? "Keine passenden Anfragen" : "Gerade keine offenen Anfragen"}

@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePageUser } from "@/lib/session";
 import {
+  APPLICATION_STATUS_LABELS,
   REQUEST_STATUS_LABELS,
   formatFormat,
   formatMaps,
@@ -246,10 +247,10 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                   <span className="shrink-0 text-[13px] font-semibold text-success">
                     Angenommen
                   </span>
-                ) : application.status === "REJECTED" ? (
-                  <span className="shrink-0 text-[13px] text-faint">Abgelehnt</span>
-                ) : application.status === "WITHDRAWN" ? (
-                  <span className="shrink-0 text-[13px] text-faint">Zurückgezogen</span>
+                ) : application.status !== "PENDING" ? (
+                  <span className="shrink-0 text-[13px] text-faint">
+                    {APPLICATION_STATUS_LABELS[application.status]}
+                  </span>
                 ) : null}
               </div>
               <p className="text-[13px] text-muted-foreground">

@@ -9,11 +9,10 @@ import type { FeedbackOutcome } from "@uni-scrims/db";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
-import { ExternalLinkIcon } from "@/components/icons";
+import { DiscordContact } from "@/components/discord-contact";
 import { PageMain } from "@/components/page-main";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { SCRIM_STATUS_LABELS, formatFormat, formatMaps } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
@@ -79,31 +78,11 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
         </span>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-sm bg-secondary p-3.5">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[14px] font-semibold">Lobby auf Discord klären</span>
-          <span className="text-[13px] text-muted-foreground">
-            Ansprechpartner:{" "}
-            <span className="font-label text-foreground">{scrim.opponent.captainName}</span> ·
-            Captain von {scrim.opponent.name}
-          </span>
-        </div>
-        {scrim.opponent.captainDiscordId ? (
-          <a
-            href={`https://discord.com/users/${scrim.opponent.captainDiscordId}`}
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({
-              variant: "outline",
-              size: "sm",
-              className: "not-disabled:hover:bg-background",
-            })}
-          >
-            Auf Discord schreiben
-            <ExternalLinkIcon size={15} />
-          </a>
-        ) : null}
-      </div>
+      <DiscordContact
+        captainName={scrim.opponent.captainName}
+        captainDiscordId={scrim.opponent.captainDiscordId}
+        teamName={scrim.opponent.name}
+      />
 
       <div className="flex flex-col gap-2">
         <span className="type-label text-muted-foreground">Maps</span>

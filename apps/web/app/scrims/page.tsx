@@ -1,13 +1,9 @@
 import { describeStartShort, getMyScrims } from "@uni-scrims/core";
 import { cn } from "cn";
 import Link from "next/link";
+import { DiscordContact } from "@/components/discord-contact";
 import { EmptyState } from "@/components/empty-state";
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  ExternalLinkIcon,
-  MessageSquareIcon,
-} from "@/components/icons";
+import { CheckIcon, ChevronRightIcon, MessageSquareIcon } from "@/components/icons";
 import { PageMain } from "@/components/page-main";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Alert } from "@/components/ui/alert";
@@ -15,6 +11,7 @@ import { Badge, BadgeDot } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePageUser } from "@/lib/session";
 import {
+  APPLICATION_STATUS_LABELS,
   SCRIM_STATUS_LABELS,
   formatFormat,
   formatMaps,
@@ -195,31 +192,11 @@ function Upcoming({ mine, ownTag }: { mine: MyScrims; ownTag: string }) {
           </div>
         </div>
       </Link>
-      <div className="flex flex-col gap-3 rounded-sm bg-secondary p-3.5">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[14px] font-semibold">Lobby auf Discord klären</span>
-          <span className="text-[13px] text-muted-foreground">
-            Ansprechpartner:{" "}
-            <span className="font-label text-foreground">{scrim.opponent.captainName}</span> ·
-            Captain von {scrim.opponent.name}
-          </span>
-        </div>
-        {scrim.opponent.captainDiscordId ? (
-          <a
-            href={`https://discord.com/users/${scrim.opponent.captainDiscordId}`}
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({
-              variant: "outline",
-              size: "sm",
-              className: "not-disabled:hover:bg-background",
-            })}
-          >
-            Auf Discord schreiben
-            <ExternalLinkIcon size={15} />
-          </a>
-        ) : null}
-      </div>
+      <DiscordContact
+        captainName={scrim.opponent.captainName}
+        captainDiscordId={scrim.opponent.captainDiscordId}
+        teamName={scrim.opponent.name}
+      />
     </div>
   ));
 }
@@ -272,7 +249,7 @@ function Applications({ mine }: { mine: MyScrims }) {
               Ausstehend
             </Badge>
           ) : (
-            <Badge>{application.status === "REJECTED" ? "Abgelehnt" : "Zurückgezogen"}</Badge>
+            <Badge>{APPLICATION_STATUS_LABELS[application.status]}</Badge>
           )}
         </Link>
       ))}
