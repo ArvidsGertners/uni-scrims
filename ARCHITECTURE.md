@@ -78,6 +78,7 @@ In Phase 0 werden **exakte Versionen** in `package.json` gepinnt (ohne `^`/`~`) 
 | Zod | 4.6.7 | |
 | date-fns + @date-fns/tz | 4.4.0 / 1.5.0 | Zeitzonen (Startzeiten in `core/src/time.ts`). In Phase 2 installiert. |
 | file-type | 22.2.0 | MIME-Prüfung über Magic Bytes. Wird erst in Phase 1 installiert. |
+| nodemailer | in Phase 7 exakt gepinnt (mindestens zwei Wochen alte Version) | Versand der Konto-Mails per SMTP (§5.8) |
 
 **Warum Better Auth statt Auth.js (next-auth):** Auth.js wird seit 2025 vom Better-Auth-Team nur noch mit Sicherheitsfixes gepflegt, und next-auth v5 ist weiterhin Beta. Für ein neues Projekt ist Better Auth der aktiv entwickelte Weg.
 
@@ -139,7 +140,7 @@ uni-scrims/
 | Scrims | `cancelScrim`, `openFeedback`, `submitFeedback`, `resolveScrimOutcome` (rein), `resolveDeadlines`, `resolveDispute` |
 | Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; für den Admin-Bereich: `listDisputes`, `listFailedNotifications`, `getBotStatus`, `searchModerationTargets` (Suche auf der Sperren-Seite), `getSuccessMetrics` (Statistik-Seite, Phase 6); nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` (Bausteine ohne Berechtigungsprüfung in einer Transaktion: `banUserInTx`, `banTeamInTx`, auch für `reapplyModeration`) |
-| Konto | `deleteAccount`, `getAccount` (Konto-Seite: ob Löschen gerade geht), `finishInterruptedDeletions` (Sweeper: eine solche Rücknahme nachholen) |
+| Konto | `deleteAccount`, `getAccount` (Konto-Seite: ob Löschen gerade geht), `finishInterruptedDeletions` (Sweeper: eine solche Rücknahme nachholen); ab Phase 7 `accountSetupStep` (was dem Konto noch fehlt, §5.8), `completeAccount` (Altkonto vervollständigen), `updateRealName` |
 | Bot | `deliverNotification`, `deliverDueNotifications` (Outbox-Sender §6.2; der Bot übergibt die Sendefunktion `Deliver`, wie beim Hub-Beitritt), `runSweeper` (Schritte 1–7 aus §6.3), `recordHeartbeat` (Heartbeat beider Bot-Schleifen) |
 | Wartung | `purgeOldNotifications`, `purgeExpiredSessions`, `purgeStaleOAuthTokens`, `reapplyModeration` (Sperren und Löschungen nach dem Einspielen eines Backups nachziehen, §8) |
 
@@ -181,7 +182,10 @@ University
 
 User                                     # Better-Auth-Tabelle "user" + zusätzliche Felder
   id, name, image                         # Better-Auth-Standardfelder (Username, Avatar)
-  email                                   # ⚠ siehe §5.1, Platzhalter, nie für Versand genutzt
+  email                                   # bis Phase 6 Platzhalter (§5.1); ab Phase 7 die echte, bestätigte Adresse (§5.8),
+                                          # Platzhalter nur noch bei Altkonten bis zum Vervollständigen und bei gelöschten Konten
+  emailVerified                           # Better-Auth-Feld; ab Phase 7 Voraussetzung für alles außer der Konto-Seite
+  firstName?, lastName?                   # Klarname, je 1–50 Zeichen (Phase 7); null bei Altkonten bis zum Vervollständigen
   universityId? ──► University            # gesetzt bei Freigabe
   universityOther?                        # Freitext bei "Andere"
   verifiedAt?                             # != null ⇒ verifiziert
@@ -311,6 +315,7 @@ SystemStatus
 - **Nur die genutzten Better-Auth-Endpunkte sind erreichbar:** `/sign-in/social`, `/callback/:id`, `/sign-out`, `/get-session`, `/error` und der Dev-Login `/dev/sign-in` (der außerhalb der Entwicklung selbst 404 antwortet). Ein before-Hook mit dieser Liste (`apps/web/lib/auth-paths.ts`) beantwortet alle anderen mit 404, z. B. `/update-user`, `/change-email`, `/link-social` oder `/unlink-account`. Sonst könnte jede Session, auch die eines gesperrten Nutzers, Name und Avatar an Discord und an `requireUser` vorbei ändern; Sperren-Suche, Streitfall-Seite und Gegner verlassen sich aber auf den Discord-Username.
 - **Löschung während eines Logins:** Better Auth schreibt beim Login ohne Transaktion erst die `account`-Zeile, dann Name, Avatar und Mail. Fehlt die Discord-Verknüpfung danach, weil das Konto genau währenddessen gelöscht wurde, setzt `handleDiscordLogin` den User wieder auf die Lösch-Werte und löscht seine Sessions (`restoreDeletedUser`). Scheitert das (der Hook loggt Fehler nur) oder läuft der Hook gar nicht (Absturz), holt es der Sweeper im nächsten Durchlauf nach (`finishInterruptedDeletions`: `deletedAt` gesetzt, keine `account`-Zeile, aber nicht die Lösch-Mail; §6.3). Bis dahin ist die Session nutzlos: `requireAccountUser` behandelt einen Nutzer ohne Discord-Verknüpfung als abgemeldet, und `getCurrentUser` liefert für ihn `null`, sodass Kopfzeile, Startseite und Login-Seite ihn als abgemeldet zeigen. Erst nach der Rücknahme passt die Platzhalter-Mail nicht mehr, und ein neuer Login legt wieder einen neuen User an (vorher bräche Better Auth ihn mit „account not linked“ ab, weil es den User über die Mail fände). Ist die `account`-Zeile schon weg, wenn Better Auth sie aktualisieren will, bricht der Login ab; war die Löschung vor dem Login fertig, legt er wie immer einen neuen User an.
 - Der Login-Screen erklärt vorher, dass der Nutzer dem Server hinzugefügt wird und warum.
+- Ab Phase 7 meldet man sich mit E-Mail und Passwort an, Discord wird verknüpft (§5.8). Der Hub-Beitritt, das Löschen der Tokens und das Übernehmen von Name und Avatar laufen dann beim Verknüpfen und bei jedem Discord-Login.
 
 **In Phase 1 zu verifizieren (mit der gepinnten Version):**
 1. Welcher Better-Auth-Hook nach dem OAuth-Callback zuverlässig das frische Access-Token liefert (z. B. Database-Hook auf `account` create/update oder ein After-Hook auf den Callback-Pfad), und dass Tokens danach gelöscht werden können, ohne die Session zu brechen.
@@ -455,6 +460,31 @@ Test: Zwei parallele `submitFeedback` mit PLAYED ergeben sofort `COMPLETED`.
 - `lateCancels`: Scrims mit `CANCELLED`, `lateCancel = true` und `cancelledByTeamId = team`
 - `avgRating`: Durchschnitt der Bewertungen, die **andere** Teams über dieses Team abgegeben haben (nur aus `COMPLETED`-Scrims); `null` bei weniger als 3 Bewertungen
 
+
+### 5.8 Konto mit E-Mail und Passwort (ab Phase 7)
+
+Better Auth bekommt `emailAndPassword` dazu; Discord bleibt Social Provider, wird aber verknüpft statt zur Anmeldung angelegt (SPEC N-3).
+
+**Registrierung:** Formular `/register` → Server Action → Zod-Schema in `core` (Vor- und Nachname je 1–50 Zeichen, getrimmt; E-Mail; Passwort 10–128 Zeichen; Pflicht-Checkbox) → `auth.api.signUpEmail` auf dem Server. Der Endpunkt `/sign-up/email` ist nur für diesen Aufruf vom Server offen; von außen antwortet er 404 (Before-Hook: Anfrage ohne HTTP-Request = Aufruf vom Server), damit niemand die Prüfung in `core` umgeht. `requireEmailVerification`, Bestätigungsmail beim Registrieren, Link 24 h gültig, nach dem Klick automatisch angemeldet (`autoSignInAfterVerification`). Mit `requireEmailVerification` antwortet Better Auth auf eine schon registrierte Adresse genauso wie auf eine neue, die Seite zeigt immer „Wir haben dir eine Mail geschickt“. Klarname als `additionalFields` (`firstName`, `lastName`), die nur dieser Server-Aufruf und `core` setzen.
+
+**Anmeldung:** `/sign-in/email`; eine unbestätigte Adresse bekommt die Meldung mit „Bestätigungslink erneut senden“. Discord mit `disableImplicitSignUp`: Ein Discord-Login findet nur verknüpfte Konten und legt keine an. Weil `overrideUserInfoOnSignIn` in 1.7.12 auch die E-Mail überschreibt, darf ein Discord-Login die Adresse nicht anfassen (Prüfpunkt 3): Entweder liefert `mapProfileToUser` für ein verknüpftes Konto dessen eigene Adresse, oder `overrideUserInfoOnSignIn` ist aus und der Login-Hook übernimmt Name und Avatar selbst.
+
+**Discord verknüpfen:** `/link-social` mit `account.accountLinking`: `trustedProviders: ["discord"]` (Discord liefert ohne `email`-Scope keine bestätigte Adresse), `allowDifferentEmails: true` (der Platzhalter aus `mapProfileToUser` weicht immer ab), `updateUserInfoOnLink: true` (Name und Avatar). Der heutige After-Hook sieht beim Verknüpfen keine neue Session; Hub-Beitritt und Token-Löschung laufen deshalb dort, wo die frischen Tokens ankommen, für Anmeldung und Verknüpfung gleich (Prüfpunkt 2). Eine Discord-ID, die schon zu einem anderen Konto gehört, lehnt Better Auth ab; gesperrte Discord-IDs hängen an ihrem Sperr-Platzhalter (§4) und fallen damit unter dieselbe Regel.
+
+**Was dem Konto fehlt:** `accountSetupStep(user)` in `core` liefert der Reihe nach `COMPLETE_ACCOUNT` (Altkonto ohne Klarname), `VERIFY_EMAIL` (Adresse unbestätigt), `LINK_DISCORD` (keine Discord-Verknüpfung) oder `null`. `requireUser` und alles darauf Aufbauende werfen bei einem Schritt den Fehler `ACCOUNT_INCOMPLETE` mit diesem Schritt; `requirePageUser` leitet auf die passende Seite. `requireAccountUser` (Konto-Seite) lässt unvollständige Konten durch. Als abgemeldet gilt ein Konto weiterhin mit der Lösch-Mail, und neu: mit `deletedAt`, aber ohne Discord-Verknüpfung (ein Login, der eine Löschung überholt hat, §5.1). Ein neues Konto ohne Discord ist dagegen nicht gelöscht, nur unvollständig.
+
+**Altkonten:** Konten von vor Phase 7 haben nur die Discord-Verknüpfung und den Platzhalter. Sie melden sich weiter per Discord an und landen bei `COMPLETE_ACCOUNT`: `completeAccount` setzt unter der User-Sperre Klarname und neue Adresse (`emailVerified = false`), das Passwort setzt Better Auth serverseitig (`setPassword`), dann geht die Bestätigungsmail raus. Team und Rolle bleiben unberührt. Die Verifizierung nicht (SPEC N-3): Der Upload-Janitor bekommt einen Schritt `resetLegacyVerifications`, der beim Start des Web-Prozesses (also direkt nach dem Deploy) und danach stündlich läuft. Er setzt bei Altkonten (`firstName` null, nicht gelöscht) `verifiedAt`, `universityId` und `universityOther` zurück und lehnt ihre offenen Prüfungen mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ ab (unter der User-Sperre wie die Auto-Ablehnung, `VERIFICATION_RESULT`, Datei danach löschen). Idempotent; nach dem Vervollständigen ist ein Konto kein Altkonto mehr und lädt neu hoch.
+
+**Passwort und E-Mail:** Passwort vergessen über `/request-password-reset` und `/reset-password` (Link 1 h gültig, `revokeSessionsOnPasswordReset`). Passwort ändern mit dem alten Passwort (`/change-password`, beendet die anderen Sitzungen). E-Mail ändern über `/change-email` mit Bestätigungslink an die neue Adresse. Die Auth-Allowlist (§5.1) wächst um genau diese Endpunkte sowie `/sign-in/email`, `/verify-email`, `/send-verification-email`, `/link-social` und `/reset-password/:token`; `/update-user`, `/unlink-account` und der Rest bleiben gesperrt. Den Klarnamen ändert `updateRealName` in `core`, nur solange der Nutzer nicht verifiziert ist und keine Prüfung offen hat (unter der User-Sperre, wie `submitVerification`).
+
+**Begrenzung:** Das Rate-Limit von Better Auth (eine Instanz, Speicher im Prozess) mit eigenen Regeln: Anmelden und Registrieren höchstens 5 pro Minute und IP, Mails anfordern (Bestätigung, Passwort) höchstens 3 pro Minute und IP. Hinter nginx bzw. Caddy zählt die echte Client-IP aus dem vom Proxy gesetzten Header (Prüfpunkt 4).
+
+**Mails:** `apps/web/lib/mail.ts` verschickt per SMTP (nodemailer, `SMTP_*`, `MAIL_FROM`) reinen Text auf Deutsch: Bestätigung, Passwort zurücksetzen, E-Mail ändern. Better Auth ruft den Versand auf; scheitert er, sieht der Nutzer „Die Mail konnte nicht gesendet werden. Bitte versuch es später erneut.“ In der Entwicklung landen Mails im Log, mit `DEV_MAIL_REDIRECT` gehen alle an diese Adresse (Präfix „[an: …]“, wie `DEV_DM_REDIRECT_DISCORD_ID`). Nur das Web verschickt Mails; der Bot bleibt bei Discord.
+
+**Löschen und Sperren:** `deletedUserData` leert zusätzlich `firstName` und `lastName`; `deleteAccount` löscht wie bisher alle `account`-Zeilen, also auch die mit dem Passwort-Hash (`credential`), und die Adresse wird zur Lösch-Mail. Bei gesperrten Nutzern wandert wie bisher nur die Discord-Zeile auf den Sperr-Platzhalter. `reapplyModeration` braucht nichts Neues.
+
+**Seed und Dev-Login:** Seed-Nutzer bekommen Klarname, eine Adresse unter `seed.uniscrims.invalid` und `emailVerified = true`, damit der Dev-Login vollständige Konten liefert.
+
 ---
 
 ## 6. Bot
@@ -561,6 +591,8 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Team-Channel verknüpfen (`/setup` in Discord) | aktueller Captain, nicht gesperrt (Verifizierung nicht nötig); nicht auf dem Hub-Server (§6.4) |
 | Anfrage erstellen/löschen, bewerben, zurückziehen, bestätigen, Scrim absagen, Feedback | aktueller Captain, **selbst verifiziert**, nicht gesperrt |
 | Admin-Bereich, Datei-Abruf | Admin |
+| Ab Phase 7: Konto-Seite, „Konto vervollständigen“, „Discord verknüpfen“ | eingeloggt, auch mit unvollständigem Konto (§5.8); alles andere aus dieser Tabelle zusätzlich nur mit vollständigem Konto |
+| Ab Phase 7: Klarname | die Person selbst und Admins (Prüf-Queue) |
 
 `leaveTeam` funktioniert für Nicht-Captains auch in gesperrten Teams. Nach Verlassen oder Auflösen sind vergangene Scrims für ehemalige Mitglieder nicht mehr sichtbar (gewollt).
 - **Zeit:** Eingabe im Formular in Europe/Berlin, Umrechnung nach UTC in `core`. Keine Zeitlogik im Browser.
@@ -647,6 +679,12 @@ DEV_LOGIN=false
 DEV_DM_REDIRECT_DISCORD_ID=
 DEV_CHANNEL_ID=
 DEV_TIME_OFFSETS=false
+SMTP_HOST=                                # ab Phase 7: Konto-Mails (§5.8), z. B. www779.your-server.de
+SMTP_PORT=587                             # STARTTLS
+SMTP_USER=                                # z. B. noreply@uniscrims.com
+SMTP_PASSWORD=
+MAIL_FROM="Uni Scrims <noreply@uniscrims.com>"
+DEV_MAIL_REDIRECT=                        # nur Entwicklung: alle Mails an diese Adresse; leer = nur ins Log
 ```
 
 **Impressum und Datenschutzerklärung** liegen als `impressum.txt` und `datenschutz.txt` in `LEGAL_DIR`, außerhalb von Git (Production: `docker/legal/`, schreibgeschützt in den Web-Container gemountet; Gerüst in `docker/legal.example/`). Format: `## ` beginnt eine Überschrift, `- ` einen Listenpunkt, eine Leerzeile beendet einen Absatz; Zeilenumbrüche im Absatz bleiben (Adressen). Die Seiten lesen die Dateien bei jedem Aufruf; fehlt eine, steht dort "Inhalt folgt.". Damit das nicht unbemerkt online geht: Compose bindet `docker/legal` mit `create_host_path: false` ein (fehlt der Ordner, scheitert `up`, statt einen leeren Ordner anzulegen), der Web-Prozess loggt beim Start fehlende oder leere Texte und solche, die noch „TODO“ enthalten (das kopierte, nicht ausgefüllte Gerüst), und die Admin-Seiten zeigen dazu eine Warnung. Der Seitenkopf lädt den Nutzer mit Fehlerbehandlung (getestet in `apps/web/test/header-user.test.ts`), damit Impressum und Datenschutz auch bei nicht erreichbarer Datenbank erscheinen; der Datenbank-Client gibt einen Verbindungsversuch nach 10 s auf, damit eine hängende Datenbank die Seiten nicht unbegrenzt aufhält.
@@ -743,7 +781,18 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Seite `admin/stats` mit Link „Statistik“ in der Admin-Navigation; auf dem Handy eine Karte pro Kennzahl.
 - *Fertig wenn:* Ein Admin sieht alle Kennzahlen aus SPEC §8 für beide Zeiträume mit Fallzahl, Ziel und Stretch; Tests mit festem `now` decken jede Kennzahl, die Grenzen der Zeitfenster und den Fall ohne Daten ab; Tests und Lint sind grün.
 
+**Phase 7: Konto mit E-Mail, Passwort und Klarname** (SPEC N-3, §5.8)
+- Voraussetzungen (erledigt am 23.10.2026): Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting S), SMTP-Zugang in der `.env`, MX, SPF, DKIM und DMARC bei Cloudflare, eine Testmail ist angekommen. Offen bis zum Deploy: AVV-Abdeckung des Webhostings prüfen, Datenschutzerklärung ergänzen (E-Mail, Passwort-Hash, Klarname, Hetzner als Mail-Dienst).
+- **Prüfpunkte zuerst** (mit 1.7.12 verifizieren, Ergebnis ins README):
+  1. `/sign-up/email` ist von außen gesperrt, der Aufruf aus der Server Action geht durch.
+  2. Wo beim Verknüpfen und bei der Anmeldung die frischen Discord-Tokens ankommen (z. B. Datenbank-Hook auf `account`), damit Hub-Beitritt und Token-Löschung für beide laufen.
+  3. Ein Discord-Login lässt die E-Mail und ihre Bestätigung unverändert und aktualisiert Name und Avatar.
+  4. Das Rate-Limit sieht hinter nginx die echte Client-IP.
+- Schema: `firstName`, `lastName` am User (nullable); Seed mit vollständigen Konten
+- `core`: Registrierungs-Schema, `accountSetupStep` und `ACCOUNT_INCOMPLETE` in `requireUser`, `completeAccount`, `updateRealName`, `resetLegacyVerifications` im Upload-Janitor, Klarname in der Prüf-Queue, `deletedUserData` und `deleteAccount` erweitert
+- Web: Better-Auth-Konfiguration (§5.8), Seiten Registrieren, Anmelden, Mail bestätigt, Passwort vergessen und neu setzen, Konto vervollständigen, Discord verknüpfen; Konto-Seite mit Klarname, Passwort und E-Mail ändern; Mail-Versand; Prüf-Queue mit Name und neuem Checklisten-Punkt
+- *Fertig wenn:* Lokal laufen Registrierung, Bestätigungsmail, Anmeldung, Passwort vergessen und ändern, E-Mail ändern und das Verknüpfen mit einem echten Discord-Konto samt Hub-Beitritt durch; ein Discord-Konto ohne Uni-Scrims-Konto legt keines an; ein Altkonto wird beim Discord-Login zum Vervollständigen geführt, behält sein Team und verliert seine Verifizierung (offene Prüfungen werden abgelehnt); die Prüf-Queue zeigt den Klarnamen; die Kontolöschung entfernt E-Mail, Passwort und Klarname; Tests und Lint sind grün.
+
 **Geplant** (Details folgen jeweils zu Beginn der Phase):
-- Phase 7: Konten mit E-Mail, Passwort und Klarname; Discord wird verknüpft, die Prüf-Queue zeigt den Klarnamen. Voraussetzung: Mail-Anbieter mit AVV, DNS-Einträge, ergänzte Datenschutzerklärung
 - Phase 8: Admins und Prüfer über die Oberfläche (Betreiber vergibt Rollen), Anmeldung mit Passwort und Pflicht-2FA
 - Phase 9: Datenauskunft (Art. 15 DSGVO) per Knopfdruck auf der Konto-Seite

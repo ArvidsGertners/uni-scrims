@@ -31,7 +31,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 | Andere Games (LoL, CS, RL …) | Erst ein Game richtig machen. Datenmodell aber game-agnostisch anlegen (siehe P2). |
 | Teams außerhalb Deutschlands | Eine Zeitzone, eine Sprache, ein Semesterrhythmus. |
 | Verifizierung per Uni-Mail | Domain-Listen pflegen ist zu aufwendig. Es gibt nur den Upload-Weg. |
-| E-Mail-Versand jeglicher Art | Alle Benachrichtigungen laufen über Discord. Kein Mail-Dienst nötig. |
+| Benachrichtigungen per E-Mail | Alle Benachrichtigungen laufen über Discord. Mails gibt es seit Phase 7 nur für das Konto selbst (Bestätigung, Passwort, E-Mail-Wechsel; N-3). |
 | Rang-Verifizierung über die Riot-API | Braucht Riot-Freigabe (RSO). Ränge werden selbst angegeben. |
 | Automatisches Matchmaking | Ein Board mit Filtern reicht bei wenigen Dutzend Teams. |
 | Interaktive Bot-Buttons (Feedback in Discord) | Feedback läuft über die Web-App, Discord verlinkt nur dorthin. Spart viel Bot-Logik und funktioniert auch bei blockierten DMs. |
@@ -84,6 +84,9 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 
 ### Nach dem MVP
 22. Als Captain will ich jedem Mitglied die Rolle Spieler, Ersatzspieler oder Coach geben, damit unser Kader stimmt und nur Spieler zur Spielbereitschaft zählen.
+23. Als Spieler will ich ein Konto mit E-Mail, Passwort und meinem Namen anlegen und danach Discord verknüpfen, damit der Prüfer meine Bescheinigung meinem Namen zuordnen kann.
+24. Als Spieler will ich mein Passwort per E-Mail zurücksetzen können, wenn ich es vergessen habe.
+25. Als Prüfer will ich den Namen der Person neben ihrer Bescheinigung sehen, damit ich prüfen kann, ob beide übereinstimmen.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -108,6 +111,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 
 ### Flow A: Onboarding
 1. Vor dem Login: Pflicht-Checkbox "Ich bin mindestens 16 Jahre alt und habe die Datenschutzerklärung gelesen". Dann Login mit Discord. Der Nutzer wird dabei automatisch dem offiziellen Uni-Scrims-Discord-Server hinzugefügt (nötig, damit der Bot DMs schicken kann). Das wird vor dem Login erklärt.
+   **Seit Phase 7 (N-3):** Registrierung mit Vorname, Nachname, E-Mail und Passwort (mit derselben Pflicht-Checkbox), Bestätigungslink per Mail, danach Discord verknüpfen; dabei tritt der Nutzer dem Hub-Server bei. Erst dann geht es mit Schritt 2 weiter.
 2. Verifizierung: Hochschule aus einer Liste wählen (oder "Andere" mit Freitext), Immatrikulationsbescheinigung als PDF/JPG/PNG hochladen. Vorher Pflicht-Checkbox mit Kurzinfo: was gespeichert wird, wozu und wann es gelöscht wird. Der Status steht dann auf "in Prüfung".
 3. Ein Admin prüft anhand der Checkliste (siehe 7, P0-2) und gibt frei oder lehnt ab (mit Grund). Bei "Andere" ordnet er die Hochschule nach Möglichkeit einem Eintrag der Liste zu. Der Nutzer bekommt eine Discord-DM. **Die Datei wird nach der Entscheidung gelöscht.** Gespeichert bleiben nur Status, Hochschule, Dateityp, Dateigröße, Ablehnungsgrund, Zeitpunkte und wer geprüft hat.
 4. Prüfungen, die nach 14 Tagen noch offen sind, werden automatisch abgelehnt und die Datei gelöscht. Der Nutzer kann neu hochladen.
@@ -154,7 +158,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 ### P0: Must-Have
 
-**P0-1 Discord-Login und Zugriff**
+**P0-1 Discord-Login und Zugriff** (seit Phase 7 ergänzt durch N-3: Konto mit E-Mail und Passwort, Discord wird verknüpft)
 - [x] Vor dem Login Pflicht-Checkbox "mindestens 16 Jahre, Datenschutzerklärung gelesen"
 - [x] Login und Logout über Discord
 - [x] Außer Landing, Impressum und Datenschutz ist alles nur für eingeloggte, nicht gesperrte Nutzer sichtbar (Board, Anfragen, Team-Karten). Wer was genau sehen und tun darf, regelt die Berechtigungstabelle in ARCHITECTURE §7.
@@ -171,8 +175,8 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Offene Prüfungen werden nach 14 Tagen automatisch abgelehnt, die Datei wird gelöscht
 - [x] Der Nutzer bekommt eine Discord-DM mit dem Ergebnis
 - [x] Max. 1 offene Prüfung pro Nutzer; bereits verifizierte Nutzer können nicht erneut hochladen
-- [x] **Prüf-Checkliste für Admins** (in der Queue angezeigt): Bescheinigung gilt für das aktuelle Semester; Hochschule stimmt mit der Auswahl überein; Dokument vollständig und lesbar; keine offensichtliche Bearbeitung
-- [x] Bewusst akzeptiertes Restrisiko: Ob die Bescheinigung wirklich dem Uploader gehört, ist nicht prüfbar. Missbrauch wird über Sperren behandelt.
+- [x] **Prüf-Checkliste für Admins** (in der Queue angezeigt): Bescheinigung gilt für das aktuelle Semester; Hochschule stimmt mit der Auswahl überein; Dokument vollständig und lesbar; keine offensichtliche Bearbeitung; seit Phase 7 außerdem: Name auf der Bescheinigung stimmt mit dem Namen des Kontos überein (N-3)
+- [x] Bewusst akzeptiertes Restrisiko: Ob die Bescheinigung wirklich dem Uploader gehört, ist nicht prüfbar. Seit Phase 7 vergleicht der Prüfer den Namen, aber wer eine fremde Bescheinigung hochlädt, kann auch deren Namen angeben. Missbrauch wird über Sperren behandelt.
 
 **P0-3 Teams**
 - [x] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Eisen bis Radiant)
@@ -234,7 +238,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 **P0-10 Rechtliches und Datenschutz**
 - [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
 - [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Meldet sich ein gesperrter Nutzer nach der Löschung erneut an, werden Discord-Name, Avatar und Session wie bei jedem Login wieder gespeichert, nur an diesem Platzhalter (bewusst akzeptiert); er kann das Konto danach erneut löschen. Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
-- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus
+- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3)
 - [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
 ### Nach dem MVP umgesetzt
@@ -257,6 +261,36 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Jede Kennzahl mit ihrer Fallzahl; ohne Fälle steht „–“ statt einer Zahl. Ausnahme „Spielbereite Teams“: eine Anzahl, die auch ohne aktive Teams 0 ist.
 - [x] Werte werden auf die angezeigte Genauigkeit abgerundet (0,1 h, 0,1 %, 0,1 Sterne), damit eine Zahl nie über einem Ziel zu liegen scheint, das als verfehlt markiert ist, oder umgekehrt
 - [x] Nur Summen, keine Namen oder anderen personenbezogenen Daten. Die Seite sagt, dass Prüfungen gelöschter Konten fehlen (sie werden mit dem Konto gelöscht).
+
+**N-3 Konto mit E-Mail, Passwort und Klarname** (Phase 7)
+
+*Registrierung und Anmeldung*
+- [ ] Registrierung mit Vorname, Nachname (je 1–50 Zeichen), E-Mail und Passwort (10–128 Zeichen, sonst keine Regeln) und der Pflicht-Checkbox „mindestens 16 Jahre, Datenschutzerklärung gelesen“
+- [ ] Bestätigungslink per Mail, 24 Stunden gültig; anmelden kann man sich erst danach, ein neuer Link lässt sich anfordern. Ob eine Adresse schon registriert ist, verrät die Seite nicht.
+- [ ] Anmeldung mit E-Mail und Passwort; „Mit Discord anmelden“ geht nur für Konten, die Discord schon verknüpft haben. Ein Discord-Konto ohne Uni-Scrims-Konto legt kein Konto an, die Seite verweist auf die Registrierung.
+- [ ] Passwort vergessen: Link per Mail, 1 Stunde gültig; danach sind alle Sitzungen beendet. Die Antwort verrät nicht, ob es die Adresse gibt.
+- [ ] Auf der Konto-Seite: Passwort ändern (mit dem alten Passwort; beendet die anderen Sitzungen) und E-Mail ändern (Bestätigungslink an die neue Adresse; bis dahin gilt die alte)
+- [ ] Anmelden, Registrieren und das Anfordern von Mails sind pro IP-Adresse begrenzt
+
+*Discord verknüpfen*
+- [ ] Nach der ersten Anmeldung ist Discord verknüpfen Pflicht, bevor man hochladen, ein Team gründen oder beitreten kann. Die Seite erklärt wie bisher vor dem Discord-Login, dass man dabei dem Hub-Server beitritt.
+- [ ] Beim Verknüpfen und bei jedem Discord-Login gilt alles aus P0-1: Hub-Beitritt, Discord-Name und Avatar werden übernommen, die Discord-Tokens danach gelöscht. Die E-Mail des Kontos bleibt dabei unverändert.
+- [ ] Eine Discord-ID, die schon zu einem anderen Konto gehört oder gesperrt ist, lässt sich nicht verknüpfen. Die Sperre bleibt an der Discord-ID.
+- [ ] Der Anzeigename auf der Seite (Header, Team, gegnerischer Captain) bleibt der Discord-Name
+
+*Klarname*
+- [ ] Vor- und Nachname sehen nur die Person selbst (Konto-Seite) und Prüfer bzw. Admins in der Prüf-Queue, nie Teams oder Gegner
+- [ ] Die Prüf-Queue zeigt den Namen neben der Bescheinigung; die Checkliste hat den Punkt „Name stimmt überein“
+- [ ] Ändern kann man den Namen auf der Konto-Seite, solange man nicht verifiziert ist und keine Prüfung offen ist; danach nur per Mail an die Adresse aus dem Impressum
+
+*Bestehende Konten*
+- [ ] Wer sich vor Phase 7 nur mit Discord angemeldet hat, wird beim nächsten Discord-Login durch „Konto vervollständigen“ geführt: Vorname, Nachname, E-Mail, Passwort, dann der Bestätigungslink. Bis dahin gehen nur diese Seite und die Konto-Seite (Löschen, Abmelden).
+- [ ] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
+
+*Mails, Löschen, Sperren*
+- [ ] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com`
+- [ ] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
+- [ ] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -313,7 +347,8 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Gemischte Teams | Erlaubt. Spieler verschiedener Hochschulen dürfen in einem Team sein. |
 | Buchung | Bewerben + Bestätigung durch den Ersteller. |
 | Uploads | Löschen direkt nach der Prüfung, spätestens nach 14 Tagen. |
-| Mail-Dienst | Keiner. Alles läuft über Discord. |
+| Mail-Dienst | Bis Phase 6 keiner. Seit Phase 7 nur Konto-Mails (Bestätigung, Passwort, E-Mail-Wechsel) über das Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting, SMTP). Benachrichtigungen bleiben bei Discord. |
+| Konto | Seit Phase 7 E-Mail, Passwort und Klarname; Discord wird verknüpft und bleibt Pflicht (Benachrichtigungen, Hub-Beitritt, Kontakt zum gegnerischen Captain). Der Klarname ist nur für die Person selbst und für Prüfer und Admins sichtbar. |
 | Hosting | Eigener VPS mit Docker. |
 | Betreiber | Privatperson, nicht-kommerziell. |
 | Feedback | Nur über die Web-App. Discord verlinkt dorthin. |
@@ -333,7 +368,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 
 | Entscheidung | Risiko |
 |---|---|
-| Nur Upload-Verifizierung | Echtheit bzw. Zugehörigkeit der Bescheinigung ist nicht prüfbar. Der Prüfaufwand liegt anfangs bei einer Person (15 Teams ≈ 75+ Prüfungen). |
+| Nur Upload-Verifizierung | Echtheit bzw. Zugehörigkeit der Bescheinigung ist nicht prüfbar; der Namensabgleich seit Phase 7 hilft nur gegen Bescheinigungen unter fremdem Namen. Der Prüfaufwand liegt anfangs bei einer Person (15 Teams ≈ 75+ Prüfungen). |
 | Löschen nach Prüfung | Bei späterem Verdacht gibt es nichts mehr nachzuprüfen. |
 | Nur Discord als Kanal | Blockierte DMs sind ein stiller Ausfall. Fallback: Team-Channel und Hinweis auf der Website. |
 | Eigener VPS | Du betreibst ein System, das kurzzeitig ausweisähnliche Dokumente hält: Updates, Zugangsschutz und Vorfallreaktion liegen bei dir. |
@@ -370,6 +405,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 4 | Admin-Bereich komplett, Datenschutz-Funktionen, Deployment | Production läuft mit HTTPS; zwei echte Discord-Accounts buchen und bewerten einen Scrim. Stand 23.10.2026: auf Entscheidung des Betreibers ohne diese Live-Abnahme abgeschlossen; sie folgt beim Go-Live mit zwei spielbereiten Teams aus echten Accounts (Go-Live-Checkliste im README, ARCHITECTURE §11) |
 | 5 | Ersatzspieler und Coach (nach dem MVP, N-1) | Der Captain setzt Rollen, und ein Team mit einem Coach als fünftem verifiziertem Mitglied ist nicht spielbereit |
 | 6 | Statistik-Seite für die Erfolgskriterien (N-2) | Ein Admin sieht alle Kennzahlen aus §8 für die letzten 28 Tage und gesamt, und sie stimmen mit den Testdaten überein |
+| 7 | Konto mit E-Mail, Passwort und Klarname (N-3) | Registrierung, Bestätigung, Anmeldung, Passwort vergessen und Discord verknüpfen laufen durch; ein Altkonto wird zum Vervollständigen geführt, und die Prüf-Queue zeigt den Klarnamen |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
