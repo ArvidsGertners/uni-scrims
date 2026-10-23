@@ -1,13 +1,12 @@
 import { RANK_LABELS, type Reliability, SCRIM_FORMAT_LABELS } from "@uni-scrims/core";
-import type {
-  AppStatus,
-  NotifChannel,
-  NotifType,
-  Rank,
-  RequestStatus,
-  ScrimFormat,
-  ScrimStatus,
-} from "@uni-scrims/db";
+import type { AppStatus, NotifChannel, Rank, ScrimFormat } from "@uni-scrims/db";
+
+// Moved to core for the data export (Phase 9); the pages keep importing them from here.
+export {
+  NOTIFICATION_TYPE_LABELS,
+  REQUEST_STATUS_LABELS,
+  SCRIM_STATUS_LABELS,
+} from "@uni-scrims/core";
 
 export function formatRankRange(rankMin: Rank, rankMax: Rank): string {
   return rankMin === rankMax
@@ -44,43 +43,11 @@ export function formatUniversities(universities: { shown: string[]; more: number
     : "Noch keine verifizierten Mitglieder";
 }
 
-export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
-  OPEN: "Offen",
-  BOOKED: "Gebucht",
-  CANCELLED: "Gelöscht",
-  EXPIRED: "Verfallen",
-};
-
 export const APPLICATION_STATUS_LABELS: Record<AppStatus, string> = {
   PENDING: "Offen",
   ACCEPTED: "Bestätigt",
   REJECTED: "Abgelehnt",
   WITHDRAWN: "Zurückgezogen",
-};
-
-export const SCRIM_STATUS_LABELS: Record<ScrimStatus, string> = {
-  SCHEDULED: "Gebucht",
-  CANCELLED: "Abgesagt",
-  AWAITING_FEEDBACK: "Wartet auf Feedback",
-  COMPLETED: "Gespielt",
-  NO_SHOW: "No-Show",
-  DISPUTED: "Streitfall",
-  UNCONFIRMED: "Unbestätigt",
-};
-
-/** Admin list of failed notifications (SPEC P0-9). */
-export const NOTIFICATION_TYPE_LABELS: Record<NotifType, string> = {
-  VERIFICATION_RESULT: "Ergebnis der Verifizierung",
-  APPLICATION_RECEIVED: "Neue Bewerbung",
-  APPLICATION_REJECTED: "Bewerbung abgelehnt",
-  REQUEST_DELETED: "Anfrage gelöscht",
-  REQUEST_EXPIRED: "Anfrage verfallen",
-  SCRIM_BOOKED: "Scrim gebucht",
-  SCRIM_CANCELLED: "Scrim abgesagt",
-  REMINDER_24H: "Reminder 24 h",
-  REMINDER_1H: "Reminder 1 h",
-  FEEDBACK_PROMPT: "Feedback-Hinweis",
-  CHANNEL_BROKEN: "Team-Channel nicht erreichbar",
 };
 
 export const NOTIFICATION_CHANNEL_LABELS: Record<NotifChannel, string> = {

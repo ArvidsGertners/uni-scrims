@@ -18,6 +18,7 @@ export * from "./outbox.ts";
 export * from "./sweeper.ts";
 export * from "./moderation.ts";
 export * from "./account.ts";
+export * from "./account-export.ts";
 export * from "./restore.ts";
 export * from "./stats.ts";
 export * from "./staff.ts";
