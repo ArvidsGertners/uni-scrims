@@ -10,13 +10,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "type-btn bg-primary font-bold text-primary-foreground enabled:hover:bg-primary-hover disabled:bg-secondary disabled:text-faint",
+          "type-btn bg-primary font-bold text-primary-foreground not-disabled:hover:bg-primary-hover disabled:bg-secondary disabled:text-faint",
         outline:
-          "type-btn border border-border-strong font-semibold text-foreground enabled:hover:bg-secondary disabled:text-faint",
+          "type-btn border border-border-strong font-semibold text-foreground not-disabled:hover:bg-secondary disabled:text-faint",
         destructive:
-          "type-btn border border-primary font-semibold text-accent-text enabled:hover:bg-accent-soft disabled:text-faint",
-        ghost: "text-muted-foreground enabled:hover:text-foreground disabled:text-faint",
-        link: "text-muted-foreground underline underline-offset-3 enabled:hover:text-accent-text disabled:text-faint",
+          "type-btn border border-primary font-semibold text-accent-text not-disabled:hover:bg-accent-soft disabled:text-faint",
+        ghost: "text-muted-foreground not-disabled:hover:text-foreground disabled:text-faint",
+        link: "text-muted-foreground underline underline-offset-3 not-disabled:hover:text-accent-text disabled:text-faint",
       },
       size: {
         sm: "min-h-11 px-4 text-[14px]",
