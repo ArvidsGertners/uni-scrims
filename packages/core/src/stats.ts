@@ -1,0 +1,315 @@
+// Success metrics of SPEC §8 for the admin statistics page (SPEC N-2). Read only, nothing is stored:
+// the data is small (ARCHITECTURE §1), so medians and rates are computed here from plain reads.
+import { RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
+import { requireAdmin } from "./permissions.ts";
+import { activeTeamWhere, countReadyMembers, isReadyCount } from "./readiness.ts";
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+
+/** The "last 28 days" window (SPEC N-2); the other one is everything up to now. */
+export const STATS_WINDOW_DAYS = 28;
+/** "Teams mit ≥ 2 Scrims pro Monat": played scrims that started in the last 30 days. */
+export const ACTIVE_TEAM_DAYS = 30;
+export const ACTIVE_TEAM_MIN_SCRIMS = 2;
+
+/** Scrim states that count as evaluated for the feedback response rate (SPEC §8). */
+const EVALUATED_STATUSES: readonly ScrimStatus[] = [
+  ScrimStatus.COMPLETED,
+  ScrimStatus.NO_SHOW,
+  ScrimStatus.DISPUTED,
+  ScrimStatus.UNCONFIRMED,
+];
+
+export type MetricKey =
+  | "readyTeams"
+  | "reviewTime"
+  | "confirmationRate"
+  | "timeToBooking"
+  | "showUpRate"
+  | "feedbackRate"
+  | "activeTeams"
+  | "noShowRate"
+  | "averageRating";
+
+/** count: teams; duration: milliseconds; rate: 0–1; rating: 1–5. */
+export type MetricUnit = "count" | "duration" | "rate" | "rating";
+
+type MetricDefinition = {
+  key: MetricKey;
+  /** Early indicators (first 4 weeks) or late ones (after 2–3 months), as in SPEC §8. */
+  group: "early" | "late";
+  label: string;
+  unit: MetricUnit;
+  /** "atLeast": reached at value ≥ target; "below": reached at value < target. */
+  goal: "atLeast" | "below";
+  target: number;
+  stretch: number | null;
+  /** Snapshot metrics describe now and have no windows. */
+  snapshot: boolean;
+};
+
+/** SPEC §8, in its order, with targets and stretch goals. */
+export const SUCCESS_METRICS: readonly MetricDefinition[] = [
+  {
+    key: "readyTeams",
+    group: "early",
+    label: "Spielbereite Teams",
+    unit: "count",
+    goal: "atLeast",
+    target: 15,
+    stretch: 30,
+    snapshot: true,
+  },
+  {
+    key: "reviewTime",
+    group: "early",
+    label: "Prüfzeit",
+    unit: "duration",
+    goal: "below",
+    target: 24 * HOUR,
+    stretch: 6 * HOUR,
+    snapshot: false,
+  },
+  {
+    key: "confirmationRate",
+    group: "early",
+    label: "Bestätigungsquote",
+    unit: "rate",
+    goal: "atLeast",
+    target: 0.5,
+    stretch: 0.7,
+    snapshot: false,
+  },
+  {
+    key: "timeToBooking",
+    group: "early",
+    label: "Zeit bis Bestätigung",
+    unit: "duration",
+    goal: "below",
+    target: 24 * HOUR,
+    stretch: 6 * HOUR,
+    snapshot: false,
+  },
+  {
+    key: "showUpRate",
+    group: "early",
+    label: "Show-up-Rate",
+    unit: "rate",
+    goal: "atLeast",
+    target: 0.9,
+    stretch: 0.95,
+    snapshot: false,
+  },
+  {
+    key: "feedbackRate",
+    group: "early",
+    label: "Feedback-Antwortrate",
+    unit: "rate",
+    goal: "atLeast",
+    target: 0.6,
+    stretch: 0.8,
+    snapshot: false,
+  },
+  {
+    key: "activeTeams",
+    group: "late",
+    label: `Teams mit ≥ ${ACTIVE_TEAM_MIN_SCRIMS} Scrims pro Monat`,
+    unit: "rate",
+    goal: "atLeast",
+    target: 0.5,
+    stretch: null,
+    snapshot: true,
+  },
+  {
+    key: "noShowRate",
+    group: "late",
+    label: "No-Show-Rate",
+    unit: "rate",
+    goal: "below",
+    target: 0.1,
+    stretch: null,
+    snapshot: false,
+  },
+  {
+    key: "averageRating",
+    group: "late",
+    label: "Durchschnittsbewertung",
+    unit: "rating",
+    goal: "atLeast",
+    target: 4,
+    stretch: null,
+    snapshot: false,
+  },
+];
+
+export type MetricResult = {
+  /** null without cases. */
+  value: number | null;
+  /** How many entries the value rests on (for readyTeams: the active teams). */
+  cases: number;
+  /** null without a value, or for stretchReached without a stretch goal. */
+  reached: boolean | null;
+  stretchReached: boolean | null;
+};
+
+export type SuccessMetric = MetricDefinition &
+  (
+    | { snapshot: true; now: MetricResult }
+    | { snapshot: false; last28Days: MetricResult; total: MetricResult }
+  );
+
+/** Median of the values, the mean of the two middle ones for an even count; null if empty. */
+export function median(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+}
+
+function meets(value: number, goal: MetricDefinition["goal"], threshold: number): boolean {
+  return goal === "atLeast" ? value >= threshold : value < threshold;
+}
+
+function result(definition: MetricDefinition, value: number | null, cases: number): MetricResult {
+  return {
+    value,
+    cases,
+    reached: value === null ? null : meets(value, definition.goal, definition.target),
+    stretchReached:
+      value === null || definition.stretch === null
+        ? null
+        : meets(value, definition.goal, definition.stretch),
+  };
+}
+
+/** part ÷ whole, null without cases. */
+function rate(part: number, whole: number): number | null {
+  return whole === 0 ? null : part / whole;
+}
+
+function average(values: readonly number[]): number | null {
+  return values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+/**
+ * The metrics of SPEC §8 for the last 28 days and in total, both up to `now` (SPEC N-2). Admins
+ * only; the page shows sums, never names.
+ */
+export async function getSuccessMetrics(input: {
+  adminId: string;
+  now: Date;
+}): Promise<SuccessMetric[]> {
+  await requireAdmin(input.adminId);
+  const { now } = input;
+  const [teams, decisions, requests, scrims] = await Promise.all([
+    prisma.team.findMany({
+      where: activeTeamWhere(),
+      select: {
+        id: true,
+        members: { select: { role: true, user: { select: { verifiedAt: true } } } },
+      },
+    }),
+    // Decided by hand: automatic and ban rejections have no decidedById.
+    prisma.verificationRequest.findMany({
+      where: { decidedById: { not: null }, decidedAt: { lte: now } },
+      select: { createdAt: true, decidedAt: true },
+    }),
+    // Deleted requests (CANCELLED) and open ones do not count.
+    prisma.scrimRequest.findMany({
+      where: {
+        status: { in: [RequestStatus.BOOKED, RequestStatus.EXPIRED] },
+        startsAt: { lte: now },
+      },
+      select: { status: true, startsAt: true },
+    }),
+    prisma.scrim.findMany({
+      where: { createdAt: { lte: now } },
+      select: {
+        status: true,
+        startsAt: true,
+        createdAt: true,
+        hostTeamId: true,
+        guestTeamId: true,
+        request: { select: { createdAt: true } },
+        feedback: { select: { rating: true } },
+      },
+    }),
+  ]);
+
+  const windowStart = new Date(now.getTime() - STATS_WINDOW_DAYS * DAY);
+  const within = (date: Date, from: Date | null) => date <= now && (!from || date >= from);
+  const started = scrims.filter((scrim) => scrim.startsAt <= now);
+
+  const windowed = (from: Date | null) => {
+    const decided = decisions.filter((decision) => within(decision.decidedAt!, from));
+    const requestsIn = requests.filter((request) => within(request.startsAt, from));
+    const booked = requestsIn.filter((request) => request.status === RequestStatus.BOOKED).length;
+    const bookings = scrims.filter((scrim) => within(scrim.createdAt, from));
+    const startedIn = started.filter((scrim) => within(scrim.startsAt, from));
+    const played = startedIn.filter((scrim) => scrim.status === ScrimStatus.COMPLETED);
+    const noShows = startedIn.filter((scrim) => scrim.status === ScrimStatus.NO_SHOW).length;
+    const evaluated = startedIn.filter((scrim) => EVALUATED_STATUSES.includes(scrim.status));
+    const ratings = played.flatMap((scrim) =>
+      scrim.feedback.flatMap(({ rating }) => (rating === null ? [] : [rating])),
+    );
+    const outcomes = played.length + noShows;
+    return {
+      reviewTime: [
+        median(
+          decided.map((decision) => decision.decidedAt!.getTime() - decision.createdAt.getTime()),
+        ),
+        decided.length,
+      ],
+      confirmationRate: [rate(booked, requestsIn.length), requestsIn.length],
+      timeToBooking: [
+        median(
+          bookings.map((scrim) => scrim.createdAt.getTime() - scrim.request.createdAt.getTime()),
+        ),
+        bookings.length,
+      ],
+      showUpRate: [rate(played.length, outcomes), outcomes],
+      feedbackRate: [
+        rate(evaluated.filter((scrim) => scrim.feedback.length > 0).length, evaluated.length),
+        evaluated.length,
+      ],
+      noShowRate: [rate(noShows, outcomes), outcomes],
+      averageRating: [average(ratings), ratings.length],
+    } satisfies Partial<Record<MetricKey, [number | null, number]>>;
+  };
+  const last28Days = windowed(windowStart);
+  const total = windowed(null);
+
+  const readyTeamIds = teams
+    .filter((team) => isReadyCount(countReadyMembers(team.members)))
+    .map((team) => team.id);
+  const activeStart = new Date(now.getTime() - ACTIVE_TEAM_DAYS * DAY);
+  const playedPerTeam = new Map<string, number>();
+  for (const scrim of started) {
+    if (scrim.status !== ScrimStatus.COMPLETED || !within(scrim.startsAt, activeStart)) continue;
+    for (const teamId of [scrim.hostTeamId, scrim.guestTeamId]) {
+      playedPerTeam.set(teamId, (playedPerTeam.get(teamId) ?? 0) + 1);
+    }
+  }
+  const activeTeams = readyTeamIds.filter(
+    (teamId) => (playedPerTeam.get(teamId) ?? 0) >= ACTIVE_TEAM_MIN_SCRIMS,
+  ).length;
+  const snapshots: Partial<Record<MetricKey, [number | null, number]>> = {
+    readyTeams: [readyTeamIds.length, teams.length],
+    activeTeams: [rate(activeTeams, readyTeamIds.length), readyTeamIds.length],
+  };
+
+  return SUCCESS_METRICS.map((definition): SuccessMetric => {
+    if (definition.snapshot) {
+      const [value, cases] = snapshots[definition.key]!;
+      return { ...definition, snapshot: true, now: result(definition, value, cases) };
+    }
+    const key = definition.key as keyof typeof total;
+    return {
+      ...definition,
+      snapshot: false,
+      last28Days: result(definition, ...last28Days[key]),
+      total: result(definition, ...total[key]),
+    };
+  });
+}

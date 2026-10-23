@@ -19,3 +19,4 @@ export * from "./sweeper.ts";
 export * from "./moderation.ts";
 export * from "./account.ts";
 export * from "./restore.ts";
+export * from "./stats.ts";
