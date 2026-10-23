@@ -2,7 +2,12 @@
 // the data is small (ARCHITECTURE §1), so medians and rates are computed here from plain reads.
 import { RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { requireAdmin } from "./permissions.ts";
-import { activeTeamWhere, countReadyMembers, isReadyCount } from "./readiness.ts";
+import {
+  READY_MEMBER_COUNT,
+  activeTeamWhere,
+  countReadyMembers,
+  isReadyCount,
+} from "./readiness.ts";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -40,6 +45,8 @@ type MetricDefinition = {
   /** Early indicators (first 4 weeks) or late ones (after 2–3 months), as in SPEC §8. */
   group: "early" | "late";
   label: string;
+  /** The definition of SPEC §8 in one sentence, for the page. */
+  description: string;
   unit: MetricUnit;
   /** "atLeast": reached at value ≥ target; "below": reached at value < target. */
   goal: "atLeast" | "below";
@@ -55,6 +62,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "readyTeams",
     group: "early",
     label: "Spielbereite Teams",
+    description: `Aktive Teams mit mindestens ${READY_MEMBER_COUNT} verifizierten Spielern, Stand jetzt.`,
     unit: "count",
     goal: "atLeast",
     target: 15,
@@ -65,6 +73,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "reviewTime",
     group: "early",
     label: "Prüfzeit",
+    description: "Median von Upload bis Entscheidung, nur von Hand entschiedene Prüfungen.",
     unit: "duration",
     goal: "below",
     target: 24 * HOUR,
@@ -75,6 +84,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "confirmationRate",
     group: "early",
     label: "Bestätigungsquote",
+    description: "Bestätigte ÷ (bestätigte + verfallene) Anfragen, deren Start vorbei ist.",
     unit: "rate",
     goal: "atLeast",
     target: 0.5,
@@ -85,6 +95,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "timeToBooking",
     group: "early",
     label: "Zeit bis Bestätigung",
+    description: "Median von Anfrage erstellt bis Scrim gebucht.",
     unit: "duration",
     goal: "below",
     target: 24 * HOUR,
@@ -95,6 +106,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "showUpRate",
     group: "early",
     label: "Show-up-Rate",
+    description: "Gespielt ÷ (Gespielt + No-Show).",
     unit: "rate",
     goal: "atLeast",
     target: 0.9,
@@ -105,6 +117,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "feedbackRate",
     group: "early",
     label: "Feedback-Antwortrate",
+    description: "Scrims mit mindestens einer Antwort ÷ ausgewertete Scrims.",
     unit: "rate",
     goal: "atLeast",
     target: 0.6,
@@ -115,6 +128,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "activeTeams",
     group: "late",
     label: `Teams mit ≥ ${ACTIVE_TEAM_MIN_SCRIMS} Scrims pro Monat`,
+    description: `Spielbereite Teams mit mindestens ${ACTIVE_TEAM_MIN_SCRIMS} gespielten Scrims in den letzten ${ACTIVE_TEAM_DAYS} Tagen, Stand jetzt.`,
     unit: "rate",
     goal: "atLeast",
     target: 0.5,
@@ -125,6 +139,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "noShowRate",
     group: "late",
     label: "No-Show-Rate",
+    description: "No-Show ÷ (Gespielt + No-Show).",
     unit: "rate",
     goal: "below",
     target: 0.1,
@@ -135,6 +150,7 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
     key: "averageRating",
     group: "late",
     label: "Durchschnittsbewertung",
+    description: "Bewertungen aus gespielten Scrims.",
     unit: "rating",
     goal: "atLeast",
     target: 4,

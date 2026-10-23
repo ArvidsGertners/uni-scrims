@@ -160,7 +160,8 @@ describe("getSuccessMetrics", () => {
   it("computes every metric of SPEC §8 for the last 28 days and in total", async () => {
     const a = await createTeamWithMembers({ extraMembers: 4 });
     const b = await createTeamWithMembers({ extraMembers: 4 });
-    const f = await createTeamWithMembers({ extraMembers: 4 });
+    // F: ready, but no scrims.
+    await createTeamWithMembers({ extraMembers: 4 });
     const c = await createTeamWithMembers({ extraMembers: 3 });
     // A verified coach as fifth member: not ready (SPEC N-1).
     const e = await createTeamWithMembers({ extraMembers: 4 });
