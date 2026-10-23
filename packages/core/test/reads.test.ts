@@ -472,8 +472,59 @@ describe("getScrimDetail and getMyScrims", () => {
     );
     expect(await getMyScrims({ userId: (await createUser()).id, now: NOW })).toEqual({
       hasTeam: false,
+      team: null,
       upcoming: [],
       past: [],
+      requests: [],
+      applications: [],
     });
+  });
+
+  it("lists open requests, applications, the opponent captain and due feedback", async () => {
+    const team = await createReadyTeam();
+    const other = await createReadyTeam();
+    const ownRequest = await createOpenRequest(team.captain.id);
+    const otherRequest = await createOpenRequest(other.captain.id);
+    const { application } = await applyToRequest({
+      userId: team.captain.id,
+      requestId: otherRequest.id,
+      now: NOW,
+    });
+    const scrim = await book(other, team);
+
+    const mine = await getMyScrims({ userId: team.members[0]!.id, now: NOW });
+    expect(mine.team).toEqual({ name: team.team.name, tag: team.team.tag });
+    expect(mine.requests).toEqual([expect.objectContaining({ id: ownRequest.id })]);
+    // The accepted application of the booked scrim shows as a scrim, not as an application.
+    expect(mine.applications).toEqual([
+      expect.objectContaining({
+        id: application.id,
+        status: AppStatus.PENDING,
+        requestId: otherRequest.id,
+        team: { name: other.team.name, tag: other.team.tag },
+      }),
+    ]);
+    expect(mine.upcoming).toMatchObject([
+      {
+        id: scrim.id,
+        opponent: {
+          name: other.team.name,
+          captainName: other.captain.name,
+          captainDiscordId: other.captain.discordId,
+        },
+        canGiveFeedback: false,
+      },
+    ]);
+
+    const due = (userId: string) => getMyScrims({ userId, now: AFTER_START });
+    expect((await due(team.captain.id)).past).toMatchObject([
+      { id: scrim.id, feedbackGiven: false, canGiveFeedback: true },
+    ]);
+    // Only the captain gives feedback.
+    expect((await due(team.members[0]!.id)).past).toMatchObject([{ canGiveFeedback: false }]);
+    await answer(team, scrim.id, FeedbackOutcome.PLAYED, 4);
+    expect((await due(team.captain.id)).past).toMatchObject([
+      { feedbackGiven: true, canGiveFeedback: false },
+    ]);
   });
 });

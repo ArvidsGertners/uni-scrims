@@ -4,6 +4,7 @@ import {
   berlinDayRange,
   berlinToUtc,
   describeStart,
+  describeStartShort,
   describeStartTime,
   formatDayHeading,
   formatWeekdayDate,
@@ -99,5 +100,14 @@ describe("formatDayHeading", () => {
 describe("formatWeekdayDate", () => {
   it("names weekday and date in Berlin", () => {
     expect(formatWeekdayDate(new Date("2026-10-29T23:30:00Z"))).toBe("Freitag, 30.10.");
+  });
+});
+
+describe("describeStartShort", () => {
+  it("shows weekday, date and time in Berlin, with the night suffix", () => {
+    expect(describeStartShort(new Date("2026-10-22T18:00:00Z"))).toBe("Do 22.10. · 20:00");
+    expect(describeStartShort(new Date("2026-10-21T23:00:00Z"))).toBe(
+      "Do 22.10. · 01:00 (Nacht auf Do, 22.10.)",
+    );
   });
 });

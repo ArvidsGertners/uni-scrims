@@ -21,6 +21,7 @@ import {
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
+import { getDiscordId } from "./users.ts";
 
 // ─── Reliability ──────────────────────────────────────────────────────────────
 
@@ -426,31 +427,112 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
   };
 }
 
-/** "Meine Scrims": upcoming (scheduled, in the future) and everything else, newest first. */
+/**
+ * "Meine Scrims": upcoming scrims (scheduled, in the future), everything else newest first, the own
+ * team's open requests and its applications to requests that have not started yet.
+ */
 export async function getMyScrims(input: { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
-  if (!ownTeam) return { hasTeam: false, upcoming: [], past: [] };
-  const scrims = await prisma.scrim.findMany({
-    where: { OR: [{ hostTeamId: ownTeam.id }, { guestTeamId: ownTeam.id }] },
-    orderBy: { startsAt: "asc" },
-    include: {
-      hostTeam: { select: { name: true, tag: true } },
-      guestTeam: { select: { name: true, tag: true } },
-    },
+  if (!ownTeam) {
+    return { hasTeam: false, team: null, upcoming: [], past: [], requests: [], applications: [] };
+  }
+  const opponentSelect = {
+    ...teamCardSelect,
+    captain: { select: { id: true, name: true } },
+  } satisfies Prisma.TeamSelect;
+  const [scrims, requests, applications] = await Promise.all([
+    prisma.scrim.findMany({
+      where: { OR: [{ hostTeamId: ownTeam.id }, { guestTeamId: ownTeam.id }] },
+      orderBy: { startsAt: "asc" },
+      include: {
+        hostTeam: { select: opponentSelect },
+        guestTeam: { select: opponentSelect },
+        request: { select: { rankMin: true, rankMax: true } },
+        feedback: { select: { teamId: true } },
+      },
+    }),
+    prisma.scrimRequest.findMany({
+      where: { ...openRequestWhere(input.now), teamId: ownTeam.id },
+      orderBy: { startsAt: "asc" },
+      include: { _count: { select: { applications: { where: { status: AppStatus.PENDING } } } } },
+    }),
+    prisma.application.findMany({
+      where: {
+        teamId: ownTeam.id,
+        status: { not: AppStatus.ACCEPTED },
+        request: { startsAt: { gt: input.now }, team: activeTeamWhere() },
+      },
+      orderBy: { request: { startsAt: "asc" } },
+      select: {
+        id: true,
+        status: true,
+        request: {
+          select: {
+            id: true,
+            startsAt: true,
+            format: true,
+            team: { select: { name: true, tag: true } },
+          },
+        },
+      },
+    }),
+  ]);
+  // Feedback is given by the acting captain only (SPEC P0-8), like on the scrim page.
+  const mayGiveFeedback = actingCaptainProblem(user, ownTeam) === null;
+  const items = scrims.map((scrim) => {
+    const opponent = scrim.hostTeamId === ownTeam.id ? scrim.guestTeam : scrim.hostTeam;
+    const feedbackGiven = scrim.feedback.some((feedback) => feedback.teamId === ownTeam.id);
+    return {
+      id: scrim.id,
+      startsAt: scrim.startsAt,
+      format: scrim.format,
+      status: scrim.status,
+      rankMin: scrim.request.rankMin,
+      rankMax: scrim.request.rankMax,
+      opponent: {
+        name: opponent.name,
+        tag: opponent.tag,
+        universities: teamUniversities(opponent.members),
+        captainId: opponent.captain.id,
+        captainName: opponent.captain.name,
+      },
+      feedbackGiven,
+      canGiveFeedback:
+        mayGiveFeedback && !feedbackGiven && feedbackClosedReason(scrim, input.now) === null,
+    };
   });
-  const items = scrims.map((scrim) => ({
-    id: scrim.id,
-    startsAt: scrim.startsAt,
-    format: scrim.format,
-    status: scrim.status,
-    opponent: scrim.hostTeamId === ownTeam.id ? scrim.guestTeam : scrim.hostTeam,
-  }));
   const isUpcoming = (item: (typeof items)[number]) =>
     item.status === ScrimStatus.SCHEDULED && item.startsAt > input.now;
+  const upcoming = items.filter(isUpcoming);
+  // The opponent captain's Discord ID, for the "write on Discord" link (SPEC P0-6).
+  const captainDiscordIds = await Promise.all(
+    upcoming.map((item) => getDiscordId(item.opponent.captainId)),
+  );
   return {
     hasTeam: true,
-    upcoming: items.filter(isUpcoming),
+    team: { name: ownTeam.name, tag: ownTeam.tag },
+    upcoming: upcoming.map((item, index) => ({
+      ...item,
+      opponent: { ...item.opponent, captainDiscordId: captainDiscordIds[index] ?? null },
+    })),
     past: items.filter((item) => !isUpcoming(item)).reverse(),
+    requests: requests.map((request) => ({
+      id: request.id,
+      startsAt: request.startsAt,
+      format: request.format,
+      rankMin: request.rankMin,
+      rankMax: request.rankMax,
+      maps: request.maps,
+      applicationCount: request._count.applications,
+    })),
+    applications: applications.map((application) => ({
+      id: application.id,
+      status: application.status,
+      requestId: application.request.id,
+      startsAt: application.request.startsAt,
+      format: application.request.format,
+      team: application.request.team,
+    })),
   };
 }
