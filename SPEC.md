@@ -152,87 +152,87 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 ### P0: Must-Have
 
 **P0-1 Discord-Login und Zugriff**
-- [ ] Vor dem Login Pflicht-Checkbox "mindestens 16 Jahre, Datenschutzerklärung gelesen"
-- [ ] Login und Logout über Discord
-- [ ] Außer Landing, Impressum und Datenschutz ist alles nur für eingeloggte, nicht gesperrte Nutzer sichtbar (Board, Anfragen, Team-Karten). Wer was genau sehen und tun darf, regelt die Berechtigungstabelle in ARCHITECTURE §7.
-- [ ] Beim ersten Login wird ein Nutzer mit Discord-ID, Username und Avatar angelegt; Username und Avatar werden bei jedem Login aktualisiert
-- [ ] Bei jedem Login wird der Beitritt zum Uni-Scrims-Server versucht; scheitert er, sieht der Nutzer einen dauerhaften Hinweis, der auf den Einladungslink auf der Konto-Seite verweist
+- [x] Vor dem Login Pflicht-Checkbox "mindestens 16 Jahre, Datenschutzerklärung gelesen"
+- [x] Login und Logout über Discord
+- [x] Außer Landing, Impressum und Datenschutz ist alles nur für eingeloggte, nicht gesperrte Nutzer sichtbar (Board, Anfragen, Team-Karten). Wer was genau sehen und tun darf, regelt die Berechtigungstabelle in ARCHITECTURE §7.
+- [x] Beim ersten Login wird ein Nutzer mit Discord-ID, Username und Avatar angelegt; Username und Avatar werden bei jedem Login aktualisiert
+- [x] Bei jedem Login wird der Beitritt zum Uni-Scrims-Server versucht; scheitert er, sieht der Nutzer einen dauerhaften Hinweis, der auf den Einladungslink auf der Konto-Seite verweist
 
 **P0-2 Verifizierung per Immatrikulationsbescheinigung**
-- [ ] Hochschul-Auswahl aus einer Seed-Liste (mindestens alle großen Universitäten, alle DHBW-Standorte und alle Hochschulen mit bekannten Uniliga-Valorant-Teams; nur Name und Ort) plus "Andere" mit Freitext
-- [ ] Pflicht-Checkbox mit Kurzinfo zum Datenschutz (was, wozu, wann gelöscht)
-- [ ] Upload als PDF/JPG/PNG, max. 5 MB; HEIC wird mit Hinweis "Foto bitte als JPG/PNG" abgelehnt
-- [ ] Dateien sind nie öffentlich erreichbar; nur Admins können sie ansehen
-- [ ] Freigeben oder Ablehnen mit Grund; beim Ablehnen ist ein erneuter Upload möglich
-- [ ] Nach der Entscheidung wird die Datei sofort physisch gelöscht
-- [ ] Offene Prüfungen werden nach 14 Tagen automatisch abgelehnt, die Datei wird gelöscht
-- [ ] Der Nutzer bekommt eine Discord-DM mit dem Ergebnis
-- [ ] Max. 1 offene Prüfung pro Nutzer; bereits verifizierte Nutzer können nicht erneut hochladen
-- [ ] **Prüf-Checkliste für Admins** (in der Queue angezeigt): Bescheinigung gilt für das aktuelle Semester; Hochschule stimmt mit der Auswahl überein; Dokument vollständig und lesbar; keine offensichtliche Bearbeitung
-- [ ] Bewusst akzeptiertes Restrisiko: Ob die Bescheinigung wirklich dem Uploader gehört, ist nicht prüfbar. Missbrauch wird über Sperren behandelt.
+- [x] Hochschul-Auswahl aus einer Seed-Liste (mindestens alle großen Universitäten, alle DHBW-Standorte und alle Hochschulen mit bekannten Uniliga-Valorant-Teams; nur Name und Ort) plus "Andere" mit Freitext
+- [x] Pflicht-Checkbox mit Kurzinfo zum Datenschutz (was, wozu, wann gelöscht)
+- [x] Upload als PDF/JPG/PNG, max. 5 MB; HEIC wird mit Hinweis "Foto bitte als JPG/PNG" abgelehnt
+- [x] Dateien sind nie öffentlich erreichbar; nur Admins können sie ansehen
+- [x] Freigeben oder Ablehnen mit Grund; beim Ablehnen ist ein erneuter Upload möglich
+- [x] Nach der Entscheidung wird die Datei sofort physisch gelöscht
+- [x] Offene Prüfungen werden nach 14 Tagen automatisch abgelehnt, die Datei wird gelöscht
+- [x] Der Nutzer bekommt eine Discord-DM mit dem Ergebnis
+- [x] Max. 1 offene Prüfung pro Nutzer; bereits verifizierte Nutzer können nicht erneut hochladen
+- [x] **Prüf-Checkliste für Admins** (in der Queue angezeigt): Bescheinigung gilt für das aktuelle Semester; Hochschule stimmt mit der Auswahl überein; Dokument vollständig und lesbar; keine offensichtliche Bearbeitung
+- [x] Bewusst akzeptiertes Restrisiko: Ob die Bescheinigung wirklich dem Uploader gehört, ist nicht prüfbar. Missbrauch wird über Sperren behandelt.
 
 **P0-3 Teams**
-- [ ] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Eisen bis Radiant)
-- [ ] Captain kann Name, Kürzel und Team-Rang ändern
-- [ ] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
-- [ ] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite
-- [ ] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team
-- [ ] Genau ein Captain pro Team; Captain-Rolle übertragen; Mitglieder entfernen
-- [ ] Spieler können das Team verlassen; Captain nur nach Übertragung, als einziges Mitglied löst er das Team damit auf
-- [ ] Ein Team ist **spielbereit** ab 5 verifizierten Mitgliedern. Geprüft wird nur beim Posten, Bewerben und Bestätigen.
-- [ ] **Scrim-Aktionen** (Anfragen, Bewerbungen, Bestätigen, Absagen, Feedback) setzen voraus, dass der Captain **selbst verifiziert** ist. Team verwalten und einladen geht auch ohne (siehe Berechtigungstabelle in ARCHITECTURE §7).
-- [ ] Aufgelöste Teams verschwinden überall, ihr Einladungslink funktioniert nicht mehr und ihr Name ist wieder frei. Der ehemalige Captain kann ein neues Team gründen.
+- [x] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Eisen bis Radiant)
+- [x] Captain kann Name, Kürzel und Team-Rang ändern
+- [x] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
+- [x] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite
+- [x] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team
+- [x] Genau ein Captain pro Team; Captain-Rolle übertragen; Mitglieder entfernen
+- [x] Spieler können das Team verlassen; Captain nur nach Übertragung, als einziges Mitglied löst er das Team damit auf
+- [x] Ein Team ist **spielbereit** ab 5 verifizierten Mitgliedern. Geprüft wird nur beim Posten, Bewerben und Bestätigen.
+- [x] **Scrim-Aktionen** (Anfragen, Bewerbungen, Bestätigen, Absagen, Feedback) setzen voraus, dass der Captain **selbst verifiziert** ist. Team verwalten und einladen geht auch ohne (siehe Berechtigungstabelle in ARCHITECTURE §7).
+- [x] Aufgelöste Teams verschwinden überall, ihr Einladungslink funktioniert nicht mehr und ihr Name ist wieder frei. Der ehemalige Captain kann ein neues Team gründen.
 
 **P0-4 Scrim-Anfragen und Board**
-- [ ] Felder: Datum, Startzeit (Europe/Berlin, 15-Minuten-Raster, 10:00–01:45 Uhr, mindestens 30 Minuten in der Zukunft; das Datum ist immer das Kalenderdatum des tatsächlichen Starts, die UI zeigt bei Startzeiten nach Mitternacht "(Nacht auf Mi, 22.10.)"), Format (`1 Map`, `2 Maps`, `BO3`), Rang-Bereich min–max, Maps (optional, Mehrfachauswahl aus festem Map-Pool), Notiz (max. 300 Zeichen)
-- [ ] Nur spielbereite Teams können posten; max. 5 offene Anfragen pro Team
-- [ ] Board zeigt offene, zukünftige Anfragen; Filter nach Datum und Rang; Standardfilter: Anfragen, deren Rang-Bereich den eigenen Team-Rang enthält
-- [ ] Jede Karte zeigt Team, Hochschulen, Rang, Zuverlässigkeit und die Anzahl der Bewerbungen
-- [ ] Ersteller kann eine offene Anfrage löschen; offene Bewerbungen werden abgelehnt und die Bewerber bekommen Bescheid
-- [ ] Anfragen ohne bestätigte Bewerbung verfallen zur Startzeit; Bewerber bekommen Bescheid
+- [x] Felder: Datum, Startzeit (Europe/Berlin, 15-Minuten-Raster, 10:00–01:45 Uhr, mindestens 30 Minuten in der Zukunft; das Datum ist immer das Kalenderdatum des tatsächlichen Starts, die UI zeigt bei Startzeiten nach Mitternacht "(Nacht auf Mi, 22.10.)"), Format (`1 Map`, `2 Maps`, `BO3`), Rang-Bereich min–max, Maps (optional, Mehrfachauswahl aus festem Map-Pool), Notiz (max. 300 Zeichen)
+- [x] Nur spielbereite Teams können posten; max. 5 offene Anfragen pro Team
+- [x] Board zeigt offene, zukünftige Anfragen; Filter nach Datum und Rang; Standardfilter: Anfragen, deren Rang-Bereich den eigenen Team-Rang enthält
+- [x] Jede Karte zeigt Team, Hochschulen, Rang, Zuverlässigkeit und die Anzahl der Bewerbungen
+- [x] Ersteller kann eine offene Anfrage löschen; offene Bewerbungen werden abgelehnt und die Bewerber bekommen Bescheid
+- [x] Anfragen ohne bestätigte Bewerbung verfallen zur Startzeit; Bewerber bekommen Bescheid
 
 **P0-5 Bewerbungen und Bestätigung**
-- [ ] Spielbereite Teams können sich bewerben, optional mit Nachricht (max. 200 Zeichen); nicht auf eigene Anfragen; max. 1 Bewerbung pro Team und Anfrage, auch nach Zurückziehen
-- [ ] Bewerbung außerhalb des Rang-Bereichs ist erlaubt, mit Hinweis beim Bewerben und beim Ersteller
-- [ ] Ersteller sieht alle Bewerbungen mit Rang, Hochschulen und Zuverlässigkeit
-- [ ] Bestätigen prüft, dass beide Teams spielbereit und aktiv sind (nicht gesperrt, nicht aufgelöst); genau eine Bewerbung wird angenommen, alle anderen automatisch abgelehnt
-- [ ] Bewerber können zurückziehen, solange nicht bestätigt
-- [ ] Bot-DM an den Ersteller bei jeder neuen Bewerbung; Bot-DM an Bewerber bei Bestätigung oder Absage
+- [x] Spielbereite Teams können sich bewerben, optional mit Nachricht (max. 200 Zeichen); nicht auf eigene Anfragen; max. 1 Bewerbung pro Team und Anfrage, auch nach Zurückziehen
+- [x] Bewerbung außerhalb des Rang-Bereichs ist erlaubt, mit Hinweis beim Bewerben und beim Ersteller
+- [x] Ersteller sieht alle Bewerbungen mit Rang, Hochschulen und Zuverlässigkeit
+- [x] Bestätigen prüft, dass beide Teams spielbereit und aktiv sind (nicht gesperrt, nicht aufgelöst); genau eine Bewerbung wird angenommen, alle anderen automatisch abgelehnt
+- [x] Bewerber können zurückziehen, solange nicht bestätigt
+- [x] Bot-DM an den Ersteller bei jeder neuen Bewerbung; Bot-DM an Bewerber bei Bestätigung oder Absage
 
 **P0-6 Gebuchte Scrims**
-- [ ] Übersicht "Meine Scrims" (anstehend und vergangen, dazu die eigenen offenen Anfragen und Bewerbungen als Listen; die Aktionen bleiben auf Anfrage- und Scrim-Seite)
-- [ ] Nach der Buchung ist der gegnerische Captain sichtbar (Discord-Name, in Bot-Nachrichten als Erwähnung)
-- [ ] Absage durch beide Seiten bis zum Start; unter 24 h vor Start wird sie als kurzfristig markiert
+- [x] Übersicht "Meine Scrims" (anstehend und vergangen, dazu die eigenen offenen Anfragen und Bewerbungen als Listen; die Aktionen bleiben auf Anfrage- und Scrim-Seite)
+- [x] Nach der Buchung ist der gegnerische Captain sichtbar (Discord-Name, in Bot-Nachrichten als Erwähnung)
+- [x] Absage durch beide Seiten bis zum Start; unter 24 h vor Start wird sie als kurzfristig markiert
 
 **P0-7 Discord-Bot: Benachrichtigungen**
-- [ ] `/setup` auf dem Team-Server verknüpft Server und Channel mit dem Team (nur Captain)
-- [ ] Bestätigung bei Buchung und Absage: DM an die Captains und Post im Team-Channel, falls verknüpft
-- [ ] Reminder 24 h und 1 h vor Start
-- [ ] Feedback-Hinweis 3 h nach Start mit Link zur Scrim-Seite
-- [ ] Nachrichten gehen immer an den **aktuellen** Captain, auch wenn die Rolle nach der Buchung übertragen wurde
-- [ ] Alle Buttons in Bot-Nachrichten sind Links in die Web-App; der Bot hat außer `/setup` keine eigenen Interaktionen
-- [ ] Nutzertext wie Teamnamen wird in Bot-Nachrichten entschärft (kein Markdown, keine versteckten Links); Anfrage-Notizen und Bewerbungsnachrichten stehen nur auf der Website
-- [ ] Nicht zustellbare Nachrichten werden mehrfach mit wachsendem Abstand erneut versucht; veraltete Reminder werden verworfen
+- [x] `/setup` auf dem Team-Server verknüpft Server und Channel mit dem Team (nur Captain)
+- [x] Bestätigung bei Buchung und Absage: DM an die Captains und Post im Team-Channel, falls verknüpft
+- [x] Reminder 24 h und 1 h vor Start
+- [x] Feedback-Hinweis 3 h nach Start mit Link zur Scrim-Seite
+- [x] Nachrichten gehen immer an den **aktuellen** Captain, auch wenn die Rolle nach der Buchung übertragen wurde
+- [x] Alle Buttons in Bot-Nachrichten sind Links in die Web-App; der Bot hat außer `/setup` keine eigenen Interaktionen
+- [x] Nutzertext wie Teamnamen wird in Bot-Nachrichten entschärft (kein Markdown, keine versteckten Links); Anfrage-Notizen und Bewerbungsnachrichten stehen nur auf der Website
+- [x] Nicht zustellbare Nachrichten werden mehrfach mit wachsendem Abstand erneut versucht; veraltete Reminder werden verworfen
 
 **P0-8 Feedback und No-Shows**
-- [ ] Feedback-Formular auf der Scrim-Seite, ab Startzeit bis zur Auswertung, nur für den aktuellen Captain
-- [ ] Bewertung 1–5 nur bei "Hat stattgefunden"; kein Freitext-Kommentar
-- [ ] Auswertung genau nach der Tabelle in Flow C
-- [ ] Zuverlässigkeit pro Team: gespielte Scrims, No-Shows, kurzfristige Absagen, Durchschnittsbewertung (erst ab 3 Bewertungen anzeigen). Absagen mit mehr als 24 h Vorlauf und abgesagte Scrims wegen Sperre zählen nicht.
+- [x] Feedback-Formular auf der Scrim-Seite, ab Startzeit bis zur Auswertung, nur für den aktuellen Captain
+- [x] Bewertung 1–5 nur bei "Hat stattgefunden"; kein Freitext-Kommentar
+- [x] Auswertung genau nach der Tabelle in Flow C
+- [x] Zuverlässigkeit pro Team: gespielte Scrims, No-Shows, kurzfristige Absagen, Durchschnittsbewertung (erst ab 3 Bewertungen anzeigen). Absagen mit mehr als 24 h Vorlauf und abgesagte Scrims wegen Sperre zählen nicht.
 
 **P0-9 Admin-Bereich**
-- [ ] Queue für Immatrikulationsbescheinigungen, älteste zuerst, mit Vorschau der Datei und der Prüf-Checkliste
-- [ ] Streitfälle mit Entscheidung "Gespielt", "No-Show von Team X" oder "Unklar"
-- [ ] Nutzer bzw. Team sperren (mit den Folgen aus den Edge Cases). Wird ein Captain gesperrt, wird sein Team mitgesperrt. **Entsperren ist im MVP nur manuell per Datenbank** (im README beschrieben).
-- [ ] Liste dauerhaft fehlgeschlagener Benachrichtigungen (nur lesen)
-- [ ] Anzeige, ob der Bot läuft (ob seine beiden Schleifen arbeiten; Zustellfehler zeigt die Liste)
-- [ ] Admin-Rolle wird per Konfiguration (Liste von Discord-IDs) vergeben
+- [x] Queue für Immatrikulationsbescheinigungen, älteste zuerst, mit Vorschau der Datei und der Prüf-Checkliste
+- [x] Streitfälle mit Entscheidung "Gespielt", "No-Show von Team X" oder "Unklar"
+- [x] Nutzer bzw. Team sperren (mit den Folgen aus den Edge Cases). Wird ein Captain gesperrt, wird sein Team mitgesperrt. **Entsperren ist im MVP nur manuell per Datenbank** (im README beschrieben).
+- [x] Liste dauerhaft fehlgeschlagener Benachrichtigungen (nur lesen)
+- [x] Anzeige, ob der Bot läuft (ob seine beiden Schleifen arbeiten; Zustellfehler zeigt die Liste)
+- [x] Admin-Rolle wird per Konfiguration (Liste von Discord-IDs) vergeben
 
 **P0-10 Rechtliches und Datenschutz**
-- [ ] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
-- [ ] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Meldet sich ein gesperrter Nutzer nach der Löschung erneut an, werden Discord-Name, Avatar und Session wie bei jedem Login wieder gespeichert, nur an diesem Platzhalter (bewusst akzeptiert); er kann das Konto danach erneut löschen. Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
-- [ ] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus
-- [ ] Server-Logs werden begrenzt aufbewahrt (Rotation)
+- [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
+- [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Meldet sich ein gesperrter Nutzer nach der Löschung erneut an, werden Discord-Name, Avatar und Session wie bei jedem Login wieder gespeichert, nur an diesem Platzhalter (bewusst akzeptiert); er kann das Konto danach erneut löschen. Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
+- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus
+- [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
