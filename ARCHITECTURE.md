@@ -520,7 +520,7 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 
 ### 5.10 Datenauskunft (ab Phase 9)
 
-**Funktion:** `exportAccountData({ userId, now, privacyPolicyUrl })` in `core` (`account-export.ts`) mit `requireAccountUser`: auch gesperrte und unvollständige Konten, keine gelöschten (SPEC N-5). Nur Lesen über den Prisma-Client, in einer Transaktion mit `RepeatableRead`, damit alle Abschnitte denselben Stand zeigen. Das Ergebnis hat deutsche Schlüssel und Anzeigetexte statt Enum-Werten (`labels.ts`); Zeitpunkte stehen als ISO 8601 in UTC.
+**Funktion:** `exportAccountData({ userId, now, privacyPolicyUrl })` in `core` (`account-export.ts`) mit `requireAccountUser`: auch gesperrte und unvollständige Konten, keine gelöschten (SPEC N-5). Nur Lesen über den Prisma-Client, in einer Transaktion mit `RepeatableRead`, damit alle Abschnitte denselben Stand zeigen. Das Ergebnis hat deutsche Schlüssel und Anzeigetexte statt Enum-Werten (`labels.ts`; die Status-Texte von Anfragen, Scrims und Benachrichtigungen liegen dafür jetzt in `core`); Zeitpunkte stehen als ISO 8601 in UTC. Jede Abfrage wählt ihre Spalten aus, und Relationen lädt sie einzeln: Prisma lädt Geschwister-Relationen parallel, was die eine Verbindung einer Transaktion nicht erlaubt.
 
 **Abschnitte:**
 - `hinweis`, `erstelltAm`: was die Datei ist, Verweis auf die Datenschutzerklärung (Zwecke, Empfänger, Speicherdauer, Rechte) und was fehlt
@@ -542,7 +542,7 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 - Nachrichten an Teams: Der Empfänger wird erst beim Senden bestimmt (§6.1), sie hängen also an keiner Person.
 - Server-Logs, die Zähler des Rate-Limits im Speicher und Backups (Datenschutzerklärung).
 
-**Web:** `GET /api/account/export` (ein Route Handler, weil eine Datei zurückkommt) holt die Session, ruft `exportAccountData` mit `privacyPolicyUrl` = `PUBLIC_BASE_URL` + `/datenschutz` und antwortet mit eingerücktem JSON: `Content-Disposition: attachment; filename="uni-scrims-daten-<JJJJ-MM-TT>.json"` (Datum in Europe/Berlin), `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`. Ohne Session oder für ein gelöschtes Konto 401. Die Konto-Seite bekommt den Abschnitt „Deine Daten“ mit dem Link „Meine Daten herunterladen“.
+**Web:** `GET /api/account/export` (ein Route Handler, weil eine Datei zurückkommt) holt die Session, ruft `exportAccountData` mit `privacyPolicyUrl` = `BETTER_AUTH_URL` + `/datenschutz` (die eigene Adresse des Webs, wie bei den Einladungslinks) und antwortet mit eingerücktem JSON: `Content-Disposition: attachment; filename="uni-scrims-daten-<JJJJ-MM-TT>.json"` (Datum in Europe/Berlin), `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`. Ohne Session oder für ein gelöschtes Konto 401. Die Konto-Seite bekommt den Abschnitt „Deine Daten“ mit dem Link „Meine Daten herunterladen“.
 
 ---
 

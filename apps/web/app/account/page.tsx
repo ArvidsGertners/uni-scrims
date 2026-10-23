@@ -231,6 +231,26 @@ export default async function AccountPage({
         <h2 className="mb-1 type-label text-muted-foreground">Studierendenstatus</h2>
       </DetailRows>
 
+      {/* Data export (SPEC N-5): a plain link, the route answers with a file. */}
+      <section className={cardClass}>
+        <h2 className="type-label text-muted-foreground">Deine Daten</h2>
+        <p className="text-[14px] text-pretty text-muted-foreground">
+          Lade alles herunter, was wir zu deinem Konto speichern, als JSON-Datei (Auskunft nach Art.
+          15 DSGVO). Wozu wir die Daten nutzen und wie lange wir sie aufbewahren, steht in der{" "}
+          <Link href="/datenschutz" className="font-semibold underline underline-offset-2">
+            Datenschutzerklärung
+          </Link>
+          .
+        </p>
+        <a
+          href="/api/account/export"
+          download
+          className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}
+        >
+          Meine Daten herunterladen
+        </a>
+      </section>
+
       <section className="flex flex-col gap-2.5 pt-2">
         <h2 className="type-h2">Konto löschen</h2>
         <p className="text-[14px] text-pretty text-muted-foreground">
