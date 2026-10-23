@@ -297,24 +297,24 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 **N-4 Admins und Prüfer über die Oberfläche, mit 2FA** (Phase 8)
 
 *Rollen*
-- [ ] Drei Rollen: **Betreiber**, **Admin** und **Prüfer**. Prüfer sehen nur die Prüf-Queue mit Dateien und Klarnamen und entscheiden dort. Admins dürfen alles im Admin-Bereich außer Rollen vergeben: Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik. Der Betreiber darf zusätzlich Rollen vergeben.
-- [ ] Den Betreiber setzt einmalig ein Skript auf dem Server; über die Oberfläche lässt er sich weder vergeben noch entziehen. Die Liste von Discord-IDs in der Konfiguration (`ADMIN_DISCORD_IDS`) entfällt.
-- [ ] Der Betreiber findet bestehende Konten über die E-Mail-Adresse (genau) oder den Discord-Namen und macht sie zu Admins oder Prüfern, ändert die Rolle oder entzieht sie. Ein Konto braucht dafür ein vollständiges Konto mit Passwort; gesperrte Konten bekommen keine Rolle.
-- [ ] Die Seite zeigt alle Admins und Prüfer mit Discord-Name, Klarname, E-Mail-Adresse, Rolle und ob 2FA eingerichtet ist
-- [ ] Jede Änderung einer Rolle meldet die Person überall ab, damit sie sofort gilt. Wer die Rolle verliert, verliert auch die 2FA und meldet sich danach wieder wie jeder andere an.
-- [ ] Admins und Prüfer lassen sich nicht sperren, solange sie die Rolle haben; der Betreiber entzieht sie vorher
-- [ ] Bei einer Kontolöschung verfallen Rolle und 2FA
+- [x] Drei Rollen: **Betreiber**, **Admin** und **Prüfer**. Prüfer sehen nur die Prüf-Queue mit Dateien und Klarnamen und entscheiden dort. Admins dürfen alles im Admin-Bereich außer Rollen vergeben: Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik. Der Betreiber darf zusätzlich Rollen vergeben.
+- [x] Den Betreiber setzt einmalig ein Skript auf dem Server; über die Oberfläche lässt er sich weder vergeben noch entziehen. Die Liste von Discord-IDs in der Konfiguration (`ADMIN_DISCORD_IDS`) entfällt.
+- [x] Der Betreiber findet bestehende Konten über die E-Mail-Adresse (genau) oder den Discord-Namen und macht sie zu Admins oder Prüfern, ändert die Rolle oder entzieht sie. Ein Konto braucht dafür ein vollständiges Konto mit Passwort; gesperrte Konten bekommen keine Rolle.
+- [x] Die Seite zeigt alle Admins und Prüfer mit Discord-Name, Klarname, E-Mail-Adresse, Rolle und ob 2FA eingerichtet ist
+- [x] Jede Änderung einer Rolle meldet die Person überall ab, damit sie sofort gilt. Wer die Rolle verliert, verliert auch die 2FA und meldet sich danach wieder wie jeder andere an.
+- [x] Admins und Prüfer lassen sich nicht sperren, solange sie die Rolle haben; der Betreiber entzieht sie vorher
+- [x] Bei einer Kontolöschung verfallen Rolle und 2FA
 
 *Anmeldung mit 2FA*
-- [ ] Wer eine Rolle hat, braucht für den Admin-Bereich eine eingerichtete 2FA mit einer Authenticator-App (TOTP)
-- [ ] Einrichten beim ersten Aufruf des Admin-Bereichs: Passwort bestätigen, QR-Code scannen (oder Schlüssel abtippen), einen Code eingeben; dazu 10 Backup-Codes, die nur einmal angezeigt werden. Danach meldet die Seite ab, und die nächste Anmeldung läuft mit Passwort und Code.
-- [ ] Mit Rolle meldet man sich nur mit E-Mail, Passwort und Code an, nicht mit Discord. Statt des Codes geht einmalig ein Backup-Code. Links aus Mails (etwa zur neuen E-Mail-Adresse) öffnet man angemeldet, sonst schickt die Seite zur Anmeldung.
-- [ ] Codes sind pro IP begrenzt (10 pro Minute, weil schon das Einrichten mehrere braucht), dazu sperrt Better Auth nach mehreren Fehlversuchen kurz
-- [ ] Ein verlorenes Gerät: Der Betreiber setzt die 2FA einer Person auf der Rollen-Seite zurück; die Person richtet sie beim nächsten Aufruf neu ein. Für den Betreiber selbst steht das im README.
+- [x] Wer eine Rolle hat, braucht für den Admin-Bereich eine eingerichtete 2FA mit einer Authenticator-App (TOTP)
+- [x] Einrichten beim ersten Aufruf des Admin-Bereichs: Passwort bestätigen, QR-Code scannen (oder Schlüssel abtippen), einen Code eingeben; dazu 10 Backup-Codes, die nur einmal angezeigt werden. Danach meldet die Seite ab, und die nächste Anmeldung läuft mit Passwort und Code.
+- [x] Mit Rolle meldet man sich nur mit E-Mail, Passwort und Code an, nicht mit Discord. Statt des Codes geht einmalig ein Backup-Code. Links aus Mails (etwa zur neuen E-Mail-Adresse) öffnet man angemeldet, sonst schickt die Seite zur Anmeldung.
+- [x] Codes sind pro IP begrenzt (10 pro Minute, weil schon das Einrichten mehrere braucht), dazu sperrt Better Auth nach mehreren Fehlversuchen kurz
+- [x] Ein verlorenes Gerät: Der Betreiber setzt die 2FA einer Person auf der Rollen-Seite zurück; die Person richtet sie beim nächsten Aufruf neu ein. Für den Betreiber selbst steht das im README.
 
 *Betrieb*
-- [ ] Nach dem Einspielen eines Backups gelten die Rollen aus der alten Datenbank, damit entzogene Rechte nicht zurückkommen, und alle richten die 2FA neu ein, damit kein zurückgesetzter Schlüssel wieder gilt (README)
-- [ ] Keine Benachrichtigung über Rollenänderungen
+- [x] Nach dem Einspielen eines Backups gelten die Rollen aus der alten Datenbank, damit entzogene Rechte nicht zurückkommen, und alle richten die 2FA neu ein, damit kein zurückgesetzter Schlüssel wieder gilt (README)
+- [x] Keine Benachrichtigung über Rollenänderungen
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
