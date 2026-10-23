@@ -6,6 +6,10 @@ export default defineConfig({
     setupFiles: ["./test/setup-env.ts"],
     // DB tests share one database.
     fileParallelism: false,
-    include: ["packages/*/test/**/*.test.ts", "apps/*/test/**/*.test.ts"],
+    include: [
+      "packages/*/test/**/*.test.ts",
+      "apps/*/test/**/*.test.ts",
+      "docker/test/**/*.test.ts",
+    ],
   },
 });

@@ -261,7 +261,7 @@ Die Logs von Uni Scrims liegen in diesem eigenen Ordner, damit ihre Frist nicht 
     rotate 13
     maxage 14
     missingok
-    notifempty
+    ifempty
     compress
     delaycompress
     sharedscripts
@@ -271,7 +271,7 @@ Die Logs von Uni Scrims liegen in diesem eigenen Ordner, damit ihre Frist nicht 
 }
 ```
 
-Täglich rotiert, 13 alte Dateien plus die aktuelle: höchstens 14 Tage. Prüfen mit `logrotate -d /etc/logrotate.d/uni-scrims` und `systemctl status logrotate.timer` (läuft täglich).
+Täglich rotiert, 13 alte Dateien plus die aktuelle: höchstens 14 Tage. `ifempty` (der Standard, hier ausdrücklich) rotiert auch leere Dateien; mit `notifempty` fiele an einem Tag ohne Einträge, typisch für das Fehler-Log, die Rotation aus und mit ihr das Löschen alter Dateien (`maxage` greift nur bei einer Rotation). Prüfen mit `logrotate -d /etc/logrotate.d/uni-scrims` und `systemctl status logrotate.timer` (läuft täglich).
 
 Ohne gemeinsames Git-Remote lässt sich der Code direkt auf den Server pushen: dort einmal `git init -b main /opt/uni-scrims && git -C /opt/uni-scrims config receive.denyCurrentBranch updateInstead`, danach lokal `git push <ssh-host>:/opt/uni-scrims main` statt `git pull`, dann `dc up -d --build`.
 
@@ -290,11 +290,11 @@ MAILTO=<deine-mail>
 
 (`BACKUP_SSH_PORT=23` gilt für die Storage Box, sonst weglassen. `mkdir -p /var/log/uni-scrims`; das Log rotiert mit der Regel aus „Variante: Server mit vorhandenem nginx“, auf einem Server ohne nginx dieselbe Datei `/etc/logrotate.d/uni-scrims` ohne den `postrotate`-Block anlegen.)
 
-Die 14 Tage gelten auch, wenn ein Lauf scheitert: Das Skript löscht alte Backups lokal zuerst und spiegelt danach auch ohne neuen Dump (`--delete` entfernt sie extern), endet aber mit Fehlercode. Nur das jüngste Backup bleibt immer, auch wenn es älter wird; so gibt es bei einem dauerhaft scheiternden Dump noch eines. Sobald wieder ein Dump gelingt, fällt es nach der Frist weg. Ist der externe Speicher nicht erreichbar, bricht es ab; dann bleiben extern alte Backups liegen, bis der nächste Lauf durchkommt. Deshalb Fehlermails ernst nehmen.
+Das Alter eines Backups steht in seinem Namen (UTC). Jeder Lauf löscht die Backups, die älter als 14 Tage abzüglich zwei Stunden sind; so fällt das Backup von vor 14 Nächten in dieser Nacht weg, auch wenn der Cron nach einer Zeitumstellung eine Stunde früher läuft. Die 14 Tage gelten auch, wenn ein Lauf scheitert: Das Skript löscht alte Backups lokal zuerst und spiegelt danach auch ohne neuen Dump (`--delete` entfernt sie extern), endet aber mit Fehlercode. Nur das jüngste Backup bleibt immer, auch wenn es älter wird; so gibt es bei einem dauerhaft scheiternden Dump noch eines. Sobald wieder ein Dump gelingt, fällt es weg. Ist der externe Speicher nicht erreichbar, bricht es ab; dann bleiben extern alte Backups liegen, bis der nächste Lauf durchkommt. Deshalb Fehlermails ernst nehmen. Automatisch getestet wird das Skript mit Platzhaltern für Docker und GPG (`docker/test/backup.test.ts`).
 
-Nach einem Neuaufsetzen des Servers zuerst die Backups vom externen Speicher zurückholen, bevor der Cron wieder läuft: `rsync -a -e "ssh -p <port>" <user>@<host>:uni-scrims/ /var/backups/uni-scrims/`. Fehlen lokal Backups der letzten 14 Tage, die extern noch liegen, bricht das Skript ab, statt sie extern per `--delete` zu löschen.
+Nach einem Neuaufsetzen des Servers zuerst die Backups vom externen Speicher zurückholen, bevor der Cron wieder läuft: `rsync -a -e "ssh -p <port>" <user>@<host>:uni-scrims/ /var/backups/uni-scrims/`. Fehlen lokal Backups, die extern noch nicht abgelaufen sind, oder das extern jüngste (wenn lokal kein neueres liegt), spiegelt das Skript nicht, statt sie extern per `--delete` zu löschen: Es löscht extern nur die abgelaufenen und endet mit Fehlercode.
 
-Gelöschte Konten stehen bis zum Ablauf (14 Tage) noch in den Backups; das steht in der Datenschutzerklärung.
+Gelöschte Konten stehen bis zum Ablauf (14 Tage, beim jüngsten Backup nach gescheiterten Läufen länger) noch in den Backups; das steht in der Datenschutzerklärung.
 
 #### Wiederherstellen
 
