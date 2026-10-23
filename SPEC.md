@@ -249,6 +249,14 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Captain-Rolle ist davon unabhängig: Auch ein Coach kann Captain sein und braucht für Scrim-Aktionen weiterhin selbst eine Verifizierung.
 - [x] Die Team-Seite zeigt die Rollen; ein Rollenwechsel ändert nichts an schon gebuchten Scrims.
 
+**N-2 Statistik-Seite** (Phase 6)
+- [ ] Seite „Statistik“ im Admin-Bereich, nur für Admins
+- [ ] Zeigt alle Kennzahlen aus §8 nach deren Definitionen, jeweils mit Ziel und Stretch, und markiert, ob sie erreicht sind
+- [ ] Zwei Zeiträume: die letzten 28 Tage und gesamt. „Spielbereite Teams“ und „Teams mit ≥ 2 Scrims pro Monat“ sind Momentaufnahmen und stehen nur einmal da.
+- [ ] In einen Zeitraum fällt eine Prüfung mit ihrer Entscheidung, eine Anfrage mit ihrer Startzeit, die Zeit bis Bestätigung mit der Buchung und alle Scrim-Kennzahlen mit dem Start des Scrims
+- [ ] Jede Kennzahl mit ihrer Fallzahl; ohne Fälle steht „–“ statt einer Zahl
+- [ ] Nur Summen, keine Namen oder anderen personenbezogenen Daten. Die Seite sagt, dass Prüfungen gelöschter Konten fehlen (sie werden mit dem Konto gelöscht).
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -256,7 +264,6 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - **Feedback-Kommentar** als Freitext, mit Admin-Ansicht.
 - **Uniliga-Division** als optionales Team-Feld und als Filter.
 - **Wiederkehrende Anfragen**, z. B. "jeden Dienstag 20 Uhr".
-- **Statistik-Seite** im Admin-Bereich für die Erfolgskriterien.
 - **Weitere Admins/Prüfer** über die Oberfläche hinzufügen statt per Konfiguration.
 - **Datenauskunft (Art. 15 DSGVO) per Knopfdruck** statt manuell.
 
@@ -270,26 +277,28 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 
 ## 8. Erfolgskriterien
 
-Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind die Ziele bewusst bodenständig.
+Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind die Ziele bewusst bodenständig. Die Statistik-Seite im Admin-Bereich (N-2) rechnet genau nach diesen Definitionen.
 
 **Frühindikatoren (erste 4 Wochen)**
 
 | Metrik | Definition | Ziel | Stretch |
 |---|---|---|---|
-| Spielbereite Teams | Teams mit ≥ 5 verifizierten Spielern (Spieler oder Ersatzspieler) | 15 | 30 |
-| Prüfzeit | Median von Upload bis Entscheidung | < 24 h | < 6 h |
-| Bestätigungsquote | bestätigte Anfragen ÷ (bestätigte + verfallene) | ≥ 50 % | ≥ 70 % |
+| Spielbereite Teams | aktive Teams mit ≥ 5 verifizierten Spielern (Spieler oder Ersatzspieler), Stand jetzt | 15 | 30 |
+| Prüfzeit | Median von Upload bis Entscheidung, nur von Hand entschiedene Prüfungen (ohne automatische Ablehnung und Ablehnung durch Sperre) | < 24 h | < 6 h |
+| Bestätigungsquote | bestätigte Anfragen ÷ (bestätigte + verfallene), nur Anfragen, deren Startzeit vorbei ist; gelöschte Anfragen zählen nicht | ≥ 50 % | ≥ 70 % |
 | Zeit bis Bestätigung | Median von Anfrage erstellt bis Scrim gebucht | < 24 h | < 6 h |
 | Show-up-Rate | Gespielt ÷ (Gespielt + No-Show) | ≥ 90 % | ≥ 95 % |
-| Feedback-Antwortrate | Scrims mit ≥ 1 Antwort ÷ ausgewertete Scrims | ≥ 60 % | ≥ 80 % |
+| Feedback-Antwortrate | Scrims mit ≥ 1 Antwort ÷ ausgewertete Scrims (Gespielt, No-Show, Streitfall, Unbestätigt) | ≥ 60 % | ≥ 80 % |
 
 **Spätindikatoren (nach 2–3 Monaten)**
 
-| Metrik | Ziel |
-|---|---|
-| Teams mit ≥ 2 Scrims pro Monat | ≥ 50 % der spielbereiten Teams |
-| No-Show-Rate | < 10 % |
-| Durchschnittsbewertung | ≥ 4,0 |
+| Metrik | Definition | Ziel |
+|---|---|---|
+| Teams mit ≥ 2 Scrims pro Monat | spielbereite Teams mit ≥ 2 gespielten Scrims (Start in den letzten 30 Tagen) ÷ spielbereite Teams, Stand jetzt | ≥ 50 % |
+| No-Show-Rate | No-Show ÷ (Gespielt + No-Show) | < 10 % |
+| Durchschnittsbewertung | alle Bewertungen aus gespielten Scrims | ≥ 4,0 |
+
+Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung „Gespielt“. Scrims aufgelöster oder gesperrter Teams zählen mit.
 
 ---
 
@@ -359,6 +368,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 3 | Discord-Bot: `/setup`, alle Benachrichtigungen, Reminder, Sweeper | Der komplette Flow läuft mit echten Discord-Nachrichten durch (mit verkürzten Zeiten) |
 | 4 | Admin-Bereich komplett, Datenschutz-Funktionen, Deployment | Production läuft mit HTTPS; zwei echte Discord-Accounts buchen und bewerten einen Scrim. Stand 23.10.2026: auf Entscheidung des Betreibers ohne diese Live-Abnahme abgeschlossen; sie folgt beim Go-Live mit zwei spielbereiten Teams aus echten Accounts (Go-Live-Checkliste im README, ARCHITECTURE §11) |
 | 5 | Ersatzspieler und Coach (nach dem MVP, N-1) | Der Captain setzt Rollen, und ein Team mit einem Coach als fünftem verifiziertem Mitglied ist nicht spielbereit |
+| 6 | Statistik-Seite für die Erfolgskriterien (N-2) | Ein Admin sieht alle Kennzahlen aus §8 für die letzten 28 Tage und gesamt, und sie stimmen mit den Testdaten überein |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 

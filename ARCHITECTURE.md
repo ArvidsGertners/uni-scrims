@@ -97,7 +97,7 @@ uni-scrims/
 │  │  │  ├─ join/[code]/   # Einladungslink
 │  │  │  ├─ verify/        # Upload der Immatrikulationsbescheinigung
 │  │  │  ├─ account/       # Konto, Löschen
-│  │  │  ├─ admin/         # Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status
+│  │  │  ├─ admin/         # Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik
 │  │  │  └─ api/
 │  │  │     ├─ auth/[...all]/           # Better Auth
 │  │  │     ├─ admin/uploads/[id]/      # geschützter Datei-Abruf
@@ -137,13 +137,13 @@ uni-scrims/
 | Anfragen | `createRequest`, `deleteRequest`, `expireRequests` |
 | Bewerbungen | `applyToRequest`, `withdrawApplication`, `confirmApplication` |
 | Scrims | `cancelScrim`, `openFeedback`, `submitFeedback`, `resolveScrimOutcome` (rein), `resolveDeadlines`, `resolveDispute` |
-| Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; für den Admin-Bereich: `listDisputes`, `listFailedNotifications`, `getBotStatus`, `searchModerationTargets` (Suche auf der Sperren-Seite); nur für den Dev-Login: `listSeedUsers` |
+| Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner), `isAdmin`, `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; für den Admin-Bereich: `listDisputes`, `listFailedNotifications`, `getBotStatus`, `searchModerationTargets` (Suche auf der Sperren-Seite), `getSuccessMetrics` (Statistik-Seite, Phase 6); nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` (Bausteine ohne Berechtigungsprüfung in einer Transaktion: `banUserInTx`, `banTeamInTx`, auch für `reapplyModeration`) |
 | Konto | `deleteAccount`, `getAccount` (Konto-Seite: ob Löschen gerade geht), `finishInterruptedDeletions` (Sweeper: eine solche Rücknahme nachholen) |
 | Bot | `deliverNotification`, `deliverDueNotifications` (Outbox-Sender §6.2; der Bot übergibt die Sendefunktion `Deliver`, wie beim Hub-Beitritt), `runSweeper` (Schritte 1–7 aus §6.3), `recordHeartbeat` (Heartbeat beider Bot-Schleifen) |
 | Wartung | `purgeOldNotifications`, `purgeExpiredSessions`, `purgeStaleOAuthTokens`, `reapplyModeration` (Sperren und Löschungen nach dem Einspielen eines Backups nachziehen, §8) |
 
-Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Rang-Utils (`ranks.ts`) Upload-Helfer (`uploads.ts`: Magic-Bytes-Prüfung, Speichern, Löschen), Startzeiten (`time.ts`: 15-Minuten-Raster, Berlin → UTC, Anzeige mit "(Nacht auf …)"), Anzeigenamen für Format und Feedback (`labels.ts`), Outbox-Einträge mit einem Zod-Schema für den Payload jedes Typs (`notifications.ts`), Outbox-Sender (`outbox.ts`: Relevanz, Empfänger, Fehlerklassen, Backoff), Sweeper (`sweeper.ts`) und Zeilensperren (`locks.ts`). `config/dev.ts` kapselt die Dev-Schalter `DEV_LOGIN`, `DEV_DM_REDIRECT_DISCORD_ID` und `DEV_CHANNEL_ID`.
+Dazu kommen `permissions.ts` (§7), Zod-Schemas für Eingaben (`schemas.ts`), Rang-Utils (`ranks.ts`) Upload-Helfer (`uploads.ts`: Magic-Bytes-Prüfung, Speichern, Löschen), Startzeiten (`time.ts`: 15-Minuten-Raster, Berlin → UTC, Anzeige mit "(Nacht auf …)"), Anzeigenamen für Format und Feedback (`labels.ts`), Outbox-Einträge mit einem Zod-Schema für den Payload jedes Typs (`notifications.ts`), Outbox-Sender (`outbox.ts`: Relevanz, Empfänger, Fehlerklassen, Backoff), Sweeper (`sweeper.ts`), Zeilensperren (`locks.ts`) und die Kennzahlen der Statistik-Seite (`stats.ts`, Phase 6). `config/dev.ts` kapselt die Dev-Schalter `DEV_LOGIN`, `DEV_DM_REDIRECT_DISCORD_ID` und `DEV_CHANNEL_ID`.
 
 **Konstanten** in `packages/core/config/`:
 - `maps.ts`: Map-Pool als Liste. Zod validiert Anfragen dagegen. Keine DB-Tabelle.
@@ -737,8 +737,13 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Seiten: Team-Seite mit Rolle pro Mitglied, für den Captain als Auswahl
 - *Fertig wenn:* Der Captain setzt Rollen und die Team-Seite zeigt sie; ein Team mit 4 verifizierten Spielern und einem verifizierten Coach kann nicht posten, mit einem Ersatzspieler statt des Coaches schon; Tests und Lint sind grün.
 
+**Phase 6: Statistik-Seite** (SPEC N-2)
+- `core`: `getSuccessMetrics({ adminId, now })` in `stats.ts`, nur für Admins. Liest mit dem Prisma-Client (kein Roh-SQL, kein `now()` der Datenbank) die von Hand entschiedenen Prüfungen, die gebuchten und verfallenen Anfragen mit Start bis `now`, alle Scrims mit Anfrage-Zeitpunkt, Feedback-Anzahl und Bewertungen sowie die aktiven Teams mit ihren Mitgliedern; Mediane, Quoten und Zeitfenster rechnet es in JS (die Datenmenge ist klein, §1). Spielbereit zählt es mit `countReadyMembers` (§4). Ziel und Stretch stehen als Konstanten in `stats.ts`, jede Kennzahl kommt mit Wert, Fallzahl und ob Ziel und Stretch erreicht sind (ohne Fälle `null`).
+- Zeitfenster: letzte 28 Tage `[now − 28 Tage, now]` und gesamt (bis `now`); „Teams mit ≥ 2 Scrims pro Monat“ zählt gespielte Scrims mit Start in `[now − 30 Tage, now]`.
+- Seite `admin/stats` mit Link „Statistik“ in der Admin-Navigation; auf dem Handy eine Karte pro Kennzahl.
+- *Fertig wenn:* Ein Admin sieht alle Kennzahlen aus SPEC §8 für beide Zeiträume mit Fallzahl, Ziel und Stretch; Tests mit festem `now` decken jede Kennzahl, die Grenzen der Zeitfenster und den Fall ohne Daten ab; Tests und Lint sind grün.
+
 **Geplant** (Details folgen jeweils zu Beginn der Phase):
-- Phase 6: Statistik-Seite im Admin-Bereich für die Erfolgskriterien (SPEC §8), letzte 28 Tage und gesamt
 - Phase 7: Konten mit E-Mail, Passwort und Klarname; Discord wird verknüpft, die Prüf-Queue zeigt den Klarnamen. Voraussetzung: Mail-Anbieter mit AVV, DNS-Einträge, ergänzte Datenschutzerklärung
 - Phase 8: Admins und Prüfer über die Oberfläche (Betreiber vergibt Rollen), Anmeldung mit Passwort und Pflicht-2FA
 - Phase 9: Datenauskunft (Art. 15 DSGVO) per Knopfdruck auf der Konto-Seite
