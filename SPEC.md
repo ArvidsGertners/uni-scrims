@@ -82,8 +82,11 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 20. Als Admin will ich Teams oder Nutzer sperren können.
 21. Als Admin will ich sehen, welche Benachrichtigungen dauerhaft nicht zugestellt werden konnten.
 
+### Nach dem MVP
+22. Als Captain will ich jedem Mitglied die Rolle Spieler, Ersatzspieler oder Coach geben, damit unser Kader stimmt und nur Spieler zur Spielbereitschaft zählen.
+
 ### Edge Cases
-- Ein Team hat weniger als 5 verifizierte Spieler: Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
+- Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
 - Ein Spieler ist noch in Prüfung: Er ist schon im Team, zählt aber nicht als verifiziert.
 - Der Ersteller bestätigt eine Bewerbung: Alle anderen Bewerbungen werden automatisch abgelehnt, und die Teams bekommen Bescheid.
 - Zwei Bestätigungen gleichzeitig (Doppelklick, zwei Tabs): Es zählt nur die erste.
@@ -178,8 +181,8 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite
 - [x] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team
 - [x] Genau ein Captain pro Team; Captain-Rolle übertragen; Mitglieder entfernen
-- [x] Spieler können das Team verlassen; Captain nur nach Übertragung, als einziges Mitglied löst er das Team damit auf
-- [x] Ein Team ist **spielbereit** ab 5 verifizierten Mitgliedern. Geprüft wird nur beim Posten, Bewerben und Bestätigen.
+- [x] Mitglieder können das Team verlassen; Captain nur nach Übertragung, als einziges Mitglied löst er das Team damit auf
+- [x] Ein Team ist **spielbereit** ab 5 verifizierten Spielern (Rolle Spieler oder Ersatzspieler, siehe „Nach dem MVP“; Coaches zählen nicht). Geprüft wird nur beim Posten, Bewerben und Bestätigen.
 - [x] **Scrim-Aktionen** (Anfragen, Bewerbungen, Bestätigen, Absagen, Feedback) setzen voraus, dass der Captain **selbst verifiziert** ist. Team verwalten und einladen geht auch ohne (siehe Berechtigungstabelle in ARCHITECTURE §7).
 - [x] Aufgelöste Teams verschwinden überall, ihr Einladungslink funktioniert nicht mehr und ihr Name ist wieder frei. Der ehemalige Captain kann ein neues Team gründen.
 
@@ -234,6 +237,18 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus
 - [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
+### Nach dem MVP umgesetzt
+
+Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen ab 5, ARCHITECTURE §11).
+
+**N-1 Ersatzspieler und Coach** (Phase 5)
+- [ ] Jedes Mitglied hat eine Rolle: Spieler, Ersatzspieler oder Coach. Wer beitritt oder ein Team gründet, ist Spieler.
+- [ ] Der Captain setzt die Rolle jedes Mitglieds, auch seine eigene. Verifizierung ist dafür nicht nötig (Teamverwaltung); in einem gesperrten Team geht es nicht.
+- [ ] Spielbereit machen nur verifizierte Spieler und Ersatzspieler; Coaches zählen nie, auch wenn sie verifiziert sind. Coaches brauchen keine Verifizierung.
+- [ ] Keine Grenzen pro Rolle; es bleibt bei max. 10 Mitgliedern insgesamt.
+- [ ] Die Captain-Rolle ist davon unabhängig: Auch ein Coach kann Captain sein und braucht für Scrim-Aktionen weiterhin selbst eine Verifizierung.
+- [ ] Die Team-Seite zeigt die Rollen; ein Rollenwechsel ändert nichts an schon gebuchten Scrims.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -241,7 +256,6 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - **Feedback-Kommentar** als Freitext, mit Admin-Ansicht.
 - **Uniliga-Division** als optionales Team-Feld und als Filter.
 - **Wiederkehrende Anfragen**, z. B. "jeden Dienstag 20 Uhr".
-- **Ersatzspieler** und Coach als eigene Rollen.
 - **Statistik-Seite** im Admin-Bereich für die Erfolgskriterien.
 - **Weitere Admins/Prüfer** über die Oberfläche hinzufügen statt per Konfiguration.
 - **Datenauskunft (Art. 15 DSGVO) per Knopfdruck** statt manuell.
@@ -344,6 +358,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 2 | Scrim-Anfragen, Board, Bewerben, Bestätigen, "Meine Scrims", Absagen, Feedback-Formular | Zwei Test-Teams buchen, sagen ab und geben Feedback; die Auswertung stimmt |
 | 3 | Discord-Bot: `/setup`, alle Benachrichtigungen, Reminder, Sweeper | Der komplette Flow läuft mit echten Discord-Nachrichten durch (mit verkürzten Zeiten) |
 | 4 | Admin-Bereich komplett, Datenschutz-Funktionen, Deployment | Production läuft mit HTTPS; zwei echte Discord-Accounts buchen und bewerten einen Scrim. Stand 23.10.2026: auf Entscheidung des Betreibers ohne diese Live-Abnahme abgeschlossen; sie folgt beim Go-Live mit zwei spielbereiten Teams aus echten Accounts (Go-Live-Checkliste im README, ARCHITECTURE §11) |
+| 5 | Ersatzspieler und Coach (nach dem MVP, N-1) | Der Captain setzt Rollen, und ein Team mit einem Coach als fünftem verifiziertem Mitglied ist nicht spielbereit |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
