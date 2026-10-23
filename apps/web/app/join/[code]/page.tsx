@@ -42,7 +42,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
           <h1 className="type-h1">{team.name}</h1>
           <span className="text-[14px] text-muted-foreground">
             {formatUniversities(team.universities)} · Teamrang {RANK_LABELS[team.rank]} ·{" "}
-            {team.memberCount} Spieler
+            {team.memberCount} Mitglieder
           </span>
         </div>
       </div>

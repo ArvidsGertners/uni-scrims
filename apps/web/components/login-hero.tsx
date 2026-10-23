@@ -13,7 +13,7 @@ const STEPS = [
   },
   {
     title: "Team bilden, Scrims spielen",
-    text: "5 bis 10 Spieler pro Team. Anfragen posten, bewerben und nach dem Match kurz Feedback geben.",
+    text: "Mindestens 5 verifizierte Spieler, höchstens 10 Mitglieder pro Team. Anfragen posten, bewerben und nach dem Match kurz Feedback geben.",
   },
 ];
 

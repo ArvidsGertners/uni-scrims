@@ -32,8 +32,8 @@ export default async function BansPage({
       <h1 className="type-h1">Sperren</h1>
       <div className="flex flex-col gap-1 text-[14px] text-muted-foreground">
         <p>
-          Nutzer sperren: Die Person wird sofort abgemeldet. Spieler werden aus ihrem Team entfernt.
-          Ein Captain bleibt im Team, und das Team wird mitgesperrt.
+          Nutzer sperren: Die Person wird sofort abgemeldet. Mitglieder werden aus ihrem Team
+          entfernt. Ein Captain bleibt im Team, und das Team wird mitgesperrt.
         </p>
         <p>Team sperren: {TEAM_BAN_CONSEQUENCES}</p>
         <p>Entsperren geht nur per Datenbank (siehe README).</p>

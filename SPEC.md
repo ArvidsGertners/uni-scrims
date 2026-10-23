@@ -242,12 +242,12 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen ab 5, ARCHITECTURE §11).
 
 **N-1 Ersatzspieler und Coach** (Phase 5)
-- [ ] Jedes Mitglied hat eine Rolle: Spieler, Ersatzspieler oder Coach. Wer beitritt oder ein Team gründet, ist Spieler.
-- [ ] Der Captain setzt die Rolle jedes Mitglieds, auch seine eigene. Verifizierung ist dafür nicht nötig (Teamverwaltung); in einem gesperrten Team geht es nicht.
-- [ ] Spielbereit machen nur verifizierte Spieler und Ersatzspieler; Coaches zählen nie, auch wenn sie verifiziert sind. Coaches brauchen keine Verifizierung.
-- [ ] Keine Grenzen pro Rolle; es bleibt bei max. 10 Mitgliedern insgesamt.
-- [ ] Die Captain-Rolle ist davon unabhängig: Auch ein Coach kann Captain sein und braucht für Scrim-Aktionen weiterhin selbst eine Verifizierung.
-- [ ] Die Team-Seite zeigt die Rollen; ein Rollenwechsel ändert nichts an schon gebuchten Scrims.
+- [x] Jedes Mitglied hat eine Rolle: Spieler, Ersatzspieler oder Coach. Wer beitritt oder ein Team gründet, ist Spieler.
+- [x] Der Captain setzt die Rolle jedes Mitglieds, auch seine eigene. Verifizierung ist dafür nicht nötig (Teamverwaltung); in einem gesperrten Team geht es nicht.
+- [x] Spielbereit machen nur verifizierte Spieler und Ersatzspieler; Coaches zählen nie, auch wenn sie verifiziert sind. Coaches brauchen keine Verifizierung.
+- [x] Keine Grenzen pro Rolle; es bleibt bei max. 10 Mitgliedern insgesamt.
+- [x] Die Captain-Rolle ist davon unabhängig: Auch ein Coach kann Captain sein und braucht für Scrim-Aktionen weiterhin selbst eine Verifizierung.
+- [x] Die Team-Seite zeigt die Rollen; ein Rollenwechsel ändert nichts an schon gebuchten Scrims.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -276,7 +276,7 @@ Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind 
 
 | Metrik | Definition | Ziel | Stretch |
 |---|---|---|---|
-| Spielbereite Teams | Teams mit ≥ 5 verifizierten Mitgliedern | 15 | 30 |
+| Spielbereite Teams | Teams mit ≥ 5 verifizierten Spielern (Spieler oder Ersatzspieler) | 15 | 30 |
 | Prüfzeit | Median von Upload bis Entscheidung | < 24 h | < 6 h |
 | Bestätigungsquote | bestätigte Anfragen ÷ (bestätigte + verfallene) | ≥ 50 % | ≥ 70 % |
 | Zeit bis Bestätigung | Median von Anfrage erstellt bis Scrim gebucht | < 24 h | < 6 h |

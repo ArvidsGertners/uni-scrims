@@ -112,7 +112,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               <span className="text-[14px] text-muted-foreground">
                 Du bewirbst dich als{" "}
                 <span className="font-semibold text-foreground">{request.applyAs.name}</span> ·{" "}
-                {request.applyAs.memberCount} Spieler
+                {request.applyAs.memberCount} Mitglieder
               </span>
             ) : null}
           </div>

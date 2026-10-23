@@ -1,11 +1,11 @@
 import {
   MAX_TEAM_MEMBERS,
+  MEMBER_ROLES,
   MEMBER_ROLE_LABELS,
   RANK_LABELS,
   READY_MEMBER_COUNT,
   getMyTeam,
 } from "@uni-scrims/core";
-import type { MemberRole } from "@uni-scrims/db";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { PageMain } from "@/components/page-main";
@@ -31,7 +31,7 @@ import { MemberRoleSelect } from "./member-role-select";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 const memberActionClass = "min-h-10 px-2.5 text-[14px]";
-const ROLE_OPTIONS = (Object.keys(MEMBER_ROLE_LABELS) as MemberRole[]).map((role) => ({
+const ROLE_OPTIONS = MEMBER_ROLES.map((role) => ({
   value: role,
   label: MEMBER_ROLE_LABELS[role],
 }));
@@ -81,7 +81,7 @@ export default async function TeamPage() {
   }
 
   const memberCount = team.members.length;
-  const missing = Math.max(0, READY_MEMBER_COUNT - team.verifiedCount);
+  const missing = Math.max(0, READY_MEMBER_COUNT - team.verifiedPlayerCount);
   const inviteUrl = team.inviteCode ? `${baseUrl}/join/${team.inviteCode}` : null;
   const soleMember = memberCount === 1;
   const manage = team.isCaptain && !team.banned;
@@ -188,7 +188,9 @@ export default async function TeamPage() {
                     {MEMBER_ROLE_LABELS[member.role]}
                   </Badge>
                 ) : null}
-                {member.status === "PENDING" ? (
+                {/* Coaches need no verification (SPEC N-1); a coach as captain still does. */}
+                {member.role === "COACH" && !member.isCaptain ? null : member.status ===
+                  "PENDING" ? (
                   <Badge variant="warning" className="h-[22px] px-2 text-[12px]">
                     In Prüfung
                   </Badge>
@@ -276,7 +278,7 @@ export default async function TeamPage() {
         />
       )}
 
-      {me && me.status !== "VERIFIED" ? (
+      {me && me.status !== "VERIFIED" && (me.role !== "COACH" || me.isCaptain) ? (
         <p className="text-[14px] text-muted-foreground">
           Noch nicht verifiziert?{" "}
           <Link href="/verify" className="text-foreground underline underline-offset-2">
