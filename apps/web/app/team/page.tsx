@@ -6,6 +6,7 @@ import { TeamAvatar } from "@/components/team-avatar";
 import { TeamFields } from "@/components/team-fields";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { initials } from "@/lib/format";
 import { formatUniversities } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import {
@@ -21,11 +22,6 @@ import { JoinLinkForm } from "./join-link-form";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 const memberActionClass = "min-h-10 px-2.5 text-[14px]";
-
-/** Initials for the round user avatar: the first two letters or digits of the Discord name. */
-function initials(name: string): string {
-  return (name.match(/[\p{L}\p{N}]/gu) ?? []).slice(0, 2).join("").toUpperCase();
-}
 
 export default async function TeamPage() {
   const user = await requirePageUser("/team");

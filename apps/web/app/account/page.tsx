@@ -1,85 +1,117 @@
 import { getAccount } from "@uni-scrims/core";
 import Link from "next/link";
-import { ActionForm } from "@/components/action-form";
+import { DetailRows } from "@/components/detail-rows";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
+import { CheckIcon } from "@/components/icons";
+import { LogoutButton } from "@/components/logout-button";
+import { PageMain } from "@/components/page-main";
+import { Alert } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
+import { initials } from "@/lib/format";
 import { requirePageAccountUser } from "@/lib/session";
-import { deleteAccountAction } from "./actions";
+import { DeleteAccountDialog } from "./delete-account-dialog";
+
+const VERIFICATION_LABELS = {
+  VERIFIED: { label: "Verifiziert", className: "text-success" },
+  PENDING: { label: "In Prüfung", className: "text-warning" },
+  REJECTED: { label: "Abgelehnt", className: "text-accent-text" },
+  NONE: { label: "Nicht verifiziert", className: "text-warning" },
+} as const;
 
 export default async function AccountPage() {
   const user = await requirePageAccountUser("/account");
   const account = await getAccount(user.id);
   const team = account.team;
+  const verification = VERIFICATION_LABELS[account.verification.status];
+
+  const consequences = [
+    "Gelöscht werden dein Name und Avatar, deine Verifizierung samt Prüfungen und Dateien, Nachrichten an dich und deine Anmeldungen.",
+    account.banned
+      ? "Deine Discord-ID bleibt mit der Sperre gespeichert, damit sie bei einer neuen Anmeldung weiter gilt."
+      : "Die Verknüpfung mit deinem Discord-Konto wird gelöscht.",
+    ...(team
+      ? [
+          team.isCaptain
+            ? `Dein Team ${team.name} wird aufgelöst.`
+            : `Du verlässt dein Team ${team.name}.`,
+        ]
+      : []),
+    "Vergangene Scrims bleiben anonymisiert für die Team-Statistik.",
+    "Vom Uni-Scrims-Discord-Server wirst du nicht entfernt. Den kannst du selbst verlassen.",
+  ];
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">Konto</h1>
-        <p>
-          Angemeldet als <span className="font-medium">{account.name}</span> (Discord)
-        </p>
-        {account.banned ? (
-          <p className="text-sm text-destructive">
-            Dein Konto ist gesperrt. Löschen kannst du es trotzdem.
-          </p>
-        ) : null}
-      </div>
-
-      {user.hubJoinFailedAt || user.dmFailedAt ? (
-        <DiscordDmWarning hubJoinFailed={user.hubJoinFailedAt !== null} />
+    <PageMain className="gap-7">
+      <h1 className="type-h1">Konto</h1>
+      {account.banned ? (
+        <Alert>
+          <span>Dein Konto ist gesperrt. Löschen kannst du es trotzdem.</span>
+        </Alert>
       ) : null}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Konto löschen</h2>
-        <ul className="list-disc pl-5 text-sm">
-          <li>
-            Gelöscht werden dein Name und Avatar, deine Verifizierung samt Prüfungen und Dateien,
-            Nachrichten an dich und deine Anmeldungen.
-          </li>
-          {account.banned ? (
-            <li>
-              Deine Discord-ID bleibt mit der Sperre gespeichert, damit sie bei einer neuen
-              Anmeldung weiter gilt.
-            </li>
-          ) : (
-            <li>Die Verknüpfung mit deinem Discord-Konto wird gelöscht.</li>
-          )}
-          {team ? (
-            <li>
-              {team.isCaptain
-                ? `Dein Team ${team.name} wird aufgelöst.`
-                : `Du verlässt dein Team ${team.name}.`}
-            </li>
-          ) : null}
-          <li>Vergangene Scrims bleiben anonymisiert für die Team-Statistik.</li>
-          <li>
-            Vom Uni-Scrims-Discord-Server wirst du nicht entfernt. Den kannst du selbst verlassen.
-          </li>
-        </ul>
-        {account.deletionProblem ? (
-          <p className="text-sm">
-            {account.deletionProblem}{" "}
-            <Link href="/team" className="underline">
-              Zum Team
-            </Link>
-          </p>
+      <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+        <h2 className="type-label text-muted-foreground">Discord</h2>
+        <div className="flex items-center gap-3.5">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary font-label text-[14px] font-bold">
+            {initials(account.name)}
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate font-label font-semibold">{account.name}</span>
+            <span className="text-[13px] text-muted-foreground">Angemeldet über Discord</span>
+          </div>
+        </div>
+        {user.hubJoinFailedAt || user.dmFailedAt ? (
+          <DiscordDmWarning hubJoinFailed={user.hubJoinFailedAt !== null} />
         ) : (
-          <ActionForm
-            action={deleteAccountAction}
-            submitLabel="Konto endgültig löschen"
-            variant="destructive"
-          >
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="confirm"
-                required
-                className="mt-0.5 size-4 accent-primary"
-              />
-              Ich will mein Konto löschen. Das lässt sich nicht rückgängig machen.
-            </label>
-          </ActionForm>
+          <span className="flex items-center gap-2 text-[14px] text-success">
+            <CheckIcon strokeWidth={3} />
+            Discord-Nachrichten kommen an
+          </span>
         )}
       </section>
-    </main>
+
+      <DetailRows
+        className="px-5 pt-4 pb-1"
+        rows={[
+          {
+            label: "Status",
+            value: (
+              <span className={`font-semibold ${verification.className}`}>
+                {verification.label}
+              </span>
+            ),
+          },
+          { label: "Hochschule", value: account.verification.university ?? "–" },
+          {
+            label: "Team",
+            value: team ? `${team.name}${team.isCaptain ? " · Captain" : ""}` : "Kein Team",
+          },
+        ]}
+      >
+        <h2 className="mb-1 type-label text-muted-foreground">Studierendenstatus</h2>
+      </DetailRows>
+
+      <section className="flex flex-col gap-2.5 pt-2">
+        <h2 className="type-h2">Konto löschen</h2>
+        <p className="text-[14px] text-pretty text-muted-foreground">
+          Löscht dein Konto mit deinen persönlichen Daten und deiner Verifizierung. Das lässt sich
+          nicht rückgängig machen.
+        </p>
+        {account.deletionProblem ? (
+          <Alert>
+            <span>
+              {account.deletionProblem}{" "}
+              <Link href="/team" className="font-semibold underline underline-offset-2">
+                Zum Team
+              </Link>
+            </span>
+          </Alert>
+        ) : null}
+        <div className="mt-1.5 flex flex-wrap gap-2.5">
+          {account.deletionProblem ? null : <DeleteAccountDialog consequences={consequences} />}
+          <LogoutButton className={buttonVariants({ variant: "outline", size: "sm" })} />
+        </div>
+      </section>
+    </PageMain>
   );
 }
