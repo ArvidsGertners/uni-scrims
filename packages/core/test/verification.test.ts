@@ -108,11 +108,22 @@ describe("verify page reads", () => {
 
   it("shows the latest request, or that the user is verified", async () => {
     const user = await createUser();
-    expect(await getVerificationStatus(user.id)).toEqual({ verifiedAt: null, latest: null });
+    expect(await getVerificationStatus(user.id)).toEqual({
+      verifiedAt: null,
+      university: null,
+      latest: null,
+    });
     await submit(user.id);
     expect(await getVerificationStatus(user.id)).toEqual({
       verifiedAt: null,
-      latest: { status: VerifStatus.PENDING, rejectReason: null, createdAt: NOW, decidedAt: null },
+      university: null,
+      latest: {
+        status: VerifStatus.PENDING,
+        rejectReason: null,
+        createdAt: NOW,
+        decidedAt: null,
+        university: "Test-Uni",
+      },
     });
     const verified = await createUser({ verified: true });
     expect(await getVerificationStatus(verified.id)).toMatchObject({ verifiedAt: NOW });

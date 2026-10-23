@@ -30,12 +30,38 @@ export async function listUniversities(db: Db = prisma) {
 /** Status for the verify page: verified, or the latest request. */
 export async function getVerificationStatus(userId: string, db: Db = prisma) {
   const user = await requireUser(userId, db);
-  const latest = await db.verificationRequest.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { status: true, rejectReason: true, createdAt: true, decidedAt: true },
-  });
-  return { verifiedAt: user.verifiedAt, latest };
+  const [latest, university] = await Promise.all([
+    db.verificationRequest.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        status: true,
+        rejectReason: true,
+        createdAt: true,
+        decidedAt: true,
+        universityOther: true,
+        university: { select: { name: true } },
+      },
+    }),
+    user.universityId
+      ? db.university.findUnique({ where: { id: user.universityId }, select: { name: true } })
+      : null,
+  ]);
+  return {
+    verifiedAt: user.verifiedAt,
+    /** The user's university, set on approval. */
+    university: university?.name ?? user.universityOther ?? null,
+    latest: latest
+      ? {
+          status: latest.status,
+          rejectReason: latest.rejectReason,
+          createdAt: latest.createdAt,
+          decidedAt: latest.decidedAt,
+          /** The university given with this request. */
+          university: latest.university?.name ?? latest.universityOther ?? null,
+        }
+      : null,
+  };
 }
 
 export type SubmitVerificationInput = {

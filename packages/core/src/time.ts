@@ -106,6 +106,15 @@ export function formatWeekdayDate(date: Date): string {
   return format(date, "EEEE, dd.MM.", berlin);
 }
 
+/** The current semester in Germany: winter from October to March, summer from April. */
+export function semesterLabel(now: Date): string {
+  const year = Number(format(now, "yyyy", berlin));
+  const month = Number(format(now, "M", berlin));
+  if (month >= 10) return `WiSe ${year}/${String(year + 1).slice(2)}`;
+  if (month <= 3) return `WiSe ${year - 1}/${String(year).slice(2)}`;
+  return `SoSe ${year}`;
+}
+
 /** Heading of a Berlin calendar day, e.g. "Donnerstag, 22. Oktober". */
 export function formatDayHeading(date: Date): string {
   return format(date, "EEEE, d. MMMM", berlin);

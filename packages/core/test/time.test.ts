@@ -10,6 +10,7 @@ import {
   formatWeekdayDate,
   isStartSlot,
   isValidDateString,
+  semesterLabel,
   toBerlinDateString,
 } from "../src/index.ts";
 
@@ -109,5 +110,15 @@ describe("describeStartShort", () => {
     expect(describeStartShort(new Date("2026-10-21T23:00:00Z"))).toBe(
       "Do 22.10. · 01:00 (Nacht auf Do, 22.10.)",
     );
+  });
+});
+
+describe("semesterLabel", () => {
+  it("names winter and summer semesters", () => {
+    expect(semesterLabel(new Date("2026-10-23T12:00:00Z"))).toBe("WiSe 2026/27");
+    expect(semesterLabel(new Date("2027-03-31T12:00:00Z"))).toBe("WiSe 2026/27");
+    expect(semesterLabel(new Date("2027-04-01T12:00:00Z"))).toBe("SoSe 2027");
+    // Berlin time: 1 October already starts at 22:00 UTC the day before.
+    expect(semesterLabel(new Date("2027-09-30T22:30:00Z"))).toBe("WiSe 2027/28");
   });
 });
