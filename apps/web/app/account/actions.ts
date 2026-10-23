@@ -3,8 +3,10 @@
 import {
   deleteAccount,
   emailSchema,
+  handOverCaptain,
   parseInput,
   passwordSchema,
+  requireActiveAccountUser,
   resolveUploadDir,
   updateRealName,
 } from "@uni-scrims/core";
@@ -58,7 +60,10 @@ export async function changeEmailAction(
   formData: FormData,
 ): Promise<ActionState> {
   if (!(await allowAttempt("mail"))) return { error: RATE_LIMITED };
+  const userId = (await getSessionUserId()) ?? "";
   const state = await runAction(async () => {
+    // Better Auth checks only the session; banned users may only delete (§7).
+    await requireActiveAccountUser(userId);
     const newEmail = parseInput(emailSchema, formField(formData, "newEmail"));
     await auth.api.changeEmail({
       body: { newEmail, callbackURL: "/account?email=bestaetigt" },
@@ -77,7 +82,10 @@ export async function changePasswordAction(
   formData: FormData,
 ): Promise<ActionState> {
   if (!(await allowAttempt("login"))) return { error: RATE_LIMITED };
+  const userId = (await getSessionUserId()) ?? "";
   const state = await runAction(async () => {
+    // Better Auth checks only the session; banned users may only delete (§7).
+    await requireActiveAccountUser(userId);
     const newPassword = parseInput(passwordSchema, formField(formData, "newPassword"));
     await auth.api.changePassword({
       body: {
@@ -90,6 +98,21 @@ export async function changePasswordAction(
   });
   if (state.error) return state;
   await setFlash("Passwort geändert");
+  revalidatePath("/account");
+  return state;
+}
+
+/** For a captain whose account is not complete yet, so the deletion is possible (SPEC N-3). */
+export async function handOverCaptainAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const userId = (await getSessionUserId()) ?? "";
+  const state = await runAction(async () => {
+    await handOverCaptain({ userId, newCaptainId: String(formField(formData, "memberId") ?? "") });
+  });
+  if (state.error) return state;
+  await setFlash("Captain-Rolle übertragen");
   revalidatePath("/account");
   return state;
 }

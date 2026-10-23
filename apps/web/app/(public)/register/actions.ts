@@ -1,6 +1,6 @@
 "use server";
 
-import { parseInput, registrationSchema } from "@uni-scrims/core";
+import { NEW_ACCOUNT_NAME, parseInput, registrationSchema } from "@uni-scrims/core";
 import { redirect } from "next/navigation";
 import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
@@ -30,8 +30,8 @@ export async function registerAction(
       body: {
         email: input.email,
         password: input.password,
-        // Replaced by the Discord name once Discord is linked; only the user sees it until then.
-        name: input.firstName,
+        // Replaced by the Discord name once Discord is linked; never the real name (§5.8).
+        name: NEW_ACCOUNT_NAME,
         firstName: input.firstName,
         lastName: input.lastName,
         // The confirmation link signs in and continues with linking Discord.

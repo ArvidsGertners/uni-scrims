@@ -84,10 +84,14 @@ function stubDiscord() {
 }
 
 /** Starts an OAuth flow over HTTP (sign-in or link) and comes back through the callback. */
-async function throughDiscord(jar: CookieJar, start: "/sign-in/social" | "/link-social") {
+async function throughDiscord(
+  jar: CookieJar,
+  start: "/sign-in/social" | "/link-social",
+  extra: Record<string, unknown> = {},
+) {
   const started = await http(jar, start, {
     method: "POST",
-    body: { provider: "discord", callbackURL: "/konto", errorCallbackURL: "/login" },
+    body: { provider: "discord", callbackURL: "/konto", errorCallbackURL: "/login", ...extra },
   });
   expect(started.status, await started.clone().text()).toBe(200);
   const state = new URL(((await started.json()) as { url: string }).url).searchParams.get("state");
@@ -236,5 +240,52 @@ describe("Discord (checks 2 and 3)", () => {
     expect(await prisma.account.count({ where: { userId: user.id, providerId: "discord" } })).toBe(
       0,
     );
+  });
+
+  it("creates no account either when the client asks for a sign-up", async () => {
+    const before = await prisma.user.count();
+    const jar = new CookieJar();
+    const refused = await throughDiscord(jar, "/sign-in/social", { requestSignUp: true });
+    expect(refused.headers.get("location")).toMatch(/error=signup_disabled/);
+    expect(await prisma.user.count()).toBe(before);
+  });
+
+  it("keeps one Discord account per user; linking the same one again rejoins the hub", async () => {
+    const { jar, user } = await confirmedUser();
+    await throughDiscord(jar, "/link-social");
+    const first = discord.profile.id;
+
+    // The same Discord account again ("Discord erneut verbinden"): fresh tokens, another join.
+    const again = await throughDiscord(jar, "/link-social");
+    expect(again.headers.get("location")).toContain("/konto");
+    expect(discord.hubJoins).toEqual(["fresh-access", "fresh-access"]);
+
+    // Another Discord account is refused.
+    discord.profile.id = String(BigInt(first) + 1n);
+    const refused = await throughDiscord(jar, "/link-social");
+    expect(refused.headers.get("location")).toMatch(/error=/);
+    expect(
+      await prisma.account.findMany({
+        where: { userId: user.id, providerId: "discord" },
+        select: { accountId: true },
+      }),
+    ).toEqual([{ accountId: first }]);
+  });
+
+  it("links nothing to an account deleted while the Discord page was open", async () => {
+    const { jar, user } = await confirmedUser();
+    const started = await http(jar, "/link-social", {
+      method: "POST",
+      body: { provider: "discord", callbackURL: "/konto", errorCallbackURL: "/login" },
+    });
+    const state = new URL(((await started.json()) as { url: string }).url).searchParams.get(
+      "state",
+    );
+    const { deleteAccount } = await import("@uni-scrims/core");
+    await deleteAccount({ userId: user.id, uploadDir: "/tmp", now: new Date() });
+
+    await http(jar, `/callback/discord?code=code&state=${state}`);
+    expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
+    expect(discord.hubJoins).toEqual([]);
   });
 });

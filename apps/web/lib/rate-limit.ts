@@ -15,9 +15,19 @@ export const RATE_LIMITS = {
 export const RATE_LIMITED = "Zu viele Versuche. Bitte warte eine Minute.";
 
 const hits = new Map<string, number[]>();
+/** The longest window; keys with nothing newer are dropped now and then, so the map stays small. */
+const MAX_WINDOW_MS = Math.max(...Object.values(RATE_LIMITS).map((rule) => rule.windowMs));
+const PRUNE_ABOVE = 10_000;
+
+function prune(now: number) {
+  for (const [key, times] of hits) {
+    if (times.every((time) => now - time >= MAX_WINDOW_MS)) hits.delete(key);
+  }
+}
 
 /** Records an attempt; false when the limit for this key is reached. Pure apart from `hits`. */
 export function takeAttempt(key: string, rule: Rule, now: number): boolean {
+  if (hits.size > PRUNE_ABOVE) prune(now);
   const recent = (hits.get(key) ?? []).filter((time) => now - time < rule.windowMs);
   if (recent.length >= rule.max) {
     hits.set(key, recent);

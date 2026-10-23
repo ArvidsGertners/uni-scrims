@@ -1,4 +1,5 @@
-import { PASSWORD_MIN, REAL_NAME_MAX } from "@uni-scrims/core";
+// Also used by the client login form, so only the import-free config of core.
+import { PASSWORD_MIN, REAL_NAME_MAX } from "@uni-scrims/core/config/account";
 import Link from "next/link";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";

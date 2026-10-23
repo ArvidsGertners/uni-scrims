@@ -74,6 +74,11 @@ export default async function AccountSetupPage({
               Mail bekommen? Schau im Spam-Ordner nach.
             </p>
           </div>
+          {typeof params.error === "string" ? (
+            <Alert>
+              <span>Der Link ist ungültig oder abgelaufen. Lass dir einen neuen schicken.</span>
+            </Alert>
+          ) : null}
           <ActionForm
             action={resendVerificationAction}
             submitLabel="Link noch einmal schicken"

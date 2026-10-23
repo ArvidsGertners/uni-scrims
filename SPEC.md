@@ -162,7 +162,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Vor dem Login Pflicht-Checkbox "mindestens 16 Jahre, Datenschutzerklärung gelesen"
 - [x] Login und Logout über Discord
 - [x] Außer Landing, Impressum und Datenschutz ist alles nur für eingeloggte, nicht gesperrte Nutzer sichtbar (Board, Anfragen, Team-Karten). Wer was genau sehen und tun darf, regelt die Berechtigungstabelle in ARCHITECTURE §7.
-- [x] Beim ersten Login wird ein Nutzer mit Discord-ID, Username und Avatar angelegt; Username und Avatar werden bei jedem Login aktualisiert
+- [x] Beim ersten Login wird ein Nutzer mit Discord-ID, Username und Avatar angelegt; Username und Avatar werden bei jedem Login aktualisiert (seit Phase 7 legt nur die Registrierung Konten an; Discord-Name und Avatar kommen beim Verknüpfen und bei jeder Anmeldung über Discord, N-3)
 - [x] Bei jedem Login wird der Beitritt zum Uni-Scrims-Server versucht; scheitert er, sieht der Nutzer einen dauerhaften Hinweis, der auf den Einladungslink auf der Konto-Seite verweist
 
 **P0-2 Verifizierung per Immatrikulationsbescheinigung**
@@ -237,7 +237,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 **P0-10 Rechtliches und Datenschutz**
 - [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
-- [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Meldet sich ein gesperrter Nutzer nach der Löschung erneut an, werden Discord-Name, Avatar und Session wie bei jedem Login wieder gespeichert, nur an diesem Platzhalter (bewusst akzeptiert); er kann das Konto danach erneut löschen. Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
+- [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Bis Phase 6 wurden bei einer erneuten Anmeldung nach der Löschung Discord-Name, Avatar und Session an diesem Platzhalter gespeichert; seit Phase 7 speichert eine Anmeldung über Discord dort nichts mehr, und der Platzhalter bleibt abgemeldet (N-3). Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
 - [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3)
 - [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
@@ -276,7 +276,8 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [ ] Nach der ersten Anmeldung ist Discord verknüpfen Pflicht, bevor man hochladen, ein Team gründen oder beitreten kann. Die Seite erklärt wie bisher vor dem Discord-Login, dass man dabei dem Hub-Server beitritt.
 - [ ] Beim Verknüpfen und bei jedem Discord-Login gilt alles aus P0-1: Hub-Beitritt, Discord-Name und Avatar werden übernommen, die Discord-Tokens danach gelöscht. Die E-Mail des Kontos bleibt dabei unverändert.
 - [ ] Eine Discord-ID, die schon zu einem anderen Konto gehört oder gesperrt ist, lässt sich nicht verknüpfen. Die Sperre bleibt an der Discord-ID.
-- [ ] Der Anzeigename auf der Seite (Header, Team, gegnerischer Captain) bleibt der Discord-Name
+- [ ] Der Anzeigename auf der Seite (Header, Team, gegnerischer Captain) bleibt der Discord-Name; bis Discord verknüpft ist, heißt das Konto „Neues Konto“, nie mit dem Klarnamen
+- [ ] Auf der Konto-Seite lässt sich dasselbe Discord-Konto erneut verbinden, z. B. wenn der Hub-Beitritt gescheitert ist; ein anderes Discord-Konto geht nicht
 
 *Klarname*
 - [ ] Vor- und Nachname sehen nur die Person selbst (Konto-Seite) und Prüfer bzw. Admins in der Prüf-Queue, nie Teams oder Gegner
@@ -284,13 +285,14 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [ ] Ändern kann man den Namen auf der Konto-Seite, solange man nicht verifiziert ist und keine Prüfung offen ist; danach nur per Mail an die Adresse aus dem Impressum
 
 *Bestehende Konten*
-- [ ] Wer sich vor Phase 7 nur mit Discord angemeldet hat, wird beim nächsten Discord-Login durch „Konto vervollständigen“ geführt: Vorname, Nachname, E-Mail, Passwort, dann der Bestätigungslink. Bis dahin gehen nur diese Seite und die Konto-Seite (Löschen, Abmelden).
+- [ ] Wer sich vor Phase 7 nur mit Discord angemeldet hat, wird beim nächsten Discord-Login durch „Konto vervollständigen“ geführt: Vorname, Nachname, E-Mail, Passwort, dann der Bestätigungslink. Bis dahin gehen nur diese Seite und die Konto-Seite (Löschen, Abmelden). Ist die angegebene Adresse schon vergeben, sagt die Seite das (nur hier, für angemeldete Altkonten).
+- [ ] Ein Captain mit Altkonto kann die Captain-Rolle auf der Konto-Seite übertragen, damit er sein Konto löschen kann, ohne es vorher zu vervollständigen
 - [ ] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
 
 *Mails, Löschen, Sperren*
 - [ ] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com`
 - [ ] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
-- [ ] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen
+- [ ] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen; Name, E-Mail und Passwort ändern sie nicht
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).

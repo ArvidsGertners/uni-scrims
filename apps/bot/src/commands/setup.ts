@@ -34,7 +34,7 @@ const REQUIRED_PERMISSIONS = [
 /** The answer to a refused /setup; core's texts, except for users without an account. */
 export function setupErrorText(error: DomainError, baseUrl: string): string {
   if (error.code === "UNAUTHENTICATED") {
-    return `Du hast noch kein Uni-Scrims-Konto. Melde dich zuerst unter ${baseUrl} mit Discord an.`;
+    return `Zu deinem Discord-Konto gibt es kein Uni-Scrims-Konto. Registriere dich unter ${baseUrl}/register und verknüpfe dort Discord.`;
   }
   return error.message;
 }

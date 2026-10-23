@@ -32,7 +32,12 @@ export async function completeAccountAction(
       uploadDir: resolveUploadDir(),
       now: new Date(),
     });
-    await auth.api.sendVerificationEmail({ body: { email, callbackURL: setupUrl(callbackURL) } });
+    // The account is complete now; if the mail fails, the next page offers sending it again.
+    try {
+      await auth.api.sendVerificationEmail({ body: { email, callbackURL: setupUrl(callbackURL) } });
+    } catch (error) {
+      console.error("Could not send the confirmation after completing an account", error);
+    }
   });
   if (state.error) return state;
   redirect(setupUrl(callbackURL));

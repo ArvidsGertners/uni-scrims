@@ -1,7 +1,13 @@
 // Better Auth with email and password, Discord linked to the account (ARCHITECTURE §5.1, §5.8).
 // Sessions live in the database; the cookie cache stays off (default) so bans and account deletion
 // take effect immediately.
-import { PASSWORD_MAX, PASSWORD_MIN, handleDiscordLogin } from "@uni-scrims/core";
+import {
+  PASSWORD_MAX,
+  PASSWORD_MIN,
+  accountCreateProblem,
+  discordLoginUserInfo,
+  handleDiscordLogin,
+} from "@uni-scrims/core";
 import { prisma } from "@uni-scrims/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -9,7 +15,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { isAllowedAuthPath } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
-import { fetchDiscordProfile, joinHubGuild } from "./hub-join.ts";
+import { joinHubGuild } from "./hub-join.ts";
 import { MAIL_FAILED, type Mail, passwordResetMail, sendMail, verificationMail } from "./mail.ts";
 
 // Set only by core, never by the client.
@@ -19,23 +25,23 @@ const registrationOnly = { required: false, input: true } as const;
 
 /**
  * Fresh Discord tokens arrive with an account row: created when Discord is linked, updated on every
- * Discord login. Take over name and avatar, join the hub, then remove the tokens. Login and linking
- * always continue.
+ * Discord login. Join the hub, then remove the tokens. Login and linking always continue; the row
+ * is null when the account was deleted meanwhile.
  */
-async function onDiscordTokens(account: { userId: string; providerId: string }) {
-  if (account.providerId !== "discord") return;
+async function onDiscordTokens(account: { userId: string; providerId: string } | null) {
   try {
-    await handleDiscordLogin(
-      account.userId,
-      { joinHub: joinHubGuild, fetchProfile: fetchDiscordProfile },
-      new Date(),
-    );
+    if (account?.providerId !== "discord") return;
+    await handleDiscordLogin(account.userId, joinHubGuild, new Date());
   } catch (error) {
     console.error("Post-login handling failed", error);
   }
 }
 
-/** Sends an account mail; a failure reaches the server action as MAIL_FAILED (lib/action.ts). */
+/**
+ * Sends an account mail. Better Auth sends most of them in the background (`backgroundTasks`), so
+ * no answer waits for the mail server and none tells whether an address exists; failures are
+ * logged. The resend from the setup page waits and reports MAIL_FAILED (lib/action.ts).
+ */
 async function sendAccountMail(mail: Mail) {
   try {
     await sendMail(mail);
@@ -77,14 +83,14 @@ export const auth = betterAuth({
       // Without disableDefaultScope the email scope is requested anyway.
       disableDefaultScope: true,
       scope: ["identify", "guilds.join"],
-      // A Discord login finds linked accounts only and never creates one (SPEC N-3).
+      // A Discord login finds linked accounts only and never creates one (SPEC N-3); disableSignUp,
+      // because the client could turn disableImplicitSignUp off with requestSignUp.
       disableImplicitSignUp: true,
-      // In 1.7.12 this would also overwrite the account's email with the placeholder below; name
-      // and avatar come from the login hook instead (onDiscordTokens).
-      overrideUserInfoOnSignIn: false,
-      // Better Auth needs an email; Discord sends none without the email scope. Never stored: a
-      // Discord login creates no user, and linking keeps the account's address.
-      mapProfileToUser: (profile) => ({ email: `${profile.id}@users.uniscrims.invalid` }),
+      disableSignUp: true,
+      // Name and avatar on every Discord login. In 1.7.12 this also writes the email, so the
+      // profile carries the account's own address, and a ban placeholder its own values.
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser: (profile) => discordLoginUserInfo(profile),
     },
   },
   account: {
@@ -94,6 +100,9 @@ export const auth = betterAuth({
       // matches the account's address.
       trustedProviders: ["discord"],
       allowDifferentEmails: true,
+      // Name and avatar from the same profile (never email); the first name of the registration
+      // is never shown (NEW_ACCOUNT_NAME).
+      updateUserInfoOnLink: true,
     },
   },
   user: {
@@ -113,10 +122,17 @@ export const auth = betterAuth({
   advanced: {
     // nginx and Caddy overwrite this header with the client address (ARCHITECTURE §8).
     ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
+    // One long-running web process: the mail promise just runs on; Better Auth logs failures.
+    backgroundTasks: { handler: () => {} },
   },
   databaseHooks: {
     account: {
-      create: { after: onDiscordTokens },
+      create: {
+        // No row for deleted or banned users (a link or reset finishing late), and Discord only
+        // once per user (§5.8); unique indexes back this up.
+        before: async (account) => (await accountCreateProblem(account)) === null,
+        after: onDiscordTokens,
+      },
       update: { after: onDiscordTokens },
     },
   },

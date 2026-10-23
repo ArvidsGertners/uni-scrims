@@ -12,7 +12,13 @@ import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { initials } from "@/lib/format";
 import { requirePageAccountUser, setupUrl } from "@/lib/session";
-import { changeEmailAction, changePasswordAction, updateRealNameAction } from "./actions";
+import { NativeSelect } from "@/components/ui/native-select";
+import {
+  changeEmailAction,
+  changePasswordAction,
+  handOverCaptainAction,
+  updateRealNameAction,
+} from "./actions";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 
 const cardClass = "flex flex-col gap-4 rounded-lg border border-border bg-card p-5";
@@ -29,7 +35,8 @@ export default async function AccountPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { email: emailConfirmed } = await searchParams;
+  // Better Auth sends errors of the mail and Discord links back as ?error=… (§5.8).
+  const { email: emailConfirmed, error } = await searchParams;
   const user = await requirePageAccountUser("/account");
   const account = await getAccount(user.id);
   const team = account.team;
@@ -68,7 +75,15 @@ export default async function AccountPage({
           </span>
         </Alert>
       ) : null}
-      {emailConfirmed === "bestaetigt" ? (
+      {typeof error === "string" ? (
+        <Alert>
+          <span>
+            {error.includes("already_linked") || error.includes("unable_to_link")
+              ? "Das Discord-Konto ließ sich nicht verbinden. Verbinde das Discord-Konto, das schon mit Uni Scrims verknüpft ist."
+              : "Der Link ist ungültig oder abgelaufen. Bitte versuch es erneut."}
+          </span>
+        </Alert>
+      ) : emailConfirmed === "bestaetigt" ? (
         <Alert variant="success">
           <span>Deine E-Mail-Adresse ist bestätigt.</span>
         </Alert>
@@ -226,11 +241,35 @@ export default async function AccountPage({
           <Alert>
             <span>
               {account.deletionProblem}{" "}
-              <Link href="/team" className="font-semibold underline underline-offset-2">
-                Zum Team
-              </Link>
+              {account.captainCandidates.length === 0 ? (
+                <Link href="/team" className="font-semibold underline underline-offset-2">
+                  Zum Team
+                </Link>
+              ) : null}
             </span>
           </Alert>
+        ) : null}
+        {account.captainCandidates.length > 0 ? (
+          // The team page needs a complete account; the role can move from here (SPEC N-3).
+          <ActionForm
+            action={handOverCaptainAction}
+            submitLabel="Captain-Rolle übertragen"
+            variant="outline"
+            size="sm"
+            className="flex flex-col gap-3"
+            confirmText="Captain-Rolle wirklich übertragen?"
+          >
+            <NativeSelect name="memberId" required defaultValue="" aria-label="Neuer Captain">
+              <option value="" disabled>
+                Neuen Captain wählen …
+              </option>
+              {account.captainCandidates.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </ActionForm>
         ) : null}
         <div className="mt-1.5 flex flex-wrap gap-2.5">
           {account.deletionProblem ? null : <DeleteAccountDialog consequences={consequences} />}

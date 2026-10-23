@@ -18,7 +18,8 @@ async function loop(): Promise<never> {
   for (;;) {
     try {
       const result = await runUploadJanitor(resolveUploadDir(), new Date());
-      if (Object.values(result).some((count) => count > 0)) {
+      // A failed step is null; core has logged it already.
+      if (Object.values(result).some((count) => count !== null && count > 0)) {
         console.log("Upload janitor", result);
       }
     } catch (error) {

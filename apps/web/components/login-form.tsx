@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { loginAction } from "@/app/(public)/login/actions";
+import { EmailField, PasswordField } from "@/components/account-fields";
 import { ActionForm } from "@/components/action-form";
 import { DiscordButton } from "@/components/discord-button";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 
 /** Email and password, or Discord for accounts that linked it (SPEC N-3). */
 export function LoginForm({ callbackURL }: { callbackURL: string }) {
@@ -20,19 +19,15 @@ export function LoginForm({ callbackURL }: { callbackURL: string }) {
         className="flex flex-col gap-[18px]"
       >
         <input type="hidden" name="callbackURL" value={callbackURL} />
-        <Field label="E-Mail-Adresse">
-          <Input name="email" type="email" required autoComplete="email" />
-        </Field>
-        <Field
-          label="Passwort"
+        <EmailField />
+        <PasswordField
+          autoComplete="current-password"
           hint={
             <Link href="/forgot-password" className="underline underline-offset-2">
               Vergessen?
             </Link>
           }
-        >
-          <Input name="password" type="password" required autoComplete="current-password" />
-        </Field>
+        />
       </ActionForm>
       <div className="flex items-center gap-3 text-[13px] text-faint">
         <span className="h-px flex-1 bg-border" />
