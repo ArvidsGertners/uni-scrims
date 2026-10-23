@@ -17,6 +17,8 @@ type Props = {
   className?: string;
   /** Classes of the submit button, e.g. "w-full" for block buttons. */
   submitClassName?: string;
+  /** Below the submit button and its error, e.g. a cancel link. */
+  footer?: ReactNode;
 };
 
 /** Form for a server action with an error line under the button. */
@@ -29,6 +31,7 @@ export function ActionForm({
   size,
   className,
   submitClassName,
+  footer,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, initialActionState);
   return (
@@ -59,6 +62,7 @@ export function ActionForm({
             {state.error}
           </p>
         ) : null}
+        {footer}
       </div>
     </form>
   );
