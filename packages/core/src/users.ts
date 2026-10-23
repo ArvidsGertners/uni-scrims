@@ -27,6 +27,8 @@ export function deletedUserData(userId: string) {
     verifiedAt: null,
     hubJoinFailedAt: null,
     dmFailedAt: null,
+    firstName: null,
+    lastName: null,
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
 
@@ -78,6 +80,63 @@ export function isDeletedUser(user: { id: string; email: string }): boolean {
   return user.email === deletedUserEmail(user.id);
 }
 
+/**
+ * Counts as logged out (§5.1, §5.8): a deleted account, or one with deletedAt but without a Discord
+ * link, which a login that raced the deletion left behind. A new account without Discord is not
+ * logged out, only incomplete (accountSetupStep).
+ */
+export function isLoggedOutUser(
+  user: { id: string; email: string; deletedAt: Date | null },
+  discordId: string | null,
+): boolean {
+  return isDeletedUser(user) || (user.deletedAt !== null && discordId === null);
+}
+
+/** What a logged-in account still lacks, in this order (ARCHITECTURE §5.8). */
+export type AccountSetupStep = "COMPLETE_ACCOUNT" | "VERIFY_EMAIL" | "LINK_DISCORD";
+
+/**
+ * null when the account is complete. Accounts from before Phase 7 have no real name yet; a new or
+ * completed account must confirm its address and then link Discord.
+ */
+export function accountSetupStep(
+  user: { firstName: string | null; emailVerified: boolean },
+  hasDiscord: boolean,
+): AccountSetupStep | null {
+  if (!user.firstName) return "COMPLETE_ACCOUNT";
+  if (!user.emailVerified) return "VERIFY_EMAIL";
+  return hasDiscord ? null : "LINK_DISCORD";
+}
+
+/** The Discord fields the login hook reads from GET /users/@me (§5.8). */
+export type DiscordProfile = {
+  id: string;
+  username: string;
+  discriminator: string | null;
+  avatar: string | null;
+};
+
+/**
+ * Name and avatar from the Discord profile, as Better Auth 1.7.12 builds the image. The name is the
+ * username, not the display name: captains find the opposing captain on Discord by it (SPEC P0-6).
+ * Accounts not yet migrated to unique usernames are only unique with their discriminator.
+ */
+export function discordProfileData(profile: DiscordProfile) {
+  const legacyTag = profile.discriminator && profile.discriminator !== "0";
+  const name = legacyTag ? `${profile.username}#${profile.discriminator}` : profile.username;
+  let image: string;
+  if (profile.avatar) {
+    const format = profile.avatar.startsWith("a_") ? "gif" : "png";
+    image = `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${format}`;
+  } else {
+    const index = legacyTag
+      ? Number.parseInt(profile.discriminator!, 10) % 5
+      : Number(BigInt(profile.id) >> BigInt(22)) % 6;
+    image = `https://cdn.discordapp.com/embed/avatars/${index}.png`;
+  }
+  return { name, image };
+}
+
 /** The user, unless the account was deleted; for writes that must not touch a deleted account. */
 export function notDeletedUserWhere(userId: string) {
   return { id: userId, email: { not: deletedUserEmail(userId) } };
@@ -116,7 +175,8 @@ export async function isAdmin(userId: string, db: Db = prisma): Promise<boolean>
 
 /**
  * Header, navigation and the Discord banner. Does not reject banned users. null for a user that
- * requireAccountUser treats as logged out: missing, deleted or without a Discord link (§5.1).
+ * requireAccountUser treats as logged out (isLoggedOutUser). setupStep tells what the account still
+ * lacks (§5.8).
  */
 export async function getCurrentUser(userId: string, db: Db = prisma) {
   const user = await db.user.findUnique({
@@ -130,11 +190,14 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
       bannedAt: true,
       hubJoinFailedAt: true,
       dmFailedAt: true,
+      deletedAt: true,
+      firstName: true,
+      emailVerified: true,
     },
   });
-  if (!user || isDeletedUser(user)) return null;
+  if (!user) return null;
   const discordId = await getDiscordId(user.id, db);
-  if (!discordId) return null;
+  if (isLoggedOutUser(user, discordId)) return null;
   return {
     id: user.id,
     name: user.name,
@@ -143,7 +206,8 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
     bannedAt: user.bannedAt,
     hubJoinFailedAt: user.hubJoinFailedAt,
     dmFailedAt: user.dmFailedAt,
-    isAdmin: getAdminDiscordIds().includes(discordId),
+    isAdmin: discordId !== null && getAdminDiscordIds().includes(discordId),
+    setupStep: accountSetupStep(user, discordId !== null),
   };
 }
 

@@ -6,6 +6,7 @@ import { NotifType, VerifStatus, prisma } from "@uni-scrims/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   AUTO_REJECT_REASON,
+  LEGACY_REJECT_REASON,
   MAX_UPLOAD_BYTES,
   MISSING_FILE_MESSAGE,
   autoRejectStaleVerifications,
@@ -17,6 +18,7 @@ import {
   getVerificationStatus,
   listPendingVerifications,
   listUniversities,
+  resetLegacyVerifications,
   submitVerification,
 } from "../src/index.ts";
 import { NOW, createUser } from "./helpers.ts";
@@ -362,6 +364,8 @@ describe("admin queue", () => {
     const ids = queue.map((request) => request.id);
     expect(queue.find((request) => request.id === second.id)).toMatchObject({
       fileAvailable: true,
+      // The real name to compare with the certificate (SPEC N-3).
+      user: { firstName: newer.firstName, lastName: newer.lastName },
     });
     expect(ids.indexOf(first.id)).toBeLessThan(ids.indexOf(second.id));
     expect(await getVerificationFile(second.id, admin.id, uploadDir)).toEqual({
@@ -372,6 +376,59 @@ describe("admin queue", () => {
 });
 
 describe("janitor", () => {
+  it("takes back the verification of accounts from before Phase 7 (SPEC N-3)", async () => {
+    const verified = await createUser({ legacy: true, verified: true });
+    await prisma.user.update({
+      where: { id: verified.id },
+      data: { universityId, universityOther: null },
+    });
+    const pending = await createUser({ legacy: true });
+    const filePath = "legacy-pending.pdf";
+    await writeFile(path.join(uploadDir, filePath), PDF);
+    const request = await prisma.verificationRequest.create({
+      data: {
+        userId: pending.id,
+        pendingUserId: pending.id,
+        filePath,
+        mimeType: "application/pdf",
+        sizeBytes: PDF.byteLength,
+        status: VerifStatus.PENDING,
+        createdAt: NOW,
+      },
+    });
+    // Complete accounts and deleted ones stay as they are.
+    const complete = await createUser({ verified: true });
+    const deleted = await createUser({ legacy: true, verified: true });
+    await prisma.user.update({ where: { id: deleted.id }, data: { deletedAt: NOW } });
+
+    expect(await resetLegacyVerifications(NOW, uploadDir)).toBeGreaterThanOrEqual(2);
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: verified.id } })).toMatchObject({
+      verifiedAt: null,
+      universityId: null,
+    });
+    expect(
+      await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } }),
+    ).toMatchObject({
+      status: VerifStatus.REJECTED,
+      rejectReason: LEGACY_REJECT_REASON,
+      decidedById: null,
+      filePath: null,
+    });
+    expect(existsSync(path.join(uploadDir, filePath))).toBe(false);
+    expect(
+      await prisma.notification.count({
+        where: { targetUserId: pending.id, type: NotifType.VERIFICATION_RESULT },
+      }),
+    ).toBe(1);
+    for (const user of [complete, deleted]) {
+      expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).verifiedAt).toEqual(
+        NOW,
+      );
+    }
+    // Idempotent.
+    expect(await resetLegacyVerifications(NOW, uploadDir)).toBe(0);
+  });
+
   it("auto-rejects pending requests after the TTL and deletes the file", async () => {
     const user = await createUser();
     const request = await submit(user.id);

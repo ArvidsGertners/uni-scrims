@@ -12,9 +12,12 @@ import {
 } from "@uni-scrims/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  CREDENTIAL_PROVIDER,
   DELETED_USER_NAME,
+  LEGACY_REJECT_REASON,
   applyToRequest,
   banUser,
+  completeAccount,
   createTeam,
   deleteAccount,
   deletedUserEmail,
@@ -22,8 +25,10 @@ import {
   finishInterruptedDeletions,
   getAccount,
   getReliability,
+  registrationSchema,
   requireAccountUser,
   requireUser,
+  updateRealName,
 } from "../src/index.ts";
 import { queueNotifications } from "../src/notifications.ts";
 import {
@@ -69,6 +74,8 @@ function deletedValues(userId: string) {
     hubJoinFailedAt: null,
     dmFailedAt: null,
     deletedAt: NOW,
+    firstName: null,
+    lastName: null,
   };
 }
 
@@ -430,12 +437,23 @@ describe("deleteAccount", () => {
     expect(await findUserByDiscordId(user.discordId)).toMatchObject({ bannedAt: NOW });
   });
 
-  it("treats a user without a Discord account as logged out", async () => {
+  it("treats a deleted user without a Discord account as logged out", async () => {
     // What a login that raced the deletion leaves if undoing it fails (ARCHITECTURE §5.1).
     const user = await createUser();
     await prisma.account.deleteMany({ where: { userId: user.id } });
+    await prisma.user.update({ where: { id: user.id }, data: { deletedAt: NOW } });
     await expect(requireAccountUser(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
     await expect(requireUser(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+
+  it("lets a new account without Discord in, but only to the account page (§5.8)", async () => {
+    const user = await createUser();
+    await prisma.account.deleteMany({ where: { userId: user.id } });
+    await expect(requireAccountUser(user.id)).resolves.toMatchObject({ id: user.id });
+    await expect(requireUser(user.id)).rejects.toMatchObject({
+      code: "ACCOUNT_INCOMPLETE",
+      step: "LINK_DISCORD",
+    });
   });
 });
 
@@ -468,5 +486,210 @@ describe("finishInterruptedDeletions", () => {
       name: active.name,
     });
     expect(await finishInterruptedDeletions()).toBe(0);
+  });
+});
+
+describe("registrationSchema", () => {
+  const valid = {
+    firstName: " Ana ",
+    lastName: "Muster",
+    email: " Ana@Example.ORG ",
+    password: "lang-genug1",
+    consent: true,
+  };
+
+  it("trims the name and lowercases the address", () => {
+    expect(registrationSchema.parse(valid)).toMatchObject({
+      firstName: "Ana",
+      email: "ana@example.org",
+    });
+  });
+
+  it("needs a name, a valid address, 10 characters and the consent", () => {
+    for (const broken of [
+      { firstName: "  " },
+      { lastName: "x".repeat(51) },
+      { email: "keine-adresse" },
+      { password: "kurz" },
+      { consent: false },
+    ]) {
+      expect(
+        registrationSchema.safeParse({ ...valid, ...broken }).success,
+        JSON.stringify(broken),
+      ).toBe(false);
+    }
+  });
+});
+
+describe("completeAccount", () => {
+  const complete = (userId: string, overrides: object = {}) =>
+    completeAccount({
+      userId,
+      firstName: "Ana",
+      lastName: "Muster",
+      email: `Ana.${uid()}@Example.org`,
+      passwordHash: "hash",
+      uploadDir,
+      now: NOW,
+      ...overrides,
+    });
+
+  it("sets name, an unconfirmed address and the password, and takes back the verification", async () => {
+    const { team, members } = await createTeamWithMembers({ extraMembers: 1 });
+    const user = members[0]!;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { firstName: null, lastName: null, emailVerified: false, universityId },
+    });
+    const { email } = await complete(user.id);
+
+    expect(email).toMatch(/^ana\..*@example\.org$/);
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
+      firstName: "Ana",
+      lastName: "Muster",
+      email,
+      emailVerified: false,
+      verifiedAt: null,
+      universityId: null,
+    });
+    expect(
+      await prisma.account.findFirst({
+        where: { userId: user.id, providerId: CREDENTIAL_PROVIDER },
+      }),
+    ).toMatchObject({ accountId: user.id, password: "hash" });
+    // The team stays; the next step is confirming the address (§5.8).
+    expect(await prisma.teamMember.findUnique({ where: { userId: user.id } })).toMatchObject({
+      teamId: team.id,
+    });
+    await expect(requireUser(user.id)).rejects.toMatchObject({ step: "VERIFY_EMAIL" });
+  });
+
+  it("rejects a pending request of the account and deletes its file", async () => {
+    const user = await createUser({ legacy: true });
+    const filePath = `${uid()}.pdf`;
+    await writeFile(path.join(uploadDir, filePath), "pdf");
+    const request = await prisma.verificationRequest.create({
+      data: {
+        userId: user.id,
+        pendingUserId: user.id,
+        filePath,
+        mimeType: "application/pdf",
+        sizeBytes: 3,
+        status: VerifStatus.PENDING,
+        createdAt: NOW,
+      },
+    });
+    await complete(user.id);
+    expect(
+      await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } }),
+    ).toMatchObject({
+      status: VerifStatus.REJECTED,
+      rejectReason: LEGACY_REJECT_REASON,
+      pendingUserId: null,
+      filePath: null,
+    });
+    expect(existsSync(path.join(uploadDir, filePath))).toBe(false);
+    expect(
+      await prisma.notification.count({
+        where: { targetUserId: user.id, type: NotifType.VERIFICATION_RESULT },
+      }),
+    ).toBe(1);
+  });
+
+  it("refuses complete and banned accounts, taken addresses and invalid names", async () => {
+    await expect(complete((await createUser()).id)).rejects.toMatchObject({ code: "CONFLICT" });
+    const banned = await createUser({ legacy: true, banned: true });
+    await expect(complete(banned.id)).rejects.toMatchObject({ code: "BANNED" });
+    const legacy = await createUser({ legacy: true });
+    await expect(complete(legacy.id, { firstName: " " })).rejects.toMatchObject({
+      code: "INVALID",
+    });
+    const other = await createUser({ legacy: true });
+    const taken = `taken-${uid()}@example.org`;
+    await complete(other.id, { email: taken });
+    await expect(complete(legacy.id, { email: taken.toUpperCase() })).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: "Diese E-Mail-Adresse wird schon verwendet.",
+    });
+    // Nothing of the failed attempt is left.
+    expect(
+      await prisma.account.count({ where: { userId: legacy.id, providerId: CREDENTIAL_PROVIDER } }),
+    ).toBe(0);
+  });
+});
+
+describe("updateRealName", () => {
+  it("changes the name until the certificate is uploaded", async () => {
+    const user = await createUser();
+    await updateRealName({ userId: user.id, firstName: " Bea ", lastName: "Neu" });
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
+      firstName: "Bea",
+      lastName: "Neu",
+    });
+    expect(await getAccount(user.id)).toMatchObject({ canEditName: true, firstName: "Bea" });
+
+    await prisma.verificationRequest.create({
+      data: {
+        userId: user.id,
+        pendingUserId: user.id,
+        mimeType: "application/pdf",
+        sizeBytes: 1,
+        status: VerifStatus.PENDING,
+        createdAt: NOW,
+      },
+    });
+    await expect(
+      updateRealName({ userId: user.id, firstName: "Cleo", lastName: "Neu" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(await getAccount(user.id)).toMatchObject({ canEditName: false });
+
+    const verified = await createUser({ verified: true });
+    await expect(
+      updateRealName({ userId: verified.id, firstName: "Cleo", lastName: "Neu" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    const legacy = await createUser({ legacy: true });
+    await expect(
+      updateRealName({ userId: legacy.id, firstName: "Cleo", lastName: "Neu" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+});
+
+describe("getAccount for incomplete accounts", () => {
+  it("hides the placeholder address and tells the next step", async () => {
+    const legacy = await createUser({ legacy: true });
+    expect(await getAccount(legacy.id)).toMatchObject({
+      setupStep: "COMPLETE_ACCOUNT",
+      email: null,
+      hasDiscord: true,
+      hasPassword: false,
+      canEditName: false,
+    });
+    const fresh = await createUser();
+    await prisma.account.deleteMany({ where: { userId: fresh.id } });
+    expect(await getAccount(fresh.id)).toMatchObject({
+      setupStep: "LINK_DISCORD",
+      email: fresh.email,
+      hasDiscord: false,
+    });
+  });
+});
+
+describe("deleteAccount with a password", () => {
+  it("removes the password and the real name", async () => {
+    const user = await createUser();
+    await prisma.account.create({
+      data: {
+        id: uid(),
+        userId: user.id,
+        accountId: user.id,
+        providerId: CREDENTIAL_PROVIDER,
+        password: "hash",
+      },
+    });
+    await remove(user.id);
+    expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject(
+      deletedValues(user.id),
+    );
   });
 });

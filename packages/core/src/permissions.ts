@@ -4,9 +4,22 @@
 // checks inside their transaction as well.
 import { prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
-import { DomainError, type Problem, problemError } from "./errors.ts";
+import { AccountIncompleteError, DomainError, type Problem, problemError } from "./errors.ts";
 import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
-import { getDiscordId, isAdmin, isDeletedUser } from "./users.ts";
+import {
+  type AccountSetupStep,
+  accountSetupStep,
+  getDiscordId,
+  isAdmin,
+  isLoggedOutUser,
+} from "./users.ts";
+
+/** Shown when an action needs a complete account; pages redirect to the step instead (§5.8). */
+const SETUP_STEP_MESSAGES: Record<AccountSetupStep, string> = {
+  COMPLETE_ACCOUNT: "Bitte vervollständige zuerst dein Konto.",
+  VERIFY_EMAIL: "Bitte bestätige zuerst deine E-Mail-Adresse.",
+  LINK_DISCORD: "Bitte verknüpfe zuerst dein Discord-Konto.",
+};
 
 // Thrown by the require* checks and shown by the pages with the same text.
 const TEAM_BANNED: Problem = {
@@ -63,29 +76,36 @@ export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Proble
   return captainProblem(user, team) ?? captainVerificationProblem(user);
 }
 
-/**
- * Logged in, banned users included: only for deleting the own account (§7). A deleted account counts
- * as logged out, so actions that started before the deletion cannot write for it. So does a user
- * without a Discord account: every login has one, and only a deletion removes it (also when a login
- * raced the deletion and wrote the profile back, §5.1).
- */
-export async function requireAccountUser(userId: string | null | undefined, db: Db = prisma) {
+/** The user and the Discord ID, unless the account counts as logged out (isLoggedOutUser). */
+async function loadAccountUser(userId: string | null | undefined, db: Db) {
   if (!userId) {
     throw new DomainError("UNAUTHENTICATED", "Bitte melde dich an.");
   }
   const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user || isDeletedUser(user) || !(await getDiscordId(user.id, db))) {
+  const discordId = user ? await getDiscordId(user.id, db) : null;
+  if (!user || isLoggedOutUser(user, discordId)) {
     throw new DomainError("UNAUTHENTICATED", "Bitte melde dich an.");
   }
-  return user;
+  return { user, discordId };
 }
 
-/** Logged in and not banned. */
+/**
+ * Logged in, banned users and incomplete accounts included: only for the account page (deleting,
+ * completing, linking Discord; §7, §5.8). A deleted account counts as logged out, so actions that
+ * started before the deletion cannot write for it.
+ */
+export async function requireAccountUser(userId: string | null | undefined, db: Db = prisma) {
+  return (await loadAccountUser(userId, db)).user;
+}
+
+/** Logged in, not banned, and the account is complete (§5.8). */
 export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
-  const user = await requireAccountUser(userId, db);
+  const { user, discordId } = await loadAccountUser(userId, db);
   if (user.bannedAt) {
     throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
   }
+  const step = accountSetupStep(user, discordId !== null);
+  if (step) throw new AccountIncompleteError(step, SETUP_STEP_MESSAGES[step]);
   return user;
 }
 

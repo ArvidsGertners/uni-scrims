@@ -4,6 +4,7 @@ import {
   deleteRequest,
   isTeamReady,
   leaveTeam,
+  requireAccountUser,
   requireActingCaptain,
   requireAdmin,
   requireCaptain,
@@ -143,6 +144,21 @@ describe("requireTeamMember", () => {
     await expect(requireTeamMember(outsider.id, team.id)).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
+  });
+});
+
+describe("requireUser and incomplete accounts (§5.8)", () => {
+  it("names the missing step, after the ban", async () => {
+    const legacy = await createUser({ legacy: true });
+    await expect(requireUser(legacy.id)).rejects.toMatchObject({
+      code: "ACCOUNT_INCOMPLETE",
+      step: "COMPLETE_ACCOUNT",
+    });
+    await expect(requireAccountUser(legacy.id)).resolves.toMatchObject({ id: legacy.id });
+    await prisma.user.update({ where: { id: legacy.id }, data: { firstName: "Ana" } });
+    await expect(requireUser(legacy.id)).rejects.toMatchObject({ step: "VERIFY_EMAIL" });
+    const banned = await createUser({ legacy: true, banned: true });
+    await expect(requireUser(banned.id)).rejects.toMatchObject({ code: "BANNED" });
   });
 });
 

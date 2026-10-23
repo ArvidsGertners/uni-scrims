@@ -66,16 +66,23 @@ async function seedTeam(team: SeedTeam, now: Date): Promise<void> {
     const userId = `${team.id}-user-${i}`;
     // Invented Discord IDs; DMs to them are redirected via DEV_DM_REDIRECT_DISCORD_ID.
     const discordId = `${team.discordIdPrefix}${i}`;
+    // Complete accounts (ARCHITECTURE §5.8), also for seed users created before Phase 7.
+    const account = {
+      firstName: "Seed",
+      lastName: `${team.tag} ${i}`,
+      email: `${userId}@seed.uniscrims.invalid`,
+      emailVerified: true,
+    };
     await prisma.user.upsert({
       where: { id: userId },
       create: {
         id: userId,
         name: `${team.tag} Spieler ${i}`,
-        email: `${discordId}@users.uniscrims.invalid`,
+        ...account,
         universityId: university.id,
         verifiedAt: now,
       },
-      update: {},
+      update: account,
     });
     await prisma.account.upsert({
       where: { id: `${userId}-discord` },

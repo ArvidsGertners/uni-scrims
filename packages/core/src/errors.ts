@@ -1,4 +1,5 @@
 // Domain errors carry a German message that the UI shows as is.
+import type { AccountSetupStep } from "./users.ts";
 
 export type DomainErrorCode =
   | "UNAUTHENTICATED"
@@ -7,7 +8,8 @@ export type DomainErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
-  | "INVALID";
+  | "INVALID"
+  | "ACCOUNT_INCOMPLETE";
 
 export class DomainError extends Error {
   constructor(
@@ -16,6 +18,17 @@ export class DomainError extends Error {
   ) {
     super(message);
     this.name = "DomainError";
+  }
+}
+
+/** requireUser for an account that still lacks a setup step (§5.8); pages redirect by `step`. */
+export class AccountIncompleteError extends DomainError {
+  constructor(
+    readonly step: AccountSetupStep,
+    message: string,
+  ) {
+    super("ACCOUNT_INCOMPLETE", message);
+    this.name = "AccountIncompleteError";
   }
 }
 

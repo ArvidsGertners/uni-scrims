@@ -8,7 +8,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { isAllowedAuthPath } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
-import { joinHubGuild } from "./hub-join.ts";
+import { fetchDiscordProfile, joinHubGuild } from "./hub-join.ts";
 
 // Set only by core, never by the client.
 const coreOnly = { required: false, input: false } as const;
@@ -59,7 +59,11 @@ export const auth = betterAuth({
       const userId = ctx.context.newSession?.user.id;
       if (!userId) return;
       try {
-        await handleDiscordLogin(userId, joinHubGuild, new Date());
+        await handleDiscordLogin(
+          userId,
+          { joinHub: joinHubGuild, fetchProfile: fetchDiscordProfile },
+          new Date(),
+        );
       } catch (error) {
         console.error("Post-login handling failed", error);
       }

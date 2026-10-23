@@ -127,6 +127,10 @@ model User {
   dmFailedAt      DateTime?   @db.Timestamptz(3)
   // Set by deleteAccount and kept, also if a racing login writes the Discord profile back (§4, §5.1).
   deletedAt       DateTime?   @db.Timestamptz(3)
+  // Real name from the registration (Phase 7, §5.8); null for accounts from before Phase 7 until
+  // they are completed, and for deleted ones. Only the user and reviewers see it.
+  firstName       String?
+  lastName        String?
 
   sessions Session[]
   accounts Account[]

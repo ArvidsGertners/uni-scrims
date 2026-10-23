@@ -11,8 +11,12 @@ export function uid(): string {
   return randomUUID();
 }
 
+/**
+ * A user with a Discord link. Complete by default (real name, confirmed address, §5.8); `legacy`
+ * makes an account from before Phase 7, with neither.
+ */
 export async function createUser(
-  options: { verified?: boolean; banned?: boolean; discordId?: string } = {},
+  options: { verified?: boolean; banned?: boolean; discordId?: string; legacy?: boolean } = {},
 ) {
   const id = uid();
   const discordId = options.discordId ?? String(BigInt(`0x${id.replaceAll("-", "").slice(0, 15)}`));
@@ -21,6 +25,9 @@ export async function createUser(
       id,
       name: `User ${id.slice(0, 8)}`,
       email: `${discordId}@users.uniscrims.invalid`,
+      emailVerified: !options.legacy,
+      firstName: options.legacy ? null : "Alex",
+      lastName: options.legacy ? null : `Muster ${id.slice(0, 4)}`,
       verifiedAt: options.verified ? NOW : null,
       bannedAt: options.banned ? NOW : null,
     },

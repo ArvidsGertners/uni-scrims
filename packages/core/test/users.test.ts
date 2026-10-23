@@ -86,6 +86,7 @@ describe("getCurrentUser", () => {
       hubJoinFailedAt: null,
       dmFailedAt: NOW,
       isAdmin: false,
+      setupStep: null,
     });
     expect(await getCurrentUser(admin.id)).toMatchObject({ isAdmin: true });
   });
@@ -98,7 +99,18 @@ describe("getCurrentUser", () => {
     // What a login that raced the deletion leaves if undoing it failed (§5.1).
     const unlinked = await createUser();
     await prisma.account.deleteMany({ where: { userId: unlinked.id } });
+    await prisma.user.update({ where: { id: unlinked.id }, data: { deletedAt: NOW } });
     expect(await getCurrentUser(unlinked.id)).toBeNull();
+  });
+
+  it("tells what an incomplete account still lacks (§5.8)", async () => {
+    const legacy = await createUser({ legacy: true });
+    expect(await getCurrentUser(legacy.id)).toMatchObject({ setupStep: "COMPLETE_ACCOUNT" });
+    await prisma.user.update({ where: { id: legacy.id }, data: { firstName: "Ana" } });
+    expect(await getCurrentUser(legacy.id)).toMatchObject({ setupStep: "VERIFY_EMAIL" });
+    const fresh = await createUser();
+    await prisma.account.deleteMany({ where: { userId: fresh.id } });
+    expect(await getCurrentUser(fresh.id)).toMatchObject({ setupStep: "LINK_DISCORD" });
   });
 });
 

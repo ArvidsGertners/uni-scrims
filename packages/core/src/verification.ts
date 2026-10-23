@@ -15,6 +15,9 @@ export const MISSING_FILE_MESSAGE =
   "Die Datei fehlt. Bitte lehne die Prüfung ab, damit der Nutzer neu hochladen kann.";
 /** banUser closes a pending request with this reason and without a message. */
 export const BAN_REJECT_REASON = "Konto gesperrt";
+/** Accounts from before Phase 7 verify again with their real name (SPEC N-3). */
+export const LEGACY_REJECT_REASON =
+  "Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.";
 /** Files in the upload directory without a database row are deleted after this age. */
 export const ORPHAN_FILE_AGE_MS = 24 * 60 * 60 * 1000;
 export const MAX_UNIVERSITY_OTHER_LENGTH = 200;
@@ -342,6 +345,59 @@ export async function autoRejectStaleVerifications(
   return rejected;
 }
 
+/**
+ * Takes back the verification of an account from before Phase 7, in the caller's transaction, which
+ * holds the user row (§4): its name was never compared with the certificate (SPEC N-3). A pending
+ * request is rejected; the caller deletes its file after the commit. Returns that request or null.
+ */
+export async function resetLegacyVerification(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  now: Date,
+) {
+  await tx.user.update({
+    where: { id: userId },
+    data: { verifiedAt: null, universityId: null, universityOther: null },
+  });
+  const pending = await tx.verificationRequest.findUnique({
+    where: { pendingUserId: userId },
+    select: { id: true, userId: true, filePath: true },
+  });
+  if (!pending) return null;
+  return (await rejectPending(tx, pending, LEGACY_REJECT_REASON, now)) ? pending : null;
+}
+
+/** An account from before Phase 7 that is not deleted and has not been completed yet (§5.8). */
+const legacyAccountWhere = { firstName: null, deletedAt: null } satisfies Prisma.UserWhereInput;
+
+/**
+ * Janitor step (§5.8): accounts from before Phase 7 lose their verification and pending requests.
+ * Runs at the web start, so right after the deploy, and then hourly; idempotent.
+ */
+export async function resetLegacyVerifications(now: Date, uploadDir: string): Promise<number> {
+  const users = await prisma.user.findMany({
+    where: {
+      ...legacyAccountWhere,
+      OR: [{ verifiedAt: { not: null } }, { pendingVerification: { isNot: null } }],
+    },
+    select: { id: true },
+  });
+  let reset = 0;
+  for (const { id } of users) {
+    const result = await prisma.$transaction(async (tx) => {
+      // User before VerificationRequest (§4), as in the automatic rejection.
+      await lockUser(tx, id);
+      const current = await tx.user.findFirst({ where: { id, ...legacyAccountWhere } });
+      if (!current) return { changed: false, rejected: null };
+      return { changed: true, rejected: await resetLegacyVerification(tx, id, now) };
+    });
+    if (!result.changed) continue;
+    reset++;
+    if (result.rejected) await removeFilesAfterCommit([result.rejected], uploadDir);
+  }
+  return reset;
+}
+
 /** Whether the file of a request is still there; after restoring a backup it may be gone (§8). */
 async function uploadExists(uploadDir: string, fileName: string | null): Promise<boolean> {
   if (!fileName) return false;
@@ -403,6 +459,7 @@ export async function cleanupOrphanFiles(uploadDir: string, now: Date): Promise<
 /** One janitor run (§5.2), called at startup and then hourly by the web process. */
 export async function runUploadJanitor(uploadDir: string, now: Date) {
   return {
+    legacyReset: await resetLegacyVerifications(now, uploadDir),
     autoRejected: await autoRejectStaleVerifications(now, uploadDir),
     decidedFiles: await cleanupDecidedFiles(uploadDir),
     orphanFiles: await cleanupOrphanFiles(uploadDir, now),
@@ -425,7 +482,8 @@ export async function listPendingVerifications(adminId: string, uploadDir: strin
       sizeBytes: true,
       universityOther: true,
       university: { select: { name: true, city: true } },
-      user: { select: { id: true, name: true, image: true } },
+      // The real name to compare with the certificate (SPEC N-3); null for accounts from before Phase 7.
+      user: { select: { id: true, name: true, image: true, firstName: true, lastName: true } },
       filePath: true,
     },
   });

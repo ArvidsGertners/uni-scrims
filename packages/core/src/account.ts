@@ -2,13 +2,36 @@
 // deleted, so past scrims keep their teams and the team statistics stay right.
 import { randomUUID } from "node:crypto";
 import { VerifStatus, prisma } from "@uni-scrims/db";
+import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
-import { lockRequest, lockTeam } from "./locks.ts";
+import { lockRequest, lockTeam, lockUser } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
+import { emailSchema, parseInput, realNameSchema } from "./schemas.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
-import { readStudentStatus } from "./verification.ts";
-import { DISCORD_PROVIDER, NO_OAUTH_TOKENS, banPlaceholderData, deletedUserData } from "./users.ts";
+import {
+  readStudentStatus,
+  removeFilesAfterCommit,
+  resetLegacyVerification,
+} from "./verification.ts";
+import {
+  DISCORD_PROVIDER,
+  NO_OAUTH_TOKENS,
+  accountSetupStep,
+  banPlaceholderData,
+  deletedUserData,
+  getDiscordId,
+} from "./users.ts";
+
+/** Better Auth's provider ID for the email and password login (§5.8). */
+export const CREDENTIAL_PROVIDER = "credential";
+
+const NAME_LOCKED =
+  "Nach dem Hochladen der Bescheinigung kannst du deinen Namen nicht mehr selbst ändern. Schreib uns dafür eine Mail (Adresse im Impressum).";
+
+function emailTaken(): DomainError {
+  return new DomainError("CONFLICT", "Diese E-Mail-Adresse wird schon verwendet.");
+}
 
 /**
  * Why the account cannot be deleted right now, or null. Only the captain of a team that is not
@@ -24,19 +47,41 @@ export function accountDeletionProblem(
   return TRANSFER_CAPTAIN_FIRST;
 }
 
-/** The account page; banned users included, they may delete their account too (§7). */
+/** The real name may change until the certificate is uploaded (SPEC N-3). */
+function realNameLocked(user: { verifiedAt: Date | null }, hasPendingRequest: boolean): boolean {
+  return user.verifiedAt !== null || hasPendingRequest;
+}
+
+/**
+ * The account page; banned users and incomplete accounts included, they may delete their account
+ * too (§7, §5.8).
+ */
 export async function getAccount(userId: string) {
   const user = await requireAccountUser(userId);
   const team = await findOwnTeam(user.id);
-  const [memberCount, student] = await Promise.all([
+  const [memberCount, student, discordId, credential] = await Promise.all([
     team ? prisma.teamMember.count({ where: { teamId: team.id } }) : 0,
     readStudentStatus(user),
+    getDiscordId(user.id),
+    prisma.account.findFirst({
+      where: { userId: user.id, providerId: CREDENTIAL_PROVIDER },
+      select: { id: true },
+    }),
   ]);
   const latestStatus = student.latest?.status;
   return {
     name: user.name,
     image: user.image,
     banned: user.bannedAt !== null,
+    /** What the account still lacks (§5.8), or null. */
+    setupStep: accountSetupStep(user, discordId !== null),
+    firstName: user.firstName,
+    lastName: user.lastName,
+    /** The placeholder of an account from before Phase 7 is not shown. */
+    email: user.firstName ? user.email : null,
+    hasDiscord: discordId !== null,
+    hasPassword: credential !== null,
+    canEditName: !!user.firstName && !realNameLocked(user, latestStatus === VerifStatus.PENDING),
     /** Student status for the account page: the verified university, else the latest request's. */
     verification: user.verifiedAt
       ? { status: "VERIFIED" as const, university: student.university }
@@ -53,6 +98,79 @@ export async function getAccount(userId: string) {
     /** null if the account can be deleted now, otherwise why not. */
     deletionProblem: accountDeletionProblem(user, team, memberCount),
   };
+}
+
+/**
+ * "Konto vervollständigen" for an account from before Phase 7 (§5.8): real name, a new address that
+ * still has to be confirmed, and the password, whose hash the web computes with Better Auth. Its old
+ * verification is taken back, as for the janitor (SPEC N-3). The caller then sends the confirmation
+ * mail.
+ */
+export async function completeAccount(input: {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  passwordHash: string;
+  uploadDir: string;
+  now: Date;
+}): Promise<{ email: string }> {
+  const user = await requireAccountUser(input.userId);
+  if (user.bannedAt) throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+  const name = parseInput(realNameSchema, input);
+  const email = parseInput(emailSchema, input.email);
+  try {
+    const rejected = await prisma.$transaction(async (tx) => {
+      // The user row first (§4); a deletion or ban that commits meanwhile is seen here.
+      await lockUser(tx, user.id);
+      const current = await requireAccountUser(user.id, tx);
+      if (current.bannedAt) throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+      if (current.firstName) {
+        throw new DomainError("CONFLICT", "Dein Konto ist bereits vollständig.");
+      }
+      await tx.user.update({
+        where: { id: user.id },
+        data: { ...name, email, emailVerified: false },
+      });
+      await tx.account.create({
+        data: {
+          id: randomUUID(),
+          userId: user.id,
+          accountId: user.id,
+          providerId: CREDENTIAL_PROVIDER,
+          password: input.passwordHash,
+        },
+      });
+      return resetLegacyVerification(tx, user.id, input.now);
+    });
+    if (rejected) await removeFilesAfterCommit([rejected], input.uploadDir);
+    return { email };
+  } catch (error) {
+    if (isUniqueViolation(error)) throw emailTaken();
+    throw error;
+  }
+}
+
+/** The real name, as long as no certificate is uploaded (SPEC N-3); for complete accounts only. */
+export async function updateRealName(input: {
+  userId: string;
+  firstName: string;
+  lastName: string;
+}) {
+  const user = await requireAccountUser(input.userId);
+  if (user.bannedAt) throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+  const name = parseInput(realNameSchema, input);
+  await prisma.$transaction(async (tx) => {
+    // Under the user lock, as submitVerification: an upload that commits first locks the name.
+    await lockUser(tx, user.id);
+    const current = await requireAccountUser(user.id, tx);
+    if (!current.firstName) {
+      throw new DomainError("CONFLICT", "Bitte vervollständige zuerst dein Konto.");
+    }
+    const pending = await tx.verificationRequest.findUnique({ where: { pendingUserId: user.id } });
+    if (realNameLocked(current, pending !== null)) throw new DomainError("CONFLICT", NAME_LOCKED);
+    await tx.user.update({ where: { id: user.id }, data: name });
+  });
 }
 
 /**

@@ -29,6 +29,48 @@ export type TeamInput = z.infer<typeof teamInputSchema>;
 
 export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
 
+// ─── Accounts (Phase 7, §5.8) ─────────────────────────────────────────────────
+
+export const REAL_NAME_MAX = 50;
+export const PASSWORD_MIN = 10;
+export const PASSWORD_MAX = 128;
+
+function realNamePart(label: string) {
+  return z
+    .string(`Bitte gib deinen ${label} an.`)
+    .trim()
+    .min(1, `Bitte gib deinen ${label} an.`)
+    .max(REAL_NAME_MAX, `Dein ${label} darf höchstens ${REAL_NAME_MAX} Zeichen haben.`);
+}
+
+/** First and last name as on the enrolment certificate (SPEC N-3). */
+export const realNameSchema = z.object({
+  firstName: realNamePart("Vornamen"),
+  lastName: realNamePart("Nachnamen"),
+});
+
+export const emailSchema = z
+  .string("Bitte gib deine E-Mail-Adresse an.")
+  .trim()
+  .toLowerCase()
+  .pipe(z.email("Bitte gib eine gültige E-Mail-Adresse an.").max(254));
+
+export const passwordSchema = z
+  .string("Bitte gib ein Passwort an.")
+  .min(PASSWORD_MIN, `Das Passwort braucht mindestens ${PASSWORD_MIN} Zeichen.`)
+  .max(PASSWORD_MAX, `Das Passwort darf höchstens ${PASSWORD_MAX} Zeichen haben.`);
+
+export const registrationSchema = realNameSchema.extend({
+  email: emailSchema,
+  password: passwordSchema,
+  consent: z.literal(
+    true,
+    "Bitte bestätige, dass du mindestens 16 bist und die Datenschutzerklärung gelesen hast.",
+  ),
+});
+
+export type RegistrationInput = z.input<typeof registrationSchema>;
+
 // ─── Requests, applications, feedback ─────────────────────────────────────────
 
 export const REQUEST_NOTE_MAX = 300;
