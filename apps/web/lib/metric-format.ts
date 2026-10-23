@@ -9,6 +9,16 @@ const rating = new Intl.NumberFormat("de-DE", {
 });
 const percent = new Intl.NumberFormat("de-DE", { style: "percent", maximumFractionDigits: 1 });
 
+/**
+ * Rounded down to `step`, the precision shown. The goals of SPEC §8 lie on that grid, so a shown
+ * value never seems to cross a goal the badge next to it says it missed or reached (23.97 h shows
+ * as 23.9 h, 49.96 % as 49.9 %). The tiny offset keeps floating point noise like 0.57 × 1000 =
+ * 569.99… from rounding a value down by a whole step.
+ */
+function floorTo(value: number, step: number): number {
+  return Math.floor(value / step + 1e-9) * step;
+}
+
 /** A metric value or threshold in its unit (SPEC §8): teams, hours, percent or stars. */
 export function formatMetricValue(unit: MetricUnit, value: number): string {
   switch (unit) {
@@ -16,12 +26,12 @@ export function formatMetricValue(unit: MetricUnit, value: number): string {
       return String(value);
     case "duration":
       return value < HOUR
-        ? `${Math.round(value / 60_000)} min`
-        : `${decimal.format(value / HOUR)} h`;
+        ? `${floorTo(value / 60_000, 1)} min`
+        : `${decimal.format(floorTo(value / HOUR, 0.1))} h`;
     case "rate":
-      return percent.format(value);
+      return percent.format(floorTo(value, 0.001));
     case "rating":
-      return rating.format(value);
+      return rating.format(floorTo(value, 0.1));
   }
 }
 

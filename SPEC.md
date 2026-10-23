@@ -250,12 +250,13 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Team-Seite zeigt die Rollen; ein Rollenwechsel ändert nichts an schon gebuchten Scrims.
 
 **N-2 Statistik-Seite** (Phase 6)
-- [ ] Seite „Statistik“ im Admin-Bereich, nur für Admins
-- [ ] Zeigt alle Kennzahlen aus §8 nach deren Definitionen, jeweils mit Ziel und Stretch, und markiert, ob sie erreicht sind
-- [ ] Zwei Zeiträume: die letzten 28 Tage und gesamt. „Spielbereite Teams“ und „Teams mit ≥ 2 Scrims pro Monat“ sind Momentaufnahmen und stehen nur einmal da.
-- [ ] In einen Zeitraum fällt eine Prüfung mit ihrer Entscheidung, eine Anfrage mit ihrer Startzeit, die Zeit bis Bestätigung mit der Buchung und alle Scrim-Kennzahlen mit dem Start des Scrims
-- [ ] Jede Kennzahl mit ihrer Fallzahl; ohne Fälle steht „–“ statt einer Zahl
-- [ ] Nur Summen, keine Namen oder anderen personenbezogenen Daten. Die Seite sagt, dass Prüfungen gelöschter Konten fehlen (sie werden mit dem Konto gelöscht).
+- [x] Seite „Statistik“ im Admin-Bereich, nur für Admins
+- [x] Zeigt alle Kennzahlen aus §8 nach deren Definitionen, jeweils mit Ziel und Stretch, und markiert, ob sie erreicht sind
+- [x] Zwei Zeiträume: die letzten 28 Tage und gesamt. „Spielbereite Teams“ und „Teams mit ≥ 2 Scrims pro Monat“ sind Momentaufnahmen und stehen nur einmal da.
+- [x] In einen Zeitraum fällt eine Prüfung mit ihrer Entscheidung, eine Anfrage mit ihrer Startzeit, die Zeit bis Bestätigung mit der Buchung und alle Scrim-Kennzahlen mit dem Start des Scrims
+- [x] Jede Kennzahl mit ihrer Fallzahl; ohne Fälle steht „–“ statt einer Zahl. Ausnahme „Spielbereite Teams“: eine Anzahl, die auch ohne aktive Teams 0 ist.
+- [x] Werte werden auf die angezeigte Genauigkeit abgerundet (0,1 h, 0,1 %, 0,1 Sterne), damit eine Zahl nie über einem Ziel zu liegen scheint, das als verfehlt markiert ist, oder umgekehrt
+- [x] Nur Summen, keine Namen oder anderen personenbezogenen Daten. Die Seite sagt, dass Prüfungen gelöschter Konten fehlen (sie werden mit dem Konto gelöscht).
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -285,7 +286,7 @@ Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind 
 |---|---|---|---|
 | Spielbereite Teams | aktive Teams mit ≥ 5 verifizierten Spielern (Spieler oder Ersatzspieler), Stand jetzt | 15 | 30 |
 | Prüfzeit | Median von Upload bis Entscheidung, nur von Hand entschiedene Prüfungen (ohne automatische Ablehnung und Ablehnung durch Sperre) | < 24 h | < 6 h |
-| Bestätigungsquote | bestätigte Anfragen ÷ (bestätigte + verfallene), nur Anfragen, deren Startzeit vorbei ist; gelöschte Anfragen zählen nicht | ≥ 50 % | ≥ 70 % |
+| Bestätigungsquote | bestätigte Anfragen ÷ (bestätigte + verfallene), nur Anfragen, deren Startzeit vorbei ist; eine noch offene Anfrage nach ihrem Start zählt als verfallen, gelöschte Anfragen zählen nicht | ≥ 50 % | ≥ 70 % |
 | Zeit bis Bestätigung | Median von Anfrage erstellt bis Scrim gebucht | < 24 h | < 6 h |
 | Show-up-Rate | Gespielt ÷ (Gespielt + No-Show) | ≥ 90 % | ≥ 95 % |
 | Feedback-Antwortrate | Scrims mit ≥ 1 Antwort ÷ ausgewertete Scrims (Gespielt, No-Show, Streitfall, Unbestätigt) | ≥ 60 % | ≥ 80 % |
