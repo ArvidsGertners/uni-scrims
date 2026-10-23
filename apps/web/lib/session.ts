@@ -1,8 +1,11 @@
 import {
+  STAFF_AREAS,
+  type StaffArea,
   getCurrentUser,
   isDomainError,
   requireAccountUser,
-  requireAdmin,
+  requireStaff,
+  requireStaffMember,
   requireUser,
 } from "@uni-scrims/core";
 import { headers } from "next/headers";
@@ -61,11 +64,26 @@ export async function requirePageAccountUser(path: string) {
   }
 }
 
-/** For admin pages: requirePageUser plus requireAdmin from core; non-admins get a 404. */
-export async function requireAdminPage(path: string) {
+/**
+ * For admin pages: a role that may use `area`, with 2FA (§5.9). Without 2FA to the setup, without
+ * the role a 404, so the admin area stays invisible.
+ */
+export async function requireStaffPage(path: string, area: StaffArea) {
   const user = await requirePageUser(path);
   try {
-    return await requireAdmin(user.id);
+    return await requireStaff(user.id, STAFF_AREAS[area]);
+  } catch (error) {
+    if (isDomainError(error) && error.code === "TWO_FACTOR_REQUIRED") redirect("/admin/2fa");
+    if (isDomainError(error) && error.code === "FORBIDDEN") notFound();
+    throw error;
+  }
+}
+
+/** For the admin layout and the 2FA setup: any role, 2FA not needed yet (§5.9). */
+export async function requireStaffMemberPage(path: string) {
+  const user = await requirePageUser(path);
+  try {
+    return await requireStaffMember(user.id);
   } catch (error) {
     if (isDomainError(error) && error.code === "FORBIDDEN") notFound();
     throw error;

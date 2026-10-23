@@ -7,7 +7,7 @@ import {
 import { PageMain } from "@/components/page-main";
 import { Badge } from "@/components/ui/badge";
 import { formatCases, formatMetricValue, formatThreshold } from "@/lib/metric-format";
-import { requireAdminPage } from "@/lib/session";
+import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
 
 const GROUPS = [
@@ -76,12 +76,12 @@ function MetricCard({ metric }: { metric: SuccessMetric }) {
 
 /** Success metrics of SPEC §8 (SPEC N-2); only sums, no personal data. */
 export default async function StatsPage() {
-  const admin = await requireAdminPage("/admin/stats");
+  const admin = await requireStaffPage("/admin/stats", "admin");
   const metrics = await getSuccessMetrics({ adminId: admin.id, now: new Date() });
 
   return (
     <PageMain className="gap-6">
-      <AdminNav adminId={admin.id} />
+      <AdminNav staff={admin} />
       <h1 className="type-h1">Statistik</h1>
       <p className="text-[14px] text-pretty text-muted-foreground">
         Die Erfolgskriterien aus der Spezifikation, jeweils bis jetzt. Prüfungen gelöschter Konten

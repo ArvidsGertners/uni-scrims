@@ -8,9 +8,14 @@ import { getSignedInUser } from "@/lib/session";
 
 /** Errors the Discord login sends back as ?error= (ARCHITECTURE §5.8). */
 function discordError(code: string): string {
-  return code === "signup_disabled"
-    ? "Zu diesem Discord-Konto gibt es noch kein Uni-Scrims-Konto. Registriere dich mit deiner E-Mail-Adresse und verknüpfe Discord danach."
-    : "Die Anmeldung hat nicht geklappt. Bitte versuch es erneut.";
+  if (code === "signup_disabled") {
+    return "Zu diesem Discord-Konto gibt es noch kein Uni-Scrims-Konto. Registriere dich mit deiner E-Mail-Adresse und verknüpfe Discord danach.";
+  }
+  // The session hook refuses Discord logins of staff (§5.9).
+  if (code === "unable_to_create_session") {
+    return "Admins und Prüfer melden sich mit E-Mail-Adresse, Passwort und Code an, nicht mit Discord.";
+  }
+  return "Die Anmeldung hat nicht geklappt. Bitte versuch es erneut.";
 }
 
 export default async function LoginPage({

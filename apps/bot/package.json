@@ -7,7 +7,8 @@
     "dev": "NODE_ENV=development tsx watch --clear-screen=false src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test-dm": "tsx src/scripts/test-dm.ts"
+    "test-dm": "tsx src/scripts/test-dm.ts",
+    "set-operator": "tsx src/scripts/set-operator.ts"
   },
   "dependencies": {
     "@uni-scrims/core": "workspace:*",

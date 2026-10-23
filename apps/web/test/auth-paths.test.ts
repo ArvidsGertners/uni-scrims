@@ -28,6 +28,9 @@ describe("isAllowedAuthPath", () => {
       "/reset-password",
       "/change-password",
       "/change-email",
+      "/two-factor/enable",
+      "/two-factor/verify-totp",
+      "/two-factor/verify-backup-code",
     ]) {
       expect(isAllowedAuthPath(path, true), path).toBe(true);
       expect(isAllowedAuthPath(path, false), path).toBe(false);
@@ -47,6 +50,10 @@ describe("isAllowedAuthPath", () => {
       "/account-info",
       "/set-password",
       "/verify-password",
+      "/two-factor/disable",
+      "/two-factor/get-totp-uri",
+      "/two-factor/send-otp",
+      "/two-factor/generate-backup-codes",
       "/ok",
     ]) {
       expect(isAllowedAuthPath(path, false), path).toBe(false);

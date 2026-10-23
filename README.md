@@ -35,7 +35,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-`UPLOAD_DIR` muss ein **absoluter** Pfad sein, lokal z. B. `/Users/<du>/uni-scrims-uploads` (in Docker `/data/uploads`). Dort liegen hochgeladene Bescheinigungen bis zur Prüfung. Für den Admin-Bereich deine Discord-ID in `ADMIN_DISCORD_IDS` eintragen. `LEGAL_DIR` ist ebenfalls absolut; lokal reicht das Gerüst, z. B. `/Users/<du>/uni-scrims/docker/legal.example`.
+`UPLOAD_DIR` muss ein **absoluter** Pfad sein, lokal z. B. `/Users/<du>/uni-scrims-uploads` (in Docker `/data/uploads`). Dort liegen hochgeladene Bescheinigungen bis zur Prüfung. Für den Admin-Bereich registrierst du dich, verknüpfst Discord und machst dein Konto per Skript zum Betreiber (siehe „Admins und Prüfer“). `LEGAL_DIR` ist ebenfalls absolut; lokal reicht das Gerüst, z. B. `/Users/<du>/uni-scrims/docker/legal.example`.
 
 Die App-DB läuft auf `localhost:5433`, die Test-DB auf `localhost:5434` (tmpfs, ohne dauerhafte Daten). Ist Port 5433 belegt, kann die App-DB mit `DB_PORT=<port>` auf einen anderen Host-Port gelegt werden.
 
@@ -101,6 +101,39 @@ Weitere Beobachtungen: Mit `requireEmailVerification` antwortet die Registrierun
 ## Konto-Mails (ab Phase 7)
 
 Versand per SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, siehe `.env.example`), in Production über das Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting, `www779.your-server.de:587`). DNS bei Cloudflare: MX auf `www779.your-server.de`, SPF `v=spf1 a mx ~all`, DKIM unter `default2610._domainkey`, DMARC `v=DMARC1; p=none`. Lokal (alles außer `NODE_ENV=production`) gehen Mails nur ins Log von `web`, mit `DEV_MAIL_REDIRECT=<deine Adresse>` stattdessen alle an diese Adresse.
+
+## Admins und Prüfer (ab Phase 8)
+
+Rollen stehen in der Datenbank (`user.staffRole`, ARCHITECTURE §5.9). Den **Betreiber** setzt ein Skript; das Konto muss vollständig sein (Name, bestätigte Adresse, Discord, Passwort):
+
+```sh
+# Production
+dc run --rm --no-deps bot node --import tsx src/scripts/set-operator.ts du@example.org
+# lokal
+pnpm --filter @uni-scrims/bot set-operator du@example.org
+```
+
+Danach sind alle Sitzungen des Kontos beendet. Beim nächsten Aufruf von `/admin` richtest du die Zwei-Faktor-Anmeldung ein (Passwort, QR-Code, erster Code, Backup-Codes sicher aufbewahren); dann meldest du dich einmal neu an, ab jetzt mit Passwort und Code. Mit Discord meldet sich ein Konto mit Rolle nicht mehr an. Admins und Prüfer vergibst du unter `/admin/staff` an bestehende Konten.
+
+Betreiber-Gerät verloren und keine Backup-Codes mehr: 2FA per SQL zurücksetzen (`dc exec db psql -U uniscrims uniscrims`), danach richtest du sie neu ein:
+
+```sql
+BEGIN;
+DELETE FROM "twoFactor" WHERE "userId" = (SELECT id FROM "user" WHERE email = 'du@example.org');
+UPDATE "user" SET "twoFactorEnabled" = false WHERE email = 'du@example.org';
+DELETE FROM session WHERE "userId" = (SELECT id FROM "user" WHERE email = 'du@example.org');
+COMMIT;
+```
+
+Für Admins und Prüfer macht das der Betreiber auf der Rollen-Seite („2FA zurücksetzen“).
+
+## Better Auth: geprüfte Annahmen (Phase 8, Version 1.7.12)
+
+Die Prüfpunkte aus ARCHITECTURE §11 Phase 8, nachgewiesen in `apps/web/test/auth-flows.test.ts`:
+
+1. **Anmeldung mit Code:** `signInEmail` aus der Server Action liefert bei eingerichteter 2FA `{ twoFactorRedirect: true }`, löscht die eben angelegte Session wieder und setzt ein signiertes Cookie für die laufende Anmeldung (10 min). `verifyTOTP` bzw. `verifyBackupCode` vom Server legen dann die Session an; ein Backup-Code gilt einmal. Nach fünf falschen Codes einer Anmeldung und nach mehreren Fehlversuchen insgesamt sperrt das Plugin selbst.
+2. **Einrichten:** `enableTwoFactor` braucht das Passwort und legt Schlüssel und Backup-Codes verschlüsselt an (`verified = false`); erst `verifyTOTP` mit Session setzt `twoFactorEnabled` und tauscht die Session aus. Danach beendet `finishTwoFactorSetup` alle Sitzungen.
+3. **Kein Discord-Login für Staff:** Das Plugin fragt den Code nur bei `/sign-in/email`. `databaseHooks.session.create.before` sieht `ctx.path = "/callback/:id"` und lehnt die Session ab; Better Auth leitet dann mit `error=unable_to_create_session` weiter. Die Session nach dem Code entsteht unter `/two-factor/verify-totp` und ist davon nicht betroffen; Discord verknüpfen legt keine Session an und geht weiter.
 
 ## Dev-Login
 
@@ -177,7 +210,7 @@ In der `.env`:
 
 - `DOMAIN=<domain>`, `BETTER_AUTH_URL=https://<domain>`, `PUBLIC_BASE_URL=https://<domain>`
 - `BETTER_AUTH_SECRET` mit `openssl rand -base64 32`, `POSTGRES_PASSWORD` mit `openssl rand -hex 32` (hex, weil es in `DATABASE_URL` steht)
-- Discord-Werte, `HUB_GUILD_ID`, `HUB_INVITE_URL`, `ADMIN_DISCORD_IDS`
+- Discord-Werte, `HUB_GUILD_ID`, `HUB_INVITE_URL` (`ADMIN_DISCORD_IDS` gibt es seit Phase 8 nicht mehr; eine alte Zeile stört nicht)
 - `DATABASE_URL` setzt die Compose-Datei selbst, ebenso `UPLOAD_DIR` und `LEGAL_DIR` für `web` (der Bot braucht beide nicht; nur das Skript beim Wiederherstellen bekommt `UPLOAD_DIR` im Aufruf). Die `DEV_*`-Schalter sind in Production ohnehin aus.
 
 Rechtstexte anlegen (Format siehe ARCHITECTURE §8):
@@ -341,13 +374,15 @@ SELECT json_build_object(
     FROM "user" u JOIN account a ON a."userId" = u.id AND a."providerId" = 'discord'
     WHERE u."bannedAt" IS NOT NULL), '[]'),
   'deletedUsers', COALESCE((SELECT json_agg(json_build_object('id', u.id))
-    FROM "user" u WHERE u."deletedAt" IS NOT NULL), '[]')
+    FROM "user" u WHERE u."deletedAt" IS NOT NULL), '[]'),
+  'staff', COALESCE((SELECT json_agg(json_build_object('id', u.id, 'role', u."staffRole"))
+    FROM "user" u WHERE u."staffRole" IS NOT NULL), '[]')
 );
 SQL
 head -c 200 moderation.json; echo
 ```
 
-Auch aufgelöste gesperrte Teams gehören in den Export: Im Backup sind sie vielleicht noch aktiv, und ohne die Sperre würde das Skript beim Löschen ihres Captains die Rolle übergeben, statt das Team wieder aufzulösen.
+Auch aufgelöste gesperrte Teams gehören in den Export: Im Backup sind sie vielleicht noch aktiv, und ohne die Sperre würde das Skript beim Löschen ihres Captains die Rolle übergeben, statt das Team wieder aufzulösen. Die Rollen (`staff`, ab Phase 8) setzt das Skript genau wie in der alten Datenbank, auch zurück auf keine Rolle: So kommen Rechte, die nach dem Backup entzogen wurden, nicht zurück.
 
 2. Die alte Datenbank durch eine leere ersetzen und das Backup einspielen. In eine leere Datenbank, damit Tabellen oder Typen späterer Migrationen nicht stehen bleiben; `--single-transaction` spielt alles oder nichts ein. Entschlüsselt wird auf dem Rechner mit dem privaten Schlüssel und direkt per SSH eingespielt, so liegt nirgends ein unverschlüsselter Dump. Ab dem `dropdb` ist die alte Datenbank weg; der Export aus Schritt 1 ist dann die einzige Quelle für das Nachziehen.
 
@@ -391,7 +426,8 @@ SELECT u.id, u.name, u."bannedAt", u."deletedAt" FROM "user" u
   WHERE a."providerId" = 'discord' AND a."accountId" = '<discord-id>';
 -- Entsperren. Hat der Nutzer sein Konto während der Sperre gelöscht, ist die gefundene Zeile ein
 -- Sperr-Platzhalter ("deletedAt" gesetzt), der nur die Discord-ID für die Sperre hält: Er wird
--- samt Discord-Verknüpfung und Sessions gelöscht, ein späterer Login legt einen neuen Nutzer an.
+-- samt Discord-Verknüpfung und Sessions gelöscht; danach kann sich die Person neu registrieren und
+-- Discord verknüpfen (seit Phase 7 legt ein Discord-Login kein Konto an).
 BEGIN;
 DELETE FROM "user" WHERE id = '<user-id>' AND "deletedAt" IS NOT NULL;
 UPDATE "user" SET "bannedAt" = NULL WHERE id = '<user-id>';

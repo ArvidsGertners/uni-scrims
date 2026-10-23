@@ -5,11 +5,16 @@ import { headers } from "next/headers";
 
 type Rule = { max: number; windowMs: number };
 
-/** Logging in and registering: 5 per minute; requesting a mail: 3 per minute (SPEC N-3). */
+/**
+ * Logging in and registering: 5 per minute; requesting a mail: 3 per minute (SPEC N-3). Codes of
+ * the staff 2FA, set up and login (§5.9): 10 per minute, as one setup alone takes several, and the
+ * plugin locks brute force itself.
+ */
 export const RATE_LIMITS = {
   login: { max: 5, windowMs: 60_000 },
   register: { max: 5, windowMs: 60_000 },
   mail: { max: 3, windowMs: 60_000 },
+  code: { max: 10, windowMs: 60_000 },
 } satisfies Record<string, Rule>;
 
 export const RATE_LIMITED = "Zu viele Versuche. Bitte warte eine Minute.";

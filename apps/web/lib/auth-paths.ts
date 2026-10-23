@@ -24,6 +24,10 @@ const SERVER_PATHS = new Set([
   "/reset-password",
   "/change-password",
   "/change-email",
+  // Staff 2FA (§5.9): set up, and the code after the password at login.
+  "/two-factor/enable",
+  "/two-factor/verify-totp",
+  "/two-factor/verify-backup-code",
 ]);
 
 /** Dev login (dev-login-plugin.ts): the endpoint itself answers 404 outside development. */

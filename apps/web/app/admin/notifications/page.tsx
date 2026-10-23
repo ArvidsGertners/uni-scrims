@@ -1,17 +1,17 @@
 import { MAX_FAILED_SHOWN, listFailedNotifications } from "@uni-scrims/core";
 import { formatDateTime } from "@/lib/format";
 import { NOTIFICATION_CHANNEL_LABELS, NOTIFICATION_TYPE_LABELS } from "@/lib/scrim-format";
-import { requireAdminPage } from "@/lib/session";
+import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
 import { PageMain } from "@/components/page-main";
 
 export default async function FailedNotificationsPage() {
-  const admin = await requireAdminPage("/admin/notifications");
+  const admin = await requireStaffPage("/admin/notifications", "admin");
   const { entries: failed, total } = await listFailedNotifications(admin.id);
 
   return (
     <PageMain className="gap-6">
-      <AdminNav adminId={admin.id} />
+      <AdminNav staff={admin} />
       <h1 className="type-h1">Fehlgeschlagene Nachrichten</h1>
       <p className="text-[14px] text-muted-foreground">
         Nachrichten, die dauerhaft nicht zugestellt werden konnten, zuletzt fehlgeschlagene zuerst

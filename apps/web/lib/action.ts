@@ -17,6 +17,14 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   PASSWORD_TOO_SHORT: "Das Passwort ist zu kurz.",
   PASSWORD_TOO_LONG: "Das Passwort ist zu lang.",
   MAIL_FAILED,
+  // Staff 2FA (§5.9).
+  INVALID_CODE: "Der Code stimmt nicht. Nimm den aktuellen aus deiner Authenticator-App.",
+  INVALID_BACKUP_CODE: "Dieser Backup-Code stimmt nicht oder wurde schon benutzt.",
+  INVALID_TWO_FACTOR_COOKIE: "Die Anmeldung ist abgelaufen. Bitte melde dich neu an.",
+  TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: "Zu viele falsche Codes. Bitte melde dich neu an.",
+  ACCOUNT_TEMPORARILY_LOCKED:
+    "Zu viele falsche Codes. Die Anmeldung ist kurz gesperrt, bitte versuch es später erneut.",
+  TOTP_ALREADY_ENABLED: "Die Zwei-Faktor-Anmeldung ist schon eingerichtet.",
 };
 
 /** An APIError of Better Auth, matched by shape: the class lives in more than one package. */

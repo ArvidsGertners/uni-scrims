@@ -1,4 +1,5 @@
-import { getBotStatus } from "@uni-scrims/core";
+import { type StaffArea, getBotStatus, staffArea } from "@uni-scrims/core";
+import type { StaffRole } from "@uni-scrims/db";
 import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
 import { missingLegalPages } from "@/lib/legal";
@@ -8,20 +9,27 @@ const BOT_LOOP_LABELS = [
   { loop: "outbox", label: "Versand der Nachrichten (auch Reminder)" },
 ] as const;
 
-const LINKS = [
-  { href: "/admin", label: "Prüf-Queue" },
-  { href: "/admin/disputes", label: "Streitfälle" },
-  { href: "/admin/bans", label: "Sperren" },
-  { href: "/admin/notifications", label: "Fehlgeschlagene Nachrichten" },
-  { href: "/admin/stats", label: "Statistik" },
+const LINKS: { href: string; label: string; area: StaffArea }[] = [
+  { href: "/admin", label: "Prüf-Queue", area: "queue" },
+  { href: "/admin/disputes", label: "Streitfälle", area: "admin" },
+  { href: "/admin/bans", label: "Sperren", area: "admin" },
+  { href: "/admin/notifications", label: "Fehlgeschlagene Nachrichten", area: "admin" },
+  { href: "/admin/stats", label: "Statistik", area: "admin" },
+  { href: "/admin/staff", label: "Rollen", area: "staff" },
 ];
 
 /**
- * Sub-navigation with the bot status (SPEC P0-9). Rendered by every admin page rather than the
- * layout, because layouts keep their output on client navigation and the status would go stale.
+ * Sub-navigation with the bot status (SPEC P0-9), showing only the areas of the role (§5.9).
+ * Rendered by every admin page rather than the layout, because layouts keep their output on client
+ * navigation and the status would go stale.
  */
-export async function AdminNav({ adminId }: { adminId: string }) {
-  const bot = await getBotStatus(adminId, new Date());
+export async function AdminNav({ staff }: { staff: { id: string; staffRole: StaffRole } }) {
+  const links = LINKS.filter((link) => staffArea(staff.staffRole, link.area));
+  // Bot status and the legal texts concern admins; reviewers only see their queue.
+  if (!staffArea(staff.staffRole, "admin")) {
+    return links.length > 1 ? <NavLinks links={links} /> : null;
+  }
+  const bot = await getBotStatus(staff.id, new Date());
   const missingLegal = await missingLegalPages();
   const lastSeen = (heartbeatAt: Date | null) =>
     heartbeatAt
@@ -29,13 +37,7 @@ export async function AdminNav({ adminId }: { adminId: string }) {
       : "noch kein Lebenszeichen";
   return (
     <div className="flex flex-col gap-2">
-      <nav className="flex flex-wrap gap-x-4 gap-y-1 text-[14px]">
-        {LINKS.map((link) => (
-          <Link key={link.href} href={link.href} className="underline underline-offset-2">
-            {link.label}
-          </Link>
-        ))}
-      </nav>
+      <NavLinks links={links} />
       {missingLegal.length > 0 ? (
         <p className="text-[14px] text-accent-text">
           Rechtstexte fehlen in LEGAL_DIR oder enthalten noch „TODO“ (
@@ -56,5 +58,17 @@ export async function AdminNav({ adminId }: { adminId: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+function NavLinks({ links }: { links: readonly { href: string; label: string }[] }) {
+  return (
+    <nav className="flex flex-wrap gap-x-4 gap-y-1 text-[14px]">
+      {links.map((link) => (
+        <Link key={link.href} href={link.href} className="underline underline-offset-2">
+          {link.label}
+        </Link>
+      ))}
+    </nav>
   );
 }

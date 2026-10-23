@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { requireAdminPage } from "@/lib/session";
+import { requireStaffMemberPage } from "@/lib/session";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  await requireAdminPage("/admin");
+  // Each page checks its area itself (§5.9); the 2FA setup needs only a role.
+  await requireStaffMemberPage("/admin");
   return children;
 }

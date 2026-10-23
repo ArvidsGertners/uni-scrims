@@ -1,7 +1,7 @@
 import { listPendingVerifications, listUniversities, resolveUploadDir } from "@uni-scrims/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
-import { requireAdminPage } from "@/lib/session";
+import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "./admin-nav";
 import { DecisionForm } from "./decision-form";
 import { PageMain } from "@/components/page-main";
@@ -17,13 +17,13 @@ const CHECKLIST = [
 
 export default async function AdminPage() {
   // Layout and page render in parallel, so the page checks too.
-  const admin = await requireAdminPage("/admin");
+  const admin = await requireStaffPage("/admin", "queue");
   const queue = await listPendingVerifications(admin.id, resolveUploadDir());
   const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
 
   return (
     <PageMain className="gap-6">
-      <AdminNav adminId={admin.id} />
+      <AdminNav staff={admin} />
       <h1 className="type-h1">Prüf-Queue</h1>
       {queue.length === 0 ? <p>Keine offenen Prüfungen.</p> : null}
       {queue.map((request) => {

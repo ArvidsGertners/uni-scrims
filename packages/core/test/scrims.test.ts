@@ -8,7 +8,7 @@ import {
   prisma,
   StaffRole,
 } from "@uni-scrims/db";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   type FeedbackSide,
   type ScrimOutcome,

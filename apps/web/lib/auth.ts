@@ -5,6 +5,7 @@ import {
   PASSWORD_MAX,
   PASSWORD_MIN,
   accountCreateProblem,
+  discordLoginBlocked,
   discordLoginUserInfo,
   handleDiscordLogin,
 } from "@uni-scrims/core";
@@ -13,6 +14,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
+import { twoFactor } from "better-auth/plugins";
 import { isAllowedAuthPath } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
 import { joinHubGuild } from "./hub-join.ts";
@@ -135,6 +137,16 @@ export const auth = betterAuth({
       },
       update: { after: onDiscordTokens },
     },
+    session: {
+      create: {
+        // Staff log in with password and code only; the code is not asked on a Discord login, so
+        // its session is refused (§5.9). Linking Discord creates no session and still works.
+        before: async (session, ctx) => {
+          if (!ctx?.path.startsWith("/callback/")) return;
+          if (await discordLoginBlocked(session.userId)) return false;
+        },
+      },
+    },
   },
   hooks: {
     // Calls through auth.api come without an HTTP request (server actions, §5.8).
@@ -142,6 +154,11 @@ export const auth = betterAuth({
       if (!isAllowedAuthPath(ctx.path, !ctx.request)) throw new APIError("NOT_FOUND");
     }),
   },
-  // nextCookies must stay last.
-  plugins: [devLogin(), nextCookies()],
+  plugins: [
+    // TOTP for staff (§5.9): no email OTP, and no "trust this device", which would skip the code.
+    twoFactor({ issuer: "Uni Scrims", backupCodeOptions: { amount: 10 } }),
+    devLogin(),
+    // nextCookies must stay last.
+    nextCookies(),
+  ],
 });

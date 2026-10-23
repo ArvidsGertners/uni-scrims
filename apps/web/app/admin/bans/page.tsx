@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requireAdminPage } from "@/lib/session";
+import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
 import { banTeamAction, banUserAction } from "../actions";
 import { PageMain } from "@/components/page-main";
@@ -19,7 +19,7 @@ export default async function BansPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const admin = await requireAdminPage("/admin/bans");
+  const admin = await requireStaffPage("/admin/bans", "admin");
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
   const result = await searchModerationTargets({ adminId: admin.id, query });
@@ -28,7 +28,7 @@ export default async function BansPage({
 
   return (
     <PageMain className="gap-6">
-      <AdminNav adminId={admin.id} />
+      <AdminNav staff={admin} />
       <h1 className="type-h1">Sperren</h1>
       <div className="flex flex-col gap-1 text-[14px] text-muted-foreground">
         <p>

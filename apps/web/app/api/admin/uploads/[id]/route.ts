@@ -6,6 +6,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   UNAUTHENTICATED: 401,
   BANNED: 403,
   FORBIDDEN: 403,
+  TWO_FACTOR_REQUIRED: 403,
   NOT_FOUND: 404,
 };
 

@@ -1,7 +1,8 @@
 // The checks of ARCHITECTURE §11 Phase 7 against the real Better Auth handler and the test database:
 // account endpoints only from the server, the confirmation link, linking Discord and the Discord
 // login. Discord itself is replaced by a stubbed fetch; mails are captured instead of sent.
-import { prisma } from "@uni-scrims/db";
+import { createHmac } from "node:crypto";
+import { StaffRole, prisma } from "@uni-scrims/db";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mail } from "../lib/mail.ts";
 
@@ -287,5 +288,115 @@ describe("Discord (checks 2 and 3)", () => {
     await http(jar, `/callback/discord?code=code&state=${state}`);
     expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
     expect(discord.hubJoins).toEqual([]);
+  });
+});
+
+/** RFC 6238 TOTP (SHA-1, 6 digits, 30 s) as authenticator apps compute it, from the otpauth URI. */
+function totpFromUri(uri: string, time = Date.now()): string {
+  const secret = new URL(uri).searchParams.get("secret")!;
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const char of secret.replace(/=+$/, "").toUpperCase()) {
+    bits += alphabet.indexOf(char).toString(2).padStart(5, "0");
+  }
+  const key = Buffer.from(bits.match(/.{8}/g)!.map((byte) => Number.parseInt(byte, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(time / 1000 / 30)));
+  const hmac = createHmac("sha1", key).update(counter).digest();
+  const offset = hmac[hmac.length - 1]! & 0x0f;
+  const value = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
+  return String(value).padStart(6, "0");
+}
+
+const cookieHeaders = (jar: CookieJar) => new Headers({ cookie: jar.header(), origin: BASE });
+
+/** A confirmed account made reviewer, with the 2FA set up through the plugin (§5.9). */
+async function staffWithTwoFactor() {
+  const { jar, user } = await confirmedUser();
+  await prisma.user.update({ where: { id: user.id }, data: { staffRole: StaffRole.REVIEWER } });
+  const enabled = await auth.api.enableTwoFactor({
+    body: { password: "lang-genug1", method: "totp" },
+    headers: cookieHeaders(jar),
+  });
+  if (enabled.method !== "totp") throw new Error("no TOTP");
+  jar.take(
+    await auth.api.verifyTOTP({
+      body: { code: totpFromUri(enabled.totpURI) },
+      headers: cookieHeaders(jar),
+      asResponse: true,
+    }),
+  );
+  return { user, totpURI: enabled.totpURI, backupCodes: enabled.backupCodes };
+}
+
+describe("staff 2FA (Phase 8, checks 1 to 3)", () => {
+  it("sets the 2FA up with the password and the first code", async () => {
+    const { user } = await staffWithTwoFactor();
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
+      twoFactorEnabled: true,
+    });
+    expect(await prisma.twoFactor.findFirstOrThrow({ where: { userId: user.id } })).toMatchObject({
+      verified: true,
+    });
+  });
+
+  it("logs staff in with password, then code; a backup code works once", async () => {
+    const { user, totpURI, backupCodes } = await staffWithTwoFactor();
+    const login = async () => {
+      const jar = new CookieJar();
+      const response = jar.take(
+        await auth.api.signInEmail({
+          body: { email: user.email, password: "lang-genug1" },
+          asResponse: true,
+        }),
+      );
+      expect(await response.json()).toMatchObject({ twoFactorRedirect: true });
+      // No session before the code.
+      expect(await (await http(jar, "/get-session")).json()).toBeNull();
+      return jar;
+    };
+
+    const jar = await login();
+    await expect(
+      auth.api.verifyTOTP({ body: { code: "000000" }, headers: cookieHeaders(jar) }),
+    ).rejects.toMatchObject({ body: { code: "INVALID_CODE" } });
+    jar.take(
+      await auth.api.verifyTOTP({
+        body: { code: totpFromUri(totpURI) },
+        headers: cookieHeaders(jar),
+        asResponse: true,
+      }),
+    );
+    expect(await (await http(jar, "/get-session")).json()).toMatchObject({
+      user: { id: user.id },
+    });
+
+    const second = await login();
+    second.take(
+      await auth.api.verifyBackupCode({
+        body: { code: backupCodes[0]! },
+        headers: cookieHeaders(second),
+        asResponse: true,
+      }),
+    );
+    expect(await (await http(second, "/get-session")).json()).toMatchObject({
+      user: { id: user.id },
+    });
+    const third = await login();
+    await expect(
+      auth.api.verifyBackupCode({ body: { code: backupCodes[0]! }, headers: cookieHeaders(third) }),
+    ).rejects.toMatchObject({ body: { code: "INVALID_BACKUP_CODE" } });
+  });
+
+  it("refuses a Discord login of staff but still links Discord", async () => {
+    const { jar, user } = await confirmedUser();
+    await prisma.user.update({ where: { id: user.id }, data: { staffRole: StaffRole.ADMIN } });
+    const linked = await throughDiscord(jar, "/link-social");
+    expect(linked.headers.get("location")).toContain("/konto");
+
+    const fresh = new CookieJar();
+    const refused = await throughDiscord(fresh, "/sign-in/social");
+    expect(refused.headers.get("location")).toMatch(/error=unable_to_create_session/);
+    expect(await (await http(fresh, "/get-session")).json()).toBeNull();
   });
 });

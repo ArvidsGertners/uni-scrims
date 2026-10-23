@@ -309,7 +309,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [ ] Wer eine Rolle hat, braucht für den Admin-Bereich eine eingerichtete 2FA mit einer Authenticator-App (TOTP)
 - [ ] Einrichten beim ersten Aufruf des Admin-Bereichs: Passwort bestätigen, QR-Code scannen (oder Schlüssel abtippen), einen Code eingeben; dazu 10 Backup-Codes, die nur einmal angezeigt werden. Danach meldet die Seite ab, und die nächste Anmeldung läuft mit Passwort und Code.
 - [ ] Mit Rolle meldet man sich nur mit E-Mail, Passwort und Code an, nicht mit Discord. Statt des Codes geht einmalig ein Backup-Code.
-- [ ] Falsche Codes sind begrenzt (pro IP wie die Anmeldung, dazu sperrt Better Auth nach mehreren Fehlversuchen kurz)
+- [ ] Codes sind pro IP begrenzt (10 pro Minute, weil schon das Einrichten mehrere braucht), dazu sperrt Better Auth nach mehreren Fehlversuchen kurz
 - [ ] Ein verlorenes Gerät: Der Betreiber setzt die 2FA einer Person auf der Rollen-Seite zurück; die Person richtet sie beim nächsten Aufruf neu ein. Für den Betreiber selbst steht das im README.
 
 *Betrieb*
