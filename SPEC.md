@@ -87,6 +87,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 23. Als Spieler will ich ein Konto mit E-Mail, Passwort und meinem Namen anlegen und danach Discord verknüpfen, damit der Prüfer meine Bescheinigung meinem Namen zuordnen kann.
 24. Als Spieler will ich mein Passwort per E-Mail zurücksetzen können, wenn ich es vergessen habe.
 25. Als Prüfer will ich den Namen der Person neben ihrer Bescheinigung sehen, damit ich prüfen kann, ob beide übereinstimmen.
+26. Als Nutzer will ich alle Daten, die Uni Scrims zu meinem Konto speichert, selbst herunterladen können, ohne erst eine Mail zu schreiben.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -316,6 +317,14 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Nach dem Einspielen eines Backups gelten die Rollen aus der alten Datenbank, damit entzogene Rechte nicht zurückkommen, und alle richten die 2FA neu ein, damit kein zurückgesetzter Schlüssel wieder gilt (README)
 - [x] Keine Benachrichtigung über Rollenänderungen
 
+**N-5 Datenauskunft per Knopfdruck** (Phase 9)
+- [ ] Auf der Konto-Seite lädt „Meine Daten herunterladen“ eine JSON-Datei mit allen Daten, die zum Konto gespeichert sind. Das geht auch für gesperrte und unvollständige Konten, nicht für gelöschte.
+- [ ] Die Datei enthält: das Konto (Discord-Name und Avatar, E-Mail-Adresse und ob sie bestätigt ist, Vor- und Nachname, Hochschule, Zeitpunkte wie Registrierung, Verifizierung und Sperre, Rolle als Admin oder Prüfer und ob 2FA eingerichtet ist), die Anmeldewege (Discord-ID, ob ein Passwort gespeichert ist), die Sitzungen (Zeitpunkte, IP-Adresse, Browser), alle Prüfungen (Status, Zeitpunkte, Ablehnungsgrund, Dateityp und -größe, ob von Hand oder automatisch entschieden), Team und eigene Rolle, Teams, deren letzter Captain man war, selbst erstellte Anfragen mit Notiz, selbst abgegebenes Feedback, die Discord-Nachrichten an die Person selbst und, bei Admins und Prüfern, die eigenen Entscheidungen mit Datum und Ergebnis.
+- [ ] Keine Daten anderer Personen: keine Namen, IDs oder Adressen anderer Nutzer, nicht wer eine Prüfung entschieden hat; bei eigenen Entscheidungen nicht, über wen. Teamnamen stehen drin.
+- [ ] Keine Zugangsdaten: Passwort-Hash, 2FA-Schlüssel, Backup-Codes und die Tokens von Sitzungen und Mail-Links stehen nicht drin, nur dass es sie gibt. Die Datei einer offenen Prüfung ist nicht dabei, nur ihre Angaben.
+- [ ] Die Datei nennt den Zeitpunkt der Auskunft und verweist für Zwecke, Empfänger, Speicherdauer und Rechte auf die Datenschutzerklärung; sie sagt auch, was fehlt (Server-Logs, Backups, Nachrichten an Teams).
+- [ ] Wie bisher geht die Auskunft auch formlos per Mail an die Adresse aus dem Impressum.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -323,7 +332,6 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - **Feedback-Kommentar** als Freitext, mit Admin-Ansicht.
 - **Uniliga-Division** als optionales Team-Feld und als Filter.
 - **Wiederkehrende Anfragen**, z. B. "jeden Dienstag 20 Uhr".
-- **Datenauskunft (Art. 15 DSGVO) per Knopfdruck** statt manuell.
 
 ### P2: Später, aber jetzt schon mitdenken
 - **Weitere Games:** `game` als Feld an Team und Anfrage, auch wenn es vorerst nur `valorant` gibt.
@@ -405,7 +413,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | 1 | Impressum nach § 5 DDG: Nicht-kommerziell befreit nicht sicher von der Pflicht. Eigene Adresse oder Impressums-Service? | Impressum mit der eigenen Anschrift des Betreibers und E-Mail. |
 | 2 | Datenschutzerklärung: Upload sensibler Dokumente, Rechtsgrundlage, Löschfristen, Discord (USA) als Empfänger durch Server-Beitritt und DMs, Hoster, Logs, IP-Adresse und User-Agent in der Session, Benachrichtigungen (30 Tage), Mindestalter 16, kein automatischer Kick nach Kontolöschung, Discord-ID gesperrter Nutzer nach Löschung, Backups (14 Tage) mit gelöschten Konten. | Geschrieben, deckt alle genannten Punkte ab. Hoster: IONOS (Rechenzentrum Berlin); Backups: Hetzner Storage Box (Falkenstein), 14 Tage, scheitert die Sicherung, bleibt das letzte Backup bis zur nächsten gelungenen; nginx-Logs 14 Tage (eigene logrotate-Regel, ARCHITECTURE §8). Sessions (mit IP-Adresse und User-Agent) laufen spätestens 7 Tage nach der letzten Nutzung ab und werden höchstens eine Stunde danach gelöscht; Benachrichtigungen 30 Tage nach dem Versand, dem letzten Versuch bzw. der Absage. |
 | 3 | AVV mit dem VPS-Hoster; Snapshots/Backups des Hosters aus oder in der Datenschutzerklärung nennen. | AVV mit IONOS und Hetzner abgeschlossen; bei IONOS sind keine Snapshots oder Backups aktiv. |
-| 4 | Ablauf für Datenauskunft (Art. 15). | Formlos per E-Mail an die Adresse aus dem Impressum; Antwort innerhalb eines Monats, im MVP manuell per DB-Abfrage. |
+| 4 | Ablauf für Datenauskunft (Art. 15). | Formlos per E-Mail an die Adresse aus dem Impressum; Antwort innerhalb eines Monats, im MVP manuell per DB-Abfrage. Seit Phase 9 zusätzlich per Knopf auf der Konto-Seite (N-5); per Mail geht es weiterhin. |
 
 **Noch offen**
 
@@ -430,6 +438,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 6 | Statistik-Seite für die Erfolgskriterien (N-2) | Ein Admin sieht alle Kennzahlen aus §8 für die letzten 28 Tage und gesamt, und sie stimmen mit den Testdaten überein |
 | 7 | Konto mit E-Mail, Passwort und Klarname (N-3) | Registrierung, Bestätigung, Anmeldung, Passwort vergessen und Discord verknüpfen laufen durch; ein Altkonto wird zum Vervollständigen geführt, und die Prüf-Queue zeigt den Klarnamen |
 | 8 | Admins und Prüfer über die Oberfläche, mit 2FA (N-4) | Der Betreiber macht ein Konto zum Prüfer; es richtet 2FA ein, sieht nur die Prüf-Queue und entscheidet; nach dem Entzug ist der Zugang sofort weg |
+| 9 | Datenauskunft per Knopfdruck (N-5) | Ein Nutzer lädt auf der Konto-Seite seine Daten herunter; die Datei enthält alle Abschnitte, aber keine Zugangsdaten und keine Daten anderer Personen |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 

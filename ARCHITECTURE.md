@@ -142,7 +142,7 @@ uni-scrims/
 | Lesen | `getDiscordId`, `findUserByDiscordId`, `getCurrentUser` (Header und Banner, ab Phase 8 mit `staffRole`), `listUniversities`, `getVerificationStatus`, `listPendingVerifications`, `getVerificationFile`, `getMyTeam`, `getTeamByInviteCode`, `getBoard`, `getRequestForm` (Formular "Anfrage erstellen": die Gründe, warum gerade keine Anfrage geht), `getRequestDetail`, `getScrimDetail`, `getMyScrims`, `getReliability` (für Listen als Batch `getReliabilities`), `isTeamReady`; für den Admin-Bereich: `listDisputes`, `listFailedNotifications`, `getBotStatus`, `searchModerationTargets` (Suche auf der Sperren-Seite), `getSuccessMetrics` (Statistik-Seite, Phase 6); nur für den Dev-Login: `listSeedUsers` |
 | Moderation | `banUser`, `banTeam` (Bausteine ohne Berechtigungsprüfung in einer Transaktion: `banUserInTx`, `banTeamInTx`, auch für `reapplyModeration`) |
 | Rollen (Phase 8) | `listStaff`, `findStaffCandidates` (Suche auf der Rollen-Seite), `setStaffRole`, `resetStaffTwoFactor`, `setOperator` (nur das Skript, ohne Berechtigungsprüfung), `hasStaffRole` (Staff bekommt Sessions nur über Passwort und Code), `finishTwoFactorSetup` (nach dem Einschalten der 2FA alle Sessions beenden), `endStaffSessions` (Baustein in einer Transaktion: Sessions und 2FA einer Person entfernen, auch für `reapplyModeration`), `staffArea` (welche Admin-Seiten eine Rolle sieht) |
-| Konto | `deleteAccount`, `getAccount` (Konto-Seite: ob Löschen gerade geht), `finishInterruptedDeletions` (Sweeper: eine solche Rücknahme nachholen); ab Phase 7 `accountSetupStep` (was dem Konto noch fehlt, §5.8), `completeAccount` (Altkonto vervollständigen), `updateRealName`, `handOverCaptain` (Captain-Rolle von der Konto-Seite, für unvollständige Konten) |
+| Konto | `deleteAccount`, `getAccount` (Konto-Seite: ob Löschen gerade geht), `finishInterruptedDeletions` (Sweeper: eine solche Rücknahme nachholen); ab Phase 7 `accountSetupStep` (was dem Konto noch fehlt, §5.8), `completeAccount` (Altkonto vervollständigen), `updateRealName`, `handOverCaptain` (Captain-Rolle von der Konto-Seite, für unvollständige Konten); ab Phase 9 `exportAccountData` (Datenauskunft, §5.10) |
 | Bot | `deliverNotification`, `deliverDueNotifications` (Outbox-Sender §6.2; der Bot übergibt die Sendefunktion `Deliver`, wie beim Hub-Beitritt), `runSweeper` (Schritte 1–7 aus §6.3), `recordHeartbeat` (Heartbeat beider Bot-Schleifen) |
 | Wartung | `purgeOldNotifications`, `purgeExpiredSessions`, `purgeStaleOAuthTokens`, `reapplyModeration` (Sperren und Löschungen nach dem Einspielen eines Backups nachziehen, §8) |
 
@@ -516,7 +516,33 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 
 **Sperren und Löschen:** `banUser` lehnt Konten mit Rolle ab („Entziehe zuerst die Rolle.“). `deletedUserData` leert `staffRole` und `twoFactorEnabled`; `deleteAccount` löscht die `twoFactor`-Zeilen.
 
-**Wiederherstellen:** Der Export der alten Datenbank (§8, README) enthält zusätzlich alle Konten mit Rolle; `reapplyModeration` setzt die Rollen genau so, also auch entzogene zurück auf null, und löscht bei jeder Änderung die Sessions. Schlüssel enthält der Export nicht. Die zurückgespielten Schlüssel können veraltet sein, etwa wenn nach dem Backup ein verlorenes Gerät zurückgesetzt wurde. Deshalb setzt `reapplyModeration` jede 2FA zurück, und Staff richtet sie beim nächsten Besuch neu ein. Ohne Export (alte Datenbank verloren) prüft der Betreiber die Rollen-Seite und setzt die 2FA dort zurück (README).
+**Wiederherstellen (Rollen):** Der Export der alten Datenbank (§8, README) enthält zusätzlich alle Konten mit Rolle; `reapplyModeration` setzt die Rollen genau so, also auch entzogene zurück auf null, und löscht bei jeder Änderung die Sessions. Schlüssel enthält der Export nicht. Die zurückgespielten Schlüssel können veraltet sein, etwa wenn nach dem Backup ein verlorenes Gerät zurückgesetzt wurde. Deshalb setzt `reapplyModeration` jede 2FA zurück, und Staff richtet sie beim nächsten Besuch neu ein. Ohne Export (alte Datenbank verloren) prüft der Betreiber die Rollen-Seite und setzt die 2FA dort zurück (README).
+
+### 5.10 Datenauskunft (ab Phase 9)
+
+**Funktion:** `exportAccountData({ userId, now, privacyPolicyUrl })` in `core` (`account-export.ts`) mit `requireAccountUser`: auch gesperrte und unvollständige Konten, keine gelöschten (SPEC N-5). Nur Lesen über den Prisma-Client, in einer Transaktion mit `RepeatableRead`, damit alle Abschnitte denselben Stand zeigen. Das Ergebnis hat deutsche Schlüssel und Anzeigetexte statt Enum-Werten (`labels.ts`); Zeitpunkte stehen als ISO 8601 in UTC.
+
+**Abschnitte:**
+- `hinweis`, `erstelltAm`: was die Datei ist, Verweis auf die Datenschutzerklärung (Zwecke, Empfänger, Speicherdauer, Rechte) und was fehlt
+- `konto`: Konto-ID, Discord-Name, Avatar-URL, E-Mail und ob bestätigt, Vor- und Nachname, Hochschule bzw. Freitext, Zeitpunkte (angelegt, geändert, verifiziert, gesperrt, Hub-Beitritt bzw. DM gescheitert), Rolle und ob 2FA eingerichtet ist (Phase 8)
+- `anmeldung`: Discord-ID und wann verknüpft, ob ein Passwort gespeichert ist und wann es zuletzt geändert wurde
+- `sitzungen`: je Session angelegt, zuletzt genutzt, läuft ab, IP-Adresse, User-Agent
+- `prüfungen`: je `VerificationRequest` hochgeladen, Status, entschieden, „von Hand“ oder „automatisch“ (`decidedById` gesetzt, nicht wer), Ablehnungsgrund, Dateityp und -größe, Hochschule bzw. Freitext, ob die Datei noch gespeichert ist
+- `team`: aktuelles Team (Name, Kürzel, Rang, gesperrt ja/nein), eigene Rolle, Captain ja/nein, beigetreten; `aufgelösteTeams`: aufgelöste Teams mit `captainId` = Person (Name, Kürzel, gegründet, aufgelöst)
+- `anfragen`: Anfragen mit `createdById` = Person (Team, erstellt, Start, Format, Rang-Bereich, Maps, Notiz, Status)
+- `feedback`: `ScrimFeedback` mit `submittedById` = Person (eigenes Team, Gegner-Team, Scrim-Start, Antwort, Sterne, abgegeben)
+- `nachrichten`: Notifications mit `targetUserId` = Person (heute nur `VERIFICATION_RESULT`) mit Art, Inhalt, Status und Zeitpunkten
+- `verwaltung`: eigene Prüf-Entscheidungen (`decidedById`) und Streitfall-Entscheidungen (`resolvedById`) nur mit Datum und Ergebnis, ohne die geprüfte Person bzw. die Teams
+
+**Nicht enthalten:**
+- Zugangsdaten: Passwort-Hash, 2FA-Schlüssel und Backup-Codes, Session-Tokens, Tokens offener Mail-Links und laufender Anmeldungen (`verification`); dass es sie gibt, steht in `anmeldung` und `konto`. Discord-Tokens löscht schon der Login (§5.1); stünde doch einer da, fehlt er ebenso.
+- Die Datei einer offenen Prüfung, nur ihre Angaben.
+- Daten anderer Personen: keine Namen, IDs oder Adressen anderer Nutzer, nicht wer geprüft oder entschieden hat. Teamnamen stehen drin.
+- Bewerbungen und Scrims: Teamdaten ohne Verfasser.
+- Nachrichten an Teams: Der Empfänger wird erst beim Senden bestimmt (§6.1), sie hängen also an keiner Person.
+- Server-Logs, die Zähler des Rate-Limits im Speicher und Backups (Datenschutzerklärung).
+
+**Web:** `GET /api/account/export` (ein Route Handler, weil eine Datei zurückkommt) holt die Session, ruft `exportAccountData` mit `privacyPolicyUrl` = `PUBLIC_BASE_URL` + `/datenschutz` und antwortet mit eingerücktem JSON: `Content-Disposition: attachment; filename="uni-scrims-daten-<JJJJ-MM-TT>.json"` (Datum in Europe/Berlin), `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`. Ohne Session oder für ein gelöschtes Konto 401. Die Konto-Seite bekommt den Abschnitt „Deine Daten“ mit dem Link „Meine Daten herunterladen“.
 
 ---
 
@@ -629,6 +655,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Ab Phase 8: Rollen vergeben, 2FA zurücksetzen (`/admin/staff`) | Betreiber, mit 2FA |
 | Ab Phase 7: Konto-Seite, „Konto vervollständigen“, „Discord verknüpfen“ | eingeloggt, auch mit unvollständigem Konto (§5.8); alles andere aus dieser Tabelle zusätzlich nur mit vollständigem Konto |
 | Ab Phase 7: Klarname | die Person selbst und Admins (Prüf-Queue); ab Phase 8 auch Prüfer, und der Betreiber auf der Rollen-Seite |
+| Ab Phase 9: Datenauskunft (`/api/account/export`) | eingeloggt, auch gesperrt oder mit unvollständigem Konto, nicht gelöscht; nur die eigenen Daten |
 
 `leaveTeam` funktioniert für Nicht-Captains auch in gesperrten Teams. Nach Verlassen oder Auflösen sind vergangene Scrims für ehemalige Mitglieder nicht mehr sichtbar (gewollt).
 - **Zeit:** Eingabe im Formular in Europe/Berlin, Umrechnung nach UTC in `core`. Keine Zeitlogik im Browser.
@@ -839,7 +866,10 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - `core`: `requireStaff` und die drei Rollen-Prüfungen statt `ADMIN_DISCORD_IDS`, `staffArea`, Rollen-Funktionen (§3), `banUser`, `deletedUserData`, `deleteAccount` und `reapplyModeration` erweitert; Tests für jede Rolle gegen jede Admin-Funktion, Vergabe und Entzug nur durch den Betreiber, Sperre und Löschung, Rollenentzug parallel zu `decideVerification`
 - Web: `twoFactor`-Plugin, Session-Hook, Allowlist; Seiten 2FA einrichten, Code bei der Anmeldung, Rollen-Seite; Admin-Navigation nach Rolle; Skript `set-operator`
 - *Fertig wenn:* Der Betreiber (per Skript gesetzt) richtet 2FA ein und meldet sich mit Passwort und Code an; er macht ein bestehendes Konto per E-Mail zum Prüfer; das richtet 2FA ein, sieht nur die Prüf-Queue und kann entscheiden; nach dem Entzug ist der Zugang sofort weg; ein Konto mit Rolle kann sich nicht per Discord anmelden; Tests und Lint sind grün.
-- *Stand (23.10.2026):* abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`, dazu ein `next build`), Review samt Fixes (Staff-Sessions nur über eine Allowlist, Sitzungsende bei jedem Einschalten der 2FA, Race beim Einschalten, 2FA-Reset nach einem Restore); der ganze Ablauf im Browser gegen eine Wegwerf-DB. Production läuft noch ohne Phase 8. Beim Deploy: Migrate-Job, dann `set-operator` mit deiner Adresse (README), Datenschutzerklärung mit dem Abschnitt „Admins und Prüfer“ nach Production kopieren.
+- *Stand (23.10.2026):* abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`, dazu ein `next build`), Review samt Fixes (Staff-Sessions nur über eine Allowlist, Sitzungsende bei jedem Einschalten der 2FA, Race beim Einschalten, 2FA-Reset nach einem Restore); der ganze Ablauf im Browser gegen eine Wegwerf-DB. Seit dem 23.10.2026 auch in Production, mit dem Betreiber per `set-operator` und der ergänzten Datenschutzerklärung.
 
-**Geplant** (Details folgen jeweils zu Beginn der Phase):
-- Phase 9: Datenauskunft (Art. 15 DSGVO) per Knopfdruck auf der Konto-Seite
+**Phase 9: Datenauskunft per Knopfdruck** (SPEC N-5, §5.10)
+- `core`: `exportAccountData` in `account-export.ts` mit allen Abschnitten aus §5.10; Tests: jeder Abschnitt mit einem vollständig befüllten Konto, keine Zugangsdaten (Passwort-Hash, 2FA-Schlüssel, Backup-Codes, Session- und Link-Tokens kommen im JSON nicht vor), keine Daten anderer Nutzer (Name, E-Mail, ID des Prüfers, des Gegners und der geprüften Person bei eigenen Entscheidungen), gesperrtes und unvollständiges Konto dürfen, gelöschtes nicht
+- Web: Route `GET /api/account/export`, Abschnitt „Deine Daten“ auf der Konto-Seite
+- Datenschutzerklärung: Abschnitt zu den Rechten um den Download ergänzen (Dev-Kopie; beim Deploy nach Production)
+- *Fertig wenn:* Ein Nutzer lädt auf der Konto-Seite seine Daten herunter, und die Datei enthält alle Abschnitte aus §5.10 ohne Zugangsdaten und ohne Daten anderer Personen; ein gesperrter Nutzer kann sie laden, ein gelöschtes Konto nicht; Tests und Lint sind grün.
