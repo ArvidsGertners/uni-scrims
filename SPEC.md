@@ -175,7 +175,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [ ] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Eisen bis Radiant)
 - [ ] Captain kann Name, Kürzel und Team-Rang ändern
 - [ ] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
-- [ ] Einladungslink, den der Captain erneuern kann
+- [ ] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite
 - [ ] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team
 - [ ] Genau ein Captain pro Team; Captain-Rolle übertragen; Mitglieder entfernen
 - [ ] Spieler können das Team verlassen; Captain nur nach Übertragung, als einziges Mitglied löst er das Team damit auf
@@ -200,7 +200,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [ ] Bot-DM an den Ersteller bei jeder neuen Bewerbung; Bot-DM an Bewerber bei Bestätigung oder Absage
 
 **P0-6 Gebuchte Scrims**
-- [ ] Übersicht "Meine Scrims" (anstehend und vergangen)
+- [ ] Übersicht "Meine Scrims" (anstehend und vergangen, dazu die eigenen offenen Anfragen und Bewerbungen als Listen; die Aktionen bleiben auf Anfrage- und Scrim-Seite)
 - [ ] Nach der Buchung ist der gegnerische Captain sichtbar (Discord-Name, in Bot-Nachrichten als Erwähnung)
 - [ ] Absage durch beide Seiten bis zum Start; unter 24 h vor Start wird sie als kurzfristig markiert
 
