@@ -28,7 +28,7 @@ TODO: werden 30 Tage nach dem Versand, dem letzten Zustellversuch bzw. der Absag
 TODO: 16 Jahre
 
 ## Kontolöschung
-TODO: Was gelöscht wird (auch die Notizen eigener Scrim-Anfragen), was anonymisiert bleibt (Bewerbungsnachrichten gehören zum Team); kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert
+TODO: Was gelöscht wird (auch die Notizen eigener Scrim-Anfragen), was anonymisiert bleibt (Bewerbungsnachrichten gehören zum Team); kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert (getrennt vom gelöschten Konto, bis die Sperre aufgehoben wird)
 
 ## Backups
 TODO: Datenbank-Backups 14 Tage (scheitert die Sicherung, bleibt das letzte Backup bis zur nächsten gelungenen), gelöschte Konten bis zum Ablauf enthalten; nach einer Wiederherstellung werden Löschungen seit dem Backup nachgezogen, ist das nicht möglich, ist ein gelöschtes Konto mit dem Stand des Backups wieder vorhanden

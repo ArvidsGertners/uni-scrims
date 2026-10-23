@@ -1,13 +1,19 @@
 import { prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
+import { tmpdir } from "node:os";
 import {
   clearOAuthTokens,
+  deleteAccount,
   findUserByDiscordId,
   getAdminDiscordIds,
+  getCurrentUser,
   getDiscordId,
+  listSeedUsers,
   recordHubJoinResult,
 } from "../src/index.ts";
-import { NOW, createUser } from "./helpers.ts";
+import { NOW, createTeamWithMembers, createUser, useAdmin } from "./helpers.ts";
+
+const admin = useAdmin();
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -53,5 +59,67 @@ describe("login side effects", () => {
     expect(
       (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).hubJoinFailedAt,
     ).toBeNull();
+  });
+});
+
+describe("recordHubJoinResult on a deleted account", () => {
+  it("writes nothing for an account deleted during the join (§4)", async () => {
+    const user = await createUser();
+    await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
+    await recordHubJoinResult(user.id, false, NOW);
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).hubJoinFailedAt,
+    ).toBeNull();
+  });
+});
+
+describe("getCurrentUser", () => {
+  it("returns the header data, banned users and the admin flag included", async () => {
+    const user = await createUser({ verified: true, banned: true });
+    await prisma.user.update({ where: { id: user.id }, data: { dmFailedAt: NOW } });
+    expect(await getCurrentUser(user.id)).toEqual({
+      id: user.id,
+      name: user.name,
+      image: null,
+      verifiedAt: NOW,
+      bannedAt: NOW,
+      hubJoinFailedAt: null,
+      dmFailedAt: NOW,
+      isAdmin: false,
+    });
+    expect(await getCurrentUser(admin.id)).toMatchObject({ isAdmin: true });
+  });
+
+  it("treats missing, deleted and unlinked users as logged out", async () => {
+    expect(await getCurrentUser("missing")).toBeNull();
+    const deleted = await createUser();
+    await deleteAccount({ userId: deleted.id, uploadDir: tmpdir(), now: NOW });
+    expect(await getCurrentUser(deleted.id)).toBeNull();
+    // What a login that raced the deletion leaves if undoing it failed (§5.1).
+    const unlinked = await createUser();
+    await prisma.account.deleteMany({ where: { userId: unlinked.id } });
+    expect(await getCurrentUser(unlinked.id)).toBeNull();
+  });
+});
+
+describe("listSeedUsers", () => {
+  it("lists the seed users by id with their team", async () => {
+    const id = `seed-${NOW.getTime()}-a`;
+    await prisma.user.create({
+      data: { id, name: "Seed A", email: `${id}@users.uniscrims.invalid` },
+    });
+    const { team } = await createTeamWithMembers();
+    const memberId = `seed-${NOW.getTime()}-b`;
+    await prisma.user.create({
+      data: { id: memberId, name: "Seed B", email: `${memberId}@users.uniscrims.invalid` },
+    });
+    await prisma.teamMember.create({ data: { teamId: team.id, userId: memberId, joinedAt: NOW } });
+    const seeds = (await listSeedUsers()).filter((seed) =>
+      seed.id.startsWith(`seed-${NOW.getTime()}`),
+    );
+    expect(seeds).toEqual([
+      { id, name: "Seed A", teamName: null },
+      { id: memberId, name: "Seed B", teamName: team.name },
+    ]);
   });
 });

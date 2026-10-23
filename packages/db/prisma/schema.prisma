@@ -118,6 +118,8 @@ model User {
   bannedAt        DateTime?   @db.Timestamptz(3)
   hubJoinFailedAt DateTime?   @db.Timestamptz(3)
   dmFailedAt      DateTime?   @db.Timestamptz(3)
+  // Set by deleteAccount and kept, also if a racing login writes the Discord profile back (§4, §5.1).
+  deletedAt       DateTime?   @db.Timestamptz(3)
 
   sessions Session[]
   accounts Account[]
@@ -398,7 +400,7 @@ model Notification {
 }
 
 model SystemStatus {
-  // 'bot'
+  // One row per bot loop: 'bot' (sweeper) and 'outbox' (sender), ARCHITECTURE §6.3
   id          String   @id
   heartbeatAt DateTime @db.Timestamptz(3)
 }

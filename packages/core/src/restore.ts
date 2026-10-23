@@ -11,9 +11,8 @@ import { findOwnTeam, isCaptainOf } from "./permissions.ts";
 import { TRANSFER_CAPTAIN_FIRST, transferCaptain } from "./teams.ts";
 import { removeFilesAfterCommit } from "./verification.ts";
 import {
-  DELETED_USER_NAME,
   DISCORD_PROVIDER,
-  deletedUserEmail,
+  banPlaceholderData,
   findUserByDiscordId,
   isDeletedUser,
 } from "./users.ts";
@@ -79,16 +78,12 @@ export async function reapplyModeration(input: {
       report.bannedUsers++;
       continue;
     }
-    // Not in the restored database: keep only the Discord ID with the ban (as for a banned user who
-    // deleted the account, §4), so a new login lands on a banned user.
+    // Not in the restored database: keep only the Discord ID with the ban (the placeholder of a
+    // banned user who deleted the account, §4), so a new login lands on a banned user.
     const userId = (await prisma.user.findUnique({ where: { id } })) ? randomUUID() : id;
     await prisma.user.create({
       data: {
-        id: userId,
-        name: DELETED_USER_NAME,
-        email: deletedUserEmail(userId),
-        bannedAt: now,
-        createdAt: now,
+        ...banPlaceholderData(userId, now, now),
         accounts: {
           create: {
             id: randomUUID(),

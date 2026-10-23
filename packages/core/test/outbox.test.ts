@@ -12,9 +12,11 @@ import {
   type Deliver,
   type DeliveryResult,
   MAX_FAILED_SHOWN,
+  DELETED_USER_NAME,
   MAX_RETRIES,
   type OutboxMessage,
   applyToRequest,
+  banUser,
   cancelScrim,
   classifyDeliveryError,
   deleteAccount,
@@ -34,10 +36,13 @@ import {
   bookScrim,
   createOpenRequest,
   createReadyTeam,
+  createTeamWithMembers,
   createUser,
   uid,
   useAdmin,
 } from "./helpers.ts";
+
+const admin = useAdmin();
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -200,6 +205,23 @@ describe("deliverNotification: recipients", () => {
       { kind: "CHANNEL", channelId: "111", redirectedFrom: null },
     ]);
     expect(await status(guestPost.id)).toBe(NotifStatus.CANCELLED);
+  });
+
+  it("shows a deleted captain of a banned team without a Discord mention", async () => {
+    // Banned after the start (the scrim stays), then the captain deletes the account: the ban
+    // moves to a placeholder, so the opponent's feedback prompt has no Discord ID to mention.
+    const { host, guest, scrim } = await bookScrim();
+    await banUser({
+      adminId: admin.id,
+      userId: guest.captain.id,
+      uploadDir: tmpdir(),
+      now: AFTER_START,
+    });
+    await deleteAccount({ userId: guest.captain.id, uploadDir: tmpdir(), now: AFTER_START });
+    const prompt = await scrimNotification(scrim.id, NotifType.FEEDBACK_PROMPT, host.team.id);
+    const { sent, deliver } = recorder();
+    expect(await send(prompt.id, FEEDBACK_OPENS, deliver)).toBe("SENT");
+    expect(sent[0]?.opponentCaptain).toEqual({ name: DELETED_USER_NAME, discordId: null });
   });
 
   it("sends a verification result to the user", async () => {
@@ -451,6 +473,30 @@ describe("deliverNotification: results (§6.2)", () => {
     });
   });
 
+  it("does not mark a captain DM as failed when the captain deleted the account during the send", async () => {
+    // Addressed to the team and not linked to a scrim, so the entry survives the deletion (which
+    // dissolves the captain's team) and is settled as FAILED.
+    const { team, captain } = await createTeamWithMembers();
+    await queueNotifications(prisma, NOW, [
+      {
+        type: NotifType.REQUEST_EXPIRED,
+        channel: NotifChannel.CAPTAIN_DM,
+        entityId: uid(),
+        targetTeamId: team.id,
+        payload: { teamName: "Andere", startsAt: REQUEST_STARTS_AT.toISOString() },
+      },
+    ]);
+    const notification = await find({ targetTeamId: team.id, type: NotifType.REQUEST_EXPIRED });
+    const deliver: Deliver = async () => {
+      await deleteAccount({ userId: captain.id, uploadDir: tmpdir(), now: NOW });
+      return { ok: false, code: 50007, error: "Cannot send messages to this user" };
+    };
+    expect(await send(notification.id, NOW, deliver)).toBe("FAILED");
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: captain.id } })).toMatchObject({
+      dmFailedAt: null,
+    });
+  });
+
   it("leaves dmFailedAt alone when the DM was redirected in development", async () => {
     const user = await createUser();
     const notification = await queueVerificationResult(user.id);
@@ -650,7 +696,6 @@ describe("deliverDueNotifications", () => {
 });
 
 describe("listFailedNotifications", () => {
-  const admin = useAdmin();
   // Later than every entry the other tests create, so these come first.
   const LATER = new Date(NOW.getTime() + 1000 * 24 * HOUR);
 

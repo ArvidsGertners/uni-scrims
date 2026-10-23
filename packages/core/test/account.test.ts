@@ -2,15 +2,24 @@ import { existsSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { NotifChannel, NotifType, ScrimStatus, VerifStatus, prisma } from "@uni-scrims/db";
+import {
+  AppStatus,
+  NotifChannel,
+  NotifType,
+  ScrimStatus,
+  VerifStatus,
+  prisma,
+} from "@uni-scrims/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   DELETED_USER_NAME,
+  applyToRequest,
   banUser,
   createTeam,
   deleteAccount,
   deletedUserEmail,
   findUserByDiscordId,
+  finishInterruptedDeletions,
   getAccount,
   getReliability,
   requireAccountUser,
@@ -31,9 +40,14 @@ import {
 
 const admin = useAdmin();
 let uploadDir: string;
+let universityId: string;
 
 beforeAll(async () => {
   uploadDir = await mkdtemp(path.join(tmpdir(), "uni-scrims-account-"));
+  const university = await prisma.university.create({
+    data: { name: "Konto-Uni", city: "Teststadt", slug: `account-${uid()}` },
+  });
+  universityId = university.id;
   return () => rm(uploadDir, { recursive: true, force: true });
 });
 
@@ -43,7 +57,42 @@ afterAll(async () => {
 
 const remove = (userId: string) => deleteAccount({ userId, uploadDir, now: NOW });
 
-/** A decided and a pending verification request with files, and a DM to the user. */
+/** The values every deleted account has (ARCHITECTURE §4). */
+function deletedValues(userId: string) {
+  return {
+    name: DELETED_USER_NAME,
+    email: deletedUserEmail(userId),
+    image: null,
+    verifiedAt: null,
+    universityId: null,
+    universityOther: null,
+    hubJoinFailedAt: null,
+    dmFailedAt: null,
+    deletedAt: NOW,
+  };
+}
+
+/** What a login writes: the Discord profile, the original placeholder, fresh tokens and a session. */
+async function simulateLogin(userId: string, discordId: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: "echter.name",
+      email: `${discordId}@users.uniscrims.invalid`,
+      image: "https://cdn.discordapp.com/avatars/1/a.png",
+    },
+  });
+  await prisma.account.updateMany({
+    where: { userId },
+    data: { accessToken: "access", refreshToken: "refresh", scope: "identify guilds.join" },
+  });
+  await createSession(userId);
+}
+
+/**
+ * Profile, verification with university, a decided and a pending verification request with files,
+ * a DM to the user, a session and all OAuth token fields.
+ */
 async function personalData(userId: string) {
   const files = [`${uid()}.pdf`, `${uid()}.png`];
   for (const file of files) await writeFile(path.join(uploadDir, file), "file");
@@ -66,9 +115,24 @@ async function personalData(userId: string) {
   await createSession(userId);
   await prisma.user.update({
     where: { id: userId },
-    data: { hubJoinFailedAt: NOW, dmFailedAt: NOW },
+    data: {
+      image: "https://cdn.discordapp.com/avatars/1/a.png",
+      verifiedAt: NOW,
+      universityId,
+      universityOther: "Hochschule Irgendwo",
+      hubJoinFailedAt: NOW,
+      dmFailedAt: NOW,
+    },
   });
-  await prisma.account.updateMany({ where: { userId }, data: { scope: "identify guilds.join" } });
+  await prisma.account.updateMany({
+    where: { userId },
+    data: {
+      idToken: "id",
+      accessTokenExpiresAt: NOW,
+      refreshTokenExpiresAt: NOW,
+      scope: "identify guilds.join",
+    },
+  });
   return files;
 }
 
@@ -81,14 +145,7 @@ describe("deleteAccount", () => {
     await remove(player.id);
 
     expect(await prisma.user.findUnique({ where: { id: player.id } })).toMatchObject({
-      name: DELETED_USER_NAME,
-      email: deletedUserEmail(player.id),
-      image: null,
-      verifiedAt: null,
-      universityId: null,
-      universityOther: null,
-      hubJoinFailedAt: null,
-      dmFailedAt: null,
+      ...deletedValues(player.id),
       bannedAt: null,
     });
     expect(await prisma.teamMember.findUnique({ where: { userId: player.id } })).toBeNull();
@@ -108,45 +165,75 @@ describe("deleteAccount", () => {
     ).resolves.toBeTruthy();
   });
 
-  it("keeps only the Discord ID of a banned user, so the ban survives a new login", async () => {
+  it("moves the ban of a banned user to a placeholder that holds only the Discord ID", async () => {
     const user = await createUser({ verified: true });
     await banUser({ adminId: admin.id, userId: user.id, uploadDir, now: NOW });
-    await personalData(user.id);
+    const files = await personalData(user.id);
 
     await remove(user.id);
 
-    expect(await prisma.account.findMany({ where: { userId: user.id } })).toMatchObject([
+    // The account itself is as anonymous as any deleted one, without a link to the Discord ID.
+    expect(await prisma.user.findUnique({ where: { id: user.id } })).toMatchObject(
+      deletedValues(user.id),
+    );
+    expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
+    expect(await prisma.verificationRequest.count({ where: { userId: user.id } })).toBe(0);
+    expect(await prisma.notification.count({ where: { targetUserId: user.id } })).toBe(0);
+    expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+    for (const file of files) expect(existsSync(path.join(uploadDir, file))).toBe(false);
+
+    const placeholder = await findUserByDiscordId(user.discordId);
+    expect(placeholder).toMatchObject({
+      ...deletedValues(placeholder!.id),
+      createdAt: NOW,
+      bannedAt: NOW,
+    });
+    expect(placeholder!.id).not.toBe(user.id);
+    expect(await prisma.account.findMany({ where: { userId: placeholder!.id } })).toMatchObject([
       {
         providerId: "discord",
         accountId: user.discordId,
         accessToken: null,
         refreshToken: null,
+        idToken: null,
+        accessTokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
         scope: null,
       },
     ]);
-    const again = await findUserByDiscordId(user.discordId);
-    expect(again).toMatchObject({
-      id: user.id,
-      name: DELETED_USER_NAME,
-      email: deletedUserEmail(user.id),
-      image: null,
-      verifiedAt: null,
-      universityId: null,
-      universityOther: null,
-      hubJoinFailedAt: null,
-      dmFailedAt: null,
+  });
+
+  it("keeps the placeholder banned after a new login and lets it delete again", async () => {
+    const user = await createUser();
+    await banUser({ adminId: admin.id, userId: user.id, uploadDir, now: NOW });
+    await remove(user.id);
+    const placeholder = (await findUserByDiscordId(user.discordId))!;
+
+    await simulateLogin(placeholder.id, user.discordId);
+    await expect(requireUser(placeholder.id)).rejects.toMatchObject({ code: "BANNED" });
+    expect(await requireAccountUser(placeholder.id)).toMatchObject({ id: placeholder.id });
+    expect(await getAccount(placeholder.id)).toMatchObject({
+      name: "echter.name",
+      banned: true,
+      team: null,
+      deletionProblem: null,
+    });
+
+    await remove(placeholder.id);
+
+    // Anonymized in place: still the one user that holds the Discord ID, no second placeholder.
+    expect(await prisma.user.findUnique({ where: { id: placeholder.id } })).toMatchObject({
+      ...deletedValues(placeholder.id),
       bannedAt: NOW,
     });
-    expect(await prisma.verificationRequest.count({ where: { userId: user.id } })).toBe(0);
-    expect(await prisma.notification.count({ where: { targetUserId: user.id } })).toBe(0);
-    expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
-
-    // A new login lands on the same user; Better Auth writes the original placeholder back (§4).
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { email: `${user.discordId}@users.uniscrims.invalid` },
-    });
-    await expect(requireUser(user.id)).rejects.toMatchObject({ code: "BANNED" });
+    expect(await findUserByDiscordId(user.discordId)).toMatchObject({ id: placeholder.id });
+    expect(
+      await prisma.account.findMany({
+        where: { accountId: user.discordId },
+        select: { userId: true, accessToken: true, scope: true },
+      }),
+    ).toEqual([{ userId: placeholder.id, accessToken: null, scope: null }]);
+    expect(await prisma.session.count({ where: { userId: placeholder.id } })).toBe(0);
   });
 
   it("treats a deleted account as logged out", async () => {
@@ -171,6 +258,28 @@ describe("deleteAccount", () => {
     });
     expect(await prisma.scrimRequest.findUnique({ where: { id: open.id } })).toMatchObject({
       note: null,
+    });
+  });
+
+  it("keeps the messages of applications, which belong to the team", async () => {
+    const x = await createReadyTeam();
+    const other = await createReadyTeam();
+    const request = await createOpenRequest(other.captain.id);
+    const { application } = await applyToRequest({
+      userId: x.captain.id,
+      requestId: request.id,
+      message: "Wir spielen gern früher.",
+      now: NOW,
+    });
+    await prisma.teamMember.deleteMany({
+      where: { teamId: x.team.id, userId: { not: x.captain.id } },
+    });
+
+    await remove(x.captain.id);
+
+    expect(await prisma.application.findUnique({ where: { id: application.id } })).toMatchObject({
+      status: AppStatus.WITHDRAWN,
+      message: "Wir spielen gern früher.",
     });
   });
 
@@ -272,11 +381,62 @@ describe("deleteAccount", () => {
     await expect(remove("")).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
   });
 
+  it("lets a second deletion that waited for the first find nothing left to do", async () => {
+    const user = await createUser();
+    await banUser({ adminId: admin.id, userId: user.id, uploadDir, now: NOW });
+    const deleted = { email: { startsWith: "deleted-" } };
+    const before = await prisma.user.count({ where: deleted });
+
+    const results = await Promise.allSettled([remove(user.id), remove(user.id)]);
+
+    // The second either ran after the first committed (nothing left to do) or was turned away.
+    for (const result of results) {
+      if (result.status === "rejected") {
+        expect(result.reason).toMatchObject({ code: "UNAUTHENTICATED" });
+      }
+    }
+    // The account and exactly one placeholder, which holds the Discord ID.
+    expect(await prisma.user.count({ where: deleted })).toBe(before + 2);
+    expect(await findUserByDiscordId(user.discordId)).toMatchObject({ bannedAt: NOW });
+  });
+
   it("treats a user without a Discord account as logged out", async () => {
     // What a login that raced the deletion leaves if undoing it fails (ARCHITECTURE §5.1).
     const user = await createUser();
     await prisma.account.deleteMany({ where: { userId: user.id } });
     await expect(requireAccountUser(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
     await expect(requireUser(user.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+});
+
+describe("finishInterruptedDeletions", () => {
+  it("anonymizes a deleted user again whose profile a racing login wrote back", async () => {
+    // What a login that raced the deletion leaves if the login hook could not undo it (§5.1).
+    const user = await createUser({ verified: true });
+    await remove(user.id);
+    await simulateLogin(user.id, user.discordId);
+    await prisma.user.update({ where: { id: user.id }, data: { dmFailedAt: NOW } });
+    // A ban placeholder after a new login, and a user nobody deleted: both stay as they are.
+    const banned = await createUser();
+    await banUser({ adminId: admin.id, userId: banned.id, uploadDir, now: NOW });
+    await remove(banned.id);
+    const placeholder = (await findUserByDiscordId(banned.discordId))!;
+    await simulateLogin(placeholder.id, banned.discordId);
+    const active = await createUser();
+
+    expect(await finishInterruptedDeletions()).toBeGreaterThanOrEqual(1);
+
+    expect(await prisma.user.findUnique({ where: { id: user.id } })).toMatchObject(
+      deletedValues(user.id),
+    );
+    expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
+    expect(await prisma.user.findUnique({ where: { id: placeholder.id } })).toMatchObject({
+      name: "echter.name",
+      email: `${banned.discordId}@users.uniscrims.invalid`,
+    });
+    expect(await prisma.user.findUnique({ where: { id: active.id } })).toMatchObject({
+      name: active.name,
+    });
+    expect(await finishInterruptedDeletions()).toBe(0);
   });
 });

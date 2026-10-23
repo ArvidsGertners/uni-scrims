@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { getSessionUserId } from "@/lib/session";
+import { getSignedInUser } from "@/lib/session";
 
 export default async function LandingPage({
   searchParams,
@@ -8,7 +8,7 @@ export default async function LandingPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { gesperrt, geloescht } = await searchParams;
-  const loggedIn = (await getSessionUserId()) !== null;
+  const loggedIn = (await getSignedInUser()) !== null;
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-12">

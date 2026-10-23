@@ -45,6 +45,7 @@ export const auth = betterAuth({
       bannedAt: { type: "date", ...coreOnly },
       hubJoinFailedAt: { type: "date", ...coreOnly },
       dmFailedAt: { type: "date", ...coreOnly },
+      deletedAt: { type: "date", ...coreOnly },
     },
   },
   hooks: {

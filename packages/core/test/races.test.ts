@@ -17,6 +17,7 @@ import {
   deleteRequest,
   deletedUserEmail,
   expireRequests,
+  findUserByDiscordId,
   isDomainError,
   joinTeam,
   leaveTeam,
@@ -320,22 +321,25 @@ describe("joinTeam and createTeam while the user is banned or deleted", () => {
 describe("banUser and deleteAccount in parallel", () => {
   it("never lets a deletion dodge a ban", async () => {
     for (let round = 0; round < ROUNDS; round++) {
-      // Alternating: a player, and a captain with members (the ban bans the team, the deletion
-      // only works once the team is banned).
+      // A player, a captain with members (the ban bans the team, the deletion only works once the
+      // team is banned) and a user without a team, where only the user row orders the two.
       const { captain, members } = await createTeamWithMembers({ extraMembers: 2 });
-      const user = round % 2 === 0 ? members[0]! : captain;
+      const user = [members[0]!, captain, await createUser()][round % 3]!;
       const results = await Promise.allSettled([ban(user.id), remove(user.id)]);
       expectOnlyDomainErrors(results);
-      const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+      const holder = await findUserByDiscordId(user.discordId);
       if (results[0].status === "fulfilled") {
-        // Banned: the Discord link stays even if the account was deleted afterwards.
-        expect(row.bannedAt).toEqual(NOW);
-        expect(
-          await prisma.account.count({ where: { userId: user.id, providerId: "discord" } }),
-        ).toBe(1);
+        // Banned: the Discord ID stays banned, on the user or on its placeholder after the deletion.
+        expect(holder).toMatchObject({ bannedAt: NOW });
       } else {
         // The deletion came first and removed the Discord link, so the ban was refused.
-        expect(row.email).toBe(deletedUserEmail(user.id));
+        expect(results[0]).toMatchObject({ reason: { code: "CONFLICT" } });
+        expect(holder).toBeNull();
+      }
+      if (results[1].status === "fulfilled") {
+        expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
+          email: deletedUserEmail(user.id),
+        });
         expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
       }
     }

@@ -60,7 +60,10 @@ describe("handleDiscordLogin", () => {
     await createSession(user.id);
     // State after the race: deleteAccount removed the account, Better Auth then restored the profile.
     await prisma.account.deleteMany({ where: { userId: user.id } });
-    await prisma.user.update({ where: { id: user.id }, data: { image: "https://cdn/avatar.png" } });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { image: "https://cdn/avatar.png", dmFailedAt: NOW, hubJoinFailedAt: NOW },
+    });
 
     await handleDiscordLogin(user.id, async () => true, NOW);
 
@@ -68,6 +71,8 @@ describe("handleDiscordLogin", () => {
       name: DELETED_USER_NAME,
       email: deletedUserEmail(user.id),
       image: null,
+      dmFailedAt: null,
+      hubJoinFailedAt: null,
     });
     expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
   });

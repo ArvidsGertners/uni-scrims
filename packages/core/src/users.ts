@@ -1,17 +1,76 @@
-import { prisma } from "@uni-scrims/db";
+import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 
 export const DISCORD_PROVIDER = "discord";
 
 export const DELETED_USER_NAME = "Gelöschter Nutzer";
 
+const DELETED_EMAIL_PREFIX = "deleted-";
+
 /**
  * Email of a deleted account (ARCHITECTURE §4). A new placeholder instead of `<discordId>@…`: email
  * is unique, and a later login with the same Discord account creates a new user with the original
- * placeholder. A banned user who logs in again gets the original placeholder back.
+ * placeholder. The ban placeholder of a banned user gets the original placeholder back on a login.
  */
 export function deletedUserEmail(userId: string): string {
-  return `deleted-${userId}@users.uniscrims.invalid`;
+  return `${DELETED_EMAIL_PREFIX}${userId}@users.uniscrims.invalid`;
+}
+
+/** The values of a deleted account (§4); deleteAccount and the repairs of a racing login set them. */
+export function deletedUserData(userId: string) {
+  return {
+    name: DELETED_USER_NAME,
+    email: deletedUserEmail(userId),
+    image: null,
+    universityId: null,
+    universityOther: null,
+    verifiedAt: null,
+    hubJoinFailedAt: null,
+    dmFailedAt: null,
+  } satisfies Prisma.UserUncheckedUpdateInput;
+}
+
+/**
+ * A banned user that holds nothing but the Discord ID (§4): the ban of a deleted account, or of a
+ * Discord account a restored database does not know. Its Discord account row is added by the caller.
+ */
+export function banPlaceholderData(id: string, bannedAt: Date, now: Date) {
+  return {
+    id,
+    name: DELETED_USER_NAME,
+    email: deletedUserEmail(id),
+    bannedAt,
+    deletedAt: now,
+    createdAt: now,
+  } satisfies Prisma.UserCreateInput;
+}
+
+/**
+ * Puts a deleted user whose Discord profile a racing login wrote back onto the deletion values again
+ * and ends its sessions (§5.1): from the login hook, and from the sweeper if that failed.
+ */
+export async function restoreDeletedUser(userId: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: deletedUserData(userId) }),
+    prisma.session.deleteMany({ where: { userId } }),
+  ]);
+}
+
+/**
+ * Sweeper (§6.3): deleted users that carry a profile again without a Discord link, because the login
+ * hook could not undo a racing login (§5.1). A ban placeholder keeps its link and is left alone.
+ */
+export async function finishInterruptedDeletions(): Promise<number> {
+  const users = await prisma.user.findMany({
+    where: {
+      deletedAt: { not: null },
+      accounts: { none: {} },
+      NOT: { email: { startsWith: DELETED_EMAIL_PREFIX } },
+    },
+    select: { id: true },
+  });
+  for (const { id } of users) await restoreDeletedUser(id);
+  return users.length;
 }
 
 /** Deleted and not logged in again since; counts as logged out everywhere. */
@@ -55,12 +114,16 @@ export async function isAdmin(userId: string, db: Db = prisma): Promise<boolean>
   return discordId !== null && getAdminDiscordIds().includes(discordId);
 }
 
-/** Header, navigation and the Discord banner; null if the user does not exist. Does not reject banned users. */
+/**
+ * Header, navigation and the Discord banner. Does not reject banned users. null for a user that
+ * requireAccountUser treats as logged out: missing, deleted or without a Discord link (§5.1).
+ */
 export async function getCurrentUser(userId: string, db: Db = prisma) {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
+      email: true,
       name: true,
       image: true,
       verifiedAt: true,
@@ -69,8 +132,19 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
       dmFailedAt: true,
     },
   });
-  if (!user) return null;
-  return { ...user, isAdmin: await isAdmin(userId, db) };
+  if (!user || isDeletedUser(user)) return null;
+  const discordId = await getDiscordId(user.id, db);
+  if (!discordId) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    image: user.image,
+    verifiedAt: user.verifiedAt,
+    bannedAt: user.bannedAt,
+    hubJoinFailedAt: user.hubJoinFailedAt,
+    dmFailedAt: user.dmFailedAt,
+    isAdmin: getAdminDiscordIds().includes(discordId),
+  };
 }
 
 /** Result of the hub server join on login (§5.1): failure sets hubJoinFailedAt, success clears it. */
@@ -87,17 +161,20 @@ export async function recordHubJoinResult(
   });
 }
 
+/** An account row without any OAuth token. */
+export const NO_OAUTH_TOKENS = {
+  accessToken: null,
+  refreshToken: null,
+  idToken: null,
+  accessTokenExpiresAt: null,
+  refreshTokenExpiresAt: null,
+} satisfies Prisma.AccountUpdateManyMutationInput;
+
 /** Discord tokens are only needed for the hub join and are removed right after it (§5.1). */
 export async function clearOAuthTokens(userId: string, db: Db = prisma): Promise<void> {
   await db.account.updateMany({
     where: { userId, providerId: DISCORD_PROVIDER },
-    data: {
-      accessToken: null,
-      refreshToken: null,
-      idToken: null,
-      accessTokenExpiresAt: null,
-      refreshTokenExpiresAt: null,
-    },
+    data: NO_OAUTH_TOKENS,
   });
 }
 

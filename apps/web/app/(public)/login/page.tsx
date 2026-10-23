@@ -3,7 +3,7 @@ import { LoginForm } from "@/components/login-form";
 import { isDevLoginEnabled } from "@uni-scrims/core/config/dev";
 import Link from "next/link";
 import { safeCallbackURL } from "@/lib/callback-url";
-import { getSessionUserId } from "@/lib/session";
+import { getSignedInUser } from "@/lib/session";
 
 export default async function LoginPage({
   searchParams,
@@ -12,7 +12,7 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const callbackURL = safeCallbackURL(params.callbackURL);
-  if (await getSessionUserId()) redirect(callbackURL);
+  if (await getSignedInUser()) redirect(callbackURL);
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-12">

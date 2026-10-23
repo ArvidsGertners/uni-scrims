@@ -1,4 +1,10 @@
-import { isDomainError, requireAccountUser, requireAdmin, requireUser } from "@uni-scrims/core";
+import {
+  getCurrentUser,
+  isDomainError,
+  requireAccountUser,
+  requireAdmin,
+  requireUser,
+} from "@uni-scrims/core";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "./auth.ts";
@@ -6,6 +12,15 @@ import { auth } from "./auth.ts";
 export async function getSessionUserId(): Promise<string | null> {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user.id ?? null;
+}
+
+/**
+ * The session's user for header and landing page, or null. Also null for a session that is left of a
+ * deleted account (§5.1), so it shows the login instead of looping between login and page.
+ */
+export async function getSignedInUser() {
+  const userId = await getSessionUserId();
+  return userId ? getCurrentUser(userId) : null;
 }
 
 export function loginUrl(callbackURL: string): string {

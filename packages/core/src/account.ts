@@ -1,17 +1,13 @@
 // Account deletion (SPEC P0-10, ARCHITECTURE §4, §5.5). The user row is anonymized instead of
 // deleted, so past scrims keep their teams and the team statistics stay right.
+import { randomUUID } from "node:crypto";
 import { prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { lockRequest, lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
-import {
-  DELETED_USER_NAME,
-  DISCORD_PROVIDER,
-  clearOAuthTokens,
-  deletedUserEmail,
-} from "./users.ts";
+import { DISCORD_PROVIDER, NO_OAUTH_TOKENS, banPlaceholderData, deletedUserData } from "./users.ts";
 
 /**
  * Why the account cannot be deleted right now, or null. Only the captain of a team that is not
@@ -43,9 +39,10 @@ export async function getAccount(userId: string) {
 }
 
 /**
- * Deletes all personal data: memberships, verification requests and their files, notifications to
- * the user, sessions and the Discord link; name, email and avatar are replaced. A banned user keeps
- * the Discord account row without tokens and bannedAt, so a new login lands on the banned user again.
+ * Deletes all personal data: memberships, verification requests and their files, notes, notifications
+ * to the user, sessions and the Discord link; name, email and avatar are replaced, deletedAt is set.
+ * For a banned user the Discord account row moves to a new ban placeholder (§4), so a new login lands
+ * on a banned user again, without any link to the deleted account's data.
  */
 export async function deleteAccount(input: {
   userId: string;
@@ -59,22 +56,17 @@ export async function deleteAccount(input: {
     const ownTeam = await findOwnTeam(user.id, tx);
     if (ownTeam) await lockTeam(tx, ownTeam.id);
 
-    // Updating first locks the user row; bannedAt is then the committed state, so a ban that lands
-    // meanwhile cannot be dodged by deleting the Discord link.
-    const { bannedAt } = await tx.user.update({
+    // Updating first locks the user row; bannedAt and deletedAt are then the committed state, so a
+    // ban that lands meanwhile cannot be dodged by deleting the Discord link, and a second deletion
+    // that waited for this one finds the work done.
+    const { bannedAt, deletedAt } = await tx.user.update({
       where: { id: user.id },
-      data: {
-        name: DELETED_USER_NAME,
-        email: deletedUserEmail(user.id),
-        image: null,
-        universityId: null,
-        universityOther: null,
-        verifiedAt: null,
-        hubJoinFailedAt: null,
-        dmFailedAt: null,
-      },
-      select: { bannedAt: true },
+      data: deletedUserData(user.id),
+      select: { bannedAt: true, deletedAt: true },
     });
+    if (!deletedAt) {
+      await tx.user.update({ where: { id: user.id }, data: { deletedAt: input.now } });
+    }
 
     // Read again under the lock: the role or the members may have changed meanwhile.
     const team = await findOwnTeam(user.id, tx);
@@ -114,17 +106,30 @@ export async function deleteAccount(input: {
     await tx.verificationRequest.deleteMany({ where: { userId: user.id } });
     await tx.notification.deleteMany({ where: { targetUserId: user.id } });
     await tx.session.deleteMany({ where: { userId: user.id } });
-    if (bannedAt) {
-      // Only the Discord ID stays, so the ban still applies after a new login (§4).
+    // Only the Discord ID stays with a ban, so it still applies after a new login (§4).
+    const discordOnly = { ...NO_OAUTH_TOKENS, scope: null };
+    if (bannedAt && deletedAt) {
+      // Already the ban placeholder of an earlier deletion, logged in again: it holds nothing but
+      // the Discord ID besides what the login wrote, so it is anonymized in place.
+      await tx.account.updateMany({
+        where: { userId: user.id, providerId: DISCORD_PROVIDER },
+        data: discordOnly,
+      });
       await tx.account.deleteMany({
         where: { userId: user.id, providerId: { not: DISCORD_PROVIDER } },
       });
-      await clearOAuthTokens(user.id, tx);
-      await tx.account.updateMany({
-        where: { userId: user.id, providerId: DISCORD_PROVIDER },
-        data: { scope: null },
-      });
     } else {
+      if (bannedAt) {
+        // The ban moves to a placeholder with the Discord account row; this account is then as
+        // anonymous as any deleted one, with no link from its past data to the Discord ID.
+        const placeholder = await tx.user.create({
+          data: banPlaceholderData(randomUUID(), bannedAt, input.now),
+        });
+        await tx.account.updateMany({
+          where: { userId: user.id, providerId: DISCORD_PROVIDER },
+          data: { ...discordOnly, userId: placeholder.id },
+        });
+      }
       await tx.account.deleteMany({ where: { userId: user.id } });
     }
     return verifications.flatMap(({ filePath }) => (filePath ? [filePath] : []));

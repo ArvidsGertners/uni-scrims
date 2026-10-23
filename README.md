@@ -347,11 +347,17 @@ Offene Prüfungen, deren Datei nach dem Einspielen fehlt (Uploads sind nicht im 
 Sperren gibt es im Admin-Bereich, Entsperren im MVP nur per Datenbank (`dc exec db psql -U uniscrims uniscrims`):
 
 ```sql
--- Nutzer über die Discord-ID finden und entsperren
-SELECT u.id, u.name, u."bannedAt" FROM "user" u
+-- Nutzer über die Discord-ID finden
+SELECT u.id, u.name, u."bannedAt", u."deletedAt" FROM "user" u
   JOIN account a ON a."userId" = u.id
   WHERE a."providerId" = 'discord' AND a."accountId" = '<discord-id>';
+-- Entsperren. Hat der Nutzer sein Konto während der Sperre gelöscht, ist die gefundene Zeile ein
+-- Sperr-Platzhalter ("deletedAt" gesetzt), der nur die Discord-ID für die Sperre hält: Er wird
+-- samt Discord-Verknüpfung und Sessions gelöscht, ein späterer Login legt einen neuen Nutzer an.
+BEGIN;
+DELETE FROM "user" WHERE id = '<user-id>' AND "deletedAt" IS NOT NULL;
 UPDATE "user" SET "bannedAt" = NULL WHERE id = '<user-id>';
+COMMIT;
 
 -- Team finden und entsperren
 SELECT id, name, "bannedAt" FROM "Team" WHERE name ILIKE '%<name>%' AND "dissolvedAt" IS NULL;
@@ -373,4 +379,4 @@ COMMIT;
 
   Ein gesperrter Captain eines aktiven Teams könnte weder die Rolle übertragen noch sein Konto löschen.
 - Eine offene Prüfung wurde bei der Sperre abgelehnt und die Datei gelöscht; nach dem Entsperren muss der Nutzer die Bescheinigung neu hochladen.
-- Hat ein gesperrter Nutzer sein Konto gelöscht, landet ein neuer Login nach dem Entsperren beim alten Konto (Name und Avatar kommen beim Login wieder aus Discord), aber ohne Verifizierung und ohne Team.
+- Hat ein gesperrter Nutzer sein Konto gelöscht, bleibt es gelöscht: Ein neuer Login nach dem Entsperren legt einen neuen Nutzer an, ohne Verifizierung, ohne Team und ohne Verbindung zum alten Konto.

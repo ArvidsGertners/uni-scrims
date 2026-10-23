@@ -154,11 +154,16 @@ describe("reapplyModeration", () => {
     };
 
     expect(await reapply(entries)).toMatchObject({ bannedUsers: 1, deletedUsers: 1 });
+    // As after the deletion in the old database: the account is anonymous without a Discord link,
+    // and the ban sits on a placeholder that holds only the Discord ID (§4).
     expect(await prisma.user.findUnique({ where: { id: user.id } })).toMatchObject({
-      bannedAt: NOW,
       email: deletedUserEmail(user.id),
+      deletedAt: NOW,
     });
-    expect(await prisma.account.findMany({ where: { userId: user.id } })).toMatchObject([
+    expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
+    const placeholder = await findUserByDiscordId(user.discordId);
+    expect(placeholder).toMatchObject({ bannedAt: NOW, email: deletedUserEmail(placeholder!.id) });
+    expect(await prisma.account.findMany({ where: { userId: placeholder!.id } })).toMatchObject([
       { providerId: "discord", accountId: user.discordId, accessToken: null },
     ]);
 

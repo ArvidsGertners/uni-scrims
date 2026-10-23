@@ -14,7 +14,9 @@ import {
   decideVerification,
   detectUploadType,
   getVerificationFile,
+  getVerificationStatus,
   listPendingVerifications,
+  listUniversities,
   submitVerification,
 } from "../src/index.ts";
 import { NOW, createUser } from "./helpers.ts";
@@ -94,6 +96,28 @@ describe("detectUploadType", () => {
     const big = new Uint8Array(MAX_UPLOAD_BYTES + 1);
     big.set(PDF);
     await expect(detectUploadType(big)).rejects.toThrow("5 MB");
+  });
+});
+
+describe("verify page reads", () => {
+  it("lists the universities by name", async () => {
+    const names = (await listUniversities()).map((university) => university.name);
+    expect(names).toContain("Test-Uni");
+    expect(names).toEqual([...names].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
+  });
+
+  it("shows the latest request, or that the user is verified", async () => {
+    const user = await createUser();
+    expect(await getVerificationStatus(user.id)).toEqual({ verifiedAt: null, latest: null });
+    await submit(user.id);
+    expect(await getVerificationStatus(user.id)).toEqual({
+      verifiedAt: null,
+      latest: { status: VerifStatus.PENDING, rejectReason: null, createdAt: NOW, decidedAt: null },
+    });
+    const verified = await createUser({ verified: true });
+    expect(await getVerificationStatus(verified.id)).toMatchObject({ verifiedAt: NOW });
+    const banned = await createUser({ banned: true });
+    await expect(getVerificationStatus(banned.id)).rejects.toMatchObject({ code: "BANNED" });
   });
 });
 

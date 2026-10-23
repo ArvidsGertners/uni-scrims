@@ -5,6 +5,7 @@ import { NotifStatus, prisma } from "@uni-scrims/db";
 import { requireAdmin } from "./permissions.ts";
 import { expireRequests } from "./requests.ts";
 import { openFeedback, resolveDeadlines } from "./scrims.ts";
+import { finishInterruptedDeletions } from "./users.ts";
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
@@ -94,6 +95,7 @@ export async function runSweeper(now: Date, options: { purge: boolean }) {
     expiredRequests: await step("expireRequests", () => expireRequests(now)),
     openedFeedback: await step("openFeedback", () => openFeedback(now)),
     resolvedScrims: await step("resolveDeadlines", () => resolveDeadlines(now)),
+    finishedDeletions: await step("finishInterruptedDeletions", () => finishInterruptedDeletions()),
     purgedNotifications: options.purge
       ? await step("purgeOldNotifications", () => purgeOldNotifications(now))
       : null,
