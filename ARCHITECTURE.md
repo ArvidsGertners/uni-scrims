@@ -560,7 +560,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 
 `leaveTeam` funktioniert für Nicht-Captains auch in gesperrten Teams. Nach Verlassen oder Auflösen sind vergangene Scrims für ehemalige Mitglieder nicht mehr sichtbar (gewollt).
 - **Zeit:** Eingabe im Formular in Europe/Berlin, Umrechnung nach UTC in `core`. Keine Zeitlogik im Browser.
-- **UI:** Tailwind + shadcn/ui, komplett auf Deutsch, mobilfreundlich. Optik nach dem Design-Handoff (Richtung A „Klar“, Tokens in `apps/web/app/globals.css`); Funktionen und Felder bleiben wie in SPEC und hier beschrieben.
+- **UI:** Tailwind + shadcn/ui, komplett auf Deutsch, mobilfreundlich. Optik nach dem Design-Handoff (Richtung A „Klar“, Tokens in `apps/web/app/globals.css`); Funktionen und Felder bleiben wie in SPEC und hier beschrieben. Abweichung vom Design: Der Header zeigt das Burger-Menü bis 767 px, weil die Desktop-Navigation erst ab 768 px in die Breite passt.
 
 ### Entwicklung und Tests
 

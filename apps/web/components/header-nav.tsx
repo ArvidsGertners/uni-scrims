@@ -40,7 +40,7 @@ function MenuIcon() {
   );
 }
 
-/** Desktop nav (≥ 640 px) and the mobile menu below the header. */
+/** Desktop nav (≥ 768 px) and the mobile menu below the header. */
 export function HeaderNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   // The menu belongs to the page it was opened on, so navigating closes it.
@@ -50,7 +50,7 @@ export function HeaderNav({ items }: { items: NavItem[] }) {
 
   return (
     <>
-      <nav aria-label="Hauptmenü" className="hidden items-center gap-0.5 sm:flex">
+      <nav aria-label="Hauptmenü" className="hidden items-center gap-0.5 md:flex">
         {items.map((item) => {
           const active = isActive(item.href, pathname);
           return (
@@ -80,14 +80,14 @@ export function HeaderNav({ items }: { items: NavItem[] }) {
         aria-expanded={open}
         aria-controls="mobile-menu"
         onClick={() => setOpenOn(open ? null : pathname)}
-        className="flex size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-card text-foreground sm:hidden"
+        className="flex size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-card text-foreground md:hidden"
       >
         {open ? <X className="size-5" /> : <MenuIcon />}
       </button>
       {open ? (
         <div
           id="mobile-menu"
-          className="absolute inset-x-0 top-16 flex flex-col border-b border-border bg-background px-5 pt-2 pb-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)] sm:hidden"
+          className="absolute inset-x-0 top-16 flex flex-col border-b border-border bg-background px-5 pt-2 pb-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)] md:hidden"
         >
           {items.map((item) => {
             const active = isActive(item.href, pathname);
