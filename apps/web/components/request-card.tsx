@@ -1,15 +1,17 @@
 import type { TeamCardData } from "@uni-scrims/core";
-import { describeStart } from "@uni-scrims/core";
+import { describeStartTime, RANK_LABELS } from "@uni-scrims/core";
 import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
-import { TeamSummary } from "@/components/team-summary";
+import { CheckIcon, ChevronRightIcon, ClockIcon, LayersIcon, MapPinIcon } from "@/components/icons";
+import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   APPLICATION_STATUS_LABELS,
   formatFormat,
   formatMaps,
   formatRankRange,
+  formatReliability,
+  formatUniversities,
 } from "@/lib/scrim-format";
 
 type Props = {
@@ -24,35 +26,70 @@ type Props = {
     team: TeamCardData;
     ownApplicationStatus: AppStatus | null;
   };
+  /** A request of the user's own team: avatar on accent. */
+  own?: boolean;
 };
 
-export function RequestCard({ request }: Props) {
+function applicationCountLabel(count: number): string {
+  if (count === 0) return "Noch keine Bewerbungen";
+  return count === 1 ? "1 Bewerbung" : `${count} Bewerbungen`;
+}
+
+/** Board card (design handoff, card A); the whole card links to the request. */
+export function RequestCard({ request, own = false }: Props) {
+  const { team } = request;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2">
-          <Link href={`/requests/${request.id}`} className="underline-offset-4 hover:underline">
-            {describeStart(request.startsAt)}
-          </Link>
-          {request.ownApplicationStatus ? (
-            <Badge variant="secondary">
-              Beworben: {APPLICATION_STATUS_LABELS[request.ownApplicationStatus]}
-            </Badge>
-          ) : null}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2 text-sm">
-        <p>
-          {formatFormat(request.format)} · Rang {formatRankRange(request.rankMin, request.rankMax)}{" "}
-          · Maps: {formatMaps(request.maps)}
+    <Link
+      href={`/requests/${request.id}`}
+      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-[18px] hover:border-border-strong hover:bg-secondary"
+    >
+      <div className="flex items-center gap-3">
+        <TeamAvatar tag={team.tag} own={own} className={own ? undefined : "border-border"} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-[16px] font-semibold">{team.name}</span>
+          <span className="truncate text-[13px] text-muted-foreground">
+            {formatUniversities(team.universities)}
+          </span>
+        </div>
+        <Badge variant="outline">{formatFormat(request.format)}</Badge>
+      </div>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-x-[18px] gap-y-2 text-[14px] text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-foreground">
+            <ClockIcon />
+            {describeStartTime(request.startsAt)}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <LayersIcon />
+            {formatRankRange(request.rankMin, request.rankMax)}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <MapPinIcon />
+            {formatMaps(request.maps)}
+          </span>
+        </div>
+        <p className="text-[13px] text-muted-foreground">
+          Teamrang {RANK_LABELS[team.rank]} · {formatReliability(team.reliability)}
         </p>
-        <TeamSummary team={request.team} />
-        <p className="opacity-70">
-          {request.applicationCount === 1
-            ? "1 Bewerbung"
-            : `${request.applicationCount} Bewerbungen`}
-        </p>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="flex items-center justify-between border-t border-border pt-3.5">
+        {request.ownApplicationStatus === "PENDING" ? (
+          <Badge variant="accent">
+            <CheckIcon size={14} strokeWidth={3} />
+            Beworben
+          </Badge>
+        ) : request.ownApplicationStatus ? (
+          <Badge>{APPLICATION_STATUS_LABELS[request.ownApplicationStatus]}</Badge>
+        ) : (
+          <span className="text-[13px] text-muted-foreground">
+            {applicationCountLabel(request.applicationCount)}
+          </span>
+        )}
+        <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
+          Ansehen
+          <ChevronRightIcon strokeWidth={2.5} />
+        </span>
+      </div>
+    </Link>
   );
 }

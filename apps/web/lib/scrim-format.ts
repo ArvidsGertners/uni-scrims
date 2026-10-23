@@ -20,7 +20,7 @@ export function formatFormat(format: ScrimFormat): string {
 }
 
 export function formatMaps(maps: string[]): string {
-  return maps.length > 0 ? maps.join(", ") : "beliebig";
+  return maps.length > 0 ? maps.join(" · ") : "Freie Wahl";
 }
 
 /** "3 gespielt · 1 No-Show · 0 kurzfristige Absagen · Ø 4,2 ★" */
