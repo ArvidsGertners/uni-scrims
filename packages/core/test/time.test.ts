@@ -6,6 +6,7 @@ import {
   describeStart,
   describeStartTime,
   formatDayHeading,
+  formatWeekdayDate,
   isStartSlot,
   isValidDateString,
   toBerlinDateString,
@@ -92,5 +93,11 @@ describe("formatDayHeading", () => {
   it("names the Berlin calendar day", () => {
     expect(formatDayHeading(new Date("2026-10-29T23:30:00Z"))).toBe("Freitag, 30. Oktober");
     expect(formatDayHeading(new Date("2026-11-01T12:00:00Z"))).toBe("Sonntag, 1. November");
+  });
+});
+
+describe("formatWeekdayDate", () => {
+  it("names weekday and date in Berlin", () => {
+    expect(formatWeekdayDate(new Date("2026-10-29T23:30:00Z"))).toBe("Freitag, 30.10.");
   });
 });

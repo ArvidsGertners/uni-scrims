@@ -268,6 +268,7 @@ describe("getRequestDetail", () => {
     expect(await detail(outsider.id)).toMatchObject({
       open: true,
       apply: null,
+      applyAs: null,
       withdraw: null,
       remove: null,
       confirm: null,
@@ -362,7 +363,10 @@ describe("getRequestDetail", () => {
 
     const late = await createReadyTeam();
     await unverify(late.members[0]!.id);
-    expect(await detail(late.captain.id)).toMatchObject({ apply: { problem: notReady } });
+    expect(await detail(late.captain.id)).toMatchObject({
+      apply: { problem: notReady },
+      applyAs: { name: late.team.name, memberCount: 5 },
+    });
     await expect(
       applyToRequest({ userId: late.captain.id, requestId: request.id, now: NOW }),
     ).rejects.toMatchObject({ message: notReady });

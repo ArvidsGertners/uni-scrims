@@ -293,9 +293,10 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   // it. Then it runs alongside the reliabilities; null means not counted.
   const countReadiness =
     ownTeam !== null && actionProblem === null && (offersApply || offersConfirm);
-  const [reliabilities, ownTeamReady] = await Promise.all([
+  const [reliabilities, ownTeamReady, ownMemberCount] = await Promise.all([
     getReliabilities([request.teamId, ...applications.map((application) => application.teamId)]),
     countReadiness ? isTeamReady(ownTeam.id) : null,
+    offersApply ? prisma.teamMember.count({ where: { teamId: ownTeam.id } }) : null,
   ]);
   const readyProblem = ownTeamReady === null ? null : teamReadyProblem(ownTeamReady);
   const bookingProblem = actionProblem ?? readyProblem?.message ?? null;
@@ -330,6 +331,11 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     note: request.note,
     team: toTeamCard(request.team, reliabilities),
     apply,
+    /** The team that would apply, for "Du bewirbst dich als …"; only while applying is offered. */
+    applyAs:
+      offersApply && ownMemberCount !== null
+        ? { name: ownTeam.name, memberCount: ownMemberCount }
+        : null,
     withdraw,
     remove,
     /** Shown once for all pending applications; problems of the applicant team are per application. */

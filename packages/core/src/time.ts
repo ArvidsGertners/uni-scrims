@@ -96,6 +96,11 @@ export function describeStartTime(startsAt: Date): string {
   return format(startsAt, "HH:mm 'Uhr'", berlin) + nightSuffix(startsAt);
 }
 
+/** Weekday and date in Berlin, e.g. "Donnerstag, 22.10.". */
+export function formatWeekdayDate(date: Date): string {
+  return format(date, "EEEE, dd.MM.", berlin);
+}
+
 /** Heading of a Berlin calendar day, e.g. "Donnerstag, 22. Oktober". */
 export function formatDayHeading(date: Date): string {
   return format(date, "EEEE, d. MMMM", berlin);
