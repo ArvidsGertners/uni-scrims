@@ -1,4 +1,4 @@
-import type { FeedbackOutcome, MemberRole, ScrimFormat } from "@uni-scrims/db";
+import { type FeedbackOutcome, MemberRole, type ScrimFormat } from "@uni-scrims/db";
 
 /** Display names of the formats (SPEC P0-4). */
 export const SCRIM_FORMAT_LABELS: Record<ScrimFormat, string> = {
@@ -7,7 +7,13 @@ export const SCRIM_FORMAT_LABELS: Record<ScrimFormat, string> = {
   BO3: "BO3",
 };
 
-/** Roles of team members (SPEC N-1), in the order the team page offers them. */
+/** Roles of team members in the order the team page offers them (SPEC N-1). */
+export const MEMBER_ROLES: readonly MemberRole[] = [
+  MemberRole.PLAYER,
+  MemberRole.SUBSTITUTE,
+  MemberRole.COACH,
+];
+
 export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   PLAYER: "Spieler",
   SUBSTITUTE: "Ersatzspieler",

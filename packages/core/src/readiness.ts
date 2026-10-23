@@ -16,7 +16,10 @@ export function activeTeamWhere() {
   return { bannedAt: null, dissolvedAt: null } satisfies Prisma.TeamWhereInput;
 }
 
-/** A member counts as verified for readiness and the team card. */
+/**
+ * A verified member: member status and the universities of the team card. Readiness counts only
+ * verified players and substitutes, see countsForReadiness.
+ */
 export function isVerifiedMember(user: { verifiedAt: Date | null }): boolean {
   return user.verifiedAt !== null;
 }
@@ -48,9 +51,14 @@ export async function isTeamReady(teamId: string, db: Db = prisma): Promise<bool
   return isReadyCount(await countVerifiedPlayers(teamId, db));
 }
 
+type LoadedMember = { role: MemberRole; user: { verifiedAt: Date | null } };
+
+/** countVerifiedPlayers for members that are already loaded. */
+export function countReadyMembers(members: readonly LoadedMember[]): number {
+  return members.filter(countsForReadiness).length;
+}
+
 /** isTeamReady for members that are already loaded. */
-export function hasReadyMembers(
-  members: readonly { role: MemberRole; user: { verifiedAt: Date | null } }[],
-): boolean {
-  return isReadyCount(members.filter(countsForReadiness).length);
+export function hasReadyMembers(members: readonly LoadedMember[]): boolean {
+  return isReadyCount(countReadyMembers(members));
 }

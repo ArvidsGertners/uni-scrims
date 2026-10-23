@@ -16,6 +16,7 @@ import {
   transferCaptain,
   updateTeam,
 } from "../src/index.ts";
+import { lockTeam } from "../src/locks.ts";
 import { NOW, createTeamWithMembers, createUser, uid } from "./helpers.ts";
 
 afterAll(async () => {
@@ -186,6 +187,42 @@ describe("captain actions", () => {
   });
 });
 
+describe("team row lock", () => {
+  it("rejects non-captains before taking the team lock", async () => {
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
+    const outsider = (await createTeamWithMembers()).captain;
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    // Another transaction holds the team row; calls that waited for it would hang until released.
+    const holder = prisma.$transaction(
+      async (tx) => {
+        await lockTeam(tx, team.id);
+        locked();
+        await released;
+      },
+      { timeout: 20_000 },
+    );
+    await lockTaken;
+    try {
+      for (const userId of [outsider.id, members[0]!.id]) {
+        const target = { userId, teamId: team.id, memberId: captain.id };
+        await expect(setMemberRole({ ...target, role: MemberRole.COACH })).rejects.toMatchObject({
+          code: "FORBIDDEN",
+        });
+        await expect(removeMember(target)).rejects.toMatchObject({ code: "FORBIDDEN" });
+        await expect(
+          transferCaptain({ userId, teamId: team.id, newCaptainId: userId }),
+        ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      }
+    } finally {
+      release();
+      await holder;
+    }
+  });
+});
+
 describe("joinTeam", () => {
   it("rejects unknown codes, banned teams and users in another team", async () => {
     const user = await createUser();
@@ -281,7 +318,7 @@ describe("reads", () => {
     expect(own).toMatchObject({
       id: team.id,
       isCaptain: true,
-      verifiedCount: 4,
+      verifiedPlayerCount: 4,
       ready: false,
     });
     expect(own?.inviteCode).toBe(team.inviteCode);
@@ -298,13 +335,13 @@ describe("reads", () => {
     const setRole = (userId: string, role: MemberRole) =>
       prisma.teamMember.update({ where: { userId }, data: { role } });
     await setRole(members[3]!.id, MemberRole.COACH);
-    expect(await getMyTeam(captain.id)).toMatchObject({ verifiedCount: 4, ready: false });
+    expect(await getMyTeam(captain.id)).toMatchObject({ verifiedPlayerCount: 4, ready: false });
     expect(
       (await getMyTeam(captain.id))?.members.find((member) => member.id === members[3]!.id)?.role,
     ).toBe(MemberRole.COACH);
 
     await setRole(members[3]!.id, MemberRole.SUBSTITUTE);
-    expect(await getMyTeam(captain.id)).toMatchObject({ verifiedCount: 5, ready: true });
+    expect(await getMyTeam(captain.id)).toMatchObject({ verifiedPlayerCount: 5, ready: true });
   });
 
   it("previews a team by invite code", async () => {

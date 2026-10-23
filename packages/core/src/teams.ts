@@ -11,7 +11,7 @@ import {
   requireOwnCaptain,
   requireUser,
 } from "./permissions.ts";
-import { countsForReadiness, isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
+import { countReadyMembers, isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
 import { closeOpenRequest, openRequestWhere } from "./requests.ts";
 import { type TeamInput, memberRoleSchema, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
@@ -157,6 +157,8 @@ export async function transferCaptain(input: {
   teamId: string;
   newCaptainId: string;
 }): Promise<void> {
+  // Checked without a lock first, so nobody but the captain can hold the team row.
+  await requireCaptain(input.userId, input.teamId);
   await prisma.$transaction(async (tx) => {
     await lockTeam(tx, input.teamId);
     const { user } = await requireCaptain(input.userId, input.teamId, tx);
@@ -176,6 +178,8 @@ export async function removeMember(input: {
   teamId: string;
   memberId: string;
 }): Promise<void> {
+  // As in transferCaptain: only the captain gets as far as the lock.
+  await requireCaptain(input.userId, input.teamId);
   await prisma.$transaction(async (tx) => {
     await lockTeam(tx, input.teamId);
     const { user } = await requireCaptain(input.userId, input.teamId, tx);
@@ -201,9 +205,10 @@ export async function setMemberRole(input: {
   memberId: string;
   role: MemberRole;
 }): Promise<void> {
+  // As in removeMember: only the captain gets as far as the lock, and is checked again under it.
+  await requireCaptain(input.userId, input.teamId);
   const role = parseInput(memberRoleSchema, input.role);
   await prisma.$transaction(async (tx) => {
-    // As in removeMember: the role is checked again under the team lock.
     await lockTeam(tx, input.teamId);
     await requireCaptain(input.userId, input.teamId, tx);
     const updated = await tx.teamMember.updateMany({
@@ -439,7 +444,7 @@ export async function getMyTeam(userId: string) {
         : ("UNVERIFIED" as const),
   }));
   // Verified players and substitutes; coaches never count (SPEC N-1).
-  const verifiedCount = memberRows.filter(countsForReadiness).length;
+  const verifiedPlayerCount = countReadyMembers(memberRows);
   return {
     id: team.id,
     name: team.name,
@@ -450,9 +455,9 @@ export async function getMyTeam(userId: string) {
     // Only the captain manages the invite link.
     inviteCode: isCaptain ? team.inviteCode : null,
     members,
-    verifiedCount,
+    verifiedPlayerCount,
     // Counted once, judged by the rule core enforces, so the team page and the request pages agree.
-    ready: isReadyCount(verifiedCount),
+    ready: isReadyCount(verifiedPlayerCount),
     universities: teamUniversities(memberRows),
   };
 }
