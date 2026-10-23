@@ -6,9 +6,18 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { cn } from "@/lib/utils";
 
-// Direction A of the design handoff: Geist for display and body, Geist Mono for labels.
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
+// Direction A of the design handoff: Geist for display and body, Geist Mono for labels. The same
+// static weights as the prototype loads, so in-between weights (display 650) render like there.
+const geist = Geist({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-geist",
+});
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-geist-mono",
+});
 
 export const metadata: Metadata = {
   title: "Uni Scrims",

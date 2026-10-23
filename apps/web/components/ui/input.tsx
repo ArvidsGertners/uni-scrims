@@ -2,13 +2,22 @@ import * as React from "react";
 import { Input as InputPrimitive } from "@base-ui/react/input";
 import { cn } from "cn";
 
+/**
+ * Form controls of the design handoff: 48 px, 16 px text (no iOS zoom), accent border and soft ring
+ * on focus. The placeholder color is Chrome's default, which the prototype shows.
+ */
+export const controlClass =
+  "w-full min-w-0 rounded-sm border border-border bg-input text-[16px] text-foreground outline-none placeholder:text-[#757575] focus:border-ring focus:shadow-[0_0_0_3px_var(--accent-soft)] disabled:cursor-not-allowed disabled:bg-secondary aria-invalid:border-destructive";
+
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <InputPrimitive
       type={type}
       data-slot="input"
       className={cn(
-        "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        controlClass,
+        "min-h-12",
+        type === "date" || type === "time" ? "px-3" : "px-3.5",
         className,
       )}
       {...props}

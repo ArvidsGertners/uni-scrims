@@ -129,7 +129,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             <Card key={application.id}>
               <CardContent className="flex flex-col gap-2">
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant={application.status === "PENDING" ? "secondary" : "outline"}>
+                  <Badge variant={application.status === "PENDING" ? "neutral" : "outline"}>
                     {APPLICATION_STATUS_LABELS[application.status]}
                   </Badge>
                   {application.outOfRange ? (

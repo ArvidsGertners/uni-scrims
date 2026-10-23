@@ -21,7 +21,7 @@ export function TeamCard({ name, tag, rank, universities, ready, memberCount }: 
         <CardTitle className="flex flex-wrap items-center gap-2">
           {name} <span className="opacity-60">[{tag}]</span>
           {ready === undefined ? null : ready ? (
-            <Badge>Spielbereit</Badge>
+            <Badge variant="success">Spielbereit</Badge>
           ) : (
             <Badge variant="outline">Noch nicht spielbereit</Badge>
           )}

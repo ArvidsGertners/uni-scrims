@@ -11,7 +11,7 @@ type Props = {
   children?: ReactNode;
   /** Asks before submitting, for destructive actions. */
   confirmText?: string;
-  variant?: "default" | "outline" | "destructive" | "secondary";
+  variant?: "default" | "outline" | "destructive";
   className?: string;
 };
 

@@ -80,8 +80,8 @@ export default async function TeamPage() {
             <li key={member.id} className="flex flex-col gap-2 rounded-lg border p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{member.name}</span>
-                {member.isCaptain ? <Badge>Captain</Badge> : null}
-                <Badge variant={member.status === "VERIFIED" ? "secondary" : "outline"}>
+                {member.isCaptain ? <Badge variant="accent">Captain</Badge> : null}
+                <Badge variant={member.status === "VERIFIED" ? "neutral" : "outline"}>
                   {STATUS_LABELS[member.status]}
                 </Badge>
               </div>

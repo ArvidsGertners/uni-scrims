@@ -63,7 +63,7 @@ export default async function BansPage({
               <p className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{user.name}</span>
                 <span className="opacity-60">Discord-ID {user.discordId}</span>
-                {user.banned ? <Badge variant="destructive">Gesperrt</Badge> : null}
+                {user.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
               </p>
               {user.team ? (
                 <p>
@@ -96,7 +96,7 @@ export default async function BansPage({
               <p className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{team.name}</span>
                 <span className="opacity-60">[{team.tag}]</span>
-                {team.banned ? <Badge variant="destructive">Gesperrt</Badge> : null}
+                {team.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
               </p>
               <p>
                 Captain: {team.captainName} · {team.memberCount} Mitglieder

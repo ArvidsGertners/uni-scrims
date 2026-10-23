@@ -1,9 +1,9 @@
 "use client";
 
-import { X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { MenuIcon, XIcon } from "@/components/icons";
 import { LogoutButton } from "@/components/logout-button";
 import { cn } from "@/lib/utils";
 
@@ -21,23 +21,6 @@ const SECTION_ALIASES: Record<string, string> = { "/requests": "/board" };
 function isActive(href: string, pathname: string): boolean {
   const section = `/${pathname.split("/")[1] ?? ""}`;
   return (SECTION_ALIASES[section] ?? section) === href;
-}
-
-// The design's burger: lines at 7/12/17 instead of lucide's 6/12/18.
-function MenuIcon() {
-  return (
-    <svg
-      aria-hidden
-      className="size-5"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <path d="M4 7h16M4 12h16M4 17h16" />
-    </svg>
-  );
 }
 
 /** Desktop nav (≥ 768 px) and the mobile menu below the header. */
@@ -82,7 +65,7 @@ export function HeaderNav({ items }: { items: NavItem[] }) {
         onClick={() => setOpenOn(open ? null : pathname)}
         className="flex size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-card text-foreground md:hidden"
       >
-        {open ? <X className="size-5" /> : <MenuIcon />}
+        {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
       </button>
       {open ? (
         <div
