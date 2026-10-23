@@ -4,6 +4,7 @@ import { formatFormat } from "@/lib/scrim-format";
 import { requireAdminPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
 import { DisputeForm } from "./dispute-form";
+import { PageMain } from "@/components/page-main";
 
 type Side = Awaited<ReturnType<typeof listDisputes>>[number]["host"];
 
@@ -11,7 +12,8 @@ function Answer({ side }: { side: Side }) {
   return (
     <li>
       <span className="font-medium">{side.name}</span>{" "}
-      <span className="opacity-60">[{side.tag}]</span> · Captain (Discord): {side.captainName}
+      <span className="text-muted-foreground">[{side.tag}]</span> · Captain (Discord):{" "}
+      {side.captainName}
       <br />
       {side.feedback
         ? `${FEEDBACK_OUTCOME_LABELS[side.feedback.outcome]}${side.feedback.rating ? ` · ${"★".repeat(side.feedback.rating)}` : ""}`
@@ -25,9 +27,9 @@ export default async function DisputesPage() {
   const disputes = await listDisputes(admin.id);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
+    <PageMain className="gap-6">
       <AdminNav adminId={admin.id} />
-      <h1 className="text-2xl font-bold">Streitfälle</h1>
+      <h1 className="type-h1">Streitfälle</h1>
       {disputes.length === 0 ? <p>Keine offenen Streitfälle.</p> : null}
       {disputes.map((dispute) => (
         <Card key={dispute.id}>
@@ -35,12 +37,12 @@ export default async function DisputesPage() {
             <CardTitle>
               {dispute.host.name} gegen {dispute.guest.name}
             </CardTitle>
-            <p className="text-sm opacity-70">
+            <p className="text-[14px] text-muted-foreground">
               {describeStart(dispute.startsAt)} · {formatFormat(dispute.format)}
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <ul className="flex flex-col gap-2 text-sm">
+            <ul className="flex flex-col gap-2 text-[14px]">
               <Answer side={dispute.host} />
               <Answer side={dispute.guest} />
             </ul>
@@ -48,6 +50,6 @@ export default async function DisputesPage() {
           </CardContent>
         </Card>
       ))}
-    </main>
+    </PageMain>
   );
 }

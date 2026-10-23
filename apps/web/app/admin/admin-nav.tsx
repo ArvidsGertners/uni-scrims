@@ -28,23 +28,23 @@ export async function AdminNav({ adminId }: { adminId: string }) {
       : "noch kein Lebenszeichen";
   return (
     <div className="flex flex-col gap-2">
-      <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      <nav className="flex flex-wrap gap-x-4 gap-y-1 text-[14px]">
         {LINKS.map((link) => (
-          <Link key={link.href} href={link.href} className="underline">
+          <Link key={link.href} href={link.href} className="underline underline-offset-2">
             {link.label}
           </Link>
         ))}
       </nav>
       {missingLegal.length > 0 ? (
-        <p className="text-sm text-destructive">
+        <p className="text-[14px] text-accent-text">
           Rechtstexte fehlen in LEGAL_DIR oder enthalten noch „TODO“ (
           {missingLegal.map((page) => `${page}.txt`).join(", ")}): Bitte vor dem Go-Live ausfüllen.
         </p>
       ) : null}
       {bot.online ? (
-        <p className="text-sm">Bot läuft ({lastSeen(bot.loops.sweeper.heartbeatAt)})</p>
+        <p className="text-[14px]">Bot läuft ({lastSeen(bot.loops.sweeper.heartbeatAt)})</p>
       ) : (
-        <div className="text-sm text-destructive">
+        <div className="text-[14px] text-accent-text">
           <p>Bot offline</p>
           {BOT_LOOP_LABELS.map(({ loop, label }) => (
             <p key={loop}>

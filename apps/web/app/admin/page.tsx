@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/format";
 import { requireAdminPage } from "@/lib/session";
 import { AdminNav } from "./admin-nav";
 import { DecisionForm } from "./decision-form";
+import { PageMain } from "@/components/page-main";
 
 // Fixed checklist from SPEC P0-2.
 const CHECKLIST = [
@@ -20,9 +21,9 @@ export default async function AdminPage() {
   const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
+    <PageMain className="gap-6">
       <AdminNav adminId={admin.id} />
-      <h1 className="text-2xl font-bold">Prüf-Queue</h1>
+      <h1 className="type-h1">Prüf-Queue</h1>
       {queue.length === 0 ? <p>Keine offenen Prüfungen.</p> : null}
       {queue.map((request) => {
         const fileUrl = `/api/admin/uploads/${request.id}`;
@@ -31,7 +32,7 @@ export default async function AdminPage() {
           <Card key={request.id}>
             <CardHeader>
               <CardTitle>{request.user.name}</CardTitle>
-              <p className="text-sm opacity-70">
+              <p className="text-[14px] text-muted-foreground">
                 Hochgeladen am {formatDateTime(request.createdAt)} ·{" "}
                 {request.university
                   ? `${request.university.name} (${request.university.city})`
@@ -42,7 +43,7 @@ export default async function AdminPage() {
             <CardContent className="flex flex-col gap-4">
               {!request.fileAvailable ? (
                 // Uploads are not in the backups (ARCHITECTURE §8): after a restore the file can be gone.
-                <p className="text-sm text-destructive">
+                <p className="text-[14px] text-accent-text">
                   Die Datei fehlt (z. B. nach dem Einspielen eines Backups). Bitte ablehnen, etwa
                   mit „Bitte erneut hochladen“; freigeben geht ohne Datei nicht.
                 </p>
@@ -62,12 +63,17 @@ export default async function AdminPage() {
                       className="h-[70vh] w-full rounded-lg border"
                     />
                   )}
-                  <a href={fileUrl} target="_blank" rel="noreferrer" className="text-sm underline">
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[14px] underline underline-offset-2"
+                  >
                     In neuem Tab öffnen
                   </a>
                 </>
               )}
-              <ul className="list-disc pl-5 text-sm">
+              <ul className="list-disc pl-5 text-[14px]">
                 {CHECKLIST.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -80,6 +86,6 @@ export default async function AdminPage() {
           </Card>
         );
       })}
-    </main>
+    </PageMain>
   );
 }

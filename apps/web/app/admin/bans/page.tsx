@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { requireAdminPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
 import { banTeamAction, banUserAction } from "../actions";
+import { PageMain } from "@/components/page-main";
 
 // Consequences from SPEC P0-9 and the edge cases.
 const TEAM_BAN_CONSEQUENCES =
@@ -26,10 +27,10 @@ export default async function BansPage({
   const searched = query.length >= MIN_SEARCH_LENGTH;
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
+    <PageMain className="gap-6">
       <AdminNav adminId={admin.id} />
-      <h1 className="text-2xl font-bold">Sperren</h1>
-      <div className="flex flex-col gap-1 text-sm opacity-80">
+      <h1 className="type-h1">Sperren</h1>
+      <div className="flex flex-col gap-1 text-[14px] text-muted-foreground">
         <p>
           Nutzer sperren: Die Person wird sofort abgemeldet. Spieler werden aus ihrem Team entfernt.
           Ein Captain bleibt im Team, und das Team wird mitgesperrt.
@@ -46,23 +47,26 @@ export default async function BansPage({
         <Button type="submit" variant="outline">
           Suchen
         </Button>
-        <Link href="/admin/bans" className="text-sm underline">
+        <Link href="/admin/bans" className="text-[14px] underline underline-offset-2">
           Zurücksetzen
         </Link>
       </form>
       {tooShort ? (
-        <p className="text-sm">Bitte mindestens {MIN_SEARCH_LENGTH} Zeichen eingeben.</p>
+        <p className="text-[14px]">Bitte mindestens {MIN_SEARCH_LENGTH} Zeichen eingeben.</p>
       ) : null}
 
       {searched ? (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">Nutzer</h2>
-          {result.users.length === 0 ? <p className="text-sm">Keine Treffer.</p> : null}
+          <h2 className="type-h2">Nutzer</h2>
+          {result.users.length === 0 ? <p className="text-[14px]">Keine Treffer.</p> : null}
           {result.users.map((user) => (
-            <div key={user.id} className="flex flex-col gap-2 rounded-lg border p-3 text-sm">
+            <div
+              key={user.id}
+              className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-[14px]"
+            >
               <p className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{user.name}</span>
-                <span className="opacity-60">Discord-ID {user.discordId}</span>
+                <span className="text-muted-foreground">Discord-ID {user.discordId}</span>
                 {user.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
               </p>
               {user.team ? (
@@ -89,13 +93,16 @@ export default async function BansPage({
             </div>
           ))}
 
-          <h2 className="text-lg font-semibold">Teams</h2>
-          {result.teams.length === 0 ? <p className="text-sm">Keine Treffer.</p> : null}
+          <h2 className="type-h2">Teams</h2>
+          {result.teams.length === 0 ? <p className="text-[14px]">Keine Treffer.</p> : null}
           {result.teams.map((team) => (
-            <div key={team.id} className="flex flex-col gap-2 rounded-lg border p-3 text-sm">
+            <div
+              key={team.id}
+              className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-[14px]"
+            >
               <p className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{team.name}</span>
-                <span className="opacity-60">[{team.tag}]</span>
+                <span className="text-muted-foreground">[{team.tag}]</span>
                 {team.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
               </p>
               <p>
@@ -115,6 +122,6 @@ export default async function BansPage({
           ))}
         </section>
       ) : null}
-    </main>
+    </PageMain>
   );
 }

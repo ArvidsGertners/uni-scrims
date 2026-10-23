@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { Fragment } from "react";
 import { type LegalPage, readLegalPage } from "@/lib/legal";
+import { PageMain } from "@/components/page-main";
 
 /** Impressum or privacy policy from LEGAL_DIR; a placeholder if the file is missing. */
 export async function LegalContent({ page, title }: { page: LegalPage; title: string }) {
@@ -9,14 +10,14 @@ export async function LegalContent({ page, title }: { page: LegalPage; title: st
   const blocks = await readLegalPage(page);
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-12">
-      <h1 className="text-2xl font-bold">{title}</h1>
+    <PageMain className="gap-4">
+      <h1 className="type-h1">{title}</h1>
       {blocks === null || blocks.length === 0 ? <p>Inhalt folgt.</p> : null}
       {blocks?.map((block, index) => {
         switch (block.type) {
           case "heading":
             return (
-              <h2 key={index} className="mt-2 text-lg font-semibold">
+              <h2 key={index} className="mt-2 type-h2">
                 {block.text}
               </h2>
             );
@@ -41,6 +42,6 @@ export async function LegalContent({ page, title }: { page: LegalPage; title: st
             );
         }
       })}
-    </main>
+    </PageMain>
   );
 }
