@@ -14,6 +14,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
+import { setFlash } from "@/lib/flash";
 import { getSessionUserId } from "@/lib/session";
 
 // Shape check only; the content rules (lengths, rank) live in core's teamInputSchema.
@@ -39,7 +40,8 @@ export async function createTeamAction(_state: ActionState, formData: FormData) 
   if (!input) return invalidInput;
   return finish(
     await runAction(async () => {
-      await createTeam({ ...input, userId, now: new Date() });
+      const team = await createTeam({ ...input, userId, now: new Date() });
+      await setFlash(`Willkommen bei ${team.name}`);
     }),
   );
 }
@@ -103,7 +105,8 @@ export async function leaveTeamAction(_state: ActionState, _formData: FormData) 
   const userId = (await getSessionUserId()) ?? "";
   return finish(
     await runAction(async () => {
-      await leaveTeam({ userId, now: new Date() });
+      const { dissolved } = await leaveTeam({ userId, now: new Date() });
+      await setFlash(dissolved ? "Du hast das Team aufgelöst" : "Du hast das Team verlassen");
     }),
   );
 }
@@ -113,7 +116,8 @@ export async function joinTeamAction(_state: ActionState, formData: FormData) {
   const code = idSchema.safeParse(formField(formData, "code"));
   if (!code.success) return invalidInput;
   const state = await runAction(async () => {
-    await joinTeam({ userId, inviteCode: code.data, now: new Date() });
+    const team = await joinTeam({ userId, inviteCode: code.data, now: new Date() });
+    await setFlash(`Willkommen bei ${team.name}`);
   });
   if (!state.done) return state;
   // redirect() throws, so it must stay outside runAction.

@@ -3,8 +3,10 @@
 import { cancelScrim, submitFeedback } from "@uni-scrims/core";
 import type { FeedbackOutcome } from "@uni-scrims/db";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
+import { setFlash } from "@/lib/flash";
 import { getSessionUserId } from "@/lib/session";
 
 async function finish(scrimId: string, state: ActionState): Promise<ActionState> {
@@ -37,7 +39,7 @@ export async function submitFeedbackAction(_state: ActionState, formData: FormDa
     });
   if (!parsed.success) return invalidInput;
   const { scrimId, outcome, rating } = parsed.data;
-  return finish(
+  const state = await finish(
     scrimId,
     await runAction(async () => {
       await submitFeedback({
@@ -49,4 +51,8 @@ export async function submitFeedbackAction(_state: ActionState, formData: FormDa
       });
     }),
   );
+  if (!state.done) return state;
+  // redirect() throws, so it must stay outside runAction.
+  await setFlash("Danke für dein Feedback!");
+  redirect("/scrims?tab=vergangen");
 }

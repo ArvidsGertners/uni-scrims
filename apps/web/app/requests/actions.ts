@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
+import { setFlash } from "@/lib/flash";
 import { getSessionUserId } from "@/lib/session";
 
 // Shape checks only; the content rules live in core's schemas.
@@ -38,9 +39,8 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
     note: formField(formData, "note"),
   });
   if (!parsed.success) return invalidInput;
-  let requestId = "";
   const state = await runAction(async () => {
-    const request = await createRequest({
+    await createRequest({
       ...parsed.data,
       format: parsed.data.format as ScrimFormat,
       rankMin: parsed.data.rankMin as Rank,
@@ -50,12 +50,12 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
       userId,
       now: new Date(),
     });
-    requestId = request.id;
   });
   if (!state.done) return state;
   // redirect() throws, so it must stay outside runAction.
   revalidatePath("/board");
-  redirect(`/requests/${requestId}`);
+  await setFlash("Anfrage ist jetzt auf dem Board");
+  redirect("/scrims?tab=anfragen");
 }
 
 export async function deleteRequestAction(_state: ActionState, formData: FormData) {
@@ -67,20 +67,33 @@ export async function deleteRequestAction(_state: ActionState, formData: FormDat
   });
   if (!state.done) return state;
   revalidatePath("/board");
+  await setFlash("Anfrage zurückgezogen");
   redirect("/board");
 }
 
 export async function applyAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
-  const parsed = z.object({ requestId: idSchema, message: z.string().optional() }).safeParse({
-    requestId: formField(formData, "requestId"),
-    message: formField(formData, "message"),
-  });
+  const parsed = z
+    .object({
+      requestId: idSchema,
+      message: z.string().optional(),
+      // Only for the toast text.
+      teamName: z.string().max(100).optional(),
+    })
+    .safeParse({
+      requestId: formField(formData, "requestId"),
+      message: formField(formData, "message"),
+      teamName: formField(formData, "teamName"),
+    });
   if (!parsed.success) return invalidInput;
+  const { requestId, message, teamName } = parsed.data;
   const state = await runAction(async () => {
-    await applyToRequest({ userId, ...parsed.data, now: new Date() });
+    await applyToRequest({ userId, requestId, message, now: new Date() });
   });
-  revalidatePath(`/requests/${parsed.data.requestId}`);
+  if (state.done) {
+    await setFlash(teamName ? `Bewerbung an ${teamName} gesendet` : "Bewerbung gesendet");
+  }
+  revalidatePath(`/requests/${requestId}`);
   return state;
 }
 
@@ -104,20 +117,30 @@ export async function withdrawApplicationAction(_state: ActionState, formData: F
 
 export async function confirmApplicationAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
-  const parsed = z.object({ requestId: idSchema, applicationId: idSchema }).safeParse({
-    requestId: formField(formData, "requestId"),
-    applicationId: formField(formData, "applicationId"),
-  });
+  const parsed = z
+    .object({
+      requestId: idSchema,
+      applicationId: idSchema,
+      // Only for the toast text.
+      teamName: z.string().max(100).optional(),
+    })
+    .safeParse({
+      requestId: formField(formData, "requestId"),
+      applicationId: formField(formData, "applicationId"),
+      teamName: formField(formData, "teamName"),
+    });
   if (!parsed.success) return invalidInput;
+  const { requestId, applicationId, teamName } = parsed.data;
   let scrimId = "";
   const state = await runAction(async () => {
-    const scrim = await confirmApplication({ userId, ...parsed.data, now: new Date() });
+    const scrim = await confirmApplication({ userId, requestId, applicationId, now: new Date() });
     scrimId = scrim.id;
   });
   if (!state.done) {
-    revalidatePath(`/requests/${parsed.data.requestId}`);
+    revalidatePath(`/requests/${requestId}`);
     return state;
   }
   revalidatePath("/board");
+  await setFlash(`${teamName ?? "Team"} angenommen – beide Teams bekommen eine Discord-Nachricht.`);
   redirect(`/scrims/${scrimId}`);
 }

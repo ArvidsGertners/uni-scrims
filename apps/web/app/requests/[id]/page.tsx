@@ -130,6 +130,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               className="flex flex-col gap-4"
             >
               <input type="hidden" name="requestId" value={request.id} />
+              <input type="hidden" name="teamName" value={team.name} />
               <CountedTextarea
                 label={`Nachricht an ${team.name}`}
                 name="message"
@@ -275,6 +276,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                 >
                   <input type="hidden" name="requestId" value={request.id} />
                   <input type="hidden" name="applicationId" value={application.id} />
+                  <input type="hidden" name="teamName" value={application.team.name} />
                 </ActionForm>
               ) : null}
             </div>
