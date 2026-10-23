@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { LogInIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 
+/** Age and privacy confirmation (SPEC P0-1), then the Discord login. */
 export function LoginForm({ callbackURL }: { callbackURL: string }) {
   const [confirmed, setConfirmed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -20,23 +22,24 @@ export function LoginForm({ callbackURL }: { callbackURL: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <label className="flex items-start gap-2 text-sm">
+    <div className="flex w-full flex-col items-start gap-3.5">
+      <label className="flex items-start gap-2.5 text-[14px]">
         <input
           type="checkbox"
-          className="mt-0.5 size-4 accent-primary"
+          className="mt-0.5 size-4 shrink-0 accent-primary"
           checked={confirmed}
           onChange={(event) => setConfirmed(event.target.checked)}
         />
         <span>
           Ich bin mindestens 16 Jahre alt und habe die{" "}
-          <Link href="/datenschutz" className="underline" target="_blank">
+          <Link href="/datenschutz" className="underline underline-offset-2" target="_blank">
             Datenschutzerklärung
           </Link>{" "}
           gelesen.
         </span>
       </label>
-      <Button className="self-start" disabled={!confirmed || pending} onClick={signIn}>
+      <Button size="xl" className="max-sm:w-full" disabled={!confirmed || pending} onClick={signIn}>
+        <LogInIcon size={20} strokeWidth={2.2} />
         Mit Discord anmelden
       </Button>
     </div>
