@@ -6,10 +6,11 @@ import {
   leaveTeam,
   regenerateInvite,
   removeMember,
+  setMemberRole,
   transferCaptain,
   updateTeam,
 } from "@uni-scrims/core";
-import type { Rank } from "@uni-scrims/db";
+import type { MemberRole, Rank } from "@uni-scrims/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -97,6 +98,22 @@ export async function removeMemberAction(_state: ActionState, formData: FormData
   return finish(
     await runAction(async () => {
       await removeMember({ userId, ...parsed.data });
+    }),
+  );
+}
+
+export async function setMemberRoleAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  // Shape check only; core validates the role.
+  const parsed = z.object({ teamId: idSchema, memberId: idSchema, role: z.string() }).safeParse({
+    teamId: formField(formData, "teamId"),
+    memberId: formField(formData, "memberId"),
+    role: formField(formData, "role"),
+  });
+  if (!parsed.success) return invalidInput;
+  return finish(
+    await runAction(async () => {
+      await setMemberRole({ userId, ...parsed.data, role: parsed.data.role as MemberRole });
     }),
   );
 }

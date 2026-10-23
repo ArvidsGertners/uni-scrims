@@ -1,4 +1,11 @@
-import { MAX_TEAM_MEMBERS, RANK_LABELS, READY_MEMBER_COUNT, getMyTeam } from "@uni-scrims/core";
+import {
+  MAX_TEAM_MEMBERS,
+  MEMBER_ROLE_LABELS,
+  RANK_LABELS,
+  READY_MEMBER_COUNT,
+  getMyTeam,
+} from "@uni-scrims/core";
+import type { MemberRole } from "@uni-scrims/db";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { PageMain } from "@/components/page-main";
@@ -14,14 +21,20 @@ import {
   leaveTeamAction,
   regenerateInviteAction,
   removeMemberAction,
+  setMemberRoleAction,
   transferCaptainAction,
   updateTeamAction,
 } from "./actions";
 import { CopyLink } from "./copy-link";
 import { JoinLinkForm } from "./join-link-form";
+import { MemberRoleSelect } from "./member-role-select";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 const memberActionClass = "min-h-10 px-2.5 text-[14px]";
+const ROLE_OPTIONS = (Object.keys(MEMBER_ROLE_LABELS) as MemberRole[]).map((role) => ({
+  value: role,
+  label: MEMBER_ROLE_LABELS[role],
+}));
 
 export default async function TeamPage() {
   const user = await requirePageUser("/team");
@@ -34,8 +47,9 @@ export default async function TeamPage() {
         <div className="flex flex-col gap-2.5">
           <h1 className="type-h1">Du bist noch in keinem Team</h1>
           <p className="text-pretty text-muted-foreground">
-            Gründe ein Team oder tritt über einen Einladungslink bei. Ein Team hat 5 bis 10 Spieler.
-            Das geht auch, während deine Verifizierung noch läuft.
+            Gründe ein Team oder tritt über einen Einladungslink bei. Ein Team braucht mindestens{" "}
+            {READY_MEMBER_COUNT} verifizierte Spieler und hat höchstens {MAX_TEAM_MEMBERS}{" "}
+            Mitglieder. Das geht auch, während deine Verifizierung noch läuft.
           </p>
         </div>
         <section className={`${cardClass} gap-[18px]`}>
@@ -96,12 +110,12 @@ export default async function TeamPage() {
       ) : null}
 
       <div className="flex flex-col gap-2.5">
-        <div className="flex items-baseline justify-between">
-          <span className="font-display text-[28px] leading-none [font-weight:var(--display-weight)]">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-display text-[28px] leading-none whitespace-nowrap [font-weight:var(--display-weight)]">
             {memberCount}
-            <span className="text-[18px] text-faint"> / {MAX_TEAM_MEMBERS} Spieler</span>
+            <span className="text-[18px] text-faint"> / {MAX_TEAM_MEMBERS} Mitglieder</span>
           </span>
-          <span className="text-[13px] text-muted-foreground">
+          <span className="text-right text-[13px] text-muted-foreground">
             {!team.ready
               ? `Noch ${missing} verifizierte bis zum Minimum`
               : memberCount >= MAX_TEAM_MEMBERS
@@ -123,7 +137,8 @@ export default async function TeamPage() {
           <Alert>
             <span>
               Ihr braucht mindestens {READY_MEMBER_COUNT} verifizierte Spieler, um Scrims anzufragen
-              oder euch zu bewerben. Es fehlen noch {missing}.
+              oder euch zu bewerben. Es fehlen noch {missing}. Ersatzspieler zählen mit, Coaches
+              nicht.
             </span>
           </Alert>
         ) : null}
@@ -156,16 +171,21 @@ export default async function TeamPage() {
           {team.members.map((member) => (
             <li
               key={member.id}
-              className="flex min-h-[60px] items-center gap-3 border-b border-border py-2"
+              className="flex min-h-[60px] flex-wrap items-center gap-3 border-b border-border py-2"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary font-label text-[12px] font-bold text-muted-foreground">
                 {initials(member.name)}
               </span>
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <div className="flex min-w-36 flex-1 flex-wrap items-center gap-2">
                 <span className="font-label text-[14px] font-semibold">{member.name}</span>
                 {member.isCaptain ? (
                   <Badge variant="accent" className="h-[22px] px-2 text-[12px]">
                     Captain
+                  </Badge>
+                ) : null}
+                {!manage && member.role !== "PLAYER" ? (
+                  <Badge className="h-[22px] px-2 text-[12px]">
+                    {MEMBER_ROLE_LABELS[member.role]}
                   </Badge>
                 ) : null}
                 {member.status === "PENDING" ? (
@@ -177,30 +197,43 @@ export default async function TeamPage() {
                 ) : null}
                 {member.id === user.id ? <span className="text-[13px] text-faint">Du</span> : null}
               </div>
-              {manage && !member.isCaptain ? (
-                <div className="flex shrink-0 flex-wrap justify-end">
-                  <ActionForm
-                    action={transferCaptainAction}
-                    submitLabel="Zum Captain"
-                    variant="ghost"
-                    size="bare"
-                    submitClassName={memberActionClass}
-                    confirmText={`${member.name} zum Captain machen? Du bist danach normales Mitglied.`}
-                  >
-                    <input type="hidden" name="teamId" value={team.id} />
-                    <input type="hidden" name="memberId" value={member.id} />
-                  </ActionForm>
-                  <ActionForm
-                    action={removeMemberAction}
-                    submitLabel="Entfernen"
-                    variant="ghost"
-                    size="bare"
-                    submitClassName={`${memberActionClass} not-disabled:hover:bg-accent-soft not-disabled:hover:text-accent-text`}
-                    confirmText={`${member.name} aus dem Team entfernen?`}
-                  >
-                    <input type="hidden" name="teamId" value={team.id} />
-                    <input type="hidden" name="memberId" value={member.id} />
-                  </ActionForm>
+              {manage ? (
+                <div className="ml-auto flex shrink-0 flex-wrap items-start justify-end gap-1">
+                  <MemberRoleSelect
+                    key={`${member.id}-${member.role}`}
+                    action={setMemberRoleAction}
+                    teamId={team.id}
+                    memberId={member.id}
+                    memberName={member.name}
+                    role={member.role}
+                    options={ROLE_OPTIONS}
+                  />
+                  {member.isCaptain ? null : (
+                    <>
+                      <ActionForm
+                        action={transferCaptainAction}
+                        submitLabel="Zum Captain"
+                        variant="ghost"
+                        size="bare"
+                        submitClassName={memberActionClass}
+                        confirmText={`${member.name} zum Captain machen? Du bist danach normales Mitglied.`}
+                      >
+                        <input type="hidden" name="teamId" value={team.id} />
+                        <input type="hidden" name="memberId" value={member.id} />
+                      </ActionForm>
+                      <ActionForm
+                        action={removeMemberAction}
+                        submitLabel="Entfernen"
+                        variant="ghost"
+                        size="bare"
+                        submitClassName={`${memberActionClass} not-disabled:hover:bg-accent-soft not-disabled:hover:text-accent-text`}
+                        confirmText={`${member.name} aus dem Team entfernen?`}
+                      >
+                        <input type="hidden" name="teamId" value={team.id} />
+                        <input type="hidden" name="memberId" value={member.id} />
+                      </ActionForm>
+                    </>
+                  )}
                 </div>
               ) : null}
             </li>
