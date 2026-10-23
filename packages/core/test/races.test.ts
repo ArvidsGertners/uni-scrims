@@ -4,7 +4,14 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { AppStatus, NotifType, ScrimStatus, VerifStatus, prisma } from "@uni-scrims/db";
+import {
+  AppStatus,
+  FeedbackOutcome,
+  NotifType,
+  ScrimStatus,
+  VerifStatus,
+  prisma,
+} from "@uni-scrims/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   autoRejectStaleVerifications,
@@ -23,12 +30,14 @@ import {
   leaveTeam,
   applyToRequest,
   regenerateInvite,
+  submitFeedback,
   submitVerification,
   updateTeam,
 } from "../src/index.ts";
 import {
   NOW,
   REQUEST_STARTS_AT,
+  bookScrim,
   createOpenRequest,
   createReadyTeam,
   createTeamWithMembers,
@@ -424,6 +433,25 @@ describe("verifications while the account is deleted or banned", () => {
     }
   });
 
+  it("does not deadlock when the janitor rejects during a ban", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const user = await createUser();
+      await upload(user.id);
+      const results = await Promise.allSettled([
+        autoRejectStaleVerifications(new Date(NOW.getTime() + 15 * DAY), uploadDir),
+        ban(user.id),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(
+        await prisma.verificationRequest.count({
+          where: { userId: user.id, status: VerifStatus.PENDING },
+        }),
+      ).toBe(0);
+    }
+    expect(await readdir(uploadDir)).toEqual([]);
+  });
+
   it("does not deadlock when a decision and a ban meet", async () => {
     for (let round = 0; round < ROUNDS; round++) {
       const user = await createUser();
@@ -460,6 +488,35 @@ describe("leaveTeam while being banned", () => {
       ]);
       expectOnlyDomainErrors(results);
       expect(await prisma.teamMember.findUnique({ where: { userId: player.id } })).toBeNull();
+    }
+  });
+});
+
+describe("submitFeedback while the captain deletes the account", () => {
+  it("does not deadlock and stores no answer after the deletion", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { guest, scrim } = await bookScrim();
+      await prisma.teamMember.deleteMany({
+        where: { teamId: guest.team.id, userId: { not: guest.captain.id } },
+      });
+      const afterStart = new Date(scrim.startsAt.getTime() + 60 * 60 * 1000);
+      const results = await Promise.allSettled([
+        submitFeedback({
+          userId: guest.captain.id,
+          scrimId: scrim.id,
+          outcome: FeedbackOutcome.PLAYED,
+          rating: 5,
+          now: afterStart,
+        }),
+        deleteAccount({ userId: guest.captain.id, uploadDir, now: afterStart }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      if (results[0].status === "rejected") {
+        expect(
+          await prisma.scrimFeedback.count({ where: { submittedById: guest.captain.id } }),
+        ).toBe(0);
+      }
     }
   });
 });
