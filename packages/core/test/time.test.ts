@@ -4,6 +4,8 @@ import {
   berlinDayRange,
   berlinToUtc,
   describeStart,
+  describeStartTime,
+  formatDayHeading,
   isStartSlot,
   isValidDateString,
   toBerlinDateString,
@@ -71,5 +73,24 @@ describe("describeStart", () => {
     expect(describeStart(new Date("2026-10-21T23:00:00Z"))).toBe(
       "Do, 22.10.2026, 01:00 Uhr (Nacht auf Do, 22.10.)",
     );
+  });
+});
+
+describe("describeStartTime", () => {
+  it("shows the time in Berlin", () => {
+    expect(describeStartTime(new Date("2026-10-22T18:00:00Z"))).toBe("20:00 Uhr");
+  });
+
+  it("marks starts after midnight as night", () => {
+    expect(describeStartTime(new Date("2026-10-21T23:00:00Z"))).toBe(
+      "01:00 Uhr (Nacht auf Do, 22.10.)",
+    );
+  });
+});
+
+describe("formatDayHeading", () => {
+  it("names the Berlin calendar day", () => {
+    expect(formatDayHeading(new Date("2026-10-29T23:30:00Z"))).toBe("Freitag, 30. Oktober");
+    expect(formatDayHeading(new Date("2026-11-01T12:00:00Z"))).toBe("Sonntag, 1. November");
   });
 });

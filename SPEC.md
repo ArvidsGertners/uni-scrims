@@ -172,7 +172,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [ ] Bewusst akzeptiertes Restrisiko: Ob die Bescheinigung wirklich dem Uploader gehört, ist nicht prüfbar. Missbrauch wird über Sperren behandelt.
 
 **P0-3 Teams**
-- [ ] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Iron bis Radiant)
+- [ ] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Eisen bis Radiant)
 - [ ] Captain kann Name, Kürzel und Team-Rang ändern
 - [ ] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
 - [ ] Einladungslink, den der Captain erneuern kann

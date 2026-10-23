@@ -79,13 +79,24 @@ export function toBerlinDateString(date: Date): string {
   return format(date, "yyyy-MM-dd", berlin);
 }
 
-/**
- * German display of a start time, e.g. "Do, 22.10.2026, 20:00 Uhr". Starts after midnight get
- * "(Nacht auf Do, 22.10.)" so nobody shows up a day late (SPEC P0-4).
- */
-export function describeStart(startsAt: Date): string {
-  const text = format(startsAt, "EEEEEE, dd.MM.yyyy, HH:mm 'Uhr'", berlin);
+/** " (Nacht auf Do, 22.10.)" for starts after midnight, so nobody shows up a day late (SPEC P0-4). */
+function nightSuffix(startsAt: Date): string {
   const hour = Number(format(startsAt, "H", berlin));
-  if (hour > LAST_NIGHT_HOUR) return text;
-  return `${text} (Nacht auf ${format(startsAt, "EEEEEE, dd.MM.", berlin)})`;
+  if (hour > LAST_NIGHT_HOUR) return "";
+  return ` (Nacht auf ${format(startsAt, "EEEEEE, dd.MM.", berlin)})`;
+}
+
+/** German display of a start time, e.g. "Do, 22.10.2026, 20:00 Uhr", with the night suffix. */
+export function describeStart(startsAt: Date): string {
+  return format(startsAt, "EEEEEE, dd.MM.yyyy, HH:mm 'Uhr'", berlin) + nightSuffix(startsAt);
+}
+
+/** Time only, e.g. "20:00 Uhr", with the night suffix; for lists grouped by day. */
+export function describeStartTime(startsAt: Date): string {
+  return format(startsAt, "HH:mm 'Uhr'", berlin) + nightSuffix(startsAt);
+}
+
+/** Heading of a Berlin calendar day, e.g. "Donnerstag, 22. Oktober". */
+export function formatDayHeading(date: Date): string {
+  return format(date, "EEEE, d. MMMM", berlin);
 }

@@ -13,15 +13,16 @@ export const RANKS: readonly Rank[] = [
   Rank.RADIANT,
 ];
 
+/** German rank names as in the German Valorant client (design handoff). */
 export const RANK_LABELS: Record<Rank, string> = {
-  IRON: "Iron",
+  IRON: "Eisen",
   BRONZE: "Bronze",
-  SILVER: "Silver",
+  SILVER: "Silber",
   GOLD: "Gold",
-  PLATINUM: "Platinum",
-  DIAMOND: "Diamond",
-  ASCENDANT: "Ascendant",
-  IMMORTAL: "Immortal",
+  PLATINUM: "Platin",
+  DIAMOND: "Diamant",
+  ASCENDANT: "Aufgestiegen",
+  IMMORTAL: "Unsterblich",
   RADIANT: "Radiant",
 };
 
