@@ -314,7 +314,7 @@ SystemStatus
 3. Sessions liegen in der DB. **Den Cookie-Cache nicht aktivieren** (er ist standardmäßig aus), damit Sperren und Kontolöschung sofort greifen.
 4. Welche Felder die `session`-Tabelle in der gepinnten Version speichert (nach Kenntnis IP-Adresse und User-Agent). Das Ergebnis geht in die Datenschutzerklärung.
 
-**Hinweis-Banner auf jeder Seite**, solange `hubJoinFailedAt` oder `dmFailedAt` gesetzt ist: "Wir können dir keine Discord-Nachrichten schicken." Darunter stehen der Hub-Einladungslink und der Hinweis, DMs von Servermitgliedern zu erlauben.
+**Hinweis-Banner auf jeder Seite**, solange `hubJoinFailedAt` oder `dmFailedAt` gesetzt ist: "Wir konnten dir keine Discord-Nachricht schicken" mit dem Link "So behebst du das" auf die Konto-Seite. Der Banner lässt sich nicht wegklicken. Auf der Konto-Seite stehen der Hinweis, DMs von Servermitgliedern zu erlauben, und bei `hubJoinFailedAt` zusätzlich der Hub-Einladungslink.
 
 ### 5.2 Verifizierung (Upload)
 
@@ -560,7 +560,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 
 `leaveTeam` funktioniert für Nicht-Captains auch in gesperrten Teams. Nach Verlassen oder Auflösen sind vergangene Scrims für ehemalige Mitglieder nicht mehr sichtbar (gewollt).
 - **Zeit:** Eingabe im Formular in Europe/Berlin, Umrechnung nach UTC in `core`. Keine Zeitlogik im Browser.
-- **UI:** Tailwind + shadcn/ui, komplett auf Deutsch, mobilfreundlich.
+- **UI:** Tailwind + shadcn/ui, komplett auf Deutsch, mobilfreundlich. Optik nach dem Design-Handoff (Richtung A „Klar“, Tokens in `apps/web/app/globals.css`); Funktionen und Felder bleiben wie in SPEC und hier beschrieben.
 
 ### Entwicklung und Tests
 

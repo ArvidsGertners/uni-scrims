@@ -9,6 +9,7 @@ export default tseslint.config(
     ignores: [
       ".agents/**",
       ".claude/**",
+      "docs/design_handoff_uni_scrims/**",
       "**/node_modules/**",
       "**/.next/**",
       "**/dist/**",

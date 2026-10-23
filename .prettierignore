@@ -6,3 +6,4 @@ packages/db/prisma/migrations/
 .agents/
 .claude/
 skills-lock.json
+docs/design_handoff_uni_scrims/

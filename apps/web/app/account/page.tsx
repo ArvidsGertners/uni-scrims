@@ -1,6 +1,7 @@
 import { getAccount } from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
+import { DiscordDmWarning } from "@/components/discord-dm-warning";
 import { requirePageAccountUser } from "@/lib/session";
 import { deleteAccountAction } from "./actions";
 
@@ -22,6 +23,10 @@ export default async function AccountPage() {
           </p>
         ) : null}
       </div>
+
+      {user.hubJoinFailedAt || user.dmFailedAt ? (
+        <DiscordDmWarning hubJoinFailed={user.hubJoinFailedAt !== null} />
+      ) : null}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Konto löschen</h2>

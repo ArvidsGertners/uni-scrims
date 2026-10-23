@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import { Geist } from "next/font/google";
-import Link from "next/link";
+import { Geist, Geist_Mono } from "next/font/google";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+// Direction A of the design handoff: Geist for display and body, Geist Mono for labels.
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
   title: "Uni Scrims",
@@ -20,14 +22,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="de" className={cn("font-sans", geist.variable)}>
-      <body className="flex min-h-dvh flex-col antialiased">
+    // The app is dark only; "dark" keeps the dark: variants of shadcn components active.
+    <html lang="de" className={cn("dark", geist.variable, geistMono.variable)}>
+      <body className="flex min-h-dvh flex-col">
         <SiteHeader />
         <div className="flex-1">{children}</div>
-        <footer className="mx-auto flex w-full max-w-3xl gap-4 px-4 py-6 text-sm opacity-70">
-          <Link href="/impressum">Impressum</Link>
-          <Link href="/datenschutz">Datenschutz</Link>
-        </footer>
+        <SiteFooter />
       </body>
     </html>
   );

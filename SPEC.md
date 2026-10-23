@@ -156,7 +156,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [ ] Login und Logout über Discord
 - [ ] Außer Landing, Impressum und Datenschutz ist alles nur für eingeloggte, nicht gesperrte Nutzer sichtbar (Board, Anfragen, Team-Karten). Wer was genau sehen und tun darf, regelt die Berechtigungstabelle in ARCHITECTURE §7.
 - [ ] Beim ersten Login wird ein Nutzer mit Discord-ID, Username und Avatar angelegt; Username und Avatar werden bei jedem Login aktualisiert
-- [ ] Bei jedem Login wird der Beitritt zum Uni-Scrims-Server versucht; scheitert er, sieht der Nutzer einen dauerhaften Hinweis mit Einladungslink
+- [ ] Bei jedem Login wird der Beitritt zum Uni-Scrims-Server versucht; scheitert er, sieht der Nutzer einen dauerhaften Hinweis, der auf den Einladungslink auf der Konto-Seite verweist
 
 **P0-2 Verifizierung per Immatrikulationsbescheinigung**
 - [ ] Hochschul-Auswahl aus einer Seed-Liste (mindestens alle großen Universitäten, alle DHBW-Standorte und alle Hochschulen mit bekannten Uniliga-Valorant-Teams; nur Name und Ort) plus "Andere" mit Freitext

@@ -1,25 +1,28 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TriangleAlert } from "lucide-react";
+import Link from "next/link";
 
-// Shown on every page while hubJoinFailedAt or dmFailedAt is set (ARCHITECTURE §5.1).
+// Shown on every page while hubJoinFailedAt or dmFailedAt is set (ARCHITECTURE §5.1); the fix,
+// including the hub invite link, is on the account page.
 export function DiscordBanner() {
-  const inviteUrl = process.env.HUB_INVITE_URL;
   return (
-    <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
-      <AlertTitle>Wir können dir keine Discord-Nachrichten schicken.</AlertTitle>
-      <AlertDescription>
-        <p>
-          Tritt dem Uni-Scrims-Server bei
-          {inviteUrl ? (
-            <>
-              {": "}
-              <a href={inviteUrl} target="_blank" rel="noreferrer">
-                {inviteUrl}
-              </a>
-            </>
-          ) : null}
-          . Erlaube dort in den Privatsphäre-Einstellungen Direktnachrichten von Servermitgliedern.
-        </p>
-      </AlertDescription>
-    </Alert>
+    <div className="border-b border-warning-line bg-warning-soft">
+      <div className="mx-auto flex max-w-3xl items-start gap-3 px-5 py-3 sm:px-8">
+        <TriangleAlert aria-hidden className="mt-px size-5 flex-none text-warning" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-[14px] font-semibold text-foreground">
+            Wir konnten dir keine Discord-Nachricht schicken
+          </span>
+          <span className="text-[13px] text-muted-foreground">
+            Ohne Direktnachrichten verpasst du Bewerbungen und Zusagen.{" "}
+            <Link
+              href="/account"
+              className="font-semibold text-warning underline underline-offset-2"
+            >
+              So behebst du das
+            </Link>
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
