@@ -1,7 +1,23 @@
+import { tmpdir } from "node:os";
 import { MemberRole, Rank, StaffRole, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  banTeam,
+  banUser,
+  decideVerification,
   deleteRequest,
+  findStaffCandidates,
+  getBotStatus,
+  getSuccessMetrics,
+  getVerificationFile,
+  listDisputes,
+  listFailedNotifications,
+  listPendingVerifications,
+  listStaff,
+  resetStaffTwoFactor,
+  resolveDispute,
+  searchModerationTargets,
+  setStaffRole,
   isTeamReady,
   leaveTeam,
   requireAccountUser,
@@ -217,6 +233,57 @@ describe("staff checks (§5.9)", () => {
     expect(staffArea(StaffRole.REVIEWER, "queue")).toBe(true);
     expect(staffArea(StaffRole.REVIEWER, "admin")).toBe(false);
     expect(staffArea(null, "queue")).toBe(false);
+  });
+
+  it("checks the role in every staff function of core", async () => {
+    const uploadDir = tmpdir();
+    // Unknown targets: a function that lets the role in fails later with NOT_FOUND or does nothing.
+    const missing = "missing-id";
+    const functions: Record<string, (id: string) => Promise<unknown>> = {
+      listPendingVerifications: (id) => listPendingVerifications(id, uploadDir),
+      getVerificationFile: (id) => getVerificationFile(missing, id, uploadDir),
+      decideVerification: (id) =>
+        decideVerification({
+          requestId: missing,
+          adminId: id,
+          decision: "REJECTED",
+          rejectReason: "Unleserlich",
+          uploadDir,
+          now: NOW,
+        }),
+      listDisputes: (id) => listDisputes(id),
+      resolveDispute: (id) =>
+        resolveDispute({ decision: "UNCLEAR", adminId: id, scrimId: missing, now: NOW }),
+      searchModerationTargets: (id) => searchModerationTargets({ adminId: id, query: "niemand" }),
+      banTeam: (id) => banTeam({ adminId: id, teamId: missing, now: NOW }),
+      banUser: (id) => banUser({ adminId: id, userId: missing, uploadDir, now: NOW }),
+      listFailedNotifications: (id) => listFailedNotifications(id),
+      getBotStatus: (id) => getBotStatus(id, NOW),
+      getSuccessMetrics: (id) => getSuccessMetrics({ adminId: id, now: NOW }),
+      listStaff: (id) => listStaff(id),
+      findStaffCandidates: (id) => findStaffCandidates({ operatorId: id, query: "niemand" }),
+      setStaffRole: (id) => setStaffRole({ operatorId: id, userId: missing, role: null }),
+      resetStaffTwoFactor: (id) => resetStaffTwoFactor({ operatorId: id, userId: missing }),
+    };
+    const area: Record<string, "queue" | "admin" | "staff"> = {
+      listPendingVerifications: "queue",
+      getVerificationFile: "queue",
+      decideVerification: "queue",
+      listStaff: "staff",
+      findStaffCandidates: "staff",
+      setStaffRole: "staff",
+      resetStaffTwoFactor: "staff",
+    };
+    for (const role of [StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.REVIEWER, null]) {
+      const user = await createUser({ staffRole: role ?? undefined });
+      for (const [name, call] of Object.entries(functions)) {
+        const letIn = await call(user.id).then(
+          () => true,
+          (error: { code?: string }) => error.code !== "FORBIDDEN",
+        );
+        expect(letIn, `${role} ${name}`).toBe(staffArea(role, area[name] ?? "admin"));
+      }
+    }
   });
 
   it("asks for the 2FA setup before any area, and needs a complete, unbanned account", async () => {
