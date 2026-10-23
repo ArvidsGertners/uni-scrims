@@ -1,6 +1,6 @@
 // Team lifecycle (SPEC P0-3, ARCHITECTURE §5.5). All paths ignore dissolved teams.
 import { randomBytes } from "node:crypto";
-import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
+import { AppStatus, type MemberRole, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
@@ -11,9 +11,9 @@ import {
   requireOwnCaptain,
   requireUser,
 } from "./permissions.ts";
-import { isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
+import { countsForReadiness, isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
 import { closeOpenRequest, openRequestWhere } from "./requests.ts";
-import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
+import { type TeamInput, memberRoleSchema, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 import { findUserByDiscordId } from "./users.ts";
 
@@ -186,6 +186,31 @@ export async function removeMember(input: {
       where: { teamId: input.teamId, userId: input.memberId },
     });
     if (removed.count === 0) {
+      throw new DomainError("NOT_FOUND", "Mitglied nicht gefunden.");
+    }
+  });
+}
+
+/**
+ * Player, substitute or coach (SPEC N-1); only the first two count for readiness. The captain sets it
+ * for every member, the own role included; verification is not needed, as for all team management.
+ */
+export async function setMemberRole(input: {
+  userId: string;
+  teamId: string;
+  memberId: string;
+  role: MemberRole;
+}): Promise<void> {
+  const role = parseInput(memberRoleSchema, input.role);
+  await prisma.$transaction(async (tx) => {
+    // As in removeMember: the role is checked again under the team lock.
+    await lockTeam(tx, input.teamId);
+    await requireCaptain(input.userId, input.teamId, tx);
+    const updated = await tx.teamMember.updateMany({
+      where: { teamId: input.teamId, userId: input.memberId },
+      data: { role },
+    });
+    if (updated.count === 0) {
       throw new DomainError("NOT_FOUND", "Mitglied nicht gefunden.");
     }
   });
@@ -374,6 +399,7 @@ export function teamUniversities(members: MemberUniversity[]) {
 
 const memberSelect = {
   joinedAt: true,
+  role: true,
   user: {
     select: {
       id: true,
@@ -399,11 +425,12 @@ export async function getMyTeam(userId: string) {
   });
 
   const isCaptain = isCaptainOf(user, team);
-  const members = memberRows.map(({ user: member, joinedAt }) => ({
+  const members = memberRows.map(({ user: member, joinedAt, role }) => ({
     id: member.id,
     name: member.name,
     image: member.image,
     joinedAt,
+    role,
     isCaptain: isCaptainOf(member, team),
     status: isVerifiedMember(member)
       ? ("VERIFIED" as const)
@@ -411,7 +438,8 @@ export async function getMyTeam(userId: string) {
         ? ("PENDING" as const)
         : ("UNVERIFIED" as const),
   }));
-  const verifiedCount = members.filter((member) => member.status === "VERIFIED").length;
+  // Verified players and substitutes; coaches never count (SPEC N-1).
+  const verifiedCount = memberRows.filter(countsForReadiness).length;
   return {
     id: team.id,
     name: team.name,

@@ -1,4 +1,4 @@
-import { AppStatus, FeedbackOutcome, Rank, ScrimStatus, prisma } from "@uni-scrims/db";
+import { AppStatus, FeedbackOutcome, MemberRole, Rank, ScrimStatus, prisma } from "@uni-scrims/db";
 import { describe, expect, it } from "vitest";
 import {
   MAX_OPEN_REQUESTS,
@@ -200,7 +200,7 @@ describe("getRequestForm", () => {
   };
   const NOT_READY = {
     kind: "TEAM_NOT_READY",
-    message: "Euer Team hat noch keine 5 verifizierten Mitglieder.",
+    message: "Euer Team hat noch keine 5 verifizierten Spieler.",
   };
   const LIMIT = {
     kind: "REQUEST_LIMIT",
@@ -318,7 +318,7 @@ describe("getRequestDetail", () => {
       requestId: request.id,
       now: NOW,
     });
-    const notReady = "Euer Team hat noch keine 5 verifizierten Mitglieder.";
+    const notReady = "Euer Team hat noch keine 5 verifizierten Spieler.";
     const detail = (userId: string) =>
       getRequestDetail({ userId, requestId: request.id, now: NOW });
     const confirm = () =>
@@ -343,7 +343,7 @@ describe("getRequestDetail", () => {
 
     // The applicant team is no longer ready: only its application cannot be confirmed.
     await unverify(applicant.members[0]!.id);
-    const applicantNotReady = `Das Team „${applicant.team.name}“ ist nicht mehr spielbereit (weniger als 5 verifizierte Mitglieder).`;
+    const applicantNotReady = `Das Team „${applicant.team.name}“ ist nicht mehr spielbereit (weniger als 5 verifizierte Spieler).`;
     expect(await detail(author.captain.id)).toMatchObject({
       confirm: { problem: null },
       applications: [{ canConfirm: false, teamProblem: applicantNotReady }],
@@ -352,6 +352,14 @@ describe("getRequestDetail", () => {
     // Withdrawing needs no ready team.
     expect(await detail(applicant.captain.id)).toMatchObject({ withdraw: { problem: null } });
     await unverify(applicant.members[0]!.id, NOW);
+    // A verified coach does not count as a player of the applicant team (SPEC N-1).
+    const applicantRole = (role: MemberRole) =>
+      prisma.teamMember.update({ where: { userId: applicant.members[0]!.id }, data: { role } });
+    await applicantRole(MemberRole.COACH);
+    expect(await detail(author.captain.id)).toMatchObject({
+      applications: [{ canConfirm: false, teamProblem: applicantNotReady }],
+    });
+    await applicantRole(MemberRole.PLAYER);
 
     // The applicant team is banned without its application being withdrawn (a race with banTeam).
     await prisma.team.update({ where: { id: applicant.team.id }, data: { bannedAt: NOW } });

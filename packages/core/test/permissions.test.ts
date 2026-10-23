@@ -1,4 +1,4 @@
-import { Rank, prisma } from "@uni-scrims/db";
+import { MemberRole, Rank, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   deleteRequest,
@@ -155,6 +155,16 @@ describe("requireTeamReady / isTeamReady", () => {
     const notReady = await createTeamWithMembers({ extraMembers: 4, verifiedMembers: false });
     expect(await isTeamReady(notReady.team.id)).toBe(false);
     await expect(requireTeamReady(notReady.team.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("counts substitutes but never coaches (SPEC N-1)", async () => {
+    const { team, members } = await createTeamWithMembers({ extraMembers: 4 });
+    const setRole = (role: MemberRole) =>
+      prisma.teamMember.update({ where: { userId: members[3]!.id }, data: { role } });
+    await setRole(MemberRole.COACH);
+    expect(await isTeamReady(team.id)).toBe(false);
+    await setRole(MemberRole.SUBSTITUTE);
+    expect(await isTeamReady(team.id)).toBe(true);
   });
 });
 

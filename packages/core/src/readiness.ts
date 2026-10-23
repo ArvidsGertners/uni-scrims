@@ -1,9 +1,9 @@
-// Whether a team can play: active, and ready with enough verified members (SPEC P0-3).
-// Every count of verified members and every readiness decision goes through these rules.
-import { type Prisma, prisma } from "@uni-scrims/db";
+// Whether a team can play: active, and ready with enough verified players (SPEC P0-3, N-1).
+// Every count of verified players and every readiness decision goes through these rules.
+import { MemberRole, type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 
-/** A team is ready to play with at least this many verified members (SPEC P0-3). */
+/** A team is ready to play with at least this many verified players (SPEC P0-3). */
 export const READY_MEMBER_COUNT = 5;
 
 /** Neither banned nor dissolved; only active teams can play or be joined (ARCHITECTURE §4). */
@@ -21,23 +21,36 @@ export function isVerifiedMember(user: { verifiedAt: Date | null }): boolean {
   return user.verifiedAt !== null;
 }
 
-/** The readiness rule on a number of verified members. */
+/** Roles that play and so count for readiness; coaches never do, verified or not (SPEC N-1). */
+const PLAYING_ROLES: readonly MemberRole[] = [MemberRole.PLAYER, MemberRole.SUBSTITUTE];
+
+/** A member counts for readiness: verified and not a coach. */
+export function countsForReadiness(member: {
+  role: MemberRole;
+  user: { verifiedAt: Date | null };
+}): boolean {
+  return isVerifiedMember(member.user) && PLAYING_ROLES.includes(member.role);
+}
+
+/** The readiness rule on a number of members that count for it. */
 export function isReadyCount(verifiedCount: number): boolean {
   return verifiedCount >= READY_MEMBER_COUNT;
 }
 
-/** isVerifiedMember as a database count. */
-export async function countVerifiedMembers(teamId: string, db: Db = prisma): Promise<number> {
-  return db.teamMember.count({ where: { teamId, user: { verifiedAt: { not: null } } } });
+/** countsForReadiness as a database count. */
+export async function countVerifiedPlayers(teamId: string, db: Db = prisma): Promise<number> {
+  return db.teamMember.count({
+    where: { teamId, role: { in: [...PLAYING_ROLES] }, user: { verifiedAt: { not: null } } },
+  });
 }
 
 export async function isTeamReady(teamId: string, db: Db = prisma): Promise<boolean> {
-  return isReadyCount(await countVerifiedMembers(teamId, db));
+  return isReadyCount(await countVerifiedPlayers(teamId, db));
 }
 
 /** isTeamReady for members that are already loaded. */
 export function hasReadyMembers(
-  members: readonly { user: { verifiedAt: Date | null } }[],
+  members: readonly { role: MemberRole; user: { verifiedAt: Date | null } }[],
 ): boolean {
-  return isReadyCount(members.filter(({ user }) => isVerifiedMember(user)).length);
+  return isReadyCount(members.filter(countsForReadiness).length);
 }

@@ -47,6 +47,13 @@ enum RequestStatus {
   EXPIRED
 }
 
+// Role of a team member (SPEC N-1); only players and substitutes count for readiness.
+enum MemberRole {
+  PLAYER
+  SUBSTITUTE
+  COACH
+}
+
 enum AppStatus {
   PENDING
   ACCEPTED
@@ -262,11 +269,13 @@ model Team {
 // The captain is always a member too; max. 10 members (both enforced in core).
 model TeamMember {
   teamId   String
-  team     Team     @relation(fields: [teamId], references: [id])
+  team     Team       @relation(fields: [teamId], references: [id])
   // unique ⇒ a user is in at most one team.
-  userId   String   @unique
-  user     User     @relation(fields: [userId], references: [id])
-  joinedAt DateTime @db.Timestamptz(3)
+  userId   String     @unique
+  user     User       @relation(fields: [userId], references: [id])
+  // Set by the captain; independent of the captain role (Team.captainId).
+  role     MemberRole @default(PLAYER)
+  joinedAt DateTime   @db.Timestamptz(3)
 
   @@id([teamId, userId])
 }

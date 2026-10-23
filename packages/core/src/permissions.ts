@@ -29,7 +29,7 @@ const CAPTAIN_NOT_VERIFIED: Problem = {
 const TEAM_NOT_READY: Problem = {
   kind: "TEAM_NOT_READY",
   code: "FORBIDDEN",
-  message: `Euer Team hat noch keine ${READY_MEMBER_COUNT} verifizierten Mitglieder.`,
+  message: `Euer Team hat noch keine ${READY_MEMBER_COUNT} verifizierten Spieler.`,
 };
 
 type ActingUser = { id: string; verifiedAt: Date | null };

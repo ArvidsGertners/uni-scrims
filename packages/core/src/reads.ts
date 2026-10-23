@@ -106,6 +106,7 @@ const teamCardSelect = {
   rank: true,
   members: {
     select: {
+      role: true,
       user: {
         select: { verifiedAt: true, universityOther: true, university: { select: { name: true } } },
       },

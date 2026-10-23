@@ -1,5 +1,6 @@
 import {
   AppStatus,
+  MemberRole,
   NotifChannel,
   NotifStatus,
   NotifType,
@@ -62,6 +63,25 @@ describe("createRequest", () => {
   it("rejects teams with fewer than 5 verified members", async () => {
     const { captain } = await createTeamWithMembers({ extraMembers: 3 });
     await expect(createOpenRequest(captain.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("does not count a verified coach as the fifth player (SPEC N-1)", async () => {
+    const { captain, members } = await createReadyTeam();
+    await prisma.teamMember.update({
+      where: { userId: members[0]!.id },
+      data: { role: MemberRole.COACH },
+    });
+    await expect(createOpenRequest(captain.id)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "Euer Team hat noch keine 5 verifizierten Spieler.",
+    });
+    await prisma.teamMember.update({
+      where: { userId: members[0]!.id },
+      data: { role: MemberRole.SUBSTITUTE },
+    });
+    await expect(createOpenRequest(captain.id)).resolves.toMatchObject({
+      teamId: expect.any(String),
+    });
   });
 
   it("requires 30 minutes lead time", async () => {
@@ -384,6 +404,15 @@ describe("confirmApplication", () => {
       message: expect.stringContaining("nicht mehr spielbereit"),
     });
     await prisma.user.update({ where: { id: guest.members[0]!.id }, data: { verifiedAt: NOW } });
+    // A verified coach does not count either (SPEC N-1).
+    const guestRole = (role: MemberRole) =>
+      prisma.teamMember.update({ where: { userId: guest.members[0]!.id }, data: { role } });
+    await guestRole(MemberRole.COACH);
+    await expect(confirm()).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringContaining("nicht mehr spielbereit"),
+    });
+    await guestRole(MemberRole.PLAYER);
     await prisma.team.update({ where: { id: guest.team.id }, data: { bannedAt: NOW } });
     await expect(confirm()).rejects.toMatchObject({
       code: "CONFLICT",

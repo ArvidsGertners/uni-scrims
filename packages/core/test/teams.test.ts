@@ -1,4 +1,4 @@
-import { Rank, prisma } from "@uni-scrims/db";
+import { MemberRole, Rank, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   MAX_TEAM_MEMBERS,
@@ -11,6 +11,7 @@ import {
   linkTeamChannel,
   regenerateInvite,
   removeMember,
+  setMemberRole,
   summarizeUniversities,
   transferCaptain,
   updateTeam,
@@ -136,6 +137,53 @@ describe("captain actions", () => {
     await removeMember({ userId: captain.id, teamId: team.id, memberId: members[0]!.id });
     expect(await prisma.teamMember.findUnique({ where: { userId: members[0]!.id } })).toBeNull();
   });
+
+  it("sets roles of members and the own one, also without verification", async () => {
+    const { team, captain, members } = await createTeamWithMembers({
+      extraMembers: 1,
+      verifiedCaptain: false,
+    });
+    const role = async (userId: string) =>
+      (await prisma.teamMember.findUniqueOrThrow({ where: { userId } })).role;
+    expect(await role(members[0]!.id)).toBe(MemberRole.PLAYER);
+
+    await setMemberRole({
+      userId: captain.id,
+      teamId: team.id,
+      memberId: members[0]!.id,
+      role: MemberRole.COACH,
+    });
+    await setMemberRole({
+      userId: captain.id,
+      teamId: team.id,
+      memberId: captain.id,
+      role: MemberRole.SUBSTITUTE,
+    });
+    expect(await role(members[0]!.id)).toBe(MemberRole.COACH);
+    expect(await role(captain.id)).toBe(MemberRole.SUBSTITUTE);
+  });
+
+  it("rejects role changes by non-captains, in banned teams and for non-members", async () => {
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
+    const other = await createTeamWithMembers({ extraMembers: 1 });
+    const set = (userId: string, memberId: string, role: MemberRole = MemberRole.COACH) =>
+      setMemberRole({ userId, teamId: team.id, memberId, role });
+
+    await expect(set(members[0]!.id, members[0]!.id)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(set(captain.id, other.members[0]!.id)).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+    await expect(set(captain.id, members[0]!.id, "CAPTAIN" as MemberRole)).rejects.toMatchObject({
+      code: "INVALID",
+    });
+    await prisma.team.update({ where: { id: team.id }, data: { bannedAt: NOW } });
+    await expect(set(captain.id, members[0]!.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(
+      (await prisma.teamMember.findUniqueOrThrow({ where: { userId: members[0]!.id } })).role,
+    ).toBe(MemberRole.PLAYER);
+  });
 });
 
 describe("joinTeam", () => {
@@ -238,10 +286,25 @@ describe("reads", () => {
     });
     expect(own?.inviteCode).toBe(team.inviteCode);
     expect(own?.members.find((member) => member.id === pending.id)?.status).toBe("PENDING");
+    expect(own?.members.every((member) => member.role === MemberRole.PLAYER)).toBe(true);
 
     const asMember = await getMyTeam(members[0]!.id);
     expect(asMember).toMatchObject({ isCaptain: false, inviteCode: null });
     expect(await getMyTeam((await createUser()).id)).toBeNull();
+  });
+
+  it("counts verified players and substitutes, never coaches", async () => {
+    const { captain, members } = await createTeamWithMembers({ extraMembers: 4 });
+    const setRole = (userId: string, role: MemberRole) =>
+      prisma.teamMember.update({ where: { userId }, data: { role } });
+    await setRole(members[3]!.id, MemberRole.COACH);
+    expect(await getMyTeam(captain.id)).toMatchObject({ verifiedCount: 4, ready: false });
+    expect(
+      (await getMyTeam(captain.id))?.members.find((member) => member.id === members[3]!.id)?.role,
+    ).toBe(MemberRole.COACH);
+
+    await setRole(members[3]!.id, MemberRole.SUBSTITUTE);
+    expect(await getMyTeam(captain.id)).toMatchObject({ verifiedCount: 5, ready: true });
   });
 
   it("previews a team by invite code", async () => {

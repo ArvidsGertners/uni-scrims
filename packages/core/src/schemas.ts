@@ -1,5 +1,5 @@
 // Zod schemas for user input, shared by core and the web forms.
-import { FeedbackOutcome, Rank, ScrimFormat } from "@uni-scrims/db";
+import { FeedbackOutcome, MemberRole, Rank, ScrimFormat } from "@uni-scrims/db";
 import { z } from "zod";
 import { mapSchema } from "../config/maps.ts";
 import { DomainError } from "./errors.ts";
@@ -26,6 +26,8 @@ export const teamInputSchema = z.object({
 });
 
 export type TeamInput = z.infer<typeof teamInputSchema>;
+
+export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
 
 // ─── Requests, applications, feedback ─────────────────────────────────────────
 

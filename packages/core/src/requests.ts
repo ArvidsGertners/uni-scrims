@@ -120,7 +120,7 @@ export function applicantTeamProblem(
 ): string | null {
   if (!isTeamActive(team)) return `Das Team „${team.name}“ ist nicht mehr aktiv.`;
   if (!ready) {
-    return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als ${READY_MEMBER_COUNT} verifizierte Mitglieder).`;
+    return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als ${READY_MEMBER_COUNT} verifizierte Spieler).`;
   }
   return null;
 }
