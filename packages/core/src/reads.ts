@@ -388,6 +388,7 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
   const actionProblem = actingCaptainProblem(user, ownTeam)?.message ?? null;
   const ownFeedback = scrim.feedback.find((feedback) => feedback.teamId === ownTeam.id) ?? null;
   const feedbackClosed = feedbackClosedReason(scrim, input.now);
+  const opponentCaptainDiscordId = await getDiscordId(opponent.captain.id);
 
   return {
     id: scrim.id,
@@ -405,6 +406,8 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
       name: opponent.name,
       tag: opponent.tag,
       captainName: opponent.captain.name,
+      /** For the "write on Discord" link. */
+      captainDiscordId: opponentCaptainDiscordId,
     },
     /** null if the user may cancel and give feedback for the own team, otherwise why not. */
     actionProblem,

@@ -400,7 +400,11 @@ describe("getScrimDetail and getMyScrims", () => {
     expect(await detail(guest.members[0]!.id)).toMatchObject({
       isHost: false,
       actionProblem: "Das kann nur euer Captain.",
-      opponent: { id: host.team.id, captainName: host.captain.name },
+      opponent: {
+        id: host.team.id,
+        captainName: host.captain.name,
+        captainDiscordId: host.captain.discordId,
+      },
       cancellable: true,
       canCancel: false,
       canGiveFeedback: false,
