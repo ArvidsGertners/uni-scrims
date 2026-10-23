@@ -5,7 +5,12 @@ import { VerifStatus, prisma } from "@uni-scrims/db";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { lockRequest, lockTeam, lockUser } from "./locks.ts";
-import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
+import {
+  findOwnTeam,
+  isCaptainOf,
+  requireAccountUser,
+  requireActiveAccountUser,
+} from "./permissions.ts";
 import { emailSchema, parseInput, realNameSchema } from "./schemas.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
@@ -69,12 +74,14 @@ export async function getAccount(userId: string) {
     }),
   ]);
   const latestStatus = student.latest?.status;
+  const deletionProblem = accountDeletionProblem(user, team, memberCount);
+  const setupStep = accountSetupStep(user, discordId !== null);
   return {
     name: user.name,
     image: user.image,
     banned: user.bannedAt !== null,
     /** What the account still lacks (§5.8), or null. */
-    setupStep: accountSetupStep(user, discordId !== null),
+    setupStep,
     firstName: user.firstName,
     lastName: user.lastName,
     /** The placeholder of an account from before Phase 7 is not shown. */
@@ -96,7 +103,21 @@ export async function getAccount(userId: string) {
         },
     team: team ? { name: team.name, isCaptain: isCaptainOf(user, team) } : null,
     /** null if the account can be deleted now, otherwise why not. */
-    deletionProblem: accountDeletionProblem(user, team, memberCount),
+    deletionProblem,
+    /**
+     * Who can take over the captain role from the account page: only while the account is
+     * incomplete and the role blocks the deletion, since the team page needs a complete account.
+     */
+    captainCandidates:
+      team && deletionProblem && setupStep
+        ? await prisma.teamMember
+            .findMany({
+              where: { teamId: team.id, userId: { not: user.id } },
+              orderBy: { joinedAt: "asc" },
+              select: { user: { select: { id: true, name: true } } },
+            })
+            .then((rows) => rows.map((row) => row.user))
+        : [],
   };
 }
 
@@ -115,16 +136,14 @@ export async function completeAccount(input: {
   uploadDir: string;
   now: Date;
 }): Promise<{ email: string }> {
-  const user = await requireAccountUser(input.userId);
-  if (user.bannedAt) throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+  const user = await requireActiveAccountUser(input.userId);
   const name = parseInput(realNameSchema, input);
   const email = parseInput(emailSchema, input.email);
   try {
     const rejected = await prisma.$transaction(async (tx) => {
       // The user row first (§4); a deletion or ban that commits meanwhile is seen here.
       await lockUser(tx, user.id);
-      const current = await requireAccountUser(user.id, tx);
-      if (current.bannedAt) throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+      const current = await requireActiveAccountUser(user.id, tx);
       if (current.firstName) {
         throw new DomainError("CONFLICT", "Dein Konto ist bereits vollständig.");
       }
@@ -157,13 +176,12 @@ export async function updateRealName(input: {
   firstName: string;
   lastName: string;
 }) {
-  const user = await requireAccountUser(input.userId);
-  if (user.bannedAt) throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+  const user = await requireActiveAccountUser(input.userId);
   const name = parseInput(realNameSchema, input);
   await prisma.$transaction(async (tx) => {
     // Under the user lock, as submitVerification: an upload that commits first locks the name.
     await lockUser(tx, user.id);
-    const current = await requireAccountUser(user.id, tx);
+    const current = await requireActiveAccountUser(user.id, tx);
     if (!current.firstName) {
       throw new DomainError("CONFLICT", "Bitte vervollständige zuerst dein Konto.");
     }
@@ -241,6 +259,9 @@ export async function deleteAccount(input: {
     await tx.verificationRequest.deleteMany({ where: { userId: user.id } });
     await tx.notification.deleteMany({ where: { targetUserId: user.id } });
     await tx.session.deleteMany({ where: { userId: user.id } });
+    // Better Auth keeps password reset tokens with the user ID as value; an open link would
+    // otherwise set a new password on the anonymized account (§5.8).
+    await tx.verification.deleteMany({ where: { value: user.id } });
     // Only the Discord ID stays with a ban, so it still applies after a new login (§4).
     const discordOnly = { ...NO_OAUTH_TOKENS, scope: null };
     if (bannedAt && deletedAt) {

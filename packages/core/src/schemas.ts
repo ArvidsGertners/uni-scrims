@@ -1,6 +1,7 @@
 // Zod schemas for user input, shared by core and the web forms.
 import { FeedbackOutcome, MemberRole, Rank, ScrimFormat } from "@uni-scrims/db";
 import { z } from "zod";
+import { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../config/account.ts";
 import { mapSchema } from "../config/maps.ts";
 import { DomainError } from "./errors.ts";
 import { rankValue } from "./ranks.ts";
@@ -31,9 +32,7 @@ export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
 
 // ─── Accounts (Phase 7, §5.8) ─────────────────────────────────────────────────
 
-export const REAL_NAME_MAX = 50;
-export const PASSWORD_MIN = 10;
-export const PASSWORD_MAX = 128;
+export { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../config/account.ts";
 
 function realNamePart(label: string) {
   return z
@@ -49,11 +48,22 @@ export const realNameSchema = z.object({
   lastName: realNamePart("Nachnamen"),
 });
 
+/** Placeholders of Discord, seed and deleted accounts live here; nobody may claim one (§4, §5.8). */
+const RESERVED_EMAIL_DOMAIN = "uniscrims.invalid";
+
 export const emailSchema = z
   .string("Bitte gib deine E-Mail-Adresse an.")
   .trim()
   .toLowerCase()
-  .pipe(z.email("Bitte gib eine gültige E-Mail-Adresse an.").max(254));
+  .pipe(
+    z
+      .email("Bitte gib eine gültige E-Mail-Adresse an.")
+      .max(254)
+      .refine((email) => {
+        const domain = email.slice(email.lastIndexOf("@") + 1);
+        return domain !== RESERVED_EMAIL_DOMAIN && !domain.endsWith(`.${RESERVED_EMAIL_DOMAIN}`);
+      }, "Bitte gib eine gültige E-Mail-Adresse an."),
+  );
 
 export const passwordSchema = z
   .string("Bitte gib ein Passwort an.")

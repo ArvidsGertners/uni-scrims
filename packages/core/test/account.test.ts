@@ -25,6 +25,7 @@ import {
   finishInterruptedDeletions,
   getAccount,
   getReliability,
+  handOverCaptain,
   registrationSchema,
   requireAccountUser,
   requireUser,
@@ -510,6 +511,9 @@ describe("registrationSchema", () => {
       { firstName: "  " },
       { lastName: "x".repeat(51) },
       { email: "keine-adresse" },
+      // Placeholders of Discord, seed and deleted accounts (§4).
+      { email: "deleted-abc@users.uniscrims.invalid" },
+      { email: "x@uniscrims.invalid" },
       { password: "kurz" },
       { consent: false },
     ]) {
@@ -691,5 +695,56 @@ describe("deleteAccount with a password", () => {
     expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject(
       deletedValues(user.id),
     );
+  });
+});
+
+describe("deleteAccount and Better Auth tokens", () => {
+  it("removes open password reset tokens of the account", async () => {
+    const user = await createUser();
+    await prisma.verification.create({
+      data: {
+        id: uid(),
+        identifier: `reset-password:${uid()}`,
+        value: user.id,
+        expiresAt: new Date(NOW.getTime() + 60 * 60 * 1000),
+      },
+    });
+    await remove(user.id);
+    expect(await prisma.verification.count({ where: { value: user.id } })).toBe(0);
+  });
+});
+
+describe("handOverCaptain", () => {
+  it("lets a captain from before Phase 7 hand over the role and then delete (SPEC N-3)", async () => {
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
+    await prisma.user.update({
+      where: { id: captain.id },
+      data: { firstName: null, lastName: null, emailVerified: false },
+    });
+    expect(await getAccount(captain.id)).toMatchObject({
+      setupStep: "COMPLETE_ACCOUNT",
+      deletionProblem: expect.any(String),
+      captainCandidates: [{ id: members[0]!.id, name: members[0]!.name }],
+    });
+    await handOverCaptain({ userId: captain.id, newCaptainId: members[0]!.id });
+    expect((await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).captainId).toBe(
+      members[0]!.id,
+    );
+    expect(await getAccount(captain.id)).toMatchObject({ deletionProblem: null });
+  });
+
+  it("refuses members, banned teams and banned users", async () => {
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
+    await expect(
+      handOverCaptain({ userId: members[0]!.id, newCaptainId: captain.id }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await prisma.team.update({ where: { id: team.id }, data: { bannedAt: NOW } });
+    await expect(
+      handOverCaptain({ userId: captain.id, newCaptainId: members[0]!.id }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const banned = await createUser({ banned: true });
+    await expect(
+      handOverCaptain({ userId: banned.id, newCaptainId: captain.id }),
+    ).rejects.toMatchObject({ code: "BANNED" });
   });
 });

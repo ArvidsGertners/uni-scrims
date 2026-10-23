@@ -2,10 +2,11 @@ import { prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   DELETED_USER_NAME,
-  type DiscordLoginCalls,
-  type DiscordProfile,
+  accountCreateProblem,
   banPlaceholderData,
   deletedUserEmail,
+  discordLoginUserInfo,
+  discordPlaceholderEmail,
   discordProfileData,
   handleDiscordLogin,
 } from "../src/index.ts";
@@ -22,89 +23,80 @@ async function tokensOf(userId: string) {
   });
 }
 
-/** Records the calls; the profile has the user's Discord ID. */
-function discordCalls(
-  options: { joined?: boolean; profile?: Partial<DiscordProfile> | null } = {},
-) {
-  const joins: [string, string][] = [];
-  const profileTokens: string[] = [];
-  const calls: DiscordLoginCalls = {
-    joinHub: async (discordId, token) => {
-      joins.push([discordId, token]);
-      return options.joined ?? true;
-    },
-    fetchProfile: async (token) => {
-      profileTokens.push(token);
-      if (options.profile === null) return null;
-      return {
-        id: "1",
-        username: "neuername",
-        discriminator: "0",
-        avatar: "abc",
-        ...options.profile,
-      };
-    },
+/** Records the hub joins. */
+function hubJoin(joined = true) {
+  const calls: [string, string][] = [];
+  const join = async (discordId: string, token: string) => {
+    calls.push([discordId, token]);
+    return joined;
   };
-  return { calls, joins, profileTokens };
+  return { join, calls };
+}
+
+/** A ban placeholder with a Discord link and fresh tokens, as after a new Discord login (§4). */
+async function banPlaceholder() {
+  const id = uid();
+  await prisma.user.create({ data: banPlaceholderData(id, NOW, NOW) });
+  await prisma.account.create({
+    data: {
+      id: `${id}-discord`,
+      userId: id,
+      providerId: "discord",
+      accountId: `9${id.replaceAll(/\D/g, "").slice(0, 15)}`,
+      accessToken: "access",
+    },
+  });
+  return id;
 }
 
 describe("handleDiscordLogin", () => {
-  it("takes over name and avatar, joins the hub with the fresh token and removes the tokens", async () => {
+  it("joins the hub with the fresh token and removes the tokens", async () => {
     const user = await createUser();
-    const { calls, joins, profileTokens } = discordCalls({ profile: { id: user.discordId } });
-    await handleDiscordLogin(user.id, calls, NOW);
-    expect(joins).toEqual([[user.discordId, "access"]]);
-    expect(profileTokens).toEqual(["access"]);
+    const { join, calls } = hubJoin();
+    await handleDiscordLogin(user.id, join, NOW);
+    expect(calls).toEqual([[user.discordId, "access"]]);
     expect(await tokensOf(user.id)).toEqual({ accessToken: null, refreshToken: null });
-    expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
-      name: "neuername",
-      image: `https://cdn.discordapp.com/avatars/${user.discordId}/abc.png`,
-      hubJoinFailedAt: null,
-      // The address of the account stays (§5.8).
-      email: user.email,
-    });
-  });
-
-  it("records a failed join and keeps the name without a profile", async () => {
-    const user = await createUser();
-    await handleDiscordLogin(user.id, discordCalls({ joined: false, profile: null }).calls, NOW);
     const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
-    expect(row).toMatchObject({ hubJoinFailedAt: NOW, name: user.name });
+    expect(row.hubJoinFailedAt).toBeNull();
+  });
+
+  it("records a failed join", async () => {
+    const user = await createUser();
+    await handleDiscordLogin(user.id, hubJoin(false).join, NOW);
+    const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(row.hubJoinFailedAt).toEqual(NOW);
     expect(await tokensOf(user.id)).toEqual({ accessToken: null, refreshToken: null });
   });
 
-  it("updates banned users' profile but skips the join and still removes the tokens", async () => {
+  it("skips the join for banned users but still removes the tokens", async () => {
     const user = await createUser({ banned: true });
-    const { calls, joins } = discordCalls();
-    await handleDiscordLogin(user.id, calls, NOW);
-    expect(joins).toEqual([]);
-    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).name).toBe(
-      "neuername",
-    );
+    const { join, calls } = hubJoin();
+    await handleDiscordLogin(user.id, join, NOW);
+    expect(calls).toEqual([]);
     expect(await tokensOf(user.id)).toEqual({ accessToken: null, refreshToken: null });
   });
 
-  it("writes nothing back onto a ban placeholder that logs in again", async () => {
-    const id = uid();
-    await prisma.user.create({ data: banPlaceholderData(id, NOW, NOW) });
-    await prisma.account.create({
-      data: {
-        id: `${id}-discord`,
-        userId: id,
-        providerId: "discord",
-        accountId: "777",
-        accessToken: "access",
-      },
-    });
-    const { calls, joins, profileTokens } = discordCalls();
-    await handleDiscordLogin(id, calls, NOW);
-    expect([joins, profileTokens]).toEqual([[], []]);
-    expect(await prisma.user.findUniqueOrThrow({ where: { id } })).toMatchObject({
-      name: DELETED_USER_NAME,
-      email: deletedUserEmail(id),
-      image: null,
-    });
+  it("keeps a ban placeholder's link but does not join for it", async () => {
+    const id = await banPlaceholder();
+    const { join, calls } = hubJoin();
+    await handleDiscordLogin(id, join, NOW);
+    expect(calls).toEqual([]);
     expect(await tokensOf(id)).toEqual({ accessToken: null, refreshToken: null });
+  });
+
+  it("removes a link that finished after the account was deleted (P0-10)", async () => {
+    const user = await createUser();
+    await createSession(user.id);
+    // The link callback trusted the user ID of its OAuth state; the deletion committed meanwhile.
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { deletedAt: NOW, email: deletedUserEmail(user.id), name: DELETED_USER_NAME },
+    });
+    const { join, calls } = hubJoin();
+    await handleDiscordLogin(user.id, join, NOW);
+    expect(calls).toEqual([]);
+    expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
+    expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
   });
 
   it("puts a user deleted during the login back onto the deletion values", async () => {
@@ -118,7 +110,7 @@ describe("handleDiscordLogin", () => {
       data: { deletedAt: NOW, image: "https://cdn/avatar.png", dmFailedAt: NOW, firstName: "Ana" },
     });
 
-    await handleDiscordLogin(user.id, discordCalls().calls, NOW);
+    await handleDiscordLogin(user.id, hubJoin().join, NOW);
 
     expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
       name: DELETED_USER_NAME,
@@ -133,11 +125,72 @@ describe("handleDiscordLogin", () => {
   it("leaves a user without Discord link alone unless it was deleted", async () => {
     const user = await createUser();
     await prisma.account.deleteMany({ where: { userId: user.id } });
-    await handleDiscordLogin(user.id, discordCalls().calls, NOW);
+    await handleDiscordLogin(user.id, hubJoin().join, NOW);
     expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
       name: user.name,
       email: user.email,
     });
+  });
+});
+
+describe("discordLoginUserInfo (Better Auth's mapProfileToUser, §5.8)", () => {
+  const profile = (id: string) => ({ id, username: "nelly", discriminator: "0", avatar: "abc" });
+
+  it("keeps the address of a linked account and takes name and avatar from Discord", async () => {
+    const user = await createUser();
+    await prisma.user.update({ where: { id: user.id }, data: { email: `x.${uid()}@example.org` } });
+    const { email } = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(await discordLoginUserInfo(profile(user.discordId))).toEqual({
+      email,
+      name: "nelly",
+      image: `https://cdn.discordapp.com/avatars/${user.discordId}/abc.png`,
+    });
+  });
+
+  it("gives a ban placeholder its own values back, so a login stores nothing", async () => {
+    const id = await banPlaceholder();
+    const { accountId } = await prisma.account.findFirstOrThrow({ where: { userId: id } });
+    expect(await discordLoginUserInfo(profile(accountId))).toEqual({
+      email: deletedUserEmail(id),
+      name: DELETED_USER_NAME,
+      image: undefined,
+    });
+  });
+
+  it("uses the placeholder for an unlinked Discord ID", async () => {
+    const discordId = `8${Date.now()}`;
+    expect(await discordLoginUserInfo(profile(discordId))).toMatchObject({
+      email: discordPlaceholderEmail(discordId),
+      name: "nelly",
+    });
+  });
+});
+
+describe("accountCreateProblem (database hook, §5.8)", () => {
+  it("allows a first Discord link and refuses a second one", async () => {
+    const user = await createUser();
+    expect(await accountCreateProblem({ userId: user.id, providerId: "credential" })).toBeNull();
+    expect(await accountCreateProblem({ userId: user.id, providerId: "discord" })).toBe(
+      "already linked",
+    );
+    await prisma.account.deleteMany({ where: { userId: user.id } });
+    expect(await accountCreateProblem({ userId: user.id, providerId: "discord" })).toBeNull();
+  });
+
+  it("refuses rows for deleted, banned and missing users", async () => {
+    const deleted = await createUser();
+    await prisma.account.deleteMany({ where: { userId: deleted.id } });
+    await prisma.user.update({ where: { id: deleted.id }, data: { deletedAt: NOW } });
+    expect(await accountCreateProblem({ userId: deleted.id, providerId: "credential" })).toBe(
+      "deleted",
+    );
+    const banned = await createUser({ banned: true });
+    expect(await accountCreateProblem({ userId: banned.id, providerId: "credential" })).toBe(
+      "banned",
+    );
+    expect(await accountCreateProblem({ userId: "missing", providerId: "discord" })).toBe(
+      "deleted",
+    );
   });
 });
 

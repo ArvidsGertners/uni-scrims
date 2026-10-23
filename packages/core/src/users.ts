@@ -75,6 +75,14 @@ export async function finishInterruptedDeletions(): Promise<number> {
   return users.length;
 }
 
+/** Shown until Discord is linked, never the real name (§5.8). */
+export const NEW_ACCOUNT_NAME = "Neues Konto";
+
+/** The placeholder email Better Auth needs for a Discord profile without one (§5.1). */
+export function discordPlaceholderEmail(discordId: string): string {
+  return `${discordId}@users.uniscrims.invalid`;
+}
+
 /** Deleted and not logged in again since; counts as logged out everywhere. */
 export function isDeletedUser(user: { id: string; email: string }): boolean {
   return user.email === deletedUserEmail(user.id);
@@ -108,7 +116,7 @@ export function accountSetupStep(
   return hasDiscord ? null : "LINK_DISCORD";
 }
 
-/** The Discord fields the login hook reads from GET /users/@me (§5.8). */
+/** The Discord profile fields used for name and avatar (§5.8). */
 export type DiscordProfile = {
   id: string;
   username: string;
@@ -171,6 +179,43 @@ export function getAdminDiscordIds(
 export async function isAdmin(userId: string, db: Db = prisma): Promise<boolean> {
   const discordId = await getDiscordId(userId, db);
   return discordId !== null && getAdminDiscordIds().includes(discordId);
+}
+
+/**
+ * What Better Auth writes onto the user on a Discord login or link (`mapProfileToUser`, §5.8):
+ * name and avatar from Discord, but always the account's own address, since Better Auth 1.7.12 would
+ * also overwrite the email. A deleted account (a ban placeholder) gets its own values back, so a new
+ * login stores nothing. An unlinked Discord ID gets the placeholder; it never reaches a user, as a
+ * Discord login creates none and linking keeps the address.
+ */
+export async function discordLoginUserInfo(profile: DiscordProfile, db: Db = prisma) {
+  const user = await findUserByDiscordId(profile.id, db);
+  if (!user) return { email: discordPlaceholderEmail(profile.id), ...discordProfileData(profile) };
+  // undefined leaves the avatar as it is (null on a placeholder); Better Auth takes no null here.
+  if (user.deletedAt) return { email: user.email, name: user.name, image: user.image ?? undefined };
+  return { email: user.email, ...discordProfileData(profile) };
+}
+
+/**
+ * Whether Better Auth may create this account row (database hook, §5.8): never for a deleted or
+ * banned user (a link or password reset that finishes after the deletion or ban), and Discord only
+ * once per user. Unique indexes back this up.
+ */
+export async function accountCreateProblem(
+  account: { userId: string; providerId: string },
+  db: Db = prisma,
+): Promise<string | null> {
+  const user = await db.user.findUnique({
+    where: { id: account.userId },
+    select: { id: true, email: true, deletedAt: true, bannedAt: true },
+  });
+  if (!user || user.deletedAt || isDeletedUser(user)) return "deleted";
+  if (user.bannedAt) return "banned";
+  const existing = await db.account.findFirst({
+    where: { userId: user.id, providerId: account.providerId },
+    select: { id: true },
+  });
+  return existing ? "already linked" : null;
 }
 
 /**

@@ -1,9 +1,7 @@
 import { prisma } from "@uni-scrims/db";
 import {
-  type DiscordProfile,
+  DISCORD_PROVIDER,
   clearOAuthTokens,
-  discordProfileData,
-  notDeletedUserWhere,
   recordHubJoinResult,
   restoreDeletedUser,
 } from "./users.ts";
@@ -11,22 +9,15 @@ import {
 /** Adds the user to the hub server; resolves to true on success. Must not throw. */
 export type HubJoiner = (discordId: string, accessToken: string) => Promise<boolean>;
 
-/** The Discord calls of a login (§5.1, §5.8); the web passes the HTTP implementations. */
-export type DiscordLoginCalls = {
-  joinHub: HubJoiner;
-  /** GET /users/@me with the user's token; null on any error. Must not throw. */
-  fetchProfile: (accessToken: string) => Promise<DiscordProfile | null>;
-};
-
 /**
  * Runs whenever fresh Discord tokens arrive, after a Discord login and after linking Discord
- * (§5.1, §5.8): take over name and avatar, try to join the hub server (skipped for banned users),
- * record the result, then always remove the tokens. Better Auth no longer writes the profile on a
- * login, so a deleted account (a ban placeholder) gets nothing back.
+ * (§5.1, §5.8): try to join the hub server (skipped for banned and deleted users), record the
+ * result, then always remove the tokens. Name and avatar Better Auth writes itself
+ * (discordLoginUserInfo).
  */
 export async function handleDiscordLogin(
   userId: string,
-  discord: DiscordLoginCalls,
+  joinHub: HubJoiner,
   now: Date,
 ): Promise<void> {
   try {
@@ -36,7 +27,7 @@ export async function handleDiscordLogin(
     });
     if (!user) return;
     const account = await prisma.account.findFirst({
-      where: { userId, providerId: "discord" },
+      where: { userId, providerId: DISCORD_PROVIDER },
       select: { accountId: true, accessToken: true },
     });
     if (!account) {
@@ -45,17 +36,20 @@ export async function handleDiscordLogin(
       if (user.deletedAt) await restoreDeletedUser(userId);
       return;
     }
-    if (user.deletedAt || !account.accessToken) return;
-    const profile = await discord.fetchProfile(account.accessToken);
-    if (profile) {
-      // updateMany: a deletion that commits meanwhile keeps the deletion values (§4).
-      await prisma.user.updateMany({
-        where: notDeletedUserWhere(userId),
-        data: discordProfileData(profile),
-      });
+    if (user.deletedAt) {
+      // Only a ban placeholder keeps its Discord link after a deletion. A link that finished after
+      // the deletion (the database hook checked too early) must not tie the Discord ID to the
+      // anonymized account (P0-10), so it goes again.
+      if (!user.bannedAt) {
+        await prisma.$transaction([
+          prisma.account.deleteMany({ where: { userId } }),
+          prisma.session.deleteMany({ where: { userId } }),
+        ]);
+      }
+      return;
     }
-    if (user.bannedAt) return;
-    const joined = await discord.joinHub(account.accountId, account.accessToken);
+    if (user.bannedAt || !account.accessToken) return;
+    const joined = await joinHub(account.accountId, account.accessToken);
     await recordHubJoinResult(userId, joined, now);
   } finally {
     await clearOAuthTokens(userId);

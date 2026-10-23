@@ -5,6 +5,7 @@ import {
   isTeamReady,
   leaveTeam,
   requireAccountUser,
+  requireActiveAccountUser,
   requireActingCaptain,
   requireAdmin,
   requireCaptain,
@@ -159,6 +160,9 @@ describe("requireUser and incomplete accounts (§5.8)", () => {
     await expect(requireUser(legacy.id)).rejects.toMatchObject({ step: "VERIFY_EMAIL" });
     const banned = await createUser({ legacy: true, banned: true });
     await expect(requireUser(banned.id)).rejects.toMatchObject({ code: "BANNED" });
+    // Changing the own account works while incomplete, but not when banned.
+    await expect(requireActiveAccountUser(legacy.id)).resolves.toMatchObject({ id: legacy.id });
+    await expect(requireActiveAccountUser(banned.id)).rejects.toMatchObject({ code: "BANNED" });
   });
 });
 

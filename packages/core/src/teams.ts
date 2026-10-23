@@ -2,11 +2,13 @@
 import { randomBytes } from "node:crypto";
 import { AppStatus, type MemberRole, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
-import { DomainError } from "./errors.ts";
+import { DomainError, problemError } from "./errors.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
 import {
+  captainProblem,
   findOwnTeam,
   isCaptainOf,
+  requireActiveAccountUser,
   requireCaptain,
   requireOwnCaptain,
   requireUser,
@@ -157,11 +159,42 @@ export async function transferCaptain(input: {
   teamId: string;
   newCaptainId: string;
 }): Promise<void> {
+  await transferCaptainWith(requireCaptain, input);
+}
+
+/**
+ * transferCaptain from the account page for an account that is not complete yet (§5.8): a captain
+ * from before Phase 7 must hand over the role before deleting the account, without first giving a
+ * name, an address and a password (SPEC N-3).
+ */
+export async function handOverCaptain(input: { userId: string; newCaptainId: string }) {
+  const user = await requireActiveAccountUser(input.userId);
+  const team = await findOwnTeam(user.id);
+  if (!team) throw new DomainError("NOT_FOUND", "Du bist in keinem Team.");
+  await transferCaptainWith(requireAccountCaptain, { ...input, teamId: team.id });
+}
+
+/** Captain of the own team (not banned), checked like requireCaptain but for incomplete accounts. */
+async function requireAccountCaptain(userId: string | null | undefined, teamId: string, db: Db) {
+  const user = await requireActiveAccountUser(userId, db);
+  const team = await findOwnTeam(user.id, db);
+  if (!team || team.id !== teamId) {
+    throw new DomainError("FORBIDDEN", "Du bist nicht in diesem Team.");
+  }
+  const problem = captainProblem(user, team);
+  if (problem) throw problemError(problem);
+  return { user, team };
+}
+
+async function transferCaptainWith(
+  check: (userId: string, teamId: string, db: Db) => Promise<{ user: { id: string } }>,
+  input: { userId: string; teamId: string; newCaptainId: string },
+): Promise<void> {
   // Checked without a lock first, so nobody but the captain can hold the team row.
-  await requireCaptain(input.userId, input.teamId);
+  await check(input.userId, input.teamId, prisma);
   await prisma.$transaction(async (tx) => {
     await lockTeam(tx, input.teamId);
-    const { user } = await requireCaptain(input.userId, input.teamId, tx);
+    const { user } = await check(input.userId, input.teamId, tx);
     if (input.newCaptainId === user.id) {
       throw new DomainError("INVALID", "Du bist schon Captain.");
     }

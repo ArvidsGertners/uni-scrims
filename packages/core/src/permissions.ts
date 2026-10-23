@@ -98,6 +98,18 @@ export async function requireAccountUser(userId: string | null | undefined, db: 
   return (await loadAccountUser(userId, db)).user;
 }
 
+/**
+ * Logged in and not banned, incomplete accounts included: changing the own account's name, address
+ * and password (§5.8, §7).
+ */
+export async function requireActiveAccountUser(userId: string | null | undefined, db: Db = prisma) {
+  const { user } = await loadAccountUser(userId, db);
+  if (user.bannedAt) {
+    throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+  }
+  return user;
+}
+
 /** Logged in, not banned, and the account is complete (§5.8). */
 export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
   const { user, discordId } = await loadAccountUser(userId, db);

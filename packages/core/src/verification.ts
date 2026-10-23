@@ -456,13 +456,28 @@ export async function cleanupOrphanFiles(uploadDir: string, now: Date): Promise<
   return deleted;
 }
 
-/** One janitor run (§5.2), called at startup and then hourly by the web process. */
+/** A janitor step whose failure is logged and keeps the other steps going (null = failed). */
+async function janitorStep(name: string, run: () => Promise<number>): Promise<number | null> {
+  try {
+    return await run();
+  } catch (error) {
+    console.error(`Upload janitor step ${name} failed`, error);
+    return null;
+  }
+}
+
+/**
+ * One janitor run (§5.2, §5.8), called at startup and then hourly by the web process. Each step
+ * runs even if an earlier one failed, so the 14-day deletion never waits for another step.
+ */
 export async function runUploadJanitor(uploadDir: string, now: Date) {
   return {
-    legacyReset: await resetLegacyVerifications(now, uploadDir),
-    autoRejected: await autoRejectStaleVerifications(now, uploadDir),
-    decidedFiles: await cleanupDecidedFiles(uploadDir),
-    orphanFiles: await cleanupOrphanFiles(uploadDir, now),
+    legacyReset: await janitorStep("legacyReset", () => resetLegacyVerifications(now, uploadDir)),
+    autoRejected: await janitorStep("autoRejected", () =>
+      autoRejectStaleVerifications(now, uploadDir),
+    ),
+    decidedFiles: await janitorStep("decidedFiles", () => cleanupDecidedFiles(uploadDir)),
+    orphanFiles: await janitorStep("orphanFiles", () => cleanupOrphanFiles(uploadDir, now)),
   };
 }
 
