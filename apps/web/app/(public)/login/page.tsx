@@ -6,6 +6,13 @@ import { Alert } from "@/components/ui/alert";
 import { safeCallbackURL } from "@/lib/callback-url";
 import { getSignedInUser } from "@/lib/session";
 
+/** Errors the Discord login sends back as ?error= (ARCHITECTURE §5.8). */
+function discordError(code: string): string {
+  return code === "signup_disabled"
+    ? "Zu diesem Discord-Konto gibt es noch kein Uni-Scrims-Konto. Registriere dich mit deiner E-Mail-Adresse und verknüpfe Discord danach."
+    : "Die Anmeldung hat nicht geklappt. Bitte versuch es erneut.";
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -18,9 +25,9 @@ export default async function LoginPage({
   return (
     <LoginHero
       notice={
-        params.error ? (
+        typeof params.error === "string" ? (
           <Alert>
-            <span>Die Anmeldung hat nicht geklappt. Bitte versuch es erneut.</span>
+            <span>{discordError(params.error)}</span>
           </Alert>
         ) : null
       }

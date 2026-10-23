@@ -6,9 +6,10 @@ import { AdminNav } from "./admin-nav";
 import { DecisionForm } from "./decision-form";
 import { PageMain } from "@/components/page-main";
 
-// Fixed checklist from SPEC P0-2.
+// Fixed checklist from SPEC P0-2, with the name check of N-3.
 const CHECKLIST = [
   "Bescheinigung gilt für das aktuelle Semester",
+  "Name stimmt mit dem Namen des Kontos überein",
   "Hochschule stimmt mit der Auswahl überein",
   "Dokument ist vollständig und lesbar",
   "Keine offensichtliche Bearbeitung",
@@ -31,7 +32,13 @@ export default async function AdminPage() {
         return (
           <Card key={request.id}>
             <CardHeader>
-              <CardTitle>{request.user.name}</CardTitle>
+              {/* The real name to compare with the certificate (SPEC N-3). */}
+              <CardTitle>
+                {request.user.firstName
+                  ? `${request.user.firstName} ${request.user.lastName ?? ""}`
+                  : "Kein Name (Konto von vor Phase 7)"}
+              </CardTitle>
+              <p className="text-[14px] text-muted-foreground">Discord: {request.user.name}</p>
               <p className="text-[14px] text-muted-foreground">
                 Hochgeladen am {formatDateTime(request.createdAt)} ·{" "}
                 {request.university

@@ -1,8 +1,20 @@
 "use server";
 
-import { deleteAccount, resolveUploadDir } from "@uni-scrims/core";
+import {
+  deleteAccount,
+  emailSchema,
+  parseInput,
+  passwordSchema,
+  resolveUploadDir,
+  updateRealName,
+} from "@uni-scrims/core";
+import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { type ActionState, formField, runAction } from "@/lib/action";
+import { auth } from "@/lib/auth";
+import { setFlash } from "@/lib/flash";
+import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
 export async function deleteAccountAction(
@@ -19,4 +31,65 @@ export async function deleteAccountAction(
   if (state.error) return state;
   // The sessions are gone, so the user is logged out from here on.
   redirect("/?geloescht=1");
+}
+
+/** The real name, until the certificate is uploaded (SPEC N-3). */
+export async function updateRealNameAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const userId = (await getSessionUserId()) ?? "";
+  const state = await runAction(async () => {
+    await updateRealName({
+      userId,
+      firstName: String(formField(formData, "firstName") ?? ""),
+      lastName: String(formField(formData, "lastName") ?? ""),
+    });
+  });
+  if (state.error) return state;
+  await setFlash("Name gespeichert");
+  revalidatePath("/account");
+  return state;
+}
+
+/** Sends a link to the new address; the old one stays until it is clicked (SPEC N-3). */
+export async function changeEmailAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  if (!(await allowAttempt("mail"))) return { error: RATE_LIMITED };
+  const state = await runAction(async () => {
+    const newEmail = parseInput(emailSchema, formField(formData, "newEmail"));
+    await auth.api.changeEmail({
+      body: { newEmail, callbackURL: "/account?email=bestaetigt" },
+      headers: await headers(),
+    });
+  });
+  if (state.error) return state;
+  await setFlash("Wir haben dir einen Link an die neue Adresse geschickt");
+  revalidatePath("/account");
+  return state;
+}
+
+/** With the current password; the other sessions end (SPEC N-3). */
+export async function changePasswordAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  if (!(await allowAttempt("login"))) return { error: RATE_LIMITED };
+  const state = await runAction(async () => {
+    const newPassword = parseInput(passwordSchema, formField(formData, "newPassword"));
+    await auth.api.changePassword({
+      body: {
+        currentPassword: String(formField(formData, "currentPassword") ?? ""),
+        newPassword,
+        revokeOtherSessions: true,
+      },
+      headers: await headers(),
+    });
+  });
+  if (state.error) return state;
+  await setFlash("Passwort geändert");
+  revalidatePath("/account");
+  return state;
 }

@@ -10,7 +10,7 @@ import { nextCookies } from "better-auth/next-js";
 import { isAllowedAuthPath } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
 import { fetchDiscordProfile, joinHubGuild } from "./hub-join.ts";
-import { passwordResetMail, sendMail, verificationMail } from "./mail.ts";
+import { MAIL_FAILED, type Mail, passwordResetMail, sendMail, verificationMail } from "./mail.ts";
 
 // Set only by core, never by the client.
 const coreOnly = { required: false, input: false } as const;
@@ -35,6 +35,16 @@ async function onDiscordTokens(account: { userId: string; providerId: string }) 
   }
 }
 
+/** Sends an account mail; a failure reaches the server action as MAIL_FAILED (lib/action.ts). */
+async function sendAccountMail(mail: Mail) {
+  try {
+    await sendMail(mail);
+  } catch (error) {
+    console.error("Could not send an account mail", error);
+    throw new APIError("INTERNAL_SERVER_ERROR", { code: "MAIL_FAILED", message: MAIL_FAILED });
+  }
+}
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
@@ -46,16 +56,18 @@ export const auth = betterAuth({
     resetPasswordTokenExpiresIn: 60 * 60,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      await sendMail(passwordResetMail(user.email, url));
+      await sendAccountMail(passwordResetMail(user.email, url));
     },
   },
   emailVerification: {
     sendOnSignUp: true,
+    // A login with an unconfirmed address sends the link again (and fails with EMAIL_NOT_VERIFIED).
+    sendOnSignIn: true,
     autoSignInAfterVerification: true,
     expiresIn: 24 * 60 * 60,
     // Also for a new address: Better Auth sends it there and switches after the click.
     sendVerificationEmail: async ({ user, url }) => {
-      await sendMail(verificationMail(user.email, url));
+      await sendAccountMail(verificationMail(user.email, url));
     },
   },
   socialProviders: {

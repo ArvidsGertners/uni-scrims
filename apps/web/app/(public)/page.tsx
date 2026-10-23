@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { LoginForm } from "@/components/login-form";
 import { LoginNote } from "@/components/login-note";
 import { LoginHero } from "@/components/login-hero";
 import { Alert } from "@/components/ui/alert";
@@ -42,7 +41,24 @@ export default async function LandingPage({
           Zum Board
         </Link>
       ) : (
-        <LoginForm callbackURL={DEFAULT_AFTER_LOGIN} />
+        <div className="flex w-full flex-wrap gap-3">
+          <Link
+            href="/register"
+            className={buttonVariants({ size: "xl", className: "max-sm:w-full" })}
+          >
+            Konto erstellen
+          </Link>
+          <Link
+            href={`/login?callbackURL=${encodeURIComponent(DEFAULT_AFTER_LOGIN)}`}
+            className={buttonVariants({
+              size: "xl",
+              variant: "outline",
+              className: "max-sm:w-full",
+            })}
+          >
+            Anmelden
+          </Link>
+        </div>
       )}
     </LoginHero>
   );

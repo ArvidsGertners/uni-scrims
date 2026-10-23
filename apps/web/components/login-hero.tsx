@@ -4,8 +4,8 @@ import { PageMain } from "@/components/page-main";
 
 const STEPS = [
   {
-    title: "Mit Discord anmelden",
-    text: "Kein neues Passwort – wir nutzen deinen Discord-Account.",
+    title: "Konto anlegen, Discord verknüpfen",
+    text: "Mit E-Mail und Passwort. Über Discord bekommst du danach Bewerbungen, Zusagen und Reminder.",
   },
   {
     title: "Studierendenstatus bestätigen",

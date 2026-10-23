@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 export async function SiteHeader() {
   const user = await headerUser();
   const showBanner = user !== null && (user.hubJoinFailedAt !== null || user.dmFailedAt !== null);
-  const active = user !== null && !user.bannedAt;
+  const active = user !== null && !user.bannedAt && !user.setupStep;
 
-  // Banned users only get Konto: they may delete their account (ARCHITECTURE §7).
+  // Banned users and incomplete accounts only get Konto: there they may delete their account or
+  // finish its setup (ARCHITECTURE §7, §5.8).
   const items: NavItem[] = active
     ? [
         { href: "/board", label: "Board" },

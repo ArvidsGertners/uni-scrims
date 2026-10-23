@@ -1,47 +1,66 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { LogInIcon } from "@/components/icons";
-import { Button } from "@/components/ui/button";
-import { authClient } from "@/lib/auth-client";
+import { loginAction } from "@/app/(public)/login/actions";
+import { ActionForm } from "@/components/action-form";
+import { DiscordButton } from "@/components/discord-button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
-/** Age and privacy confirmation (SPEC P0-1), then the Discord login. */
+/** Email and password, or Discord for accounts that linked it (SPEC N-3). */
 export function LoginForm({ callbackURL }: { callbackURL: string }) {
-  const [confirmed, setConfirmed] = useState(false);
-  const [pending, setPending] = useState(false);
-
-  async function signIn() {
-    setPending(true);
-    const { error } = await authClient.signIn.social({
-      provider: "discord",
-      callbackURL,
-      errorCallbackURL: "/login?error=1",
-    });
-    if (error) setPending(false);
-  }
-
+  const encoded = encodeURIComponent(callbackURL);
   return (
-    <div className="flex w-full flex-col items-start gap-3.5">
-      <label className="flex items-start gap-2.5 text-[14px]">
-        <input
-          type="checkbox"
-          className="mt-0.5 size-4 shrink-0 accent-primary"
-          checked={confirmed}
-          onChange={(event) => setConfirmed(event.target.checked)}
-        />
-        <span>
-          Ich bin mindestens 16 Jahre alt und habe die{" "}
-          <Link href="/datenschutz" className="underline underline-offset-2" target="_blank">
-            Datenschutzerklärung
-          </Link>{" "}
-          gelesen.
+    <div className="flex w-full max-w-md flex-col gap-5">
+      <ActionForm
+        action={loginAction}
+        submitLabel="Anmelden"
+        size="lg"
+        submitClassName="w-full"
+        className="flex flex-col gap-[18px]"
+      >
+        <input type="hidden" name="callbackURL" value={callbackURL} />
+        <Field label="E-Mail-Adresse">
+          <Input name="email" type="email" required autoComplete="email" />
+        </Field>
+        <Field
+          label="Passwort"
+          hint={
+            <Link href="/forgot-password" className="underline underline-offset-2">
+              Vergessen?
+            </Link>
+          }
+        >
+          <Input name="password" type="password" required autoComplete="current-password" />
+        </Field>
+      </ActionForm>
+      <div className="flex items-center gap-3 text-[13px] text-faint">
+        <span className="h-px flex-1 bg-border" />
+        oder
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <DiscordButton
+          mode="signIn"
+          variant="outline"
+          callbackURL={callbackURL}
+          errorCallbackURL={`/login?callbackURL=${encoded}`}
+        >
+          Mit Discord anmelden
+        </DiscordButton>
+        <span className="text-[13px] text-muted-foreground">
+          Geht, sobald du Discord mit deinem Konto verknüpft hast.
         </span>
-      </label>
-      <Button size="xl" className="max-sm:w-full" disabled={!confirmed || pending} onClick={signIn}>
-        <LogInIcon size={20} strokeWidth={2.2} />
-        Mit Discord anmelden
-      </Button>
+      </div>
+      <p className="text-[14px]">
+        Noch kein Konto?{" "}
+        <Link
+          href={`/register?callbackURL=${encoded}`}
+          className="font-semibold underline underline-offset-2"
+        >
+          Registrieren
+        </Link>
+      </p>
     </div>
   );
 }
