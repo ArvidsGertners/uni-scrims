@@ -28,11 +28,17 @@ export async function listUniversities(db: Db = prisma) {
 }
 
 /** Status for the verify page: verified, or the latest request. */
-export async function getVerificationStatus(userId: string, db: Db = prisma) {
-  const user = await requireUser(userId, db);
+/**
+ * The university a verified user was approved with, and the latest request with the university given
+ * there; for the verify and the account page. Needs no ban check, the caller decides.
+ */
+export async function readStudentStatus(
+  user: { id: string; universityId: string | null; universityOther: string | null },
+  db: Db = prisma,
+) {
   const [latest, university] = await Promise.all([
     db.verificationRequest.findFirst({
-      where: { userId },
+      where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       select: {
         status: true,
@@ -48,7 +54,6 @@ export async function getVerificationStatus(userId: string, db: Db = prisma) {
       : null,
   ]);
   return {
-    verifiedAt: user.verifiedAt,
     /** The user's university, set on approval. */
     university: university?.name ?? user.universityOther ?? null,
     latest: latest
@@ -62,6 +67,11 @@ export async function getVerificationStatus(userId: string, db: Db = prisma) {
         }
       : null,
   };
+}
+
+export async function getVerificationStatus(userId: string, db: Db = prisma) {
+  const user = await requireUser(userId, db);
+  return { verifiedAt: user.verifiedAt, ...(await readStudentStatus(user, db)) };
 }
 
 export type SubmitVerificationInput = {

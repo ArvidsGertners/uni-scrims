@@ -7,6 +7,7 @@ import { lockRequest, lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
+import { readStudentStatus } from "./verification.ts";
 import { DISCORD_PROVIDER, NO_OAUTH_TOKENS, banPlaceholderData, deletedUserData } from "./users.ts";
 
 /**
@@ -27,35 +28,26 @@ export function accountDeletionProblem(
 export async function getAccount(userId: string) {
   const user = await requireAccountUser(userId);
   const team = await findOwnTeam(user.id);
-  const [memberCount, latestRequest, university] = await Promise.all([
+  const [memberCount, student] = await Promise.all([
     team ? prisma.teamMember.count({ where: { teamId: team.id } }) : 0,
-    prisma.verificationRequest.findFirst({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      select: { status: true, universityOther: true, university: { select: { name: true } } },
-    }),
-    user.universityId
-      ? prisma.university.findUnique({ where: { id: user.universityId }, select: { name: true } })
-      : null,
+    readStudentStatus(user),
   ]);
+  const latestStatus = student.latest?.status;
   return {
     name: user.name,
     image: user.image,
     banned: user.bannedAt !== null,
     /** Student status for the account page: the verified university, else the latest request's. */
     verification: user.verifiedAt
-      ? {
-          status: "VERIFIED" as const,
-          university: university?.name ?? user.universityOther ?? null,
-        }
+      ? { status: "VERIFIED" as const, university: student.university }
       : {
           status:
-            latestRequest?.status === VerifStatus.PENDING
+            latestStatus === VerifStatus.PENDING
               ? ("PENDING" as const)
-              : latestRequest?.status === VerifStatus.REJECTED
+              : latestStatus === VerifStatus.REJECTED
                 ? ("REJECTED" as const)
                 : ("NONE" as const),
-          university: latestRequest?.university?.name ?? latestRequest?.universityOther ?? null,
+          university: student.latest?.university ?? null,
         },
     team: team ? { name: team.name, isCaptain: isCaptainOf(user, team) } : null,
     /** null if the account can be deleted now, otherwise why not. */
