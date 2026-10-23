@@ -20,7 +20,8 @@ describe("Better Auth handler", () => {
     const blocked: [string, "GET" | "POST", unknown?][] = [
       ["/update-user", "POST", { name: "Anders" }],
       ["/change-email", "POST", { newEmail: "neu@example.org" }],
-      ["/link-social", "POST", { provider: "discord" }],
+      ["/sign-up/email", "POST", { email: "neu@example.org", password: "lang-genug1", name: "x" }],
+      ["/request-password-reset", "POST", { email: "neu@example.org" }],
       ["/unlink-account", "POST", { providerId: "discord" }],
       ["/list-accounts", "GET"],
       ["/list-sessions", "GET"],

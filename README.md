@@ -87,6 +87,21 @@ Die Prüfpunkte aus ARCHITECTURE §5.1, geprüft am Quellcode von `better-auth@1
 
 `callbackURL` für Einladungslinks: Die Login-Seite nimmt `?callbackURL=/join/<code>` an (nur Pfade derselben Seite) und gibt den Wert an `signIn.social` weiter. Better Auth leitet nach dem Callback dorthin zurück.
 
+## Better Auth: geprüfte Annahmen (Phase 7, Version 1.7.12)
+
+Die Prüfpunkte aus ARCHITECTURE §11 Phase 7, am Quellcode geprüft und mit `apps/web/test/auth-flows.test.ts` gegen den echten Handler nachgewiesen (Discord dort durch ein nachgebildetes `fetch` ersetzt):
+
+1. **Konto-Endpunkte nur vom Server:** Aufrufe über `auth.api` kommen ohne HTTP-Request (`ctx.request` fehlt). Der Before-Hook lässt `/sign-up/email`, `/sign-in/email`, `/send-verification-email`, `/request-password-reset`, `/reset-password`, `/change-password` und `/change-email` nur so durch; über HTTP antworten sie 404 (`lib/auth-paths.ts`). Better Auths eigenes Rate-Limit läuft nur im HTTP-Router, also nicht bei diesen Aufrufen; die Server Actions zählen deshalb selbst (`lib/rate-limit.ts`).
+2. **Frische Discord-Tokens:** Beim Verknüpfen gibt es keine neue Session, der After-Hook auf `/callback/:id` sieht also nichts. Die Tokens kommen mit der `account`-Zeile an: `create` beim Verknüpfen, `update` bei jedem Discord-Login (`updateAccountOnSignIn`). Ein `databaseHooks.account`-Hook ruft dort `handleDiscordLogin` auf: Profil holen, Hub-Beitritt, Tokens löschen.
+3. **E-Mail bleibt beim Discord-Login:** `overrideUserInfoOnSignIn` würde in 1.7.12 auch `email` und `emailVerified` aus dem Discord-Profil schreiben, also den Platzhalter. Es ist aus; Name und Avatar holt `handleDiscordLogin` selbst (`GET /users/@me` mit dem frischen Token), für gelöschte Konten (Sperr-Platzhalter) gar nicht. `disableImplicitSignUp` lässt einen Discord-Login ohne verknüpftes Konto mit `error=signup_disabled` scheitern. Verknüpfen braucht `trustedProviders: ["discord"]` (ohne `email`-Scope ist nichts bestätigt) und `allowDifferentEmails` (der Platzhalter weicht immer ab); eine Discord-ID an einem anderen Konto lehnt Better Auth ab.
+4. **Client-IP:** `advanced.ipAddress.ipAddressHeaders: ["x-forwarded-for"]`. nginx (`proxy_set_header X-Forwarded-For $remote_addr`) und Caddy setzen den Header selbst, ohne den des Clients anzuhängen, und der Web-Container ist von außen nicht erreichbar. Dasselbe liest `lib/rate-limit.ts`. Ohne Proxy (lokal) fehlt der Header, dann teilen sich alle Anfragen einen Zähler.
+
+Weitere Beobachtungen: Mit `requireEmailVerification` antwortet die Registrierung auf eine schon registrierte Adresse wie auf eine neue und legt nichts an. Der Bestätigungslink meldet mit `autoSignInAfterVerification` an. `/change-email` schickt bei bestätigter Adresse einen Link an die neue Adresse, die erst nach dem Klick gilt.
+
+## Konto-Mails (ab Phase 7)
+
+Versand per SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, siehe `.env.example`), in Production über das Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting, `www779.your-server.de:587`). DNS bei Cloudflare: MX auf `www779.your-server.de`, SPF `v=spf1 a mx ~all`, DKIM unter `default2610._domainkey`, DMARC `v=DMARC1; p=none`. Lokal (alles außer `NODE_ENV=production`) gehen Mails nur ins Log von `web`, mit `DEV_MAIL_REDIRECT=<deine Adresse>` stattdessen alle an diese Adresse.
+
 ## Dev-Login
 
 Mit `NODE_ENV=development` und `DEV_LOGIN=true` gibt es unter `/dev-login` eine Liste der Seed-Nutzer. Ein Klick loggt dich ohne Discord als dieser Nutzer ein. So kannst du zwei Teams parallel testen (normales und privates Fenster). In Production ist die Seite aus, und der Endpoint `/api/auth/dev/sign-in` antwortet mit 404.

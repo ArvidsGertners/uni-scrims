@@ -20,3 +20,8 @@ export function getDevDmRedirectId(env: DevEnv = process.env): string | null {
 export function getDevChannelId(env: DevEnv = process.env): string | null {
   return devValue(env, "DEV_CHANNEL_ID");
 }
+
+/** All account mails go to this address (§5.8), or null: then they only go to the log. */
+export function getDevMailRedirect(env: DevEnv = process.env): string | null {
+  return devValue(env, "DEV_MAIL_REDIRECT");
+}

@@ -1,0 +1,43 @@
+// Per-IP limits for the account actions (ARCHITECTURE §5.8). Server actions call Better Auth on the
+// server, where its own rate limiter does not run, so they count here. One web instance (§6.2), so
+// memory is enough; a restart starts over.
+import { headers } from "next/headers";
+
+type Rule = { max: number; windowMs: number };
+
+/** Logging in and registering: 5 per minute; requesting a mail: 3 per minute (SPEC N-3). */
+export const RATE_LIMITS = {
+  login: { max: 5, windowMs: 60_000 },
+  register: { max: 5, windowMs: 60_000 },
+  mail: { max: 3, windowMs: 60_000 },
+} satisfies Record<string, Rule>;
+
+export const RATE_LIMITED = "Zu viele Versuche. Bitte warte eine Minute.";
+
+const hits = new Map<string, number[]>();
+
+/** Records an attempt; false when the limit for this key is reached. Pure apart from `hits`. */
+export function takeAttempt(key: string, rule: Rule, now: number): boolean {
+  const recent = (hits.get(key) ?? []).filter((time) => now - time < rule.windowMs);
+  if (recent.length >= rule.max) {
+    hits.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  hits.set(key, recent);
+  return true;
+}
+
+/**
+ * The client IP as the proxy sets it: nginx and Caddy overwrite X-Forwarded-For with the address
+ * they see (ARCHITECTURE §8), and the web container is not reachable past them.
+ */
+export async function clientIp(): Promise<string> {
+  const forwarded = (await headers()).get("x-forwarded-for");
+  return forwarded?.split(",")[0]?.trim() || "unknown";
+}
+
+/** takeAttempt for the calling request's IP. */
+export async function allowAttempt(action: keyof typeof RATE_LIMITS): Promise<boolean> {
+  return takeAttempt(`${action}:${await clientIp()}`, RATE_LIMITS[action], Date.now());
+}
