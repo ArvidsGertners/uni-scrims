@@ -93,7 +93,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 - Ein Team bewirbt sich außerhalb des Rang-Bereichs: erlaubt, mit Hinweis. Der Ersteller entscheidet.
 - Ein Team hat seine Bewerbung zurückgezogen: Es kann sich auf dieselbe Anfrage nicht erneut bewerben.
 - Der Captain verlässt das Team: nur nach Übertragung der Captain-Rolle. Ist er das einzige Mitglied, wird das Team beim Verlassen aufgelöst.
-- Ein Team wird gesperrt oder aufgelöst: Seine offenen Anfragen werden gelöscht, seine offenen Bewerbungen zurückgezogen und seine künftigen Scrims abgesagt. Das Gegnerteam bekommt Bescheid, und die Absage zählt für niemanden als kurzfristig.
+- Ein Team wird gesperrt oder aufgelöst: Seine offenen Anfragen werden gelöscht, seine offenen Bewerbungen zurückgezogen und seine künftigen Scrims abgesagt. Das Gegnerteam bekommt Bescheid, und die Absage zählt für niemanden als kurzfristig. Anfragen, deren Startzeit schon vorbei ist, verfallen wie sonst auch.
 - Ein Spieler wird gesperrt: Er wird aus seinem Team entfernt. Ein gesperrter Captain bleibt im Team, das Team wird mitgesperrt. Die übrigen Mitglieder können das gesperrte Team verlassen und ein neues gründen oder einem anderen beitreten. Eine offene Prüfung seiner Bescheinigung wird ohne Nachricht abgelehnt und die Datei gelöscht.
 - Der Captain ist selbst noch nicht verifiziert: Er kann das Team verwalten und einladen, aber keine Scrim-Aktionen ausführen.
 - Der Bot ist nicht auf dem Team-Server: Benachrichtigungen gehen dann nur per DM an den Captain.

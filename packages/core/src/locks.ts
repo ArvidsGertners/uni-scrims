@@ -3,8 +3,8 @@
 // FOR KEY SHARE locks that foreign key checks take. With FOR UPDATE, dissolving a team (holds the
 // Team lock, then locks its requests) deadlocked with applying to one of its requests (holds the
 // request lock, then inserts a notification referencing the Team).
-// Lock order in every transaction (ARCHITECTURE §4): Team → User → ScrimRequest (several by id) →
-// Scrim; VerificationRequest, Application and Notification rows only after that.
+// Lock order in every transaction (ARCHITECTURE §4): Team → User → ScrimRequest → Scrim, several rows
+// of one table sorted by id; VerificationRequest, Application and Notification rows only after that.
 import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 

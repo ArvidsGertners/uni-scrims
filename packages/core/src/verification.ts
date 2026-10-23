@@ -149,7 +149,10 @@ export async function decideVerification(input: DecideVerificationInput): Promis
       throw new DomainError("NOT_FOUND", "Prüfung nicht gefunden.");
     }
     // User before VerificationRequest (§4), as in deleteAccount: the other order deadlocked with it.
-    await lockUser(tx, request.userId);
+    // The admin's row too (both by id), so an admin who deletes the account meanwhile is not stored
+    // as decidedById.
+    for (const id of [...new Set([request.userId, input.adminId])].sort()) await lockUser(tx, id);
+    await requireAdmin(input.adminId, tx);
     const approved = input.decision === "APPROVED";
     // The admin must have seen the document; without it only a rejection makes sense.
     if (

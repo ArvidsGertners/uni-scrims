@@ -10,7 +10,7 @@ import {
 import { TIMING } from "../config/timing.ts";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
-import { lockScrim } from "./locks.ts";
+import { lockScrim, lockUser } from "./locks.ts";
 import {
   BOTH_TEAM_CHANNELS,
   cancelPendingScrimNotifications,
@@ -206,6 +206,9 @@ export async function submitFeedback(
   const { now } = input;
   try {
     return await prisma.$transaction(async (tx) => {
+      // User before scrim (§4): a deletion or ban that commits meanwhile is seen by the check below,
+      // so no answer is stored for an account deleted while it was being sent.
+      await lockUser(tx, input.userId);
       await lockScrim(tx, input.scrimId);
       const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId } });
       if (!scrim) throw scrimNotFound();
@@ -329,6 +332,9 @@ export async function resolveDispute(
 ): Promise<void> {
   await requireAdmin(input.adminId);
   await prisma.$transaction(async (tx) => {
+    // As in submitFeedback: an admin who deletes the account meanwhile is not stored as resolvedById.
+    await lockUser(tx, input.adminId);
+    await requireAdmin(input.adminId, tx);
     await lockScrim(tx, input.scrimId);
     const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId } });
     if (!scrim) throw scrimNotFound();

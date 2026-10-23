@@ -158,8 +158,23 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
   if (!(await getDiscordId(user.id, tx))) {
     throw new DomainError("CONFLICT", "Das Konto wurde gelöscht, eine Sperre würde nicht greifen.");
   }
-  await tx.session.deleteMany({ where: { userId: user.id } });
 
+  // Read again under the lock: the user may have left or changed teams meanwhile.
+  const team = await findOwnTeam(user.id, tx);
+  if (team && team.id !== membership?.teamId) {
+    // Joined another team in between; that one is not locked, and locking it now would invert
+    // the order.
+    throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
+  }
+  // The team's requests and scrims before the verification rows (§4).
+  let teamBanned = false;
+  if (team && isCaptainOf(user, team)) {
+    teamBanned = await banTeamInTx(tx, team.id, now);
+  } else if (team) {
+    await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+  }
+
+  await tx.session.deleteMany({ where: { userId: user.id } });
   // After the user row is locked, so an upload that committed first is included. A cascade, not a
   // review of the document: no admin, no message.
   const closedVerifications = await tx.verificationRequest.updateManyAndReturn({
@@ -173,19 +188,5 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
     },
     select: { id: true, filePath: true },
   });
-
-  // Read again under the lock: the user may have left or changed teams meanwhile.
-  const team = await findOwnTeam(user.id, tx);
-  if (team && team.id !== membership?.teamId) {
-    // Joined another team in between; that one is not locked, and locking it now would invert
-    // the order.
-    throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
-  }
-  let teamBanned = false;
-  if (team && isCaptainOf(user, team)) {
-    teamBanned = await banTeamInTx(tx, team.id, now);
-  } else if (team) {
-    await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
-  }
   return { teamBanned, closedVerifications };
 }

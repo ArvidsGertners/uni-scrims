@@ -2,9 +2,9 @@
 // deleted, so past scrims keep their teams and the team statistics stay right.
 import { prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
-import { lockTeam } from "./locks.ts";
+import { lockRequest, lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
-import { TRANSFER_CAPTAIN_FIRST, dissolveTeam } from "./teams.ts";
+import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
 import {
   DELETED_USER_NAME,
@@ -82,15 +82,29 @@ export async function deleteAccount(input: {
       // Joined another team in between; that one is not locked.
       throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
     }
+    let dissolve = false;
     if (team) {
       const memberCount = await tx.teamMember.count({ where: { teamId: team.id } });
       const problem = accountDeletionProblem(user, team, memberCount);
       if (problem) throw new DomainError("CONFLICT", problem);
-      if (isCaptainOf(user, team)) {
-        await dissolveTeam(team.id, input.now, tx);
-      } else {
-        await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
-      }
+      dissolve = isCaptainOf(user, team);
+    }
+
+    // Requests next, all in id order (§4): those with a note by the user and those the dissolution
+    // retires. The note is free text the user wrote, often with contact details. Application
+    // messages have no author and stay with the team.
+    const noted = await tx.scrimRequest.findMany({
+      where: { createdById: user.id, note: { not: null } },
+      select: { id: true },
+    });
+    const notedIds = noted.map(({ id }) => id);
+    const retired = team && dissolve ? await retirementRequestIds(team.id, input.now, tx) : [];
+    for (const id of [...new Set([...notedIds, ...retired])].sort()) await lockRequest(tx, id);
+    await tx.scrimRequest.updateMany({ where: { id: { in: notedIds } }, data: { note: null } });
+    if (team && dissolve) {
+      await dissolveTeam(team.id, input.now, tx);
+    } else if (team) {
+      await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
     }
 
     const verifications = await tx.verificationRequest.findMany({
@@ -98,12 +112,6 @@ export async function deleteAccount(input: {
       select: { filePath: true },
     });
     await tx.verificationRequest.deleteMany({ where: { userId: user.id } });
-    // A note is free text the user wrote, often with contact details (§4). Application messages
-    // have no author and stay with the team.
-    await tx.scrimRequest.updateMany({
-      where: { createdById: user.id, note: { not: null } },
-      data: { note: null },
-    });
     await tx.notification.deleteMany({ where: { targetUserId: user.id } });
     await tx.session.deleteMany({ where: { userId: user.id } });
     if (bannedAt) {

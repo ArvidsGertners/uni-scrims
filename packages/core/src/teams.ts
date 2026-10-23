@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { AppStatus, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
-import { inTransaction, lockRequest, lockTeam, lockUser } from "./locks.ts";
+import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
 import {
   findOwnTeam,
   isCaptainOf,
@@ -12,7 +12,7 @@ import {
   requireUser,
 } from "./permissions.ts";
 import { isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
-import { closeOpenRequest } from "./requests.ts";
+import { closeOpenRequest, openRequestWhere } from "./requests.ts";
 import { type TeamInput, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 import { findUserByDiscordId } from "./users.ts";
@@ -87,14 +87,20 @@ export async function updateTeam(input: TeamInput & { userId: string; teamId: st
   await requireCaptain(input.userId, input.teamId);
   const data = parseInput(teamInputSchema, input);
   try {
-    return await prisma.team.update({
-      where: { id: input.teamId },
-      data: {
-        name: data.name,
-        nameNormalized: normalizeTeamName(data.name),
-        tag: data.tag,
-        rank: data.rank,
-      },
+    return await prisma.$transaction(async (tx) => {
+      // Checked again under the team lock: a dissolution that commits meanwhile frees the name, and
+      // writing it back onto the dissolved team would keep it taken for good.
+      await lockTeam(tx, input.teamId);
+      await requireCaptain(input.userId, input.teamId, tx);
+      return tx.team.update({
+        where: { id: input.teamId },
+        data: {
+          name: data.name,
+          nameNormalized: normalizeTeamName(data.name),
+          tag: data.tag,
+          rank: data.rank,
+        },
+      });
     });
   } catch (error) {
     if (isUniqueViolation(error)) throw nameTaken();
@@ -105,11 +111,16 @@ export async function updateTeam(input: TeamInput & { userId: string; teamId: st
 /** New invite code; the old link stops working. */
 export async function regenerateInvite(input: { userId: string; teamId: string }) {
   await requireCaptain(input.userId, input.teamId);
-  const team = await prisma.team.update({
-    where: { id: input.teamId },
-    data: { inviteCode: generateInviteCode() },
+  return prisma.$transaction(async (tx) => {
+    // As in updateTeam: a dissolved team keeps no invite code.
+    await lockTeam(tx, input.teamId);
+    await requireCaptain(input.userId, input.teamId, tx);
+    const team = await tx.team.update({
+      where: { id: input.teamId },
+      data: { inviteCode: generateInviteCode() },
+    });
+    return team.inviteCode;
   });
-  return team.inviteCode;
 }
 
 /**
@@ -266,26 +277,42 @@ export async function dissolveTeam(teamId: string, now: Date, db: Db = prisma): 
 }
 
 /**
- * On ban and dissolution (ARCHITECTURE §5.5): open requests are cancelled, own open applications
- * withdrawn and future scrims cancelled. These cancellations never count as late.
+ * The requests retireTeamActivity locks, sorted by id: the team's open requests and the open
+ * requests its pending applications go to. A caller that locks further requests before the
+ * retirement (deleteAccount) locks these together with its own, so every request lock of the
+ * transaction is taken in id order (§4).
+ */
+export async function retirementRequestIds(
+  teamId: string,
+  now: Date,
+  db: Db = prisma,
+): Promise<string[]> {
+  const own = await db.scrimRequest.findMany({
+    where: { teamId, ...openRequestWhere(now) },
+    select: { id: true },
+  });
+  const applied = await db.application.findMany({
+    where: { teamId, status: AppStatus.PENDING, request: openRequestWhere(now) },
+    select: { requestId: true },
+  });
+  return [
+    ...new Set([...own.map(({ id }) => id), ...applied.map(({ requestId }) => requestId)]),
+  ].sort();
+}
+
+/**
+ * On ban and dissolution (ARCHITECTURE §5.5): open requests are cancelled, own applications to open
+ * requests withdrawn and future scrims cancelled. These cancellations never count as late. Requests
+ * that have started are no longer open: the sweeper lets them expire (§6.3), with their applications.
+ * The caller holds the team lock.
  */
 export async function retireTeamActivity(teamId: string, now: Date, db: Db = prisma) {
   await inTransaction(db, async (tx) => {
-    const requests = await tx.scrimRequest.findMany({
-      where: { teamId, status: RequestStatus.OPEN },
-      orderBy: { id: "asc" },
-      include: { team: { select: { name: true } } },
-    });
-    for (const request of requests) {
-      await lockRequest(tx, request.id);
-      await closeOpenRequest(tx, request, RequestStatus.CANCELLED, now);
-    }
-
-    await tx.application.updateMany({
-      where: { teamId, status: AppStatus.PENDING },
-      data: { status: AppStatus.WITHDRAWN, decidedAt: now },
-    });
-
+    // Lock order (§4): all requests in id order, then the scrims, and only then applications and
+    // notifications. Two teams that applied to each other's requests and are retired at the same
+    // time would otherwise lock the same two applications in opposite order.
+    const requestIds = await retirementRequestIds(teamId, now, tx);
+    for (const id of requestIds) await lockRequest(tx, id);
     const scrims = await tx.scrim.findMany({
       where: {
         status: ScrimStatus.SCHEDULED,
@@ -294,6 +321,20 @@ export async function retireTeamActivity(teamId: string, now: Date, db: Db = pri
       },
       orderBy: { id: "asc" },
       include: { hostTeam: { select: { name: true } }, guestTeam: { select: { name: true } } },
+    });
+    for (const scrim of scrims) await lockScrim(tx, scrim.id);
+
+    const requests = await tx.scrimRequest.findMany({
+      where: { id: { in: requestIds }, teamId },
+      orderBy: { id: "asc" },
+      include: { team: { select: { name: true } } },
+    });
+    for (const request of requests) {
+      await closeOpenRequest(tx, request, RequestStatus.CANCELLED, now);
+    }
+    await tx.application.updateMany({
+      where: { teamId, status: AppStatus.PENDING, requestId: { in: requestIds } },
+      data: { status: AppStatus.WITHDRAWN, decidedAt: now },
     });
     for (const scrim of scrims) {
       await cancelScheduledScrim(tx, scrim, teamId, false, now);

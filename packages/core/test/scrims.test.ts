@@ -14,6 +14,7 @@ import {
   applyToRequest,
   cancelScrim,
   deleteRequest,
+  expireRequests,
   leaveTeam,
   listDisputes,
   openFeedback,
@@ -518,6 +519,56 @@ describe("retireTeamActivity", () => {
     await retireTeamActivity(x.team.id, AFTER_START);
     expect(await prisma.scrim.findUnique({ where: { id: scrim.id } })).toMatchObject({
       status: ScrimStatus.SCHEDULED,
+    });
+  });
+
+  it("leaves requests that have started to the sweeper, which lets them expire", async () => {
+    // The sweeper has not run yet: X's request and the one X applied to are still OPEN after
+    // their start.
+    const x = await createReadyTeam();
+    const applicant = await createReadyTeam();
+    const ownRequest = await createOpenRequest(x.captain.id);
+    const { application: received } = await applyToRequest({
+      userId: applicant.captain.id,
+      requestId: ownRequest.id,
+      now: NOW,
+    });
+    const elsewhere = await createReadyTeam();
+    const foreignRequest = await createOpenRequest(elsewhere.captain.id);
+    const { application: sent } = await applyToRequest({
+      userId: x.captain.id,
+      requestId: foreignRequest.id,
+      now: NOW,
+    });
+
+    await retireTeamActivity(x.team.id, AFTER_START);
+
+    for (const request of [ownRequest, foreignRequest]) {
+      expect(await prisma.scrimRequest.findUnique({ where: { id: request.id } })).toMatchObject({
+        status: RequestStatus.OPEN,
+      });
+    }
+    expect(
+      await prisma.application.count({
+        where: { id: { in: [received.id, sent.id] }, status: AppStatus.PENDING },
+      }),
+    ).toBe(2);
+
+    await expireRequests(AFTER_START);
+    expect(await prisma.scrimRequest.findUnique({ where: { id: ownRequest.id } })).toMatchObject({
+      status: RequestStatus.EXPIRED,
+    });
+    expect(
+      await prisma.notification.findMany({
+        where: { requestId: ownRequest.id },
+        select: { type: true, targetTeamId: true },
+      }),
+    ).toEqual([
+      { type: NotifType.APPLICATION_RECEIVED, targetTeamId: x.team.id },
+      { type: NotifType.REQUEST_EXPIRED, targetTeamId: applicant.team.id },
+    ]);
+    expect(await prisma.application.findUnique({ where: { id: sent.id } })).toMatchObject({
+      status: AppStatus.REJECTED,
     });
   });
 });

@@ -14,15 +14,20 @@ import {
   createTeam,
   decideVerification,
   deleteAccount,
+  deleteRequest,
   deletedUserEmail,
+  expireRequests,
   isDomainError,
   joinTeam,
   leaveTeam,
   applyToRequest,
+  regenerateInvite,
   submitVerification,
+  updateTeam,
 } from "../src/index.ts";
 import {
   NOW,
+  REQUEST_STARTS_AT,
   createOpenRequest,
   createReadyTeam,
   createTeamWithMembers,
@@ -116,6 +121,88 @@ describe("applyToRequest while the applicant team is retired", () => {
           where: { requestId: requestB.id, status: AppStatus.PENDING },
         }),
       ).toBe(0);
+    }
+  });
+});
+
+describe("two teams retired at the same time", () => {
+  it("does not deadlock when they applied to each other's requests", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createReadyTeam();
+      const b = await createReadyTeam();
+      const requestA = await createOpenRequest(a.captain.id);
+      const requestB = await createOpenRequest(b.captain.id);
+      await applyToRequest({ userId: a.captain.id, requestId: requestB.id, now: NOW });
+      await applyToRequest({ userId: b.captain.id, requestId: requestA.id, now: NOW });
+      const results = await Promise.allSettled([
+        banTeam({ adminId: admin.id, teamId: a.team.id, now: NOW }),
+        round % 2 === 0
+          ? banTeam({ adminId: admin.id, teamId: b.team.id, now: NOW })
+          : ban(b.captain.id),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results.map((result) => result.status)).toEqual(["fulfilled", "fulfilled"]);
+      expect(
+        await prisma.application.count({
+          where: { requestId: { in: [requestA.id, requestB.id] }, status: AppStatus.PENDING },
+        }),
+      ).toBe(0);
+    }
+  });
+});
+
+describe("deleteAccount and the requests whose notes it clears", () => {
+  it("does not deadlock with a deletion or expiry of such a request", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      // The user wrote the note as an earlier captain of X and now captains T alone; T applied to
+      // the request. The deletion withdraws that application and clears the note.
+      const x = await createReadyTeam();
+      const { team: t, captain: user } = await createTeamWithMembers();
+      const request = await createOpenRequest(x.captain.id, { note: "Discord: alt#0001" });
+      await prisma.scrimRequest.update({
+        where: { id: request.id },
+        data: { createdById: user.id },
+      });
+      await prisma.application.create({
+        data: { requestId: request.id, teamId: t.id, status: AppStatus.PENDING, createdAt: NOW },
+      });
+      const results = await Promise.allSettled([
+        remove(user.id),
+        round % 2 === 0
+          ? deleteRequest({ userId: x.captain.id, requestId: request.id, now: NOW })
+          : expireRequests(REQUEST_STARTS_AT),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results.map((result) => result.status)).toEqual(["fulfilled", "fulfilled"]);
+      expect(
+        await prisma.scrimRequest.findUniqueOrThrow({ where: { id: request.id } }),
+      ).toMatchObject({ note: null });
+      expect(
+        await prisma.application.count({
+          where: { requestId: request.id, status: AppStatus.PENDING },
+        }),
+      ).toBe(0);
+    }
+  });
+});
+
+describe("team changes while the team is dissolved", () => {
+  it("never writes the name or an invite code back onto a dissolved team", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team: target, captain } = await createTeamWithMembers();
+      const results = await Promise.allSettled([
+        round % 2 === 0
+          ? updateTeam({ userId: captain.id, teamId: target.id, ...team("Renamed") })
+          : regenerateInvite({ userId: captain.id, teamId: target.id }),
+        leaveTeam({ userId: captain.id, now: NOW }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(await prisma.team.findUniqueOrThrow({ where: { id: target.id } })).toMatchObject({
+        dissolvedAt: NOW,
+        nameNormalized: null,
+        inviteCode: null,
+      });
     }
   });
 });
