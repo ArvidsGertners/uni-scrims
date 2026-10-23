@@ -1,4 +1,4 @@
-import { type FeedbackOutcome, MemberRole, type ScrimFormat } from "@uni-scrims/db";
+import { type FeedbackOutcome, MemberRole, type ScrimFormat, type StaffRole } from "@uni-scrims/db";
 
 /** Display names of the formats (SPEC P0-4). */
 export const SCRIM_FORMAT_LABELS: Record<ScrimFormat, string> = {
@@ -18,6 +18,13 @@ export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   PLAYER: "Spieler",
   SUBSTITUTE: "Ersatzspieler",
   COACH: "Coach",
+};
+
+/** Staff roles (SPEC N-4). */
+export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
+  OPERATOR: "Betreiber",
+  ADMIN: "Admin",
+  REVIEWER: "Prüfer",
 };
 
 /** Answers in the feedback form (SPEC Flow C). */

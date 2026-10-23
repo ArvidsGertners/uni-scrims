@@ -6,7 +6,7 @@ import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { queueNotifications } from "./notifications.ts";
 import { lockUser } from "./locks.ts";
-import { requireAdmin, requireUser } from "./permissions.ts";
+import { requireReviewer, requireUser } from "./permissions.ts";
 import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./uploads.ts";
 
 export const AUTO_REJECT_REASON = "Prüfung nicht rechtzeitig erfolgt";
@@ -167,7 +167,7 @@ export type DecideVerificationInput = {
 };
 
 export async function decideVerification(input: DecideVerificationInput): Promise<void> {
-  await requireAdmin(input.adminId);
+  await requireReviewer(input.adminId);
   const rejectReason = input.rejectReason?.trim() || null;
   if (input.decision === "REJECTED" && !rejectReason) {
     throw new DomainError("INVALID", "Bitte gib einen Grund für die Ablehnung an.");
@@ -191,7 +191,7 @@ export async function decideVerification(input: DecideVerificationInput): Promis
     // The admin's row too (both by id), so an admin who deletes the account meanwhile is not stored
     // as decidedById.
     for (const id of [...new Set([request.userId, input.adminId])].sort()) await lockUser(tx, id);
-    await requireAdmin(input.adminId, tx);
+    await requireReviewer(input.adminId, tx);
     const approved = input.decision === "APPROVED";
     // The admin must have seen the document; without it only a rejection makes sense.
     if (
@@ -486,7 +486,7 @@ export async function runUploadJanitor(uploadDir: string, now: Date) {
  * restoring a database backup (uploads are not backed up, §8); such requests can only be rejected.
  */
 export async function listPendingVerifications(adminId: string, uploadDir: string) {
-  await requireAdmin(adminId);
+  await requireReviewer(adminId);
   const requests = await prisma.verificationRequest.findMany({
     where: { status: VerifStatus.PENDING },
     orderBy: { createdAt: "asc" },
@@ -512,7 +512,7 @@ export async function listPendingVerifications(adminId: string, uploadDir: strin
 
 /** Protected file access for admins; NOT_FOUND once the file has been deleted. */
 export async function getVerificationFile(requestId: string, adminId: string, uploadDir: string) {
-  await requireAdmin(adminId);
+  await requireReviewer(adminId);
   const request = await prisma.verificationRequest.findUnique({
     where: { id: requestId },
     select: { filePath: true, mimeType: true },

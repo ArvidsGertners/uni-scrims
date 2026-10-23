@@ -1,4 +1,4 @@
-import { MemberRole, Rank, prisma } from "@uni-scrims/db";
+import { MemberRole, Rank, StaffRole, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   deleteRequest,
@@ -8,6 +8,10 @@ import {
   requireActiveAccountUser,
   requireActingCaptain,
   requireAdmin,
+  requireOperator,
+  requireReviewer,
+  requireStaffMember,
+  staffArea,
   requireCaptain,
   requireTeamMember,
   requireTeamReady,
@@ -32,10 +36,7 @@ async function dissolvedTeam() {
   return dissolved;
 }
 
-const previousAdmins = process.env.ADMIN_DISCORD_IDS;
-
 afterAll(async () => {
-  process.env.ADMIN_DISCORD_IDS = previousAdmins;
   await prisma.$disconnect();
 });
 
@@ -188,12 +189,47 @@ describe("requireTeamReady / isTeamReady", () => {
   });
 });
 
-describe("requireAdmin", () => {
-  it("accepts Discord IDs from ADMIN_DISCORD_IDS only", async () => {
-    const admin = await createUser();
-    const user = await createUser();
-    process.env.ADMIN_DISCORD_IDS = `1,${admin.discordId}`;
-    await expect(requireAdmin(admin.id)).resolves.toMatchObject({ id: admin.id });
-    await expect(requireAdmin(user.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+describe("staff checks (§5.9)", () => {
+  it("lets each role into its areas only", async () => {
+    const operator = await createUser({ staffRole: StaffRole.OPERATOR });
+    const admin = await createUser({ staffRole: StaffRole.ADMIN });
+    const reviewer = await createUser({ staffRole: StaffRole.REVIEWER });
+    const player = await createUser();
+    const allowed = async (check: (id: string) => Promise<unknown>, id: string) =>
+      check(id).then(
+        () => true,
+        (error: { code: string }) => (error.code === "FORBIDDEN" ? false : error.code),
+      );
+    const table = [];
+    for (const user of [operator, admin, reviewer, player]) {
+      table.push([
+        await allowed(requireReviewer, user.id),
+        await allowed(requireAdmin, user.id),
+        await allowed(requireOperator, user.id),
+      ]);
+    }
+    expect(table).toEqual([
+      [true, true, true],
+      [true, true, false],
+      [true, false, false],
+      [false, false, false],
+    ]);
+    expect(staffArea(StaffRole.REVIEWER, "queue")).toBe(true);
+    expect(staffArea(StaffRole.REVIEWER, "admin")).toBe(false);
+    expect(staffArea(null, "queue")).toBe(false);
+  });
+
+  it("asks for the 2FA setup before any area, and needs a complete, unbanned account", async () => {
+    const withoutTwoFactor = await createUser({ staffRole: StaffRole.ADMIN, twoFactor: false });
+    await expect(requireReviewer(withoutTwoFactor.id)).rejects.toMatchObject({
+      code: "TWO_FACTOR_REQUIRED",
+    });
+    await expect(requireStaffMember(withoutTwoFactor.id)).resolves.toMatchObject({
+      staffRole: StaffRole.ADMIN,
+    });
+    const banned = await createUser({ staffRole: StaffRole.ADMIN, banned: true });
+    await expect(requireAdmin(banned.id)).rejects.toMatchObject({ code: "BANNED" });
+    const legacy = await createUser({ staffRole: StaffRole.ADMIN, legacy: true });
+    await expect(requireAdmin(legacy.id)).rejects.toMatchObject({ code: "ACCOUNT_INCOMPLETE" });
   });
 });

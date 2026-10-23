@@ -18,7 +18,7 @@ export async function SiteHeader() {
         { href: "/team", label: "Team" },
         { href: "/verify", label: "Verifizierung", dot: !user.verifiedAt },
         { href: "/account", label: "Konto" },
-        ...(user.isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+        ...(user.staffRole ? [{ href: "/admin", label: "Admin" }] : []),
       ]
     : [{ href: "/account", label: "Konto" }];
 

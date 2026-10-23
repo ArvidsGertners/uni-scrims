@@ -262,6 +262,8 @@ export async function deleteAccount(input: {
     // Better Auth keeps password reset tokens with the user ID as value; an open link would
     // otherwise set a new password on the anonymized account (§5.8).
     await tx.verification.deleteMany({ where: { value: user.id } });
+    // The TOTP secret and backup codes of a role (§5.9).
+    await tx.twoFactor.deleteMany({ where: { userId: user.id } });
     // Only the Discord ID stays with a ban, so it still applies after a new login (§4).
     const discordOnly = { ...NO_OAUTH_TOKENS, scope: null };
     if (bannedAt && deletedAt) {

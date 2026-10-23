@@ -145,14 +145,20 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
   if (membership) await lockTeam(tx, membership.teamId);
   // The update locks the user row, so it waits for a running deleteAccount, joinTeam, createTeam or
   // submitVerification, and they wait for it.
+  // Staff cannot be banned while they hold a role (§5.9): checked under the same row lock.
   const banned = await tx.user.updateMany({
-    where: { id: user.id, bannedAt: null },
+    where: { id: user.id, bannedAt: null, staffRole: null },
     data: { bannedAt: now },
   });
   if (banned.count === 0) {
-    throw (await tx.user.findUnique({ where: { id: user.id } }))
+    const current = await tx.user.findUnique({ where: { id: user.id } });
+    if (!current) throw new DomainError("NOT_FOUND", "Nutzer nicht gefunden.");
+    throw current.bannedAt
       ? new DomainError("CONFLICT", "Der Nutzer ist schon gesperrt.")
-      : new DomainError("NOT_FOUND", "Nutzer nicht gefunden.");
+      : new DomainError(
+          "CONFLICT",
+          "Der Nutzer hat eine Admin- oder Prüfer-Rolle. Entziehe sie zuerst.",
+        );
   }
   // A deleted account has no Discord link left: a new login would create a new, unbanned user.
   if (!(await getDiscordId(user.id, tx))) {

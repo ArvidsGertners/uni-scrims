@@ -2,13 +2,14 @@
 // the backup are missing from the restored database. They are exported from the old database while
 // it is still readable and applied again here. Operations only; no permission check, no web caller.
 import { randomUUID } from "node:crypto";
-import { prisma } from "@uni-scrims/db";
+import { StaffRole, prisma } from "@uni-scrims/db";
 import { z } from "zod";
 import { deleteAccount } from "./account.ts";
 import { isDomainError } from "./errors.ts";
 import { banTeamInTx, banUserInTx } from "./moderation.ts";
+import { lockUser } from "./locks.ts";
 import { findOwnTeam, isCaptainOf } from "./permissions.ts";
-import { TRANSFER_CAPTAIN_FIRST, leaveTeam, transferCaptain } from "./teams.ts";
+import { TRANSFER_CAPTAIN_FIRST, handOverCaptain, leaveTeam } from "./teams.ts";
 import { removeFilesAfterCommit } from "./verification.ts";
 import {
   DISCORD_PROVIDER,
@@ -22,6 +23,8 @@ export const moderationExportSchema = z.object({
   bannedTeams: z.array(z.object({ id: z.string().min(1) })),
   bannedUsers: z.array(z.object({ id: z.string().min(1), discordId: z.string().regex(/^\d+$/) })),
   deletedUsers: z.array(z.object({ id: z.string().min(1) })),
+  /** Every account with a role in the old database (Phase 8, §5.9). */
+  staff: z.array(z.object({ id: z.string().min(1), role: z.enum(StaffRole) })),
 });
 export type ModerationExport = z.infer<typeof moderationExportSchema>;
 
@@ -38,14 +41,17 @@ export type ReapplyReport = {
   transferredCaptains: number;
   /** Banned ex-captains who were the only member here: they left, which dissolved the team. */
   leftTeams: number;
+  /** Accounts whose role differed here and was set as in the old database (§5.9). */
+  staffRoles: number;
 };
 
 /**
- * Applies bans and deletions again, in this order: teams, users, deletions (a banned user who also
- * deleted the account ends up banned and deleted, as in the old database). The export contains every
- * banned team, dissolved ones too, so a team banned and then dissolved in the old database is banned
- * here before its captain's deletion dissolves it again. Idempotent: what the restored database
- * already has is skipped, so a second run changes nothing.
+ * Applies roles, bans and deletions again, in this order: roles, teams, users, deletions. Roles come
+ * first: a ban needs an account without a role, and a role removed after the backup must not come
+ * back (§5.9). A banned user who also deleted the account ends up banned and deleted, as in the old
+ * database. The export contains every banned team, dissolved ones too, so a team banned and then
+ * dissolved in the old database is banned here before its captain's deletion dissolves it again.
+ * Idempotent: what the restored database already has is skipped, so a second run changes nothing.
  */
 export async function reapplyModeration(input: {
   /** The export, checked against moderationExportSchema. */
@@ -62,7 +68,29 @@ export async function reapplyModeration(input: {
     deletedUsers: 0,
     transferredCaptains: 0,
     leftTeams: 0,
+    staffRoles: 0,
   };
+
+  const roles = new Map(entries.staff.map(({ id, role }) => [id, role]));
+  const withRoles = await prisma.user.findMany({
+    where: { OR: [{ staffRole: { not: null } }, { id: { in: [...roles.keys()] } }] },
+    select: { id: true, staffRole: true },
+  });
+  for (const user of withRoles) {
+    const role = roles.get(user.id) ?? null;
+    if (user.staffRole === role) continue;
+    await prisma.$transaction(async (tx) => {
+      await lockUser(tx, user.id);
+      await tx.user.update({ where: { id: user.id }, data: { staffRole: role } });
+      // As for any role change (§5.9): sessions end, and without a role the 2FA goes too.
+      await tx.session.deleteMany({ where: { userId: user.id } });
+      if (!role) {
+        await tx.twoFactor.deleteMany({ where: { userId: user.id } });
+        await tx.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false } });
+      }
+    });
+    report.staffRoles++;
+  }
 
   for (const { id } of entries.bannedTeams) {
     const banned = await prisma.$transaction(async (tx) => {
@@ -143,6 +171,7 @@ async function transferToLongestMember(userId: string): Promise<boolean> {
     orderBy: [{ joinedAt: "asc" }, { userId: "asc" }],
   });
   if (!successor) return false;
-  await transferCaptain({ userId, teamId: team.id, newCaptainId: successor.userId });
+  // handOverCaptain, as the captain may be an account from before Phase 7 (§5.8).
+  await handOverCaptain({ userId, newCaptainId: successor.userId });
   return true;
 }

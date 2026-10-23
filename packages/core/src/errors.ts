@@ -9,7 +9,8 @@ export type DomainErrorCode =
   | "NOT_FOUND"
   | "CONFLICT"
   | "INVALID"
-  | "ACCOUNT_INCOMPLETE";
+  | "ACCOUNT_INCOMPLETE"
+  | "TWO_FACTOR_REQUIRED";
 
 export class DomainError extends Error {
   constructor(
@@ -29,6 +30,14 @@ export class AccountIncompleteError extends DomainError {
   ) {
     super("ACCOUNT_INCOMPLETE", message);
     this.name = "AccountIncompleteError";
+  }
+}
+
+/** A staff check for an account with a role but without 2FA yet (§5.9); pages lead to the setup. */
+export class TwoFactorRequiredError extends DomainError {
+  constructor() {
+    super("TWO_FACTOR_REQUIRED", "Richte zuerst die Zwei-Faktor-Anmeldung ein.");
+    this.name = "TwoFactorRequiredError";
   }
 }
 

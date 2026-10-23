@@ -29,6 +29,8 @@ export function deletedUserData(userId: string) {
     dmFailedAt: null,
     firstName: null,
     lastName: null,
+    staffRole: null,
+    twoFactorEnabled: false,
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
 
@@ -167,20 +169,6 @@ export async function findUserByDiscordId(discordId: string, db: Db = prisma) {
   return account?.user ?? null;
 }
 
-export function getAdminDiscordIds(
-  env: Record<string, string | undefined> = process.env,
-): string[] {
-  return (env.ADMIN_DISCORD_IDS ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter((id) => id.length > 0);
-}
-
-export async function isAdmin(userId: string, db: Db = prisma): Promise<boolean> {
-  const discordId = await getDiscordId(userId, db);
-  return discordId !== null && getAdminDiscordIds().includes(discordId);
-}
-
 /**
  * What Better Auth writes onto the user on a Discord login or link (`mapProfileToUser`, §5.8):
  * name and avatar from Discord, but always the account's own address, since Better Auth 1.7.12 would
@@ -238,6 +226,7 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
       deletedAt: true,
       firstName: true,
       emailVerified: true,
+      staffRole: true,
     },
   });
   if (!user) return null;
@@ -251,7 +240,8 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
     bannedAt: user.bannedAt,
     hubJoinFailedAt: user.hubJoinFailedAt,
     dmFailedAt: user.dmFailedAt,
-    isAdmin: discordId !== null && getAdminDiscordIds().includes(discordId),
+    /** Shows the admin link; the admin pages check the role per area themselves (§5.9). */
+    staffRole: user.staffRole,
     setupStep: accountSetupStep(user, discordId !== null),
   };
 }

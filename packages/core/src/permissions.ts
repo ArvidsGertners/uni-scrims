@@ -2,17 +2,17 @@
 // The require* checks read the current state from the database and throw a DomainError.
 // The non-throwing predicates only decide what pages offer; mutations always run the require*
 // checks inside their transaction as well.
-import { prisma } from "@uni-scrims/db";
+import { StaffRole, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
-import { AccountIncompleteError, DomainError, type Problem, problemError } from "./errors.ts";
-import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
 import {
-  type AccountSetupStep,
-  accountSetupStep,
-  getDiscordId,
-  isAdmin,
-  isLoggedOutUser,
-} from "./users.ts";
+  AccountIncompleteError,
+  DomainError,
+  type Problem,
+  TwoFactorRequiredError,
+  problemError,
+} from "./errors.ts";
+import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
+import { type AccountSetupStep, accountSetupStep, getDiscordId, isLoggedOutUser } from "./users.ts";
 
 /** Shown when an action needs a complete account; pages redirect to the step instead (§5.8). */
 const SETUP_STEP_MESSAGES: Record<AccountSetupStep, string> = {
@@ -185,13 +185,62 @@ export async function requireTeamReady(teamId: string, db: Db = prisma): Promise
   if (problem) throw problemError(problem);
 }
 
-/** Admin = the Discord ID from account.accountId is listed in ADMIN_DISCORD_IDS. */
-export async function requireAdmin(userId: string | null | undefined, db: Db = prisma) {
-  const user = await requireUser(userId, db);
-  if (!(await isAdmin(user.id, db))) {
+/** Which roles see which part of the admin area (ARCHITECTURE §5.9). */
+export const STAFF_AREAS = {
+  /** Verification queue and file access. */
+  queue: [StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.REVIEWER],
+  /** Disputes, bans, failed notifications, bot status, statistics. */
+  admin: [StaffRole.OPERATOR, StaffRole.ADMIN],
+  /** Roles and 2FA resets. */
+  staff: [StaffRole.OPERATOR],
+} as const satisfies Record<string, readonly StaffRole[]>;
+
+export type StaffArea = keyof typeof STAFF_AREAS;
+
+/** Whether a role sees an area of the admin area; for the navigation. */
+export function staffArea(role: StaffRole | null, area: StaffArea): boolean {
+  return role !== null && (STAFF_AREAS[area] as readonly StaffRole[]).includes(role);
+}
+
+/**
+ * A complete, unbanned account with one of `roles` and 2FA set up (§5.9). Without 2FA it throws
+ * TwoFactorRequiredError, so the pages lead to the setup.
+ */
+export async function requireStaff(
+  userId: string | null | undefined,
+  roles: readonly StaffRole[],
+  db: Db = prisma,
+) {
+  const user = await requireStaffMember(userId, db);
+  if (!roles.includes(user.staffRole)) {
     throw new DomainError("FORBIDDEN", "Nur für Admins.");
   }
+  if (!user.twoFactorEnabled) throw new TwoFactorRequiredError();
   return user;
+}
+
+/** Any role, 2FA not needed yet: setting up the 2FA (§5.9). */
+export async function requireStaffMember(userId: string | null | undefined, db: Db = prisma) {
+  const user = await requireUser(userId, db);
+  if (!user.staffRole) {
+    throw new DomainError("FORBIDDEN", "Nur für Admins.");
+  }
+  return { ...user, staffRole: user.staffRole };
+}
+
+/** Reviewer, admin or operator: the verification queue (§5.9). */
+export async function requireReviewer(userId: string | null | undefined, db: Db = prisma) {
+  return requireStaff(userId, STAFF_AREAS.queue, db);
+}
+
+/** Admin or operator: everything in the admin area except roles (§5.9). */
+export async function requireAdmin(userId: string | null | undefined, db: Db = prisma) {
+  return requireStaff(userId, STAFF_AREAS.admin, db);
+}
+
+/** The operator: roles and 2FA resets (§5.9). */
+export async function requireOperator(userId: string | null | undefined, db: Db = prisma) {
+  return requireStaff(userId, STAFF_AREAS.staff, db);
 }
 
 /** The user and the team they are in; user and membership are read once. */

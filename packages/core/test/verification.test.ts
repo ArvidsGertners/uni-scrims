@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { NotifType, VerifStatus, prisma } from "@uni-scrims/db";
+import { NotifType, StaffRole, VerifStatus, prisma } from "@uni-scrims/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   AUTO_REJECT_REASON,
@@ -42,14 +42,13 @@ const HEIC = Uint8Array.from([
 const TEXT = new TextEncoder().encode("just some text, renamed to .pdf");
 
 const DAY = 24 * 60 * 60 * 1000;
-const previousAdmins = process.env.ADMIN_DISCORD_IDS;
 let uploadDir: string;
 let universityId: string;
 let admin: Awaited<ReturnType<typeof createUser>>;
 
 beforeAll(async () => {
-  admin = await createUser({ verified: true });
-  process.env.ADMIN_DISCORD_IDS = admin.discordId;
+  // A reviewer: the queue is theirs (§5.9).
+  admin = await createUser({ verified: true, staffRole: StaffRole.REVIEWER });
   const university = await prisma.university.create({
     data: { name: "Test-Uni", city: "Teststadt", slug: `test-${admin.id}` },
   });
@@ -62,7 +61,6 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  process.env.ADMIN_DISCORD_IDS = previousAdmins;
   await prisma.$disconnect();
 });
 

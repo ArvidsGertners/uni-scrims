@@ -20,3 +20,4 @@ export * from "./moderation.ts";
 export * from "./account.ts";
 export * from "./restore.ts";
 export * from "./stats.ts";
+export * from "./staff.ts";

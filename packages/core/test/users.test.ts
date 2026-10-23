@@ -5,7 +5,6 @@ import {
   clearOAuthTokens,
   deleteAccount,
   findUserByDiscordId,
-  getAdminDiscordIds,
   getCurrentUser,
   getDiscordId,
   listSeedUsers,
@@ -29,13 +28,6 @@ describe("discord id lookups", () => {
   it("returns null for unknown users and IDs", async () => {
     expect(await getDiscordId("missing")).toBeNull();
     expect(await findUserByDiscordId("0")).toBeNull();
-  });
-});
-
-describe("getAdminDiscordIds", () => {
-  it("parses the comma-separated list", () => {
-    expect(getAdminDiscordIds({ ADMIN_DISCORD_IDS: " 1, 2 ,,3" })).toEqual(["1", "2", "3"]);
-    expect(getAdminDiscordIds({})).toEqual([]);
   });
 });
 
@@ -85,10 +77,10 @@ describe("getCurrentUser", () => {
       bannedAt: NOW,
       hubJoinFailedAt: null,
       dmFailedAt: NOW,
-      isAdmin: false,
+      staffRole: null,
       setupStep: null,
     });
-    expect(await getCurrentUser(admin.id)).toMatchObject({ isAdmin: true });
+    expect(await getCurrentUser(admin.id)).toMatchObject({ staffRole: "ADMIN" });
   });
 
   it("treats missing, deleted and unlinked users as logged out", async () => {

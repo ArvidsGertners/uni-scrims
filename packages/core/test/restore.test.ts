@@ -25,9 +25,19 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-const EMPTY: ModerationExport = { bannedTeams: [], bannedUsers: [], deletedUsers: [] };
-const reapply = (entries: Partial<ModerationExport>) =>
-  reapplyModeration({ entries: { ...EMPTY, ...entries }, uploadDir, now: NOW });
+const EMPTY: ModerationExport = { bannedTeams: [], bannedUsers: [], deletedUsers: [], staff: [] };
+/** Like the README export: roles as they are now, unless a test gives its own (§5.9). */
+async function currentStaff() {
+  const staff = await prisma.user.findMany({ where: { staffRole: { not: null } } });
+  return staff.map(({ id, staffRole }) => ({ id, role: staffRole! }));
+}
+
+const reapply = async (entries: Partial<ModerationExport>) =>
+  reapplyModeration({
+    entries: { ...EMPTY, staff: await currentStaff(), ...entries },
+    uploadDir,
+    now: NOW,
+  });
 
 describe("reapplyModeration", () => {
   it("bans teams again and skips unknown, dissolved and banned ones", async () => {
@@ -174,6 +184,7 @@ describe("reapplyModeration", () => {
       deletedUsers: 0,
       transferredCaptains: 0,
       leftTeams: 0,
+      staffRoles: 0,
     });
   });
 

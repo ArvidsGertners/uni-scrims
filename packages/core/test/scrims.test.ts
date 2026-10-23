@@ -6,6 +6,7 @@ import {
   RequestStatus,
   ScrimStatus,
   prisma,
+  StaffRole,
 } from "@uni-scrims/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -293,16 +294,10 @@ describe("sweeper steps", () => {
 });
 
 describe("resolveDispute", () => {
-  const previousAdmins = process.env.ADMIN_DISCORD_IDS;
   let admin: Awaited<ReturnType<typeof createUser>>;
 
   beforeAll(async () => {
-    admin = await createUser({ verified: true });
-    process.env.ADMIN_DISCORD_IDS = admin.discordId;
-  });
-
-  afterAll(() => {
-    process.env.ADMIN_DISCORD_IDS = previousAdmins;
+    admin = await createUser({ verified: true, staffRole: StaffRole.ADMIN });
   });
 
   async function dispute() {

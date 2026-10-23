@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { prisma, Rank, ScrimFormat } from "@uni-scrims/db";
-import { afterAll, beforeAll } from "vitest";
+import { prisma, Rank, ScrimFormat, StaffRole } from "@uni-scrims/db";
+import { beforeAll } from "vitest";
 import type { ValorantMap } from "../config/maps.ts";
 import { applyToRequest, confirmApplication, createRequest } from "../src/index.ts";
 
@@ -16,7 +16,15 @@ export function uid(): string {
  * makes an account from before Phase 7, with neither.
  */
 export async function createUser(
-  options: { verified?: boolean; banned?: boolean; discordId?: string; legacy?: boolean } = {},
+  options: {
+    verified?: boolean;
+    banned?: boolean;
+    discordId?: string;
+    legacy?: boolean;
+    /** A staff role with 2FA set up, unless twoFactor is false (§5.9). */
+    staffRole?: StaffRole;
+    twoFactor?: boolean;
+  } = {},
 ) {
   const id = uid();
   const discordId = options.discordId ?? String(BigInt(`0x${id.replaceAll("-", "").slice(0, 15)}`));
@@ -30,6 +38,8 @@ export async function createUser(
       lastName: options.legacy ? null : `Muster ${id.slice(0, 4)}`,
       verifiedAt: options.verified ? NOW : null,
       bannedAt: options.banned ? NOW : null,
+      staffRole: options.staffRole ?? null,
+      twoFactorEnabled: !!options.staffRole && options.twoFactor !== false,
     },
   });
   await prisma.account.create({
@@ -45,18 +55,15 @@ export async function createUser(
   return { ...user, discordId };
 }
 
-/** Registers an admin (ADMIN_DISCORD_IDS) for the test file and restores the variable afterwards. */
-export function useAdmin(): { readonly id: string; readonly discordId: string } {
+/** A staff member with 2FA for the test file, an admin by default (§5.9). */
+export function useAdmin(role: StaffRole = StaffRole.ADMIN): {
+  readonly id: string;
+  readonly discordId: string;
+} {
   const admin = { id: "", discordId: "" };
-  const previous = process.env.ADMIN_DISCORD_IDS;
   beforeAll(async () => {
-    const user = await createUser({ verified: true });
+    const user = await createUser({ verified: true, staffRole: role });
     Object.assign(admin, { id: user.id, discordId: user.discordId });
-    process.env.ADMIN_DISCORD_IDS = user.discordId;
-  });
-  afterAll(() => {
-    if (previous === undefined) delete process.env.ADMIN_DISCORD_IDS;
-    else process.env.ADMIN_DISCORD_IDS = previous;
   });
   return admin;
 }

@@ -77,6 +77,13 @@ enum FeedbackOutcome {
   WE_COULD_NOT
 }
 
+// Staff roles (ARCHITECTURE §5.9): the operator assigns admins and reviewers.
+enum StaffRole {
+  OPERATOR
+  ADMIN
+  REVIEWER
+}
+
 // See ARCHITECTURE.md §6.1.
 enum NotifType {
   VERIFICATION_RESULT
@@ -118,22 +125,26 @@ model User {
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)
 
   // Additional fields (Better Auth `additionalFields` with `input: false`), set only by core.
-  universityId    String?
-  university      University? @relation(fields: [universityId], references: [id])
-  universityOther String?
-  verifiedAt      DateTime?   @db.Timestamptz(3)
-  bannedAt        DateTime?   @db.Timestamptz(3)
-  hubJoinFailedAt DateTime?   @db.Timestamptz(3)
-  dmFailedAt      DateTime?   @db.Timestamptz(3)
+  universityId     String?
+  university       University? @relation(fields: [universityId], references: [id])
+  universityOther  String?
+  verifiedAt       DateTime?   @db.Timestamptz(3)
+  bannedAt         DateTime?   @db.Timestamptz(3)
+  hubJoinFailedAt  DateTime?   @db.Timestamptz(3)
+  dmFailedAt       DateTime?   @db.Timestamptz(3)
   // Set by deleteAccount and kept, also if a racing login writes the Discord profile back (§4, §5.1).
-  deletedAt       DateTime?   @db.Timestamptz(3)
+  deletedAt        DateTime?   @db.Timestamptz(3)
   // Real name from the registration (Phase 7, §5.8); null for accounts from before Phase 7 until
   // they are completed, and for deleted ones. Only the user and reviewers see it.
-  firstName       String?
-  lastName        String?
+  firstName        String?
+  lastName         String?
+  // Phase 8 (§5.9): null = no role. twoFactorEnabled belongs to Better Auth's twoFactor plugin.
+  staffRole        StaffRole?
+  twoFactorEnabled Boolean     @default(false)
 
-  sessions Session[]
-  accounts Account[]
+  sessions   Session[]
+  accounts   Account[]
+  twoFactors TwoFactor[]
 
   verificationRequests VerificationRequest[] @relation("VerificationRequestUser")
   pendingVerification  VerificationRequest?  @relation("VerificationRequestPendingUser")
@@ -188,6 +199,22 @@ model Account {
   @@unique([userId, providerId])
   @@index([userId])
   @@map("account")
+}
+
+// Better Auth's twoFactor plugin (Phase 8, §5.9); secret and backup codes are encrypted by Better Auth.
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime? @db.Timestamptz(3)
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
 }
 
 model Verification {
