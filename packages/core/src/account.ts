@@ -1,7 +1,7 @@
 // Account deletion (SPEC P0-10, ARCHITECTURE §4, §5.5). The user row is anonymized instead of
 // deleted, so past scrims keep their teams and the team statistics stay right.
 import { randomUUID } from "node:crypto";
-import { prisma } from "@uni-scrims/db";
+import { VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { lockRequest, lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
@@ -27,11 +27,36 @@ export function accountDeletionProblem(
 export async function getAccount(userId: string) {
   const user = await requireAccountUser(userId);
   const team = await findOwnTeam(user.id);
-  const memberCount = team ? await prisma.teamMember.count({ where: { teamId: team.id } }) : 0;
+  const [memberCount, latestRequest, university] = await Promise.all([
+    team ? prisma.teamMember.count({ where: { teamId: team.id } }) : 0,
+    prisma.verificationRequest.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: { status: true, universityOther: true, university: { select: { name: true } } },
+    }),
+    user.universityId
+      ? prisma.university.findUnique({ where: { id: user.universityId }, select: { name: true } })
+      : null,
+  ]);
   return {
     name: user.name,
     image: user.image,
     banned: user.bannedAt !== null,
+    /** Student status for the account page: the verified university, else the latest request's. */
+    verification: user.verifiedAt
+      ? {
+          status: "VERIFIED" as const,
+          university: university?.name ?? user.universityOther ?? null,
+        }
+      : {
+          status:
+            latestRequest?.status === VerifStatus.PENDING
+              ? ("PENDING" as const)
+              : latestRequest?.status === VerifStatus.REJECTED
+                ? ("REJECTED" as const)
+                : ("NONE" as const),
+          university: latestRequest?.university?.name ?? latestRequest?.universityOther ?? null,
+        },
     team: team ? { name: team.name, isCaptain: isCaptainOf(user, team) } : null,
     /** null if the account can be deleted now, otherwise why not. */
     deletionProblem: accountDeletionProblem(user, team, memberCount),

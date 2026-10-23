@@ -136,6 +136,36 @@ async function personalData(userId: string) {
   return files;
 }
 
+describe("getAccount", () => {
+  it("shows the student status with the university", async () => {
+    const user = await createUser();
+    const status = async () => (await getAccount(user.id)).verification;
+    expect(await status()).toEqual({ status: "NONE", university: null });
+    const request = await prisma.verificationRequest.create({
+      data: {
+        userId: user.id,
+        pendingUserId: user.id,
+        universityId,
+        mimeType: "application/pdf",
+        sizeBytes: 4,
+        status: VerifStatus.PENDING,
+        createdAt: NOW,
+      },
+    });
+    expect(await status()).toEqual({ status: "PENDING", university: "Konto-Uni" });
+    await prisma.verificationRequest.update({
+      where: { id: request.id },
+      data: { status: VerifStatus.REJECTED, pendingUserId: null },
+    });
+    expect(await status()).toEqual({ status: "REJECTED", university: "Konto-Uni" });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { verifiedAt: NOW, universityOther: "Hochschule Irgendwo" },
+    });
+    expect(await status()).toEqual({ status: "VERIFIED", university: "Hochschule Irgendwo" });
+  });
+});
+
 describe("deleteAccount", () => {
   it("anonymizes a player and removes all personal data", async () => {
     const { team, members } = await createReadyTeam();
