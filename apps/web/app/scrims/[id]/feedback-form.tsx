@@ -1,7 +1,8 @@
 "use client";
 
 import type { FeedbackOutcome } from "@uni-scrims/db";
-import { useActionState, useState } from "react";
+import { type ReactNode, useActionState, useState } from "react";
+import { ToggleOption } from "@/components/toggle-option";
 import { Button } from "@/components/ui/button";
 import { initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
@@ -14,15 +15,40 @@ type Props = {
   ratings: number[];
 };
 
-/** Outcome radios; the star rating only appears for "Hat stattgefunden". */
+function Question({
+  number,
+  title,
+  children,
+}: {
+  number: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-2.5">
+      <legend className="mb-2.5 flex items-baseline gap-2.5 text-[16px] font-semibold">
+        <span className="font-label text-[12px] text-accent-text">{number}</span>
+        {title}
+      </legend>
+      {children}
+    </fieldset>
+  );
+}
+
+/**
+ * Outcome toggles; the rating only appears for "Hat stattgefunden" (SPEC P0-8). Sending stays
+ * disabled until everything needed is answered.
+ */
 export function FeedbackForm({ scrimId, outcomes, ratings }: Props) {
   const [state, action, pending] = useActionState(submitFeedbackAction, initialActionState);
   const [outcome, setOutcome] = useState<FeedbackOutcome | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
+  const ready = outcome !== null && (outcome !== "PLAYED" || rating !== null);
 
   return (
     <form
       action={action}
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-7"
       onSubmit={(event) => {
         if (!window.confirm("Antwort abschicken? Sie lässt sich danach nicht mehr ändern.")) {
           event.preventDefault();
@@ -32,39 +58,47 @@ export function FeedbackForm({ scrimId, outcomes, ratings }: Props) {
       }}
     >
       <input type="hidden" name="scrimId" value={scrimId} />
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="mb-1.5 text-sm font-medium">Hat der Scrim stattgefunden?</legend>
-        {outcomes.map(({ value, label }) => (
-          <label key={value} className="flex items-center gap-2 text-sm">
-            <input
+      <Question number="01" title="Hat das Scrim stattgefunden?">
+        <div className="grid gap-2 sm:grid-cols-3">
+          {outcomes.map(({ value, label }) => (
+            <ToggleOption
+              key={value}
               type="radio"
               name="outcome"
               value={value}
+              label={label}
               required
               onChange={() => setOutcome(value)}
             />
-            {label}
-          </label>
-        ))}
-      </fieldset>
+          ))}
+        </div>
+      </Question>
       {outcome === "PLAYED" ? (
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1.5 text-sm font-medium">Bewertung des Gegners</legend>
-          <div className="flex flex-wrap gap-3">
-            {ratings.map((rating) => (
-              <label key={rating} className="flex items-center gap-1 text-sm">
-                <input type="radio" name="rating" value={rating} required />
-                {"★".repeat(rating)}
-              </label>
+        <Question number="02" title="Wie bewertet ihr das Team?">
+          <div className="grid grid-cols-5 gap-2">
+            {ratings.map((value) => (
+              <ToggleOption
+                key={value}
+                type="radio"
+                name="rating"
+                value={value}
+                label={`${value} ★`}
+                required
+                onChange={() => setRating(value)}
+              />
             ))}
           </div>
-        </fieldset>
+        </Question>
       ) : null}
-      <div className="flex flex-col gap-1">
-        <Button type="submit" className="self-start" disabled={pending}>
-          Feedback abschicken
+      <div className="flex flex-col gap-2">
+        <Button type="submit" size="lg" className="w-full" disabled={!ready || pending}>
+          Feedback senden
         </Button>
-        {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+        {state.error ? (
+          <p role="alert" className="text-[14px] text-accent-text">
+            {state.error}
+          </p>
+        ) : null}
       </div>
     </form>
   );

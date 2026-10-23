@@ -15,6 +15,7 @@ import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { PageMain } from "@/components/page-main";
+import { ToggleOption } from "@/components/toggle-option";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -134,13 +135,14 @@ function RequestForm({ defaultRank }: { defaultRank: Rank }) {
         </legend>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {MAP_POOL.map((map) => (
-            <label
+            <ToggleOption
               key={map}
-              className="type-btn flex min-h-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-card px-3 text-[15px] font-semibold text-muted-foreground hover:border-muted-foreground has-checked:border-primary has-checked:bg-accent-soft has-checked:text-foreground has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
-            >
-              <input type="checkbox" name="maps" value={map} className="sr-only" />
-              {map}
-            </label>
+              type="checkbox"
+              name="maps"
+              value={map}
+              label={map}
+              className="min-h-11"
+            />
           ))}
         </div>
       </fieldset>
