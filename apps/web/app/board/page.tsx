@@ -13,8 +13,8 @@ import { ListGroup } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
 import { RequestCard } from "@/components/request-card";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { requirePageUser } from "@/lib/session";
 import { RankFilter } from "./rank-filter";
 
@@ -91,7 +91,12 @@ export default async function BoardPage({
         className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"
       >
         <Field label="Datum">
-          <Input name="datum" type="date" defaultValue={board.filter.date ?? ""} />
+          <DatePicker
+            name="datum"
+            defaultValue={board.filter.date}
+            placeholder="Alle Tage"
+            clearable
+          />
         </Field>
         <Field label="Rang im Bereich">
           <RankFilter

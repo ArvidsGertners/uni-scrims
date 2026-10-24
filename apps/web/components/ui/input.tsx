@@ -14,12 +14,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
     <InputPrimitive
       type={type}
       data-slot="input"
-      className={cn(
-        controlClass,
-        "min-h-12",
-        type === "date" || type === "time" ? "px-3" : "px-3.5",
-        className,
-      )}
+      className={cn(controlClass, "min-h-12 px-3.5", className)}
       {...props}
     />
   );

@@ -18,8 +18,8 @@ import { PageMain } from "@/components/page-main";
 import { ToggleOption } from "@/components/toggle-option";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { requirePageUser } from "@/lib/session";
 import { createRequestAction } from "../actions";
@@ -101,7 +101,7 @@ function RequestForm({ defaultRank }: { defaultRank: Rank }) {
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Datum">
-            <Input name="date" type="date" required min={toBerlinDateString(new Date())} />
+            <DatePicker name="date" required min={toBerlinDateString(new Date())} />
           </Field>
           <Field label="Uhrzeit">
             <Select
