@@ -102,7 +102,7 @@ describe("cancelScrim", () => {
     const notifications = await prisma.notification.findMany({ where: { scrimId: scrim.id } });
     const pending = notifications.filter((n) => n.status === NotifStatus.PENDING);
     expect(pending.map((n) => n.dedupeKey).sort()).toEqual([
-      `SCRIM_CANCELLED:${scrim.id}:${host.team.id}:CAPTAIN_DM`,
+      `SCRIM_CANCELLED:${scrim.id}:${host.team.id}:PERSONAL`,
       `SCRIM_CANCELLED:${scrim.id}:${host.team.id}:TEAM_CHANNEL`,
     ]);
     // Booking confirmation, reminders and feedback prompt are dropped; their retention counts from

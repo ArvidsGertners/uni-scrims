@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type Deliver,
+  type DeliveryOutcome,
   type DeliveryResult,
   MAX_FAILED_SHOWN,
   DELETED_USER_NAME,
@@ -65,13 +66,31 @@ function recorder(result: DeliveryResult = { ok: true }) {
   return { sent, deliver };
 }
 
+/**
+ * Sends one entry; a personal one is fanned out first and its children are sent right away, as the
+ * next sender run would (§5.17). Then the children's outcome, if they all had the same.
+ */
 async function send(
   id: string,
   now: Date = NOW,
   deliver: Deliver = recorder().deliver,
   env: Record<string, string> = NO_DEV_ENV,
 ) {
-  return deliverNotification(id, now, deliver, env);
+  const outcome = await deliverNotification(id, now, deliver, env);
+  if (outcome !== "DISTRIBUTED") return outcome;
+  const outcomes = new Set<DeliveryOutcome | null>();
+  for (const child of await childrenOf(id)) {
+    outcomes.add(await deliverNotification(child.id, now, deliver, env));
+  }
+  return outcomes.size === 1 ? [...outcomes][0]! : outcome;
+}
+
+/** The fanned-out copies of a personal notification (their dedupeKey names the parent). */
+async function childrenOf(parentId: string) {
+  return prisma.notification.findMany({
+    where: { dedupeKey: { contains: `:${parentId}:` } },
+    orderBy: [{ targetUserId: "asc" }, { channel: "asc" }],
+  });
 }
 
 async function find(where: Prisma.NotificationWhereInput) {
@@ -86,7 +105,7 @@ async function scrimNotification(
   scrimId: string,
   type: NotifType,
   teamId: string,
-  channel: NotifChannel = NotifChannel.CAPTAIN_DM,
+  channel: NotifChannel = NotifChannel.PERSONAL,
 ) {
   return find({ scrimId, type, targetTeamId: teamId, channel });
 }
@@ -130,9 +149,10 @@ describe("deliverNotification: recipients", () => {
     const notification = await scrimNotification(scrim.id, NotifType.SCRIM_BOOKED, host.team.id);
     const { sent, deliver } = recorder();
     expect(await send(notification.id, NOW, deliver)).toBe("SENT");
+    const [copy] = await childrenOf(notification.id);
     expect(sent).toEqual([
       {
-        id: notification.id,
+        id: copy!.id,
         type: NotifType.SCRIM_BOOKED,
         payload: {
           opponentTeamName: guest.team.name,
@@ -281,8 +301,13 @@ describe("deliverNotification: recipients", () => {
   });
 });
 
-/** A mail entry for the user (§5.17), queued by hand like the fan-out does. */
+/** A mail entry for the user (§5.17), queued by hand like the fan-out does, with mail on. */
 async function queueMail(userId: string) {
+  await prisma.notificationPreference.upsert({
+    where: { userId_type: { userId, type: NotifType.VERIFICATION_RESULT } },
+    create: { userId, type: NotifType.VERIFICATION_RESULT, email: true },
+    update: { email: true },
+  });
   const entityId = uid();
   await queueNotifications(prisma, NOW, [
     {
@@ -331,6 +356,177 @@ describe("deliverNotification: mails (§5.17)", () => {
     const { deliver } = recorder({ ok: false, code: null, error: "Greeting never received" });
     expect(await send(notification.id, NOW, deliver)).toBe("RETRY");
     expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).dmFailedAt).toBeNull();
+  });
+});
+
+/** Whom a DM or mail went to. */
+function recipientUser(message: OutboxMessage): string | null {
+  return "userId" in message.recipient ? message.recipient.userId : null;
+}
+
+/** A stored setting (§5.17); null keeps the default for that channel. */
+async function choose(
+  userId: string,
+  type: NotifType,
+  channels: { discord?: boolean | null; email?: boolean | null },
+) {
+  await prisma.notificationPreference.upsert({
+    where: { userId_type: { userId, type } },
+    create: { userId, type, discord: channels.discord ?? null, email: channels.email ?? null },
+    update: { discord: channels.discord ?? null, email: channels.email ?? null },
+  });
+}
+
+describe("deliverNotification: personal notifications (§5.17)", () => {
+  it("goes to the captain only by default, like before Phase 18", async () => {
+    const { host, scrim } = await bookScrim();
+    const booked = await scrimNotification(scrim.id, NotifType.SCRIM_BOOKED, host.team.id);
+    const { sent, deliver } = recorder();
+    expect(await deliverNotification(booked.id, NOW, deliver, NO_DEV_ENV)).toBe("DISTRIBUTED");
+    expect(await status(booked.id)).toBe(NotifStatus.SENT);
+    const children = await childrenOf(booked.id);
+    expect(children).toEqual([
+      expect.objectContaining({
+        channel: NotifChannel.USER_DM,
+        targetUserId: host.captain.id,
+        targetTeamId: host.team.id,
+        scrimId: scrim.id,
+        dedupeKey: `SCRIM_BOOKED:${booked.id}:${host.captain.id}:USER_DM`,
+        status: NotifStatus.PENDING,
+        scheduledFor: NOW,
+      }),
+    ]);
+    expect(sent).toEqual([]);
+  });
+
+  it("brings scrim notifications to members who switched them on, from the team's view", async () => {
+    const { host, guest, scrim } = await bookScrim();
+    const [discordMember, mailMember] = host.members;
+    await choose(discordMember!.id, NotifType.REMINDER_24H, { discord: true });
+    await prisma.user.update({
+      where: { id: mailMember!.id },
+      data: { email: `mila.${uid()}@example.org` },
+    });
+    await choose(mailMember!.id, NotifType.REMINDER_24H, { email: true });
+    const reminder = await scrimNotification(scrim.id, NotifType.REMINDER_24H, host.team.id);
+    const { sent, deliver } = recorder();
+    expect(await send(reminder.id, reminder.scheduledFor, deliver)).toBe("SENT");
+    expect(sent.map((message) => [message.recipient.kind, recipientUser(message)]).sort()).toEqual(
+      [
+        ["DM", host.captain.id],
+        ["DM", discordMember!.id],
+        ["EMAIL", mailMember!.id],
+      ].sort(),
+    );
+    for (const message of sent) {
+      expect(message.opponentCaptain).toEqual({
+        name: guest.captain.name,
+        discordId: guest.captain.discordId,
+      });
+    }
+  });
+
+  it("keeps captain notifications with the captain, whatever members switched on", async () => {
+    const host = await createReadyTeam();
+    const guest = await createReadyTeam();
+    const request = await createOpenRequest(host.captain.id);
+    await choose(host.members[0]!.id, NotifType.APPLICATION_RECEIVED, { discord: true });
+    await applyToRequest({ userId: guest.captain.id, requestId: request.id, now: NOW });
+    const received = await find({
+      type: NotifType.APPLICATION_RECEIVED,
+      targetTeamId: host.team.id,
+      channel: NotifChannel.PERSONAL,
+    });
+    const { sent, deliver } = recorder();
+    expect(await send(received.id, NOW, deliver)).toBe("SENT");
+    expect(sent.map(recipientUser)).toEqual([host.captain.id]);
+  });
+
+  it("is dropped when nobody wants it", async () => {
+    const { host, scrim } = await bookScrim();
+    await choose(host.captain.id, NotifType.SCRIM_BOOKED, { discord: false });
+    const booked = await scrimNotification(scrim.id, NotifType.SCRIM_BOOKED, host.team.id);
+    expect(await deliverNotification(booked.id, NOW, recorder().deliver, NO_DEV_ENV)).toBe(
+      "CANCELLED",
+    );
+    expect(await childrenOf(booked.id)).toEqual([]);
+    expect(await prisma.notification.findUnique({ where: { id: booked.id } })).toMatchObject({
+      status: NotifStatus.CANCELLED,
+      scheduledFor: NOW,
+    });
+  });
+
+  it("drops a copy whose person left the team or switched it off after the fan-out", async () => {
+    const { host, scrim } = await bookScrim();
+    const [leaving, switching] = host.members;
+    for (const member of [leaving!, switching!]) {
+      await choose(member.id, NotifType.SCRIM_BOOKED, { discord: true });
+    }
+    const booked = await scrimNotification(scrim.id, NotifType.SCRIM_BOOKED, host.team.id);
+    await deliverNotification(booked.id, NOW, recorder().deliver, NO_DEV_ENV);
+    await prisma.teamMember.delete({
+      where: { teamId_userId: { teamId: host.team.id, userId: leaving!.id } },
+    });
+    await choose(switching!.id, NotifType.SCRIM_BOOKED, { discord: false });
+    const { sent, deliver } = recorder();
+    for (const child of await childrenOf(booked.id)) {
+      await deliverNotification(child.id, NOW, deliver, NO_DEV_ENV);
+    }
+    expect(sent.map(recipientUser)).toEqual([host.captain.id]);
+  });
+
+  it("fans out entries from before Phase 18 like personal ones", async () => {
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
+    await choose(members[0]!.id, NotifType.CHANNEL_BROKEN, { discord: true });
+    await queueNotifications(prisma, NOW, [
+      {
+        type: NotifType.CHANNEL_BROKEN,
+        channel: NotifChannel.CAPTAIN_DM,
+        entityId: uid(),
+        targetTeamId: team.id,
+        payload: { teamName: team.name },
+      },
+    ]);
+    const legacy = await find({ targetTeamId: team.id, channel: NotifChannel.CAPTAIN_DM });
+    const { sent, deliver } = recorder();
+    expect(await send(legacy.id, NOW, deliver)).toBe("SENT");
+    expect(sent.map(recipientUser)).toEqual([captain.id]);
+  });
+
+  it("sends a verification result by DM and mail as chosen", async () => {
+    const user = await userWithMail();
+    await choose(user.id, NotifType.VERIFICATION_RESULT, { email: true });
+    await queueNotifications(prisma, NOW, [
+      {
+        type: NotifType.VERIFICATION_RESULT,
+        channel: NotifChannel.PERSONAL,
+        entityId: uid(),
+        targetUserId: user.id,
+        payload: { approved: true, rejectReason: null },
+      },
+    ]);
+    const result = await find({ targetUserId: user.id, channel: NotifChannel.PERSONAL });
+    const { sent, deliver } = recorder();
+    expect(await send(result.id, NOW, deliver)).toBe("SENT");
+    expect(sent.map((message) => message.recipient.kind).sort()).toEqual(["DM", "EMAIL"]);
+  });
+
+  it("marks only the member whose DM is blocked", async () => {
+    const { host, scrim } = await bookScrim();
+    const member = host.members[0]!;
+    await choose(member.id, NotifType.SCRIM_BOOKED, { discord: true });
+    const booked = await scrimNotification(scrim.id, NotifType.SCRIM_BOOKED, host.team.id);
+    const deliver: Deliver = async (message) =>
+      recipientUser(message) === member.id
+        ? { ok: false, code: 50007, error: "Cannot send messages to this user" }
+        : { ok: true };
+    await send(booked.id, NOW, deliver);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: member.id } })).dmFailedAt).toEqual(
+      NOW,
+    );
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: host.captain.id } })).dmFailedAt,
+    ).toBeNull();
   });
 });
 
@@ -452,12 +648,12 @@ describe("deliverNotification: relevance (§6.1)", () => {
     const later = new Date(FEEDBACK_OPENS.getTime() + HOUR);
     await openFeedback(later);
     const entries = await prisma.notification.findMany({
-      where: { scrimId: scrim.id, channel: NotifChannel.CAPTAIN_DM },
+      where: { scrimId: scrim.id, channel: NotifChannel.PERSONAL },
     });
     for (const entry of entries) await send(entry.id, later);
     const byType = await prisma.notification.groupBy({
       by: ["type", "status"],
-      where: { scrimId: scrim.id, channel: NotifChannel.CAPTAIN_DM },
+      where: { scrimId: scrim.id, channel: NotifChannel.PERSONAL },
       _count: { _all: true },
     });
     expect(byType.map((row) => `${row.type}:${row.status}:${row._count._all}`).sort()).toEqual(
@@ -485,11 +681,9 @@ describe("deliverNotification: results (§6.2)", () => {
         return result;
       };
       expect(await send(reminder.id, reminder.scheduledFor, cancelDuringSend)).toBeNull();
-      expect(await prisma.notification.findUnique({ where: { id: reminder.id } })).toMatchObject({
-        status: NotifStatus.CANCELLED,
-        attempts: 0,
-        sentAt: null,
-      });
+      // The cancellation also takes the captain's copy, which was being sent.
+      const [copy] = await childrenOf(reminder.id);
+      expect(copy).toMatchObject({ status: NotifStatus.CANCELLED, attempts: 0, sentAt: null });
     }
   });
 
@@ -527,8 +721,8 @@ describe("deliverNotification: results (§6.2)", () => {
   });
 
   it("does not mark a captain DM as failed when the captain deleted the account during the send", async () => {
-    // Addressed to the team and not linked to a scrim, so the entry survives the deletion (which
-    // dissolves the captain's team) and is settled as FAILED.
+    // An entry from before Phase 18, fanned out to the captain; the deletion (which dissolves the
+    // captain's team) removes the captain's copy, so nothing is settled and nothing marked.
     const { team, captain } = await createTeamWithMembers();
     await queueNotifications(prisma, NOW, [
       {
@@ -544,7 +738,8 @@ describe("deliverNotification: results (§6.2)", () => {
       await deleteAccount({ userId: captain.id, uploadDir: tmpdir(), now: NOW });
       return { ok: false, code: 50007, error: "Cannot send messages to this user" };
     };
-    expect(await send(notification.id, NOW, deliver)).toBe("FAILED");
+    expect(await send(notification.id, NOW, deliver)).toBeNull();
+    expect(await childrenOf(notification.id)).toEqual([]);
     expect(await prisma.user.findUniqueOrThrow({ where: { id: captain.id } })).toMatchObject({
       dmFailedAt: null,
     });
@@ -589,8 +784,8 @@ describe("deliverNotification: results (§6.2)", () => {
     });
     expect(broken).toEqual([
       expect.objectContaining({
-        channel: NotifChannel.CAPTAIN_DM,
-        dedupeKey: `CHANNEL_BROKEN:${booked.id}:${host.team.id}:CAPTAIN_DM`,
+        channel: NotifChannel.PERSONAL,
+        dedupeKey: `CHANNEL_BROKEN:${booked.id}:${host.team.id}:PERSONAL`,
         payload: { teamName: host.team.name },
         status: NotifStatus.PENDING,
         scheduledFor: NOW,
@@ -678,7 +873,8 @@ describe("deliverNotification: results (§6.2)", () => {
     const reminder = await scrimNotification(scrim.id, NotifType.REMINDER_1H, host.team.id);
     const failing = recorder({ ok: false, code: null, error: "timeout" }).deliver;
     expect(await send(reminder.id, reminder.scheduledFor, failing)).toBe("RETRY");
-    expect(await send(reminder.id, REQUEST_STARTS_AT)).toBe("CANCELLED");
+    const [copy] = await childrenOf(reminder.id);
+    expect(await send(copy!.id, REQUEST_STARTS_AT)).toBe("CANCELLED");
   });
 
   it("keeps the time of the result in scheduledFor for every FAILED and CANCELLED entry (§6.2)", async () => {
@@ -762,6 +958,7 @@ describe("deliverDueNotifications", () => {
     const { sent, deliver } = recorder();
     expect(await deliverDueNotifications(NOW, deliver, { limit: 1, env: NO_DEV_ENV })).toEqual({
       SENT: 1,
+      DISTRIBUTED: 0,
       CANCELLED: 0,
       FAILED: 0,
       RETRY: 0,

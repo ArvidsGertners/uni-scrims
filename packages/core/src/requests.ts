@@ -200,7 +200,7 @@ export async function closeOpenRequest(
     now,
     rejected.map((application) => ({
       type,
-      channel: NotifChannel.CAPTAIN_DM,
+      channel: NotifChannel.PERSONAL,
       entityId: request.id,
       targetTeamId: application.teamId,
       requestId: request.id,
@@ -291,7 +291,7 @@ export async function applyToRequest(input: {
       await queueNotifications(tx, input.now, [
         {
           type: NotifType.APPLICATION_RECEIVED,
-          channel: NotifChannel.CAPTAIN_DM,
+          channel: NotifChannel.PERSONAL,
           entityId: application.id,
           targetTeamId: request.teamId,
           requestId: request.id,
@@ -450,7 +450,7 @@ export async function confirmApplication(input: {
       ...toBothTeams(NotifType.SCRIM_BOOKED),
       ...rejected.map((other) => ({
         type: NotifType.APPLICATION_REJECTED,
-        channel: NotifChannel.CAPTAIN_DM,
+        channel: NotifChannel.PERSONAL,
         entityId: other.id,
         targetTeamId: other.teamId,
         requestId: request.id,

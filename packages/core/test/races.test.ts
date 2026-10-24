@@ -8,6 +8,7 @@ import {
   AppStatus,
   FeedbackOutcome,
   LogoBackground,
+  NotifChannel,
   NotifType,
   ScrimStatus,
   VerifStatus,
@@ -25,6 +26,7 @@ import {
   deleteAccount,
   deleteRequest,
   deletedUserEmail,
+  deliverNotification,
   expireRequests,
   findUserByDiscordId,
   isDomainError,
@@ -37,6 +39,7 @@ import {
   updateTeam,
   setTeamLogo,
 } from "../src/index.ts";
+import { queueNotifications } from "../src/notifications.ts";
 import {
   NOW,
   REQUEST_STARTS_AT,
@@ -549,6 +552,75 @@ describe("submitFeedback while the captain deletes the account", () => {
           await prisma.scrimFeedback.count({ where: { submittedById: guest.captain.id } }),
         ).toBe(0);
       }
+    }
+  });
+});
+
+describe("personal notifications fanned out while accounts and teams change (§5.17)", () => {
+  const sendNothing = async () => ({ ok: true }) as const;
+  const env = { NODE_ENV: "production" };
+
+  it("leaves no copy for an account deleted during the fan-out", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const user = await createUser();
+      await queueNotifications(prisma, NOW, [
+        {
+          type: NotifType.VERIFICATION_RESULT,
+          channel: NotifChannel.PERSONAL,
+          entityId: uid(),
+          targetUserId: user.id,
+          payload: { approved: true, rejectReason: null },
+        },
+      ]);
+      const parent = await prisma.notification.findFirstOrThrow({
+        where: { targetUserId: user.id, channel: NotifChannel.PERSONAL },
+      });
+      const results = await Promise.allSettled([
+        deliverNotification(parent.id, NOW, sendNothing, env),
+        remove(user.id),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(await prisma.notification.count({ where: { targetUserId: user.id } })).toBe(0);
+    }
+  });
+
+  it("sends nothing to a member who leaves during the fan-out", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { host, scrim } = await bookScrim();
+      const member = host.members[0]!;
+      await prisma.notificationPreference.create({
+        data: { userId: member.id, type: NotifType.SCRIM_BOOKED, discord: true },
+      });
+      const parent = await prisma.notification.findFirstOrThrow({
+        where: {
+          scrimId: scrim.id,
+          type: NotifType.SCRIM_BOOKED,
+          targetTeamId: host.team.id,
+          channel: NotifChannel.PERSONAL,
+        },
+      });
+      const results = await Promise.allSettled([
+        deliverNotification(parent.id, NOW, sendNothing, env),
+        leaveTeam({ userId: member.id, now: NOW }),
+      ]);
+      expectOnlyDomainErrors(results);
+      const sentTo: string[] = [];
+      const children = await prisma.notification.findMany({
+        where: { dedupeKey: { contains: `:${parent.id}:` } },
+      });
+      for (const child of children) {
+        await deliverNotification(
+          child.id,
+          NOW,
+          async (message) => {
+            if ("userId" in message.recipient) sentTo.push(message.recipient.userId);
+            return { ok: true };
+          },
+          env,
+        );
+      }
+      expect(sentTo).toEqual([host.captain.id]);
     }
   });
 });

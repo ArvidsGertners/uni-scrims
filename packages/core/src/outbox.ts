@@ -13,8 +13,10 @@ import {
 } from "@uni-scrims/db";
 import { type DevEnv, getDevChannelId, getDevDmRedirectId } from "../config/dev.ts";
 import type { Db } from "./db.ts";
-import { lockTeam } from "./locks.ts";
+import { lockTeam, lockUser } from "./locks.ts";
+import { effectiveChannels, notificationAudience } from "./notification-settings.ts";
 import {
+  type NotificationEntry,
   type NotificationPayload,
   parseNotificationPayload,
   queueNotifications,
@@ -91,7 +93,8 @@ export type Deliver = (message: OutboxMessage) => Promise<DeliveryResult>;
 
 export type DeliveryResult = { ok: true } | { ok: false; code: number | null; error: string };
 
-export type DeliveryOutcome = "SENT" | "CANCELLED" | "FAILED" | "RETRY";
+/** DISTRIBUTED: a personal notification was fanned out into its children (§5.17). */
+export type DeliveryOutcome = "SENT" | "DISTRIBUTED" | "CANCELLED" | "FAILED" | "RETRY";
 
 // ─── Relevance ────────────────────────────────────────────────────────────────
 
@@ -144,6 +147,9 @@ export function isNotificationRelevant(notification: RelevanceInput, now: Date):
 }
 
 // ─── Delivery ─────────────────────────────────────────────────────────────────
+
+/** Entries the sender fans out into one entry per person and channel (§5.17). */
+const PERSONAL_CHANNELS: readonly NotifChannel[] = [NotifChannel.PERSONAL, NotifChannel.CAPTAIN_DM];
 
 const teamWithCaptain = {
   select: {
@@ -290,7 +296,7 @@ async function recordFailure(
           await queueNotifications(tx, now, [
             {
               type: NotifType.CHANNEL_BROKEN,
-              channel: NotifChannel.CAPTAIN_DM,
+              channel: NotifChannel.PERSONAL,
               entityId: notification.id,
               targetTeamId: team.id,
               payload: { teamName: team.name },
@@ -314,6 +320,101 @@ async function recordFailure(
         "RETRY",
       );
   }
+}
+
+/**
+ * Fans a personal notification out into USER_DM and USER_EMAIL children, one per person and channel
+ * switched on (§5.17): the person for SELF types, the current captain for CAPTAIN types, every
+ * member for TEAM types. Under the team or user lock (§4), so it sees the current members and no
+ * child is created for an account deleted meanwhile. The parent becomes SENT as distributed, or
+ * CANCELLED without a single child; null if it was no longer pending.
+ */
+async function fanOut(
+  notification: LoadedNotification,
+  payload: NotificationPayload<NotifType>,
+  now: Date,
+): Promise<DeliveryOutcome | null> {
+  return prisma.$transaction(async (tx) => {
+    let recipients: { userId: string; isCaptain: boolean }[] = [];
+    if (notification.targetTeamId) {
+      await lockTeam(tx, notification.targetTeamId);
+      const team = await tx.team.findUnique({
+        where: { id: notification.targetTeamId },
+        select: { captainId: true, dissolvedAt: true, members: { select: { userId: true } } },
+      });
+      if (team && !team.dissolvedAt) {
+        recipients =
+          notificationAudience(notification.type) === "TEAM"
+            ? team.members.map(({ userId }) => ({ userId, isCaptain: userId === team.captainId }))
+            : [{ userId: team.captainId, isCaptain: true }];
+      }
+    } else if (notification.targetUserId) {
+      await lockUser(tx, notification.targetUserId);
+      const user = await tx.user.findFirst({
+        where: notDeletedUserWhere(notification.targetUserId),
+        select: { id: true },
+      });
+      if (user) recipients = [{ userId: user.id, isCaptain: false }];
+    }
+    const preferences = await tx.notificationPreference.findMany({
+      where: { userId: { in: recipients.map(({ userId }) => userId) }, type: notification.type },
+    });
+    const children: NotificationEntry[] = [];
+    for (const { userId, isCaptain } of recipients) {
+      const stored = preferences.find((preference) => preference.userId === userId);
+      const channels = effectiveChannels(notification.type, isCaptain, stored);
+      for (const [on, channel] of [
+        [channels.discord, NotifChannel.USER_DM],
+        [channels.email, NotifChannel.USER_EMAIL],
+      ] as const) {
+        if (!on) continue;
+        // type and payload were parsed together, so they match.
+        children.push({
+          type: notification.type,
+          payload,
+          channel,
+          entityId: notification.id,
+          targetUserId: userId,
+          targetTeamId: notification.targetTeamId ?? undefined,
+          scrimId: notification.scrimId ?? undefined,
+          requestId: notification.requestId ?? undefined,
+          scheduledFor: now,
+        } as NotificationEntry);
+      }
+    }
+    const settled = await settle(
+      tx,
+      notification.id,
+      children.length > 0
+        ? { status: NotifStatus.SENT, sentAt: now }
+        : { status: NotifStatus.CANCELLED, scheduledFor: now },
+    );
+    if (!settled) return null;
+    await queueNotifications(tx, now, children);
+    return children.length > 0 ? "DISTRIBUTED" : "CANCELLED";
+  });
+}
+
+/**
+ * A fanned-out child is only sent while its person is still a member of the team and has the
+ * channel switched on (§5.17); entries from before Phase 18 pass with the defaults.
+ */
+async function stillWanted(notification: LoadedNotification): Promise<boolean> {
+  const userId = notification.targetUserId;
+  if (!userId) return true;
+  const team = notification.targetTeam;
+  if (notification.targetTeamId) {
+    const membership = await prisma.teamMember.findUnique({
+      where: { teamId_userId: { teamId: notification.targetTeamId, userId } },
+      select: { userId: true },
+    });
+    if (!membership) return false;
+  }
+  const stored = await prisma.notificationPreference.findUnique({
+    where: { userId_type: { userId, type: notification.type } },
+  });
+  const channels = effectiveChannels(notification.type, team?.captain.id === userId, stored);
+  return notification.channel === NotifChannel.USER_EMAIL ? channels.email : channels.discord;
 }
 
 /**
@@ -344,6 +445,10 @@ export async function deliverNotification(
     });
     return failed ? "FAILED" : null;
   }
+  if (PERSONAL_CHANNELS.includes(notification.channel)) {
+    return fanOut(notification, payload, now);
+  }
+  if (!(await stillWanted(notification))) return cancel();
   const recipient = await resolveRecipient(notification, env);
   if (!recipient) return cancel();
 
@@ -376,7 +481,13 @@ export async function deliverDueNotifications(
     take: options.limit ?? 20,
     select: { id: true },
   });
-  const counts: Record<DeliveryOutcome, number> = { SENT: 0, CANCELLED: 0, FAILED: 0, RETRY: 0 };
+  const counts: Record<DeliveryOutcome, number> = {
+    SENT: 0,
+    DISTRIBUTED: 0,
+    CANCELLED: 0,
+    FAILED: 0,
+    RETRY: 0,
+  };
   for (const { id } of due) {
     try {
       const outcome = await deliverNotification(id, now, deliver, options.env);
@@ -416,9 +527,13 @@ export async function listFailedNotifications(adminId: string) {
       targetTeam: { select: { name: true } },
     },
   });
+  // A fanned-out copy has both: the person and, in brackets, the team (§5.17).
   const entries = rows.map(({ targetUser, targetTeam, ...row }) => ({
     ...row,
-    targetName: targetUser?.name ?? targetTeam?.name ?? null,
+    targetName:
+      targetUser && targetTeam
+        ? `${targetUser.name} (${targetTeam.name})`
+        : (targetUser?.name ?? targetTeam?.name ?? null),
   }));
   return { entries, total };
 }

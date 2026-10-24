@@ -222,8 +222,8 @@ describe("decideVerification", () => {
     expect(notifications).toEqual([
       expect.objectContaining({
         type: NotifType.VERIFICATION_RESULT,
-        channel: "USER_DM",
-        dedupeKey: `VERIFICATION_RESULT:${request.id}:${user.id}:USER_DM`,
+        channel: "PERSONAL",
+        dedupeKey: `VERIFICATION_RESULT:${request.id}:${user.id}:PERSONAL`,
         scheduledFor: NOW,
         payload: { approved: true, rejectReason: null },
       }),

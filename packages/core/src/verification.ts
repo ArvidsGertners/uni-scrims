@@ -256,7 +256,7 @@ async function createResultNotification(
   await queueNotifications(db, now, [
     {
       type: NotifType.VERIFICATION_RESULT,
-      channel: NotifChannel.USER_DM,
+      channel: NotifChannel.PERSONAL,
       entityId: requestId,
       targetUserId: userId,
       payload: { approved, rejectReason },

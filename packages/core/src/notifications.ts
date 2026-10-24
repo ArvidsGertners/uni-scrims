@@ -72,11 +72,15 @@ export type NotificationEntry = {
 /** Omit for each member of a union. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
-export const BOTH_TEAM_CHANNELS = [NotifChannel.CAPTAIN_DM, NotifChannel.TEAM_CHANNEL] as const;
+/** Personal notifications to the team's people (fanned out when due, §5.17) and the team post. */
+export const BOTH_TEAM_CHANNELS = [NotifChannel.PERSONAL, NotifChannel.TEAM_CHANNEL] as const;
 
-/** <type>:<entity>:<teamId|userId>:<channel> */
+/**
+ * <type>:<entity>:<userId|teamId>:<channel>. Fanned-out children carry both IDs and the parent as
+ * entity, so each person's copy has a key of its own (§5.17).
+ */
 export function dedupeKey(entry: NotificationEntry): string {
-  return `${entry.type}:${entry.entityId}:${entry.targetTeamId ?? entry.targetUserId}:${entry.channel}`;
+  return `${entry.type}:${entry.entityId}:${entry.targetUserId ?? entry.targetTeamId}:${entry.channel}`;
 }
 
 /** One entry per channel for a team. */

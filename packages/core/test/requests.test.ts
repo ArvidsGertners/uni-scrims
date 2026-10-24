@@ -153,11 +153,11 @@ describe("applyToRequest", () => {
     expect(notifications).toEqual([
       expect.objectContaining({
         type: NotifType.APPLICATION_RECEIVED,
-        channel: NotifChannel.CAPTAIN_DM,
+        channel: NotifChannel.PERSONAL,
         targetTeamId: host.team.id,
         scheduledFor: NOW,
         status: NotifStatus.PENDING,
-        dedupeKey: `APPLICATION_RECEIVED:${application.id}:${host.team.id}:CAPTAIN_DM`,
+        dedupeKey: `APPLICATION_RECEIVED:${application.id}:${host.team.id}:PERSONAL`,
       }),
     ]);
   });
@@ -284,7 +284,7 @@ describe("deleteRequest", () => {
       where: { requestId: request.id, type: NotifType.REQUEST_DELETED },
     });
     expect(deleted.map((notification) => notification.dedupeKey)).toEqual([
-      `REQUEST_DELETED:${request.id}:${pending.team.id}:CAPTAIN_DM`,
+      `REQUEST_DELETED:${request.id}:${pending.team.id}:PERSONAL`,
     ]);
     await expect(
       deleteRequest({ userId: host.captain.id, requestId: request.id, now: NOW }),
@@ -331,14 +331,14 @@ describe("confirmApplication", () => {
       new Date(REQUEST_STARTS_AT.getTime() + offsetHours * HOUR).toISOString();
     const scrimEntries = (type: string, scheduledFor: string) =>
       [host.team.id, guest.team.id].flatMap((teamId) =>
-        ["CAPTAIN_DM", "TEAM_CHANNEL"].map(
+        ["PERSONAL", "TEAM_CHANNEL"].map(
           (channel) => `${type}:${scrim.id}:${teamId}:${channel}@${scheduledFor}`,
         ),
       );
     const expected = [
-      `APPLICATION_RECEIVED:${application.id}:${host.team.id}:CAPTAIN_DM@${NOW.toISOString()}`,
-      `APPLICATION_RECEIVED:${otherApplication.id}:${host.team.id}:CAPTAIN_DM@${NOW.toISOString()}`,
-      `APPLICATION_REJECTED:${otherApplication.id}:${other.team.id}:CAPTAIN_DM@${NOW.toISOString()}`,
+      `APPLICATION_RECEIVED:${application.id}:${host.team.id}:PERSONAL@${NOW.toISOString()}`,
+      `APPLICATION_RECEIVED:${otherApplication.id}:${host.team.id}:PERSONAL@${NOW.toISOString()}`,
+      `APPLICATION_REJECTED:${otherApplication.id}:${other.team.id}:PERSONAL@${NOW.toISOString()}`,
       ...scrimEntries("SCRIM_BOOKED", NOW.toISOString()),
       ...scrimEntries("REMINDER_24H", at(-24)),
       ...scrimEntries("REMINDER_1H", at(-1)),
@@ -548,7 +548,7 @@ describe("expireRequests", () => {
       where: { requestId: due.id, type: NotifType.REQUEST_EXPIRED },
     });
     expect(expired.map((notification) => notification.dedupeKey)).toEqual([
-      `REQUEST_EXPIRED:${due.id}:${guest.team.id}:CAPTAIN_DM`,
+      `REQUEST_EXPIRED:${due.id}:${guest.team.id}:PERSONAL`,
     ]);
     // Idempotent: a second run changes nothing for this request.
     await expireRequests(start);

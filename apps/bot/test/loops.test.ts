@@ -39,7 +39,13 @@ describe("outbox loop (§6.3)", () => {
         expect(loop).toBe("outbox");
         beats.push(at);
       },
-      deliverDueNotifications: async () => ({ SENT: 0, CANCELLED: 0, FAILED: 0, RETRY: 0 }),
+      deliverDueNotifications: async () => ({
+        SENT: 0,
+        DISTRIBUTED: 0,
+        CANCELLED: 0,
+        FAILED: 0,
+        RETRY: 0,
+      }),
     };
   }
 
@@ -80,7 +86,7 @@ describe("outbox loop (§6.3)", () => {
         advance(70 * SECOND);
         await deliver({ id: `n${i}` } as OutboxMessage);
       }
-      return { SENT: 3, CANCELLED: 0, FAILED: 0, RETRY: 0 };
+      return { SENT: 3, DISTRIBUTED: 0, CANCELLED: 0, FAILED: 0, RETRY: 0 };
     };
     const deliver: Deliver = async () => ({ ok: true });
     vi.spyOn(console, "log").mockImplementation(() => {});

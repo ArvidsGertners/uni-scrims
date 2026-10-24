@@ -6,6 +6,7 @@ import { CREDENTIAL_PROVIDER } from "./account.ts";
 import {
   FEEDBACK_OUTCOME_LABELS,
   LOGO_BACKGROUND_LABELS,
+  NOTIFICATION_CHANNEL_LABELS,
   MEMBER_ROLE_LABELS,
   NOTIF_STATUS_LABELS,
   NOTIFICATION_TYPE_LABELS,
@@ -203,6 +204,8 @@ export async function exportAccountData(input: {
         orderBy: { createdAt: "asc" },
         select: {
           type: true,
+          channel: true,
+          targetTeam: { select: { name: true } },
           payload: true,
           status: true,
           scheduledFor: true,
@@ -346,6 +349,9 @@ export async function exportAccountData(input: {
         })),
         nachrichten: notifications.map((notification) => ({
           art: NOTIFICATION_TYPE_LABELS[notification.type],
+          // Since Phase 18 also the person's copies of team notifications (§5.17).
+          kanal: NOTIFICATION_CHANNEL_LABELS[notification.channel],
+          team: notification.targetTeam?.name ?? null,
           inhalt: notificationContent(notification.type, notification.payload),
           status: NOTIF_STATUS_LABELS[notification.status],
           erstelltAm: notification.createdAt,
