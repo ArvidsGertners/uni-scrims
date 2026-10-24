@@ -17,6 +17,7 @@ import {
 } from "@/components/icons";
 import { FlashToast } from "@/components/flash-toast";
 import { LogoutButton } from "@/components/logout-button";
+import { SidebarFrame } from "@/components/sidebar-frame";
 import { SidebarLink } from "@/components/sidebar-link";
 import { TabNav } from "@/components/tab-nav";
 import { UserAvatar } from "@/components/user-avatar";
@@ -120,27 +121,31 @@ export async function AdminShell({
   return (
     <div className="mx-auto flex w-full max-w-6xl gap-10 px-5 pt-7 pb-16 sm:px-8">
       {/* data-admin-sidebar: the admin header hides its logout from 1024 px while this exists. */}
-      <aside data-admin-sidebar className="hidden w-56 shrink-0 lg:block">
-        {/* Below the sticky header (64 px) with the page's top padding. */}
-        <div className="sticky top-[5.75rem] flex h-[calc(100dvh-7.5rem)] min-h-[420px] flex-col gap-6">
-          <nav aria-label="Admin-Bereich" className="flex flex-col gap-0.5">
-            {areas.map(({ path, label, icon: Icon, count }) => (
-              <SidebarLink
-                key={path}
-                href={adminHref(path)}
-                active={path === current}
-                leading={<Icon size={17} />}
-                label={label}
-                trailing={<CountBadge count={count?.(overview)} />}
-              />
-            ))}
-          </nav>
-          {overview.bot ? (
-            <div className="px-3">
-              <BotDot online={overview.bot.online} />
-            </div>
-          ) : null}
-          <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+      <SidebarFrame
+        data-admin-sidebar
+        top={
+          <>
+            <nav aria-label="Admin-Bereich" className="flex flex-col gap-0.5">
+              {areas.map(({ path, label, icon: Icon, count }) => (
+                <SidebarLink
+                  key={path}
+                  href={adminHref(path)}
+                  active={path === current}
+                  leading={<Icon size={17} />}
+                  label={label}
+                  trailing={<CountBadge count={count?.(overview)} />}
+                />
+              ))}
+            </nav>
+            {overview.bot ? (
+              <div className="px-3">
+                <BotDot online={overview.bot.online} />
+              </div>
+            ) : null}
+          </>
+        }
+        bottom={
+          <>
             <div className="flex items-center gap-3">
               <UserAvatar user={viewer} className="size-10 text-[12px]" />
               <div className="flex min-w-0 flex-col">
@@ -154,9 +159,9 @@ export async function AdminShell({
               redirectTo={mainUrl("/")}
               className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
             />
-          </div>
-        </div>
-      </aside>
+          </>
+        }
+      />
 
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         <div className="flex flex-col gap-3 lg:hidden">

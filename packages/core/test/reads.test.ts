@@ -654,4 +654,13 @@ describe("getNavTeam (§5.15)", () => {
     await prisma.team.update({ where: { id: team.id }, data: { dissolvedAt: NOW } });
     expect(await getNavTeam(captain.id)).toBeNull();
   });
+
+  it("is only for active accounts, like the team page", async () => {
+    await expect(getNavTeam((await createUser({ banned: true })).id)).rejects.toMatchObject({
+      code: "BANNED",
+    });
+    await expect(getNavTeam((await createUser({ legacy: true })).id)).rejects.toMatchObject({
+      code: "ACCOUNT_INCOMPLETE",
+    });
+  });
 });

@@ -1,12 +1,15 @@
 "use client";
 
 import type { TeamLogoInfo } from "@uni-scrims/core";
+import { cn } from "cn";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
-import { LayersIcon, MenuIcon, XIcon } from "@/components/icons";
+import { LayersIcon, MenuIcon, UsersIcon, XIcon } from "@/components/icons";
+import { SidebarFrame } from "@/components/sidebar-frame";
 import { SidebarLink } from "@/components/sidebar-link";
 import { TeamAvatar } from "@/components/team-avatar";
 import { UserAvatar } from "@/components/user-avatar";
+import { WarningDot } from "@/components/warning-dot";
 
 /** What the navigation of the site shows (§5.15), from siteChrome. */
 export type AppNavData = {
@@ -14,6 +17,8 @@ export type AppNavData = {
   full: boolean;
   account: { id: string; name: string; avatarVersion: number | null; unverified: boolean };
   team: { id: string; name: string; tag: string; logo: TeamLogoInfo | null } | null;
+  /** The team query failed: a neutral entry instead of claiming there is no team. */
+  teamUnavailable: boolean;
 };
 
 type Entry = {
@@ -42,13 +47,13 @@ function entries(nav: AppNavData) {
     key: "team",
     href: "/team",
     label: nav.team?.name ?? "Team",
-    sub: nav.team ? "Team" : "Gründen oder beitreten",
+    sub: nav.team ? "Team" : nav.teamUnavailable ? undefined : "Gründen oder beitreten",
     sections: ["/team", "/join"],
     leading: nav.team ? (
       <TeamAvatar team={nav.team} size="sm" own className="size-8 rounded-[7px] text-[9px]" />
     ) : (
       <span className="flex size-8 items-center justify-center rounded-[7px] border border-border font-label text-[11px]">
-        ?
+        {nav.teamUnavailable ? <UsersIcon size={15} /> : "?"}
       </span>
     ),
   };
@@ -56,7 +61,7 @@ function entries(nav: AppNavData) {
     key: "scrims",
     href: "/scrims",
     label: "Scrims",
-    sections: ["/scrims", "/requests", "/board"],
+    sections: ["/scrims", "/requests"],
     leading: <LayersIcon size={17} />,
   };
   return { top: [scrims], bottom: [team, account] };
@@ -85,37 +90,37 @@ function EntryLink({
       leading={entry.leading}
       label={entry.label}
       sub={entry.sub}
-      trailing={
-        entry.dot ? (
-          <span aria-label="Nicht verifiziert" className="size-1.5 rounded-full bg-warning" />
-        ) : undefined
-      }
+      trailing={entry.dot ? <WarningDot /> : undefined}
       className={className}
       onClick={onClick}
     />
   );
 }
 
-/** From 1024 px: Scrims on top, Team and Konto at the bottom, below the sticky header. */
+/** From 1024 px: Scrims on top, Team and Konto at the bottom (SidebarFrame). */
 export function AppSidebar({ nav }: { nav: AppNavData }) {
   const pathname = usePathname();
   const { top, bottom } = entries(nav);
   return (
-    <div className="sticky top-[5.75rem] flex h-[calc(100dvh-7.5rem)] min-h-[320px] flex-col gap-6">
-      <nav aria-label="Hauptmenü" className="flex flex-col gap-0.5">
-        {top.map((entry) => (
-          <EntryLink key={entry.key} entry={entry} pathname={pathname} />
-        ))}
-      </nav>
-      <nav
-        aria-label="Team und Konto"
-        className="mt-auto flex flex-col gap-1 border-t border-border pt-4"
-      >
-        {bottom.map((entry) => (
-          <EntryLink key={entry.key} entry={entry} pathname={pathname} />
-        ))}
-      </nav>
-    </div>
+    <SidebarFrame
+      className="py-7"
+      top={
+        top.length > 0 ? (
+          <nav aria-label="Hauptmenü" className="flex flex-col gap-0.5">
+            {top.map((entry) => (
+              <EntryLink key={entry.key} entry={entry} pathname={pathname} />
+            ))}
+          </nav>
+        ) : null
+      }
+      bottom={
+        <nav aria-label="Team und Konto" className="flex flex-col gap-1">
+          {bottom.map((entry) => (
+            <EntryLink key={entry.key} entry={entry} pathname={pathname} />
+          ))}
+        </nav>
+      }
+    />
   );
 }
 
@@ -128,6 +133,9 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
   const close = () => setOpenOn(null);
   const { top, bottom } = entries(nav);
   const itemClass = "min-h-14 px-3.5 text-[16px]";
+  // Without ADMIN_URL the admin area has its own sidebar and none of the site (§5.15): there the
+  // menu button stays on desktops too.
+  const desktop = pathname === "/admin" || pathname.startsWith("/admin/") ? "" : "lg:hidden";
 
   return (
     <>
@@ -137,27 +145,37 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
         aria-expanded={open}
         aria-controls="mobile-menu"
         onClick={() => setOpenOn(open ? null : pathname)}
-        className="flex size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-card text-foreground lg:hidden"
+        className={cn(
+          "flex size-11 cursor-pointer items-center justify-center rounded-sm border border-border bg-card text-foreground",
+          desktop,
+        )}
       >
         {open ? <XIcon size={20} /> : <MenuIcon size={20} />}
       </button>
       {open ? (
         <div
           id="mobile-menu"
-          className="absolute inset-x-0 top-16 flex flex-col gap-1 border-b border-border bg-background px-5 pt-2 pb-5 shadow-(--shadow-overlay) lg:hidden"
+          className={cn(
+            "absolute inset-x-0 top-16 flex flex-col gap-1 border-b border-border bg-background px-5 pt-2 pb-5 shadow-(--shadow-overlay)",
+            desktop,
+          )}
         >
-          <nav aria-label="Hauptmenü" className="flex flex-col gap-1">
-            {top.map((entry) => (
-              <EntryLink
-                key={entry.key}
-                entry={entry}
-                pathname={pathname}
-                className={itemClass}
-                onClick={close}
-              />
-            ))}
-          </nav>
-          {top.length > 0 ? <div className="my-2 h-px bg-border" /> : null}
+          {top.length > 0 ? (
+            <>
+              <nav aria-label="Hauptmenü" className="flex flex-col gap-1">
+                {top.map((entry) => (
+                  <EntryLink
+                    key={entry.key}
+                    entry={entry}
+                    pathname={pathname}
+                    className={itemClass}
+                    onClick={close}
+                  />
+                ))}
+              </nav>
+              <div className="my-2 h-px bg-border" />
+            </>
+          ) : null}
           <nav aria-label="Team und Konto" className="flex flex-col gap-1">
             {bottom.map((entry) => (
               <EntryLink

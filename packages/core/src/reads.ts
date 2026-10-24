@@ -627,10 +627,11 @@ export async function getTeamDashboard(input: { userId: string; now: Date }) {
 
 /**
  * The own team for the sidebar (§5.15): name, tag and logo, which every signed-in user sees on team
- * cards anyway; null without a team. The web asks only for active accounts.
+ * cards anyway; null without a team. Like the team page only for active accounts (requireUser).
  */
 export async function getNavTeam(userId: string) {
-  const team = await findOwnTeam(userId);
+  const user = await requireUser(userId);
+  const team = await findOwnTeam(user.id);
   if (!team) return null;
   return { id: team.id, name: team.name, tag: team.tag, logo: await loadTeamLogoInfo(team) };
 }

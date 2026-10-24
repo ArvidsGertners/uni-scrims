@@ -36,7 +36,12 @@ export function SidebarLink({
         className,
       )}
     >
-      {leading}
+      {/* Icons, avatars and initials are decoration; the label names the entry. */}
+      {leading ? (
+        <span aria-hidden className="flex shrink-0">
+          {leading}
+        </span>
+      ) : null}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{label}</span>
         {sub ? (

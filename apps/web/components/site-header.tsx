@@ -1,11 +1,9 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { DiscordBanner } from "@/components/discord-banner";
 import { MobileMenu } from "@/components/app-nav";
 import { LogoutButton } from "@/components/logout-button";
-import { isAdminHost, mainUrl } from "@/lib/admin-url";
-import { siteNav } from "@/components/site-frame";
-import { siteChrome } from "@/lib/header-user";
+import { mainUrl } from "@/lib/admin-url";
+import { siteChrome, siteNav } from "@/lib/header-user";
 import { cn } from "@/lib/utils";
 
 const WORDMARK_CLASS =
@@ -58,8 +56,8 @@ function AdminHeader({ signedIn }: { signedIn: boolean }) {
 }
 
 export async function SiteHeader() {
-  const { user, active } = await siteChrome();
-  if (isAdminHost((await headers()).get("host"))) return <AdminHeader signedIn={user !== null} />;
+  const { user, active, adminHost } = await siteChrome();
+  if (adminHost) return <AdminHeader signedIn={user !== null} />;
   const showBanner = user !== null && (user.hubJoinFailedAt !== null || user.dmFailedAt !== null);
   // The navigation is the sidebar from 1024 px and the menu below (§5.15).
   const nav = await siteNav();

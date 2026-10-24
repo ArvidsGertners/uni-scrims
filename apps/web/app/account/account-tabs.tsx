@@ -1,4 +1,5 @@
 import { TabNav } from "@/components/tab-nav";
+import { WarningDot } from "@/components/warning-dot";
 
 /** Konto and its sub page (SPEC N-11); only for active accounts, as /verify needs one. */
 export function AccountTabs({
@@ -17,9 +18,7 @@ export function AccountTabs({
           href: "/verify",
           label: "Verifizierung",
           active: current === "/verify",
-          trailing: unverified ? (
-            <span aria-label="Nicht verifiziert" className="size-1.5 rounded-full bg-warning" />
-          ) : undefined,
+          trailing: unverified ? <WarningDot /> : undefined,
         },
       ]}
     />

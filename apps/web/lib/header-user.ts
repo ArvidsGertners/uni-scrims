@@ -1,6 +1,9 @@
 import { getNavTeam } from "@uni-scrims/core";
+import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
+import type { AppNavData } from "@/components/app-nav";
+import { isAdminHost } from "./admin-url.ts";
 import { getSignedInUser } from "./session.ts";
 
 /** The signed-in user for the header, or null; also null if the database is down, so legal pages still render. */
@@ -16,21 +19,41 @@ export async function headerUser() {
 }
 
 /**
- * Signed-in user and own team for header, sidebar and footer (§5.15), once per request. The team
- * only for active accounts, which see the full navigation; a failing database shows the site as
- * logged out, like headerUser.
+ * Signed-in user, own team and host for header, sidebar and footer (§5.15), once per request. The
+ * team only for active accounts on the main host, which see the full navigation; a failing
+ * database shows the site as logged out (like headerUser), a failing team query a neutral entry.
  */
 export const siteChrome = cache(async () => {
   const user = await headerUser();
+  const adminHost = isAdminHost((await headers()).get("host"));
   const active = user !== null && !user.bannedAt && !user.setupStep;
   let team: Awaited<ReturnType<typeof getNavTeam>> = null;
-  if (user && active) {
+  let teamUnavailable = false;
+  if (user && active && !adminHost) {
     try {
       team = await getNavTeam(user.id);
     } catch (error) {
       unstable_rethrow(error);
       console.error("Could not load the team for the sidebar", error);
+      teamUnavailable = true;
     }
   }
-  return { user, active, team };
+  return { user, active, team, teamUnavailable, adminHost };
 });
+
+/** The navigation of the signed-in user, or null (logged out, admin host). */
+export async function siteNav(): Promise<AppNavData | null> {
+  const { user, active, team, teamUnavailable, adminHost } = await siteChrome();
+  if (!user || adminHost) return null;
+  return {
+    full: active,
+    account: {
+      id: user.id,
+      name: user.name,
+      avatarVersion: user.avatarVersion,
+      unverified: active && !user.verifiedAt,
+    },
+    team,
+    teamUnavailable,
+  };
+}

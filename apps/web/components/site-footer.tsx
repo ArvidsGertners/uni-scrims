@@ -1,12 +1,11 @@
-import { headers } from "next/headers";
 import Link from "next/link";
-import { isAdminHost } from "@/lib/admin-url";
 import { siteChrome } from "@/lib/header-user";
 import { cn } from "@/lib/utils";
 
 export async function SiteFooter() {
   // As wide as the sidebar frame where there is one (§5.14, §5.15).
-  const wide = (await siteChrome()).user !== null || isAdminHost((await headers()).get("host"));
+  const { user, adminHost } = await siteChrome();
+  const wide = user !== null || adminHost;
   return (
     <footer className="border-t border-border">
       <div

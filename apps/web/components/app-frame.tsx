@@ -15,9 +15,7 @@ export function AppFrame({ nav, children }: { nav: AppNavData | null; children: 
   }
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 lg:pl-8">
-      <aside className="hidden w-56 shrink-0 pt-7 lg:block">
-        <AppSidebar nav={nav} />
-      </aside>
+      <AppSidebar nav={nav} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
