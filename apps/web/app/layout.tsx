@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
+import { SiteFrame } from "@/components/site-frame";
 import { SiteHeader } from "@/components/site-header";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +41,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="de" className={cn(geist.variable, geistMono.variable)}>
       <body className="flex min-h-dvh flex-col">
         <SiteHeader />
-        <div className="flex-1">{children}</div>
+        <SiteFrame>{children}</SiteFrame>
         <SiteFooter />
       </body>
     </html>

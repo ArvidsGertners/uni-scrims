@@ -18,6 +18,7 @@ import {
 } from "@/components/icons";
 import { FlashToast } from "@/components/flash-toast";
 import { LogoutButton } from "@/components/logout-button";
+import { SidebarLink } from "@/components/sidebar-link";
 import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -123,24 +124,16 @@ export async function AdminShell({
         {/* Below the sticky header (64 px) with the page's top padding. */}
         <div className="sticky top-[5.75rem] flex h-[calc(100dvh-7.5rem)] min-h-[420px] flex-col gap-6">
           <nav aria-label="Admin-Bereich" className="flex flex-col gap-0.5">
-            {areas.map(({ path, label, icon: Icon, count }) => {
-              const active = path === current;
-              return (
-                <Link
-                  key={path}
-                  href={adminHref(path)}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "type-btn flex h-10 items-center gap-2.5 rounded-sm px-3 text-[14px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground",
-                    active && "bg-secondary text-foreground",
-                  )}
-                >
-                  <Icon size={17} />
-                  <span className="flex-1">{label}</span>
-                  <CountBadge count={count?.(overview)} />
-                </Link>
-              );
-            })}
+            {areas.map(({ path, label, icon: Icon, count }) => (
+              <SidebarLink
+                key={path}
+                href={adminHref(path)}
+                active={path === current}
+                leading={<Icon size={17} />}
+                label={label}
+                trailing={<CountBadge count={count?.(overview)} />}
+              />
+            ))}
           </nav>
           {overview.bot ? (
             <div className="px-3">

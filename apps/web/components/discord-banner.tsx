@@ -6,7 +6,8 @@ import { AlertTriangleIcon } from "@/components/icons";
 export function DiscordBanner() {
   return (
     <div className="border-b border-warning-line bg-warning-soft">
-      <div className="mx-auto flex max-w-3xl items-start gap-3 px-5 py-3 sm:px-8">
+      {/* As wide as header and sidebar frame of signed-in users (§5.15). */}
+      <div className="mx-auto flex max-w-6xl items-start gap-3 px-5 py-3 sm:px-8">
         <AlertTriangleIcon size={20} className="mt-px text-warning" />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-[14px] font-semibold text-foreground">

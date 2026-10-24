@@ -1,10 +1,11 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { DiscordBanner } from "@/components/discord-banner";
-import { HeaderNav, type NavItem } from "@/components/header-nav";
+import { MobileMenu } from "@/components/app-nav";
 import { LogoutButton } from "@/components/logout-button";
 import { isAdminHost, mainUrl } from "@/lib/admin-url";
-import { headerUser } from "@/lib/header-user";
+import { siteNav } from "@/components/site-frame";
+import { siteChrome } from "@/lib/header-user";
 import { cn } from "@/lib/utils";
 
 const WORDMARK_CLASS =
@@ -57,31 +58,23 @@ function AdminHeader({ signedIn }: { signedIn: boolean }) {
 }
 
 export async function SiteHeader() {
-  const user = await headerUser();
+  const { user, active } = await siteChrome();
   if (isAdminHost((await headers()).get("host"))) return <AdminHeader signedIn={user !== null} />;
   const showBanner = user !== null && (user.hubJoinFailedAt !== null || user.dmFailedAt !== null);
-  const active = user !== null && !user.bannedAt && !user.setupStep;
-
-  // Banned users and incomplete accounts only get Konto: there they may delete their account or
-  // finish its setup (ARCHITECTURE §7, §5.8). Verification and logout live under Konto, the admin
-  // area on its own address (§5.13).
-  const avatar = user
-    ? { id: user.id, name: user.name, avatarVersion: user.avatarVersion }
-    : undefined;
-  const items: NavItem[] = active
-    ? [
-        { href: "/scrims", label: "Scrims" },
-        { href: "/team", label: "Team" },
-        { href: "/account", label: "Konto", dot: !user.verifiedAt, avatar },
-      ]
-    : [{ href: "/account", label: "Konto", avatar }];
+  // The navigation is the sidebar from 1024 px and the menu below (§5.15).
+  const nav = await siteNav();
 
   return (
     <>
       <header className={cn("border-b border-border bg-background", user && "sticky top-0 z-30")}>
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-5 sm:px-8">
+        <div
+          className={cn(
+            "mx-auto flex h-16 items-center justify-between gap-3 px-5 sm:px-8",
+            user ? "max-w-6xl" : "max-w-3xl",
+          )}
+        >
           <Logo href={active ? "/scrims" : "/"} />
-          {user ? <HeaderNav items={items} /> : null}
+          {nav ? <MobileMenu nav={nav} /> : null}
         </div>
       </header>
       {showBanner ? <DiscordBanner /> : null}

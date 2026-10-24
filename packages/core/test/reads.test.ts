@@ -7,6 +7,7 @@ import {
   confirmApplication,
   getBoard,
   getMyScrims,
+  getNavTeam,
   getRequestDetail,
   getRequestForm,
   getReliability,
@@ -632,5 +633,25 @@ describe("getTeamDashboard (§5.14)", () => {
         status,
       ).toBeNull();
     }
+  });
+});
+
+describe("getNavTeam (§5.15)", () => {
+  it("names the own team with its logo, and nothing without one", async () => {
+    const { team, members, captain } = await createReadyTeam();
+    const logoAt = new Date("2026-10-20T10:00:00Z");
+    await prisma.team.update({ where: { id: team.id }, data: { logoUpdatedAt: logoAt } });
+    await prisma.teamLogo.create({
+      data: { teamId: team.id, background: "DARK", data: Buffer.from([1]) },
+    });
+    expect(await getNavTeam(members[0]!.id)).toEqual({
+      id: team.id,
+      name: team.name,
+      tag: team.tag,
+      logo: { version: logoAt.getTime(), backgrounds: ["DARK"] },
+    });
+    expect(await getNavTeam((await createUser()).id)).toBeNull();
+    await prisma.team.update({ where: { id: team.id }, data: { dissolvedAt: NOW } });
+    expect(await getNavTeam(captain.id)).toBeNull();
   });
 });

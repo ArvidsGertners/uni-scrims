@@ -1,9 +1,20 @@
+import { headers } from "next/headers";
 import Link from "next/link";
+import { isAdminHost } from "@/lib/admin-url";
+import { siteChrome } from "@/lib/header-user";
+import { cn } from "@/lib/utils";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  // As wide as the sidebar frame where there is one (§5.14, §5.15).
+  const wide = (await siteChrome()).user !== null || isAdminHost((await headers()).get("host"));
   return (
     <footer className="border-t border-border">
-      <div className="mx-auto flex max-w-3xl flex-wrap justify-between gap-x-6 gap-y-3 px-5 pt-6 pb-8 text-[13px] text-faint sm:px-8">
+      <div
+        className={cn(
+          "mx-auto flex flex-wrap justify-between gap-x-6 gap-y-3 px-5 pt-6 pb-8 text-[13px] text-faint sm:px-8",
+          wide ? "max-w-6xl" : "max-w-3xl",
+        )}
+      >
         <div className="flex gap-5">
           <Link href="/impressum" className="text-muted-foreground hover:text-foreground">
             Impressum
