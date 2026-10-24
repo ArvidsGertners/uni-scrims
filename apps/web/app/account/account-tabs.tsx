@@ -2,14 +2,14 @@ import { TabNav } from "@/components/tab-nav";
 import { WarningDot } from "@/components/warning-dot";
 
 /**
- * The settings and the verification (SPEC N-11, N-13); only for active accounts, as /verify needs
- * one.
+ * The settings, the notifications and the verification (SPEC N-11, N-13, N-14); only for active
+ * accounts, as /verify and the notifications need one.
  */
 export function AccountTabs({
   current,
   unverified,
 }: {
-  current: "/account" | "/verify";
+  current: "/account" | "/account/notifications" | "/verify";
   unverified: boolean;
 }) {
   return (
@@ -17,6 +17,11 @@ export function AccountTabs({
       label="Einstellungen"
       items={[
         { href: "/account", label: "Allgemein", active: current === "/account" },
+        {
+          href: "/account/notifications",
+          label: "Benachrichtigungen",
+          active: current === "/account/notifications",
+        },
         {
           href: "/verify",
           label: "Verifizierung",

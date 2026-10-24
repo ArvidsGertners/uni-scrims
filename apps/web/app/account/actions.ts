@@ -8,15 +8,18 @@ import {
   passwordSchema,
   requireActiveAccountUser,
   resolveUploadDir,
+  setNotificationPreferences,
   setThemePreference,
   updateRealName,
 } from "@uni-scrims/core";
+import { NotifType } from "@uni-scrims/db";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { setFlash } from "@/lib/flash";
+import { parseNotificationForm } from "@/lib/notification-form";
 import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
@@ -46,6 +49,25 @@ export async function setThemeAction(
     await setThemePreference({ userId, theme: String(formField(formData, "theme") ?? "") });
   });
   if (state.error) return state;
+  revalidatePath("/", "layout");
+  return state;
+}
+
+/** Discord and mail per notification (SPEC N-14). */
+export async function saveNotificationsAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const userId = (await getSessionUserId()) ?? "";
+  const state = await runAction(async () => {
+    await setNotificationPreferences({
+      userId,
+      preferences: parseNotificationForm(formData, Object.values(NotifType)),
+    });
+  });
+  if (state.error) return state;
+  await setFlash("Benachrichtigungen gespeichert");
+  // The layout too: switching Discord off everywhere can take the DM banner away (§5.1).
   revalidatePath("/", "layout");
   return state;
 }

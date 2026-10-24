@@ -14,7 +14,7 @@ export function DiscordBanner() {
             Wir konnten dir keine Discord-Nachricht schicken
           </span>
           <span className="text-[13px] text-muted-foreground">
-            Ohne Direktnachrichten verpasst du Bewerbungen und Zusagen.{" "}
+            Ohne Direktnachrichten verpasst du Benachrichtigungen, etwa zu Bewerbungen und Scrims.{" "}
             <Link
               href="/account"
               className="font-semibold text-warning underline underline-offset-2"
