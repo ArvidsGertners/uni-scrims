@@ -67,6 +67,8 @@ describe("nextStored", () => {
         { discord: true, email: false },
       ),
     ).toEqual({ discord: true, email: null });
+    // Shown as a member, saved as captain (the role changed meanwhile): the untouched box stays.
+    expect(nextStored("SCRIM_BOOKED", true, none, OFF, false)).toEqual(none);
     // The captain switches it off: stored; on again: back to the default.
     expect(nextStored("SCRIM_BOOKED", true, none, OFF)).toEqual({ discord: false, email: null });
     expect(
@@ -143,7 +145,10 @@ describe("setNotificationPreferences", () => {
     const user = await createUser({ verified: true });
     await expect(
       setNotificationPreferences({ userId: user.id, preferences: { SCRIM_BOOKED: OFF } }),
-    ).rejects.toMatchObject({ code: "INVALID" });
+    ).rejects.toMatchObject({
+      code: "INVALID",
+      message: "Die Einstellungen sind unvollständig. Bitte lade die Seite neu.",
+    });
     const banned = await createUser({ banned: true });
     await expect(getNotificationPreferences(banned.id)).rejects.toMatchObject({ code: "BANNED" });
     const legacy = await createUser({ legacy: true });

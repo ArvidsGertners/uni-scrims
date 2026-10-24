@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { initialActionState } from "@/lib/action-state";
 import { type NotificationChannelField, notificationFieldName } from "@/lib/notification-form";
+import { submitKeepingValues } from "@/lib/submit-form";
 import { saveNotificationsAction } from "../actions";
 
 export type NotificationFormCategory = {
@@ -26,10 +27,23 @@ const CHANNELS: { field: NotificationChannelField; label: string }[] = [
 ];
 
 /** One card per category, a Discord and a mail box per type (SPEC N-14); works without JavaScript. */
-export function NotificationForm({ categories }: { categories: NotificationFormCategory[] }) {
+export function NotificationForm({
+  categories,
+  isCaptain,
+}: {
+  categories: NotificationFormCategory[];
+  /** The role the defaults are shown for; saving compares against these values. */
+  isCaptain: boolean;
+}) {
   const [state, formAction, pending] = useActionState(saveNotificationsAction, initialActionState);
   return (
-    <form action={formAction} className="flex flex-col gap-6">
+    <form
+      action={formAction}
+      // Keeps the boxes as the user set them when saving fails.
+      onSubmit={(event) => submitKeepingValues(event, formAction)}
+      className="flex flex-col gap-6"
+    >
+      <input type="hidden" name="shownAsCaptain" value={isCaptain ? "1" : "0"} />
       <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
         {categories.map((category) => (
           <fieldset

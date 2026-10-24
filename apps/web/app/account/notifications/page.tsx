@@ -50,7 +50,7 @@ export default async function NotificationsPage() {
           <DiscordDmWarning hubJoinFailed={user.hubJoinFailedAt !== null} />
         ) : null}
       </div>
-      <NotificationForm categories={categories} />
+      <NotificationForm categories={categories} isCaptain={settings.isCaptain} />
       <p className="max-w-3xl text-[14px] text-pretty text-muted-foreground">
         Nicht abschaltbar sind die Mails zu deinem Konto (Bestätigung, Passwort, neue Adresse) und
         die Posts im Team-Channel; die gehören zum ganzen Team.

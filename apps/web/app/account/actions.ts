@@ -63,6 +63,8 @@ export async function saveNotificationsAction(
     await setNotificationPreferences({
       userId,
       preferences: parseNotificationForm(formData, Object.values(NotifType)),
+      // The role the boxes were shown with (§5.17).
+      shownAsCaptain: formField(formData, "shownAsCaptain") === "1",
     });
   });
   if (state.error) return state;

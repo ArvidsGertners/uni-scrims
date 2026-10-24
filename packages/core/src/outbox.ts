@@ -186,8 +186,8 @@ async function loadNotification(id: string) {
 type LoadedNotification = NonNullable<Awaited<ReturnType<typeof loadNotification>>>;
 
 /**
- * USER_DM: the user; USER_EMAIL: the user's deliverable address; CAPTAIN_DM: the team's current
- * captain; TEAM_CHANNEL: the linked channel.
+ * USER_DM: the user; USER_EMAIL: the user's deliverable address; TEAM_CHANNEL: the linked channel.
+ * PERSONAL and CAPTAIN_DM entries are fanned out before (§5.17).
  * In development, DEV_DM_REDIRECT_DISCORD_ID and DEV_CHANNEL_ID take every DM and every team post.
  * null if there is nobody to send to.
  */
@@ -212,8 +212,7 @@ async function resolveRecipient(
       ? { kind: "EMAIL", userId: target.id, email, redirectedFrom: null }
       : null;
   }
-  const user =
-    notification.channel === NotifChannel.USER_DM ? notification.targetUser : team?.captain;
+  const user = notification.targetUser;
   if (!user) return null;
   const discordId = await getDiscordId(user.id);
   if (!discordId) return null;
@@ -396,13 +395,13 @@ async function fanOut(
 }
 
 /**
- * A fanned-out child is only sent while its person is still a member of the team and has the
- * channel switched on (§5.17); entries from before Phase 18 pass with the defaults.
+ * A fanned-out copy is dropped when its person left the team or has switched the channel off since
+ * (§5.17). The defaults are not worked out again: the fan-out already decided with them, and a
+ * captain change in between must not drop the copy of the former captain.
  */
 async function stillWanted(notification: LoadedNotification): Promise<boolean> {
   const userId = notification.targetUserId;
   if (!userId) return true;
-  const team = notification.targetTeam;
   if (notification.targetTeamId) {
     const membership = await prisma.teamMember.findUnique({
       where: { teamId_userId: { teamId: notification.targetTeamId, userId } },
@@ -413,8 +412,23 @@ async function stillWanted(notification: LoadedNotification): Promise<boolean> {
   const stored = await prisma.notificationPreference.findUnique({
     where: { userId_type: { userId, type: notification.type } },
   });
-  const channels = effectiveChannels(notification.type, team?.captain.id === userId, stored);
-  return notification.channel === NotifChannel.USER_EMAIL ? channels.email : channels.discord;
+  const choice = notification.channel === NotifChannel.USER_EMAIL ? stored?.email : stored?.discord;
+  return choice !== false;
+}
+
+/**
+ * A USER_DM to a person queued before Phase 18 (a verification result) is fanned out like a
+ * personal one, so a choice of mail only applies to it too. A fanned-out copy names its parent as
+ * the entity of its dedupeKey; an entry from before names something else.
+ */
+async function isEntryFromBeforePhase18(notification: LoadedNotification): Promise<boolean> {
+  if (notification.channel !== NotifChannel.USER_DM || notification.targetTeamId) return false;
+  const entityId = notification.dedupeKey.split(":")[1] ?? "";
+  const parent = await prisma.notification.findUnique({
+    where: { id: entityId },
+    select: { id: true },
+  });
+  return parent === null;
 }
 
 /**
@@ -445,7 +459,10 @@ export async function deliverNotification(
     });
     return failed ? "FAILED" : null;
   }
-  if (PERSONAL_CHANNELS.includes(notification.channel)) {
+  if (
+    PERSONAL_CHANNELS.includes(notification.channel) ||
+    (await isEntryFromBeforePhase18(notification))
+  ) {
     return fanOut(notification, payload, now);
   }
   if (!(await stillWanted(notification))) return cancel();

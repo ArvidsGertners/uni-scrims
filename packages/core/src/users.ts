@@ -1,5 +1,6 @@
 import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
+import { isReservedEmail } from "./schemas.ts";
 
 export const DISCORD_PROVIDER = "discord";
 
@@ -150,11 +151,11 @@ export function discordProfileData(profile: DiscordProfile) {
 }
 
 /**
- * Where a notification mail may go (§5.17): a confirmed address, not one of the placeholders on
- * ".invalid" (accounts from before Phase 7 until completed, deleted accounts); else null.
+ * Where a notification mail may go (§5.17): a confirmed address, not one of the placeholders
+ * (accounts from before Phase 7 until completed, deleted accounts); else null.
  */
 export function deliverableEmail(user: { email: string; emailVerified: boolean }): string | null {
-  return user.emailVerified && !user.email.endsWith(".invalid") ? user.email : null;
+  return user.emailVerified && !isReservedEmail(user.email) ? user.email : null;
 }
 
 /** The user, unless the account was deleted; for writes that must not touch a deleted account. */

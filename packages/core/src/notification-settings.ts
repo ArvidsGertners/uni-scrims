@@ -124,14 +124,16 @@ export async function getNotificationPreferences(userId: string) {
 }
 
 /**
- * Saves the settings form (SPEC N-14). Only what changed against the values in effect is written; a
- * changed value that lands on the default of the current role becomes null, so whoever becomes
- * captain later gets the captain defaults. With Discord off for every type, dmFailedAt is reset:
- * the banner would otherwise never go away (§5.1).
+ * Saves the settings form (SPEC N-14). Only what changed against the values the form showed is
+ * written; a changed value that lands on the default of the current role becomes null, so whoever
+ * becomes captain later gets the captain defaults. `shownAsCaptain` is the role the form was shown
+ * with, so a role change between showing and saving leaves untouched boxes as they are. With
+ * Discord off for every type, dmFailedAt is reset: the banner would otherwise never go away (§5.1).
  */
 export async function setNotificationPreferences(input: {
   userId: string;
   preferences: unknown;
+  shownAsCaptain?: boolean;
 }): Promise<void> {
   const preferences = parseInput(notificationPreferencesSchema, input.preferences);
   await prisma.$transaction(async (tx) => {
@@ -150,6 +152,7 @@ export async function setNotificationPreferences(input: {
         isCaptain,
         { discord: row?.discord ?? null, email: row?.email ?? null },
         preferences[type],
+        input.shownAsCaptain ?? isCaptain,
       );
       discordAnywhere ||= effectiveChannels(type, isCaptain, next).discord;
       if (next.discord !== (row?.discord ?? null) || next.email !== (row?.email ?? null)) {
@@ -168,8 +171,9 @@ export function nextStored(
   isCaptain: boolean,
   stored: StoredChannels,
   submitted: ChannelSettings,
+  shownAsCaptain: boolean = isCaptain,
 ): StoredChannels {
-  const current = effectiveChannels(type, isCaptain, stored);
+  const current = effectiveChannels(type, shownAsCaptain, stored);
   const defaults = defaultChannels(type, isCaptain);
   const next = { ...stored };
   for (const channel of ["discord", "email"] as const) {

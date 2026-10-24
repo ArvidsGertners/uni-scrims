@@ -40,11 +40,14 @@ export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
 /** The design of the own account (Phase 17, §5.16). */
 export const themePreferenceSchema = z.enum(ThemePreference, "Bitte wähle ein Design.");
 
+const INCOMPLETE_SETTINGS = "Die Einstellungen sind unvollständig. Bitte lade die Seite neu.";
+
 /** The notifications form (Phase 18, §5.17): Discord and mail for every type, none left out. */
 export const notificationPreferencesSchema = z.record(
   z.enum(NotifType),
-  z.object({ discord: z.boolean(), email: z.boolean() }),
-  "Die Einstellungen sind unvollständig. Bitte lade die Seite neu.",
+  // A missing type fails here, as a value that is not an object.
+  z.object({ discord: z.boolean(), email: z.boolean() }, INCOMPLETE_SETTINGS),
+  INCOMPLETE_SETTINGS,
 );
 
 // ─── Accounts (Phase 7, §5.8) ─────────────────────────────────────────────────
@@ -68,6 +71,12 @@ export const realNameSchema = z.object({
 /** Placeholders of Discord, seed and deleted accounts live here; nobody may claim one (§4, §5.8). */
 const RESERVED_EMAIL_DOMAIN = "uniscrims.invalid";
 
+/** A placeholder address under the reserved domain, never a real mailbox. */
+export function isReservedEmail(email: string): boolean {
+  const domain = email.slice(email.lastIndexOf("@") + 1).toLowerCase();
+  return domain === RESERVED_EMAIL_DOMAIN || domain.endsWith(`.${RESERVED_EMAIL_DOMAIN}`);
+}
+
 export const emailSchema = z
   .string("Bitte gib deine E-Mail-Adresse an.")
   .trim()
@@ -76,10 +85,7 @@ export const emailSchema = z
     z
       .email("Bitte gib eine gültige E-Mail-Adresse an.")
       .max(254)
-      .refine((email) => {
-        const domain = email.slice(email.lastIndexOf("@") + 1);
-        return domain !== RESERVED_EMAIL_DOMAIN && !domain.endsWith(`.${RESERVED_EMAIL_DOMAIN}`);
-      }, "Bitte gib eine gültige E-Mail-Adresse an."),
+      .refine((email) => !isReservedEmail(email), "Bitte gib eine gültige E-Mail-Adresse an."),
   );
 
 export const passwordSchema = z

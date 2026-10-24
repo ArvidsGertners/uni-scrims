@@ -110,19 +110,42 @@ async function scrimNotification(
   return find({ scrimId, type, targetTeamId: teamId, channel });
 }
 
-/** A notification without relevance check, for the error handling. */
-async function queueVerificationResult(userId: string) {
-  const entityId = uid();
+/**
+ * A DM copy as the fan-out leaves it (§5.17), of a notification without relevance check, for the
+ * error handling: its parent is the already distributed personal entry.
+ */
+async function queueVerificationResult(
+  userId: string,
+  channel: NotifChannel = NotifChannel.USER_DM,
+) {
+  const payload = { approved: true, rejectReason: null };
+  const verificationId = uid();
   await queueNotifications(prisma, NOW, [
     {
       type: NotifType.VERIFICATION_RESULT,
-      channel: NotifChannel.USER_DM,
-      entityId,
+      channel: NotifChannel.PERSONAL,
+      entityId: verificationId,
       targetUserId: userId,
-      payload: { approved: true, rejectReason: null },
+      payload,
     },
   ]);
-  return find({ dedupeKey: { startsWith: `${NotifType.VERIFICATION_RESULT}:${entityId}:` } });
+  const parent = await find({
+    dedupeKey: { startsWith: `${NotifType.VERIFICATION_RESULT}:${verificationId}:` },
+  });
+  await prisma.notification.update({
+    where: { id: parent.id },
+    data: { status: NotifStatus.SENT, sentAt: NOW },
+  });
+  await queueNotifications(prisma, NOW, [
+    {
+      type: NotifType.VERIFICATION_RESULT,
+      channel,
+      entityId: parent.id,
+      targetUserId: userId,
+      payload,
+    },
+  ]);
+  return find({ dedupeKey: { startsWith: `${NotifType.VERIFICATION_RESULT}:${parent.id}:` } });
 }
 
 describe("classifyDeliveryError and retryDelayMs (§6.2)", () => {
@@ -301,24 +324,9 @@ describe("deliverNotification: recipients", () => {
   });
 });
 
-/** A mail entry for the user (§5.17), queued by hand like the fan-out does, with mail on. */
+/** A mail copy as the fan-out leaves it (§5.17). */
 async function queueMail(userId: string) {
-  await prisma.notificationPreference.upsert({
-    where: { userId_type: { userId, type: NotifType.VERIFICATION_RESULT } },
-    create: { userId, type: NotifType.VERIFICATION_RESULT, email: true },
-    update: { email: true },
-  });
-  const entityId = uid();
-  await queueNotifications(prisma, NOW, [
-    {
-      type: NotifType.VERIFICATION_RESULT,
-      channel: NotifChannel.USER_EMAIL,
-      entityId,
-      targetUserId: userId,
-      payload: { approved: true, rejectReason: null },
-    },
-  ]);
-  return find({ dedupeKey: { startsWith: `${NotifType.VERIFICATION_RESULT}:${entityId}:` } });
+  return queueVerificationResult(userId, NotifChannel.USER_EMAIL);
 }
 
 /** A user with a real, confirmed address (the test users have placeholders). */
@@ -473,6 +481,40 @@ describe("deliverNotification: personal notifications (§5.17)", () => {
       await deliverNotification(child.id, NOW, deliver, NO_DEV_ENV);
     }
     expect(sent.map(recipientUser)).toEqual([host.captain.id]);
+  });
+
+  it("still sends the former captain's copy after a captain change", async () => {
+    const { host, scrim } = await bookScrim();
+    const reminder = await scrimNotification(scrim.id, NotifType.REMINDER_1H, host.team.id);
+    const failing = recorder({ ok: false, code: null, error: "timeout" }).deliver;
+    expect(await send(reminder.id, reminder.scheduledFor, failing)).toBe("RETRY");
+    await prisma.team.update({
+      where: { id: host.team.id },
+      data: { captainId: host.members[0]!.id },
+    });
+    const [copy] = await childrenOf(reminder.id);
+    const { sent, deliver } = recorder();
+    const retryAt = new Date(reminder.scheduledFor.getTime() + MINUTE);
+    expect(await send(copy!.id, retryAt, deliver)).toBe("SENT");
+    expect(sent.map(recipientUser)).toEqual([host.captain.id]);
+  });
+
+  it("fans out a verification DM from before Phase 18, so mail only applies", async () => {
+    const user = await userWithMail();
+    await choose(user.id, NotifType.VERIFICATION_RESULT, { discord: false, email: true });
+    await queueNotifications(prisma, NOW, [
+      {
+        type: NotifType.VERIFICATION_RESULT,
+        channel: NotifChannel.USER_DM,
+        entityId: uid(),
+        targetUserId: user.id,
+        payload: { approved: true, rejectReason: null },
+      },
+    ]);
+    const legacy = await find({ targetUserId: user.id, channel: NotifChannel.USER_DM });
+    const { sent, deliver } = recorder();
+    expect(await send(legacy.id, NOW, deliver)).toBe("SENT");
+    expect(sent.map((message) => message.recipient.kind)).toEqual(["EMAIL"]);
   });
 
   it("fans out entries from before Phase 18 like personal ones", async () => {
