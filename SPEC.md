@@ -89,6 +89,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 25. Als Prüfer will ich den Namen der Person neben ihrer Bescheinigung sehen, damit ich prüfen kann, ob beide übereinstimmen.
 26. Als Nutzer will ich alle Daten, die Uni Scrims zu meinem Konto speichert, selbst herunterladen können, ohne erst eine Mail zu schreiben.
 27. Als Captain will ich ein Logo für unser Team hochladen, damit andere Teams uns auf dem Board und in ihren Scrims sofort erkennen.
+28. Als Nutzer will ich die Seite hell sehen, wenn mein Gerät hell eingestellt ist, und als Captain dafür ein eigenes Logo für hellen Hintergrund hochladen.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -326,7 +327,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Datei nennt den Zeitpunkt der Auskunft und verweist für Zwecke, Empfänger, Speicherdauer und Rechte auf die Datenschutzerklärung; sie sagt auch, was fehlt (Server-Logs, Backups, Nachrichten an Teams).
 - [x] Wie bisher geht die Auskunft auch formlos per Mail an die Adresse aus dem Impressum.
 
-**N-6 Team-Logo** (Phase 10)
+**N-6 Team-Logo** (Phase 10; seit Phase 11 je ein Logo für dunklen und hellen Hintergrund, N-7)
 - [x] Der Captain kann auf der Team-Seite ein Logo hochladen, ersetzen und entfernen (auch ohne eigene Verifizierung, wie die übrigen Teamdaten). Nicht in einem gesperrten Team.
 - [x] Erlaubt sind PNG und WebP mit Alphakanal (durchsichtiger Hintergrund möglich), höchstens 2 MB und 4096 × 4096 Pixel, nicht animiert (auch kein animiertes PNG). Andere Formate und Bilder ohne Alphakanal werden mit einem Hinweis abgelehnt. Bilder mit EXIF-Ausrichtung werden so aufrecht gedreht, wie Bildbetrachter sie zeigen. Höchstens 5 Uploads pro Minute; laufen gerade viele, kommt „Bitte versuch es gleich noch einmal“. Ob die Fläche wirklich durchsichtig ist, wird nicht geprüft.
 - [x] Der Server schneidet durchsichtige Ränder ab (Pixel mit Deckkraft bis 8 von 255 zählen als durchsichtig) und setzt das Logo mittig in ein Quadrat von 256 × 256 Pixeln, vergrößert oder verkleinert. Die längere Seite füllt das Quadrat, also berührt das Logo immer mindestens zwei gegenüberliegende Ränder. Ein komplett durchsichtiges Bild und ein Inhalt, dessen längere Seite kürzer als 128 Pixel ist, werden abgelehnt.
@@ -334,6 +335,13 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Das Logo erscheint überall, wo bisher das Kürzel-Quadrat steht (Board, Anfrage mit Bewerbungen, Meine Scrims, Team-Seite, Einladungsseite); ohne Logo bleibt das Kürzel. Sehen können es alle eingeloggten, nicht gesperrten Nutzer, wie Teamnamen.
 - [x] Admins können ein Logo auf der Seite „Sperren“ entfernen, und zwar nur das, das sie dort gesehen haben (hat der Captain inzwischen ein neues hochgeladen, kommt ein Hinweis). Beim Auflösen eines Teams wird sein Logo gelöscht; bei einer Sperre bleibt es, bis ein Admin es entfernt.
 - [x] Die Datenauskunft nennt beim Team, seit wann es ein Logo hat; das Bild selbst ist Teamdaten ohne Personenbezug und steht nicht in der Datei.
+
+**N-7 Hell-Modus und Logo pro Hintergrund** (Phase 11)
+- [ ] Die Seite folgt der Systemeinstellung des Geräts: hell oder dunkel. Einen Schalter auf der Seite gibt es nicht. Das dunkle Design bleibt, wie es ist; das helle nutzt dieselben Bausteine mit hellen Farben, Text mit ausreichendem Kontrast (mindestens 4,5:1).
+- [ ] Der Captain kann zwei Logos hochladen, ersetzen und entfernen: eins für dunklen Hintergrund und eins für hellen Hintergrund, beide optional und mit denselben Regeln wie in N-6 (Formate, Grenzen, Zuschnitt). Ein Logo aus Phase 10 gilt als Logo für dunklen Hintergrund.
+- [ ] Angezeigt wird das Logo, das zum Modus passt. Gibt es nur eins, steht es im anderen Modus auf einem kleinen Kästchen in der Farbe, für die es gemacht ist, damit es lesbar bleibt. Ohne Logo bleibt das Kürzel.
+- [ ] Admins sehen auf der Seite „Sperren“ beide Logos und entfernen mit „Logo entfernen“ beide, nur wenn sie den aktuellen Stand gesehen haben (wie in N-6).
+- [ ] Die Datenauskunft nennt zusätzlich, für welche Hintergründe das Team Logos hat.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -452,6 +460,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 8 | Admins und Prüfer über die Oberfläche, mit 2FA (N-4) | Der Betreiber macht ein Konto zum Prüfer; es richtet 2FA ein, sieht nur die Prüf-Queue und entscheidet; nach dem Entzug ist der Zugang sofort weg |
 | 9 | Datenauskunft per Knopfdruck (N-5) | Ein Nutzer lädt auf der Konto-Seite seine Daten herunter; die Datei enthält alle Abschnitte, aber keine Zugangsdaten und keine Daten anderer Personen |
 | 10 | Team-Logo (N-6) | Ein Captain lädt ein PNG mit durchsichtigem Rand hoch; es erscheint zugeschnitten überall statt des Kürzels; JPEG und Bilder ohne Alphakanal werden abgelehnt; ein Admin kann es entfernen, und beim Auflösen verschwindet es |
+| 11 | Hell-Modus und Logo pro Hintergrund (N-7) | Mit hellem System-Design ist die ganze Seite hell und gut lesbar, mit dunklem unverändert; jeder Modus zeigt das passende Logo, fehlt eins, steht das andere auf einem passenden Kästchen |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 

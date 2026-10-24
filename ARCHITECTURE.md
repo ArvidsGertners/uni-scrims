@@ -174,6 +174,7 @@ FeedbackOutcome PLAYED | OPPONENT_NO_SHOW | WE_COULD_NOT
 NotifType       siehe §6.1
 NotifChannel    USER_DM | CAPTAIN_DM | TEAM_CHANNEL
 NotifStatus     PENDING | SENT | FAILED | CANCELLED
+LogoBackground  DARK | LIGHT                     (Phase 11: Hintergrund, für den ein Team-Logo gemacht ist)
 ```
 
 ### Tabellen
@@ -228,13 +229,13 @@ Team
   inviteCode? (unique)                    # 12 Zeichen, URL-sicher, kryptografisch zufällig; null nach Auflösung
   discordGuildId?, discordChannelId?
   bannedAt?, dissolvedAt?, createdAt
-  logoUpdatedAt?                          # Zeitpunkt des aktuellen Logos, null = kein Logo; Version in der Logo-URL (Phase 10)
+  logoUpdatedAt?                          # letzte Änderung an einem Logo, null = kein Logo; Version in den Logo-URLs (Phase 10, ab 11 für beide Logos)
   ⚑ Team-Zustand: aktiv (beide null) | gesperrt (bannedAt) | aufgelöst (dissolvedAt). Gesperrt und aufgelöst sind im MVP final.
 
 TeamLogo                                  # Phase 10, eigene Tabelle, damit die ~40 Lesepfade mit ganzer Team-Zeile keine Bilddaten laden
-  teamId ──► Team (PK)
+  teamId ──► Team, background (LogoBackground, default DARK)   # PK (teamId, background), ab Phase 11 je ein Logo pro Hintergrund
   data (Bytes)                            # 256×256-WebP, verlustfrei, vom Server erzeugt (§5.11)
-  ⚑ Es gibt genau dann eine Zeile, wenn Team.logoUpdatedAt gesetzt ist; beide ändern sich nur zusammen unter der Team-Sperre.
+  ⚑ Es gibt genau dann mindestens eine Zeile, wenn Team.logoUpdatedAt gesetzt ist; beide ändern sich nur zusammen unter der Team-Sperre.
 
 TeamMember
   teamId ──► Team, userId (unique) ──► User   # max. 1 Team pro User
@@ -569,6 +570,13 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 
 **Speicher:** In der Datenbank statt im Upload-Ordner: Der Janitor löscht dort jede Datei ohne Prüfung nach 24 h, Uploads werden nicht gesichert (§8), und der Bot hat das Volume nicht. Ein Logo ist höchstens wenige Dutzend KB groß.
 
+**Logo pro Hintergrund (ab Phase 11):** `TeamLogo` hat pro Team bis zu zwei Zeilen, `background` = `DARK` (Logo für dunklen Hintergrund, helle Farben) oder `LIGHT`. Die Migration macht bestehende Logos zu `DARK`, weil die Seite bis dahin nur dunkel war.
+- `setTeamLogo`, `removeTeamLogo` und `getTeamLogo` bekommen `background`. `setTeamLogo` setzt `logoUpdatedAt = now`; `removeTeamLogo` setzt es auf `now`, solange noch ein Logo übrig ist, sonst auf null. `removeTeamLogoAsAdmin` entfernt beide Logos (Versionsprüfung wie oben), `dissolveTeam` ebenso. `processTeamLogo`, Warteschlange und Grenzen bleiben gleich.
+- Statt `logoVersion` liefern die Lesefunktionen `logo: { version, backgrounds } | null` (`teamLogoInfo`); die Hintergründe kommen über `logos: { select: { background: true } }`, also ohne Bilddaten. `getMyTeam` und das eigene Team in `getMyScrims` (Team aus `findOwnTeam`) fragen sie einzeln ab.
+- Route `GET /api/teams/[id]/logo?bg=dark|light&v=<version>`; ein unbekanntes `bg` gibt 404, die Cache-Regel bleibt.
+- `TeamAvatar`: mit beiden Logos ein `<picture>` mit `<source media="(prefers-color-scheme: light)">` für `LIGHT` und `<img>` für `DARK`, der Browser wählt ohne JavaScript. Mit nur einem Logo dieses, im anderen Modus auf einem Kästchen in der Farbe, für die es gemacht ist (Tokens `--logo-tile-dark`/`--logo-tile-light`, im passenden Modus durchsichtig), mit etwas Innenabstand. Team-Seite: zwei Felder „Logo für dunklen Hintergrund“ und „Logo für hellen Hintergrund“ mit Vorschau auf passender Fläche. `/admin/bans` zeigt beide Logos, jedes auf seiner Fläche.
+- Datenauskunft: beim Team zusätzlich die Hintergründe der vorhandenen Logos.
+
 ---
 
 ## 6. Bot
@@ -687,7 +695,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 
 `leaveTeam` funktioniert für Nicht-Captains auch in gesperrten Teams. Nach Verlassen oder Auflösen sind vergangene Scrims für ehemalige Mitglieder nicht mehr sichtbar (gewollt).
 - **Zeit:** Eingabe im Formular in Europe/Berlin, Umrechnung nach UTC in `core`. Keine Zeitlogik im Browser.
-- **UI:** Tailwind + shadcn/ui, komplett auf Deutsch, mobilfreundlich. Optik nach dem Design-Handoff (Richtung A „Klar“, Tokens in `apps/web/app/globals.css`); Funktionen und Felder bleiben wie in SPEC und hier beschrieben. Abweichung vom Design: Der Header zeigt das Burger-Menü bis 767 px, weil die Desktop-Navigation erst ab 768 px in die Breite passt. Auswahlfelder sind ein eigenes Select auf Base UI (`components/ui/select.tsx`) statt des OS-Menüs, Datumsfelder ein eigener Monatskalender in einem Base-UI-Popover (`components/ui/date-picker.tsx`, Wochen ab Montag, Tage vor `min` gesperrt, Wert wie beim nativen Feld `YYYY-MM-DD`), damit sie überall gleich aussehen und so hoch sind wie die Eingabefelder; ohne JavaScript lässt sich die Auswahl nicht ändern, die Formulare schicken dann den Startwert.
+- **UI:** Tailwind + shadcn/ui, komplett auf Deutsch, mobilfreundlich. Optik nach dem Design-Handoff (Richtung A „Klar“, Tokens in `apps/web/app/globals.css`). Ab Phase 11 gibt es zusätzlich einen Hell-Modus nach Systemeinstellung: `:root` hält die dunklen Werte des Handoffs, `@media (prefers-color-scheme: light)` überschreibt alle Farb-Tokens mit hellen (Text mindestens 4,5:1), `color-scheme: light dark`; Farben stehen nur in Tokens, auch Schatten (`--shadow-popup`, `--shadow-overlay`) und Platzhalter (`--placeholder`), außer dem bewusst weißen Grund des 2FA-QR-Codes. Kein Schalter auf der Seite; Funktionen und Felder bleiben wie in SPEC und hier beschrieben. Abweichung vom Design: Der Header zeigt das Burger-Menü bis 767 px, weil die Desktop-Navigation erst ab 768 px in die Breite passt. Auswahlfelder sind ein eigenes Select auf Base UI (`components/ui/select.tsx`) statt des OS-Menüs, Datumsfelder ein eigener Monatskalender in einem Base-UI-Popover (`components/ui/date-picker.tsx`, Wochen ab Montag, Tage vor `min` gesperrt, Wert wie beim nativen Feld `YYYY-MM-DD`), damit sie überall gleich aussehen und so hoch sind wie die Eingabefelder; ohne JavaScript lässt sich die Auswahl nicht ändern, die Formulare schicken dann den Startwert.
 
 ### Entwicklung und Tests
 
@@ -911,3 +919,12 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Datenschutzerklärung: Team-Logo im Abschnitt zu Teams (Dev-Kopie und Production)
 - *Fertig wenn:* Ein Captain lädt ein PNG mit durchsichtigem Rand hoch, und es erscheint zugeschnitten (mindestens zwei Ränder berührt) überall statt des Kürzels; JPEG und Bilder ohne Alphakanal werden mit Text abgelehnt; ein Admin kann ein Logo entfernen, und beim Auflösen verschwindet es; Tests, Lint und Build sind grün, und Web- und Bot-Image bauen mit `sharp`.
 - *Stand (24.10.2026):* abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`, dazu ein `next build`), Web- und Bot-Image lokal gebaut (in beiden lädt `sharp`, im Web über den Pfad, den das kompilierte Bundle nutzt), Review samt Fixes (nur eine Verarbeitung gleichzeitig und Zählung pro IP, EXIF-Ausrichtung, animierte PNGs, Cache nur für die aktuelle Version, Admin entfernt nur das gesehene Logo); Hochladen, Ablehnen, Anzeige und Entfernen im Browser gegen eine Wegwerf-DB. Seit dem 24.10.2026 auch in Production (Migration `team_logo`), mit dem Absatz zum Team-Logo in der Datenschutzerklärung.
+
+**Phase 11: Hell-Modus und Logo pro Hintergrund** (SPEC N-7, §5.11, UI in §7)
+- Web, Hell-Modus: helle Werte für alle Farb-Tokens unter `prefers-color-scheme: light`, fest verdrahtete Farben (Schatten, Platzhalter, rgba-Ränder) als Tokens, `color-scheme: light dark`, `themeColor` für beide Modi, ohne die Klasse `dark` am `html`
+- Schema: `enum LogoBackground`, `TeamLogo.background` (default `DARK`), Primärschlüssel `(teamId, background)` (Migration von Prisma erzeugt, ohne Datenverlust)
+- `core`: `setTeamLogo`, `removeTeamLogo`, `getTeamLogo` mit `background`; `teamLogoInfo` statt `logoVersion` in den Lesefunktionen; Admin und Auflösen entfernen beide Logos. Tests: beide Logos einzeln setzen und entfernen, `logoUpdatedAt` erst ohne Logo null, Abruf pro Hintergrund, Admin, Auflösen, Lesefunktionen
+- Web: Route mit `bg`, `TeamAvatar` mit `<picture>` und Kästchen für das unpassende Logo, zwei Felder auf der Team-Seite, beide Logos auf `/admin/bans`
+- Datenauskunft: Hintergründe der Logos; Abdeckungstest um `TeamLogo.background`
+- Datenschutzerklärung: der Absatz zum Team-Logo nennt beide Logos (Dev-Kopie; beim Deploy nach Production)
+- *Fertig wenn:* Mit hellem System-Design ist die ganze Seite hell und gut lesbar, mit dunklem unverändert (Screenshot-Vergleich); der Captain lädt je ein Logo für dunklen und hellen Hintergrund hoch, und jeder Modus zeigt das passende; fehlt eins, steht das andere auf einem passenden Kästchen; Tests, Lint und Build sind grün.
