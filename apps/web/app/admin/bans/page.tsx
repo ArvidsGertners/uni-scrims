@@ -1,6 +1,7 @@
 import { LOGO_BACKGROUNDS, MIN_SEARCH_LENGTH, searchModerationTargets } from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
+import { LIST_COLUMNS } from "@/components/list-group";
 import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export default async function BansPage({
         <section className="flex flex-col gap-3">
           <h2 className="type-h2">Nutzer</h2>
           {result.users.length === 0 ? <p className="text-[14px]">Keine Treffer.</p> : null}
-          <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+          <div className={`${LIST_COLUMNS} gap-3`}>
             {result.users.map((user) => (
               <div
                 key={user.id}
@@ -97,7 +98,7 @@ export default async function BansPage({
 
           <h2 className="type-h2">Teams</h2>
           {result.teams.length === 0 ? <p className="text-[14px]">Keine Treffer.</p> : null}
-          <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+          <div className={`${LIST_COLUMNS} gap-3`}>
             {result.teams.map((team) => (
               <div
                 key={team.id}

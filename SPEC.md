@@ -380,7 +380,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 
 **N-12 Volle Breite** (Phase 16)
 - [ ] Am Desktop (ab 1024 px) steht die Seitenleiste ganz links am Bildschirmrand, auf der Seite wie im Admin-Bereich. Kopf (das Logo über der Leiste), Discord-Hinweis und Fußzeile gehen über die ganze Breite.
-- [ ] Die Ansichten füllen den Platz neben der Leiste ohne feste Obergrenze. Auf „Scrims“ stehen Karten und Listen nebeneinander (ab 1280 px zwei, ab 1536 px drei, ab 1920 px vier Spalten). Team, Konto, Anfrage und Scrim zeigen links die Angaben und rechts Aktionen und Hinweise (die Team-Seite wie bisher ab 768 px, die anderen ab 1024 px); ohne Team stehen „Team gründen“ und „Team beitreten“ nebeneinander. Im Admin-Bereich stehen die Listen ab 1280 px in zwei Spalten.
+- [ ] Die Ansichten füllen den Platz neben der Leiste ohne feste Obergrenze. Auf „Scrims“ stehen Karten und Listen nebeneinander (ab 1280 px zwei, ab 1536 px drei, ab 1920 px vier Spalten). Team, Konto, Anfrage und Scrim zeigen links die Angaben und rechts Aktionen und Hinweise (die Team-Seite für den Captain wie bisher ab 768 px, sonst ab 1024 px); ohne Team stehen „Team gründen“ und „Team beitreten“ nebeneinander. Im Admin-Bereich stehen die Listen ab 1280 px in zwei Spalten.
 - [ ] Formulare bleiben lesbar schmal: Anfrage erstellen, Team beitreten, Konto vervollständigen und Feedback stehen mittig im Inhalt, die Verifizierung links unter den Konto-Tabs. Abgemeldete Seiten (Startseite, Anmeldung, Rechtstexte) bleiben, wie sie sind. Unter 1024 px ändert sich nichts, auch nicht die Reihenfolge. Funktionen und Rechte ändern sich nicht.
 
 ### P1: Nice-to-Have, direkt nach dem MVP

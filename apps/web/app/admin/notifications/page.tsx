@@ -1,4 +1,5 @@
 import { MAX_FAILED_SHOWN, listFailedNotifications } from "@uni-scrims/core";
+import { LIST_COLUMNS } from "@/components/list-group";
 import { formatDateTime } from "@/lib/format";
 import { NOTIFICATION_CHANNEL_LABELS, NOTIFICATION_TYPE_LABELS } from "@/lib/scrim-format";
 import { requireAdminShellPage } from "@/lib/session";
@@ -21,7 +22,7 @@ export default async function FailedNotificationsPage() {
           {total - failed.length} ältere fehlgeschlagene Nachrichten werden nicht angezeigt.
         </p>
       ) : null}
-      <ul className="grid gap-3 xl:grid-cols-2 xl:items-start">
+      <ul className={`${LIST_COLUMNS} gap-3`}>
         {failed.map((entry) => (
           <li
             key={entry.id}

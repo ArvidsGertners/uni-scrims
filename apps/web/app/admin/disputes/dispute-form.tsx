@@ -46,6 +46,8 @@ export function DisputeForm({
             value={decision.value}
             variant="outline"
             disabled={pending}
+            // Long team names wrap instead of pushing the page wider on phones.
+            className="max-w-full py-2 text-left whitespace-normal"
           >
             {decision.label}
           </Button>

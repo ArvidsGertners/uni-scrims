@@ -1,4 +1,5 @@
 import { FEEDBACK_OUTCOME_LABELS, describeStart, listDisputes } from "@uni-scrims/core";
+import { LIST_COLUMNS } from "@/components/list-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFormat } from "@/lib/scrim-format";
 import { requireAdminShellPage } from "@/lib/session";
@@ -29,7 +30,7 @@ export default async function DisputesPage() {
     <AdminShell overview={overview} current="/disputes">
       <h1 className="type-h1">Streitfälle</h1>
       {disputes.length === 0 ? <p>Keine offenen Streitfälle.</p> : null}
-      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+      <div className={`${LIST_COLUMNS} gap-6`}>
         {disputes.map((dispute) => (
           <Card key={dispute.id}>
             <CardHeader>

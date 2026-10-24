@@ -4,6 +4,7 @@ import {
   type SuccessMetric,
   getSuccessMetrics,
 } from "@uni-scrims/core";
+import { LIST_COLUMNS } from "@/components/list-group";
 import { Badge } from "@/components/ui/badge";
 import { formatCases, formatMetricValue, formatThreshold } from "@/lib/metric-format";
 import { requireAdminShellPage } from "@/lib/session";
@@ -90,7 +91,7 @@ export default async function StatsPage() {
           <h2 className="type-h2">
             {title} <span className="text-[14px] font-normal text-muted-foreground">{hint}</span>
           </h2>
-          <ul className="grid gap-3 xl:grid-cols-2 xl:items-start">
+          <ul className={`${LIST_COLUMNS} gap-3`}>
             {metrics
               .filter((metric) => metric.group === group)
               .map((metric) => (

@@ -8,6 +8,7 @@ import {
 import type { StaffRole } from "@uni-scrims/db";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
+import { LIST_COLUMNS } from "@/components/list-group";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,7 +115,7 @@ export default async function StaffPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="type-h2">Admins und Prüfer</h2>
-        <ul className="grid gap-3 xl:grid-cols-2 xl:items-start">
+        <ul className={`${LIST_COLUMNS} gap-3`}>
           {staff.map((person) => (
             <li key={person.id} className={cardClass}>
               <PersonLine person={person} />
@@ -163,7 +164,7 @@ export default async function StaffPage({
             Keine Treffer. Gefunden werden nur vollständige, nicht gesperrte Konten mit Passwort.
           </p>
         ) : null}
-        <ul className="grid gap-3 xl:grid-cols-2 xl:items-start">
+        <ul className={`${LIST_COLUMNS} gap-3`}>
           {candidates
             .filter((person) => person.staffRole !== "OPERATOR")
             .map((person) => (

@@ -6,11 +6,12 @@ import {
   getScrimDetail,
 } from "@uni-scrims/core";
 import type { FeedbackOutcome } from "@uni-scrims/db";
+import { cn } from "cn";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { DiscordContact } from "@/components/discord-contact";
-import { PageMain } from "@/components/page-main";
+import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
@@ -82,7 +83,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* From 1024 px the details left, feedback and cancelling right (SPEC N-12). */}
-      <div className="flex flex-col gap-7 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start lg:gap-8">
+      <div className={cn("flex flex-col gap-7 lg:gap-8", DETAIL_COLUMNS)}>
         <div className="flex min-w-0 flex-col gap-7">
           <DiscordContact
             captainName={scrim.opponent.captainName}

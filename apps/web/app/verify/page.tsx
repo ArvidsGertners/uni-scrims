@@ -38,7 +38,7 @@ export default async function VerifyPage({
         <h1 className="type-h1">Konto</h1>
       </div>
       <AccountTabs current="/verify" unverified={!verifiedAt} />
-      <div className="flex w-full max-w-3xl flex-col">
+      <div className="flex w-full max-w-[44rem] flex-col">
         {verifiedAt ? (
           <div className="flex flex-col gap-6">
             <IconTile className="bg-success-soft text-success">

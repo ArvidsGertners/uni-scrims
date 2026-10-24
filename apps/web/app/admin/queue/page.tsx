@@ -1,4 +1,5 @@
 import { listPendingVerifications, listUniversities, resolveUploadDir } from "@uni-scrims/core";
+import { LIST_COLUMNS } from "@/components/list-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
 import { formatDateTime } from "@/lib/format";
@@ -26,7 +27,7 @@ export default async function AdminPage() {
       <h1 className="type-h1">Prüf-Queue</h1>
       {queue.length === 0 ? <p>Keine offenen Prüfungen.</p> : null}
       {/* Full width (§5.15): from 1280 px two requests side by side. */}
-      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+      <div className={`${LIST_COLUMNS} gap-6`}>
         {queue.map((request) => {
           const fileUrl = `/api/admin/uploads/${request.id}`;
           const isImage = request.mimeType.startsWith("image/");

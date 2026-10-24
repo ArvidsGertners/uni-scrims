@@ -12,7 +12,7 @@ import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { CheckIcon } from "@/components/icons";
-import { PageMain } from "@/components/page-main";
+import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -91,12 +91,12 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
       <div
         className={cn(
           "flex flex-col gap-7",
-          hasActions &&
-            "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start lg:gap-8",
+          hasActions && DETAIL_COLUMNS,
+          hasActions && "lg:gap-8",
         )}
       >
         <div className="flex min-w-0 flex-col gap-7">
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
             {details.map((detail) => (
               <div key={detail.label} className="flex min-w-0 flex-col gap-1 bg-card p-4">
                 <dt className="type-label text-muted-foreground">{detail.label}</dt>

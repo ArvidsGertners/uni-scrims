@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 
 /** Columns of card lists on wide pages (§5.15): one below 1280 px, up to four from 1920 px. */
+/** Lists in the admin area (§5.15): one column below 1280 px, two from there. */
+export const LIST_COLUMNS = "grid grid-cols-1 xl:grid-cols-2 xl:items-start";
+
 export const CARD_COLUMNS =
   "grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 min-[120rem]:grid-cols-4";
 
