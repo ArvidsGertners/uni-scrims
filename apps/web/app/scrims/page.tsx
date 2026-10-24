@@ -22,6 +22,7 @@ import {
 import { ListGroup } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
 import { RequestCard } from "@/components/request-card";
+import { TabNav } from "@/components/tab-nav";
 import { type AvatarTeam, TeamAvatar } from "@/components/team-avatar";
 import { Alert } from "@/components/ui/alert";
 import { Badge, BadgeDot } from "@/components/ui/badge";
@@ -167,25 +168,15 @@ export default async function ScrimsPage({
         </Link>
       ) : null}
 
-      <nav
-        aria-label="Scrims"
-        className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1"
-      >
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={tabHref(t.key)}
-            aria-current={t.key === tab ? "page" : undefined}
-            className={cn(
-              "type-btn flex min-h-10 flex-[1_0_auto] items-center justify-center gap-1.5 rounded-sm px-3 text-[14px] font-semibold whitespace-nowrap text-muted-foreground",
-              t.key === tab && "bg-secondary text-foreground",
-            )}
-          >
-            {t.label}
-            <span className="font-label text-[11px] text-faint">{counts[t.key]}</span>
-          </Link>
-        ))}
-      </nav>
+      <TabNav
+        label="Scrims"
+        items={TABS.map((t) => ({
+          href: tabHref(t.key),
+          label: t.label,
+          active: t.key === tab,
+          trailing: <span className="font-label text-[11px] text-faint">{counts[t.key]}</span>,
+        }))}
+      />
 
       {tab === "board" ? (
         <BoardTab board={board} hasOwnRequests={mine.requests.length > 0} />

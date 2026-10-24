@@ -1,19 +1,20 @@
 import { getVerificationStatus, listUniversities, semesterLabel } from "@uni-scrims/core";
 import { VerifStatus } from "@uni-scrims/db";
 import Link from "next/link";
-import { BackLink } from "@/components/back-link";
 import { DetailRows, IconTile, StatusDot } from "@/components/detail-rows";
 import { AlertTriangleIcon, ClockIcon, ShieldCheckIcon, UploadIcon } from "@/components/icons";
 import { PageMain } from "@/components/page-main";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { requirePageUser } from "@/lib/session";
+import { AccountTabs } from "../account/account-tabs";
 import { VerificationForm } from "./verification-form";
 
+// A sub page of Konto (SPEC N-11): the page title is Konto, the state below it.
 function Headline({ title, children }: { title: string; children: string }) {
   return (
     <div className="flex flex-col gap-2.5">
-      <h1 className="type-h1">{title}</h1>
+      <h2 className="type-h1">{title}</h2>
       <p className="text-pretty text-muted-foreground">{children}</p>
     </div>
   );
@@ -31,8 +32,10 @@ export default async function VerifyPage({
 
   return (
     <PageMain className="gap-7">
-      <BackLink href="/account">Konto</BackLink>
-      <span className="-mb-4 type-label text-muted-foreground">Verifizierung</span>
+      <div className="flex min-h-11 items-center">
+        <h1 className="type-h1">Konto</h1>
+      </div>
+      <AccountTabs current="/verify" unverified={!verifiedAt} />
       {verifiedAt ? (
         <div className="flex flex-col gap-6">
           <IconTile className="bg-success-soft text-success">

@@ -20,6 +20,7 @@ import {
   handOverCaptainAction,
   updateRealNameAction,
 } from "./actions";
+import { AccountTabs } from "./account-tabs";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 
 const cardClass = "flex flex-col gap-4 rounded-lg border border-border bg-card p-5";
@@ -77,10 +78,14 @@ export default async function AccountPage({
 
   return (
     <PageMain className="gap-7">
-      <div className="flex items-center justify-between gap-3">
+      {/* min-h-11: the same height as on /verify, so the tabs do not jump (SPEC N-11). */}
+      <div className="flex min-h-11 items-center justify-between gap-3">
         <h1 className="type-h1">Konto</h1>
         <LogoutButton className={buttonVariants({ variant: "outline", size: "sm" })} />
       </div>
+      {account.banned || account.setupStep ? null : (
+        <AccountTabs current="/account" unverified={account.verification.status !== "VERIFIED"} />
+      )}
       {account.banned ? (
         <Alert>
           <span>Dein Konto ist gesperrt. Löschen kannst du es trotzdem.</span>

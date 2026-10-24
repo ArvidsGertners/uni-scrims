@@ -5,7 +5,6 @@ import {
   staffArea,
 } from "@uni-scrims/core";
 import { cn } from "cn";
-import Link from "next/link";
 import type { ComponentType, ReactNode } from "react";
 import {
   AlertTriangleIcon,
@@ -19,6 +18,7 @@ import {
 import { FlashToast } from "@/components/flash-toast";
 import { LogoutButton } from "@/components/logout-button";
 import { SidebarLink } from "@/components/sidebar-link";
+import { TabNav } from "@/components/tab-nav";
 import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -160,25 +160,15 @@ export async function AdminShell({
 
       <div className="flex min-w-0 flex-1 flex-col gap-6">
         <div className="flex flex-col gap-3 lg:hidden">
-          <nav
-            aria-label="Admin-Bereich"
-            className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1"
-          >
-            {areas.map(({ path, label, count }) => (
-              <Link
-                key={path}
-                href={adminHref(path)}
-                aria-current={path === current ? "page" : undefined}
-                className={cn(
-                  "type-btn flex min-h-10 flex-[1_0_auto] items-center justify-center gap-1.5 rounded-sm px-3 text-[14px] font-semibold whitespace-nowrap text-muted-foreground",
-                  path === current && "bg-secondary text-foreground",
-                )}
-              >
-                {label}
-                <CountBadge count={count?.(overview)} className="px-1.5" />
-              </Link>
-            ))}
-          </nav>
+          <TabNav
+            label="Admin-Bereich"
+            items={areas.map(({ path, label, count }) => ({
+              href: adminHref(path),
+              label,
+              active: path === current,
+              trailing: <CountBadge count={count?.(overview)} className="px-1.5" />,
+            }))}
+          />
           {overview.bot ? <BotDot online={overview.bot.online} /> : null}
         </div>
         {flash ? (
