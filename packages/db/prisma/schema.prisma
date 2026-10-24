@@ -287,7 +287,10 @@ model Team {
   bannedAt         DateTime? @db.Timestamptz(3)
   dissolvedAt      DateTime? @db.Timestamptz(3)
   createdAt        DateTime  @db.Timestamptz(3)
+  // When the current logo was set; null = no logo. Versions the logo URL (Phase 10).
+  logoUpdatedAt    DateTime? @db.Timestamptz(3)
 
+  logo          TeamLogo?
   members       TeamMember[]
   requests      ScrimRequest[]
   applications  Application[]
@@ -299,6 +302,15 @@ model Team {
   notifications Notification[]
 
   @@index([captainId])
+}
+
+// Own table so the many reads of whole Team rows never load image bytes (Phase 10, §5.11).
+// A row exists exactly when Team.logoUpdatedAt is set.
+model TeamLogo {
+  teamId String @id
+  team   Team   @relation(fields: [teamId], references: [id])
+  // 256×256 lossless WebP made by the server.
+  data   Bytes
 }
 
 // The captain is always a member too; max. 10 members (both enforced in core).
