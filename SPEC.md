@@ -372,10 +372,10 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 
 
 **N-11 Die ganze Seite im Dashboard-Layout** (Phase 15)
-- [ ] Angemeldet hat die Seite am Desktop (ab 1024 px) links eine feste Seitenleiste wie der Admin-Bereich: oben „Scrims“, unten „Team“ mit dem Team-Logo (oder Kürzel) und dem Teamnamen, darunter „Konto“ mit dem Profilbild und dem Discord-Namen. Ohne Team steht dort „Team“ mit dem Hinweis zum Gründen oder Beitreten. Der Eintrag der aktuellen Seite ist markiert, auch auf Detailseiten (Anfrage, Scrim) und der Verifizierung. Der Warnpunkt für eine fehlende Verifizierung steht an „Konto“.
-- [ ] Die Kopfzeile mit dem Logo bleibt; die Navigation steht am Desktop nur noch in der Leiste. Unter 1024 px öffnet wie bisher der Menü-Knopf dieselben Einträge in derselben Reihenfolge (Scrims oben, Team und Konto unten).
-- [ ] Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“. Abgemeldet (Startseite, Anmeldung, Rechtstexte) bleibt die Seite ohne Leiste. Der Admin-Bereich behält seine eigene Leiste.
-- [ ] Unterseiten stehen als Tabs oben im Inhalt: auf „Scrims“ die Tabs aus N-9, auf „Konto“ die Tabs „Konto“ und „Verifizierung“ (statt des Zurück-Links). Die Team-Seite hat keine Unterseiten. Funktionen und Rechte ändern sich nicht.
+- [x] Angemeldet hat die Seite am Desktop (ab 1024 px) links eine feste Seitenleiste wie der Admin-Bereich: oben „Scrims“, unten „Team“ mit dem Team-Logo (oder Kürzel) und dem Teamnamen, darunter „Konto“ mit dem Profilbild und dem Discord-Namen. Ohne Team steht dort „Team“ mit dem Hinweis zum Gründen oder Beitreten. Der Eintrag der aktuellen Seite ist markiert, auch auf Detailseiten (Anfrage, Scrim) und der Verifizierung. Der Warnpunkt für eine fehlende Verifizierung steht an „Konto“.
+- [x] Die Kopfzeile mit dem Logo bleibt; die Navigation steht am Desktop nur noch in der Leiste. Unter 1024 px öffnet wie bisher der Menü-Knopf dieselben Einträge in derselben Reihenfolge (Scrims oben, Team und Konto unten).
+- [x] Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“. Abgemeldet (Startseite, Anmeldung, Rechtstexte) bleibt die Seite ohne Leiste. Der Admin-Bereich behält seine eigene Leiste.
+- [x] Unterseiten stehen als Tabs oben im Inhalt: auf „Scrims“ die Tabs aus N-9, auf „Konto“ die Tabs „Konto“ und „Verifizierung“ (statt des Zurück-Links). Die Team-Seite hat keine Unterseiten. Funktionen und Rechte ändern sich nicht.
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
