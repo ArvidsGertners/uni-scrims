@@ -23,7 +23,7 @@ import { requireAdmin } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
 import { isRequestOpen } from "./requests.ts";
 import { feedbackClosedReason } from "./scrims.ts";
-import { getDiscordId, notDeletedUserWhere } from "./users.ts";
+import { deliverableEmail, getDiscordId, notDeletedUserWhere } from "./users.ts";
 
 const MINUTE = 60 * 1000;
 
@@ -50,8 +50,12 @@ const CHANNEL_ERRORS: readonly number[] = [
 
 export type DeliveryFailure = "DM_BLOCKED" | "CHANNEL_BROKEN" | "RETRY";
 
-/** 50007 on a DM and the channel errors on a team channel are final; everything else is retried. */
+/**
+ * 50007 on a DM and the channel errors on a team channel are final; everything else is retried,
+ * every mail error too (§5.17).
+ */
 export function classifyDeliveryError(channel: NotifChannel, code: number | null): DeliveryFailure {
+  if (channel === NotifChannel.USER_EMAIL) return "RETRY";
   if (channel === NotifChannel.TEAM_CHANNEL) {
     return code !== null && CHANNEL_ERRORS.includes(code) ? "CHANNEL_BROKEN" : "RETRY";
   }
@@ -63,7 +67,9 @@ export function classifyDeliveryError(channel: NotifChannel, code: number | null
 export type Recipient =
   /** userId: whose dmFailedAt the result updates, unless the DM was redirected in development. */
   | { kind: "DM"; userId: string; discordId: string; redirectedFrom: string | null }
-  | { kind: "CHANNEL"; channelId: string; redirectedFrom: string | null };
+  | { kind: "CHANNEL"; channelId: string; redirectedFrom: string | null }
+  /** A notification mail; sendMail itself redirects it in development (§5.17). */
+  | { kind: "EMAIL"; userId: string; email: string; redirectedFrom: null };
 
 /** What the bot needs to build one message. */
 export type OutboxMessage = {
@@ -154,7 +160,7 @@ async function loadNotification(id: string) {
   return prisma.notification.findUnique({
     where: { id },
     include: {
-      targetUser: { select: { id: true, name: true } },
+      targetUser: { select: { id: true, name: true, email: true, emailVerified: true } },
       targetTeam: teamWithCaptain,
       request: { select: { status: true, startsAt: true } },
       scrim: {
@@ -174,7 +180,8 @@ async function loadNotification(id: string) {
 type LoadedNotification = NonNullable<Awaited<ReturnType<typeof loadNotification>>>;
 
 /**
- * USER_DM: the user; CAPTAIN_DM: the team's current captain; TEAM_CHANNEL: the linked channel.
+ * USER_DM: the user; USER_EMAIL: the user's deliverable address; CAPTAIN_DM: the team's current
+ * captain; TEAM_CHANNEL: the linked channel.
  * In development, DEV_DM_REDIRECT_DISCORD_ID and DEV_CHANNEL_ID take every DM and every team post.
  * null if there is nobody to send to.
  */
@@ -190,6 +197,13 @@ async function resolveRecipient(
       return { kind: "CHANNEL", channelId: devChannelId, redirectedFrom: team.name };
     return team.discordChannelId
       ? { kind: "CHANNEL", channelId: team.discordChannelId, redirectedFrom: null }
+      : null;
+  }
+  if (notification.channel === NotifChannel.USER_EMAIL) {
+    const target = notification.targetUser;
+    const email = target ? deliverableEmail(target) : null;
+    return target && email
+      ? { kind: "EMAIL", userId: target.id, email, redirectedFrom: null }
       : null;
   }
   const user =

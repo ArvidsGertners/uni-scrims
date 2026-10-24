@@ -36,6 +36,40 @@ export function plain(text: string): string {
   return escaped.replace(/[[\]<]/g, "\\$&");
 }
 
+/**
+ * How a message is written (§6.1, §5.17): for Discord user text is escaped, emphasis is markdown and
+ * people get a mention; mails are plain text with names only.
+ */
+export type TextFormat = {
+  /** User text such as team names. */
+  text: (value: string) => string;
+  /** Emphasis around already formatted text. */
+  strong: (value: string) => string;
+  /** A command or similar. */
+  code: (value: string) => string;
+  /** A person, by name and, where possible, with a mention. */
+  person: (name: string, discordId: string | null) => string;
+};
+
+export const discordFormat: TextFormat = {
+  text: plain,
+  strong: (value) => `**${value}**`,
+  code: (value) => `\`${value}\``,
+  person: (name, discordId) => (discordId ? `${plain(name)} (<@${discordId}>)` : plain(name)),
+};
+
+export const mailFormat: TextFormat = {
+  text: (value) => value,
+  strong: (value) => value,
+  code: (value) => value,
+  person: (name) => name,
+};
+
+/** The other team in a message: in bold on Discord. */
+export function team(name: string, f: TextFormat): string {
+  return f.strong(f.text(name));
+}
+
 export function startField(startsAt: string) {
   return { name: "Start", value: describeStart(new Date(startsAt)) };
 }
@@ -49,18 +83,14 @@ type ScrimMessage = MessageOf<
 >;
 
 /** Start, format and the opponent's current captain with name and mention (§6.1). */
-export function scrimFields(message: ScrimMessage) {
+export function scrimFields(message: ScrimMessage, f: TextFormat) {
   const fields = [
     startField(message.payload.startsAt),
     { name: "Format", value: SCRIM_FORMAT_LABELS[message.payload.format] },
   ];
   const captain = message.opponentCaptain;
   if (captain) {
-    const name = plain(captain.name);
-    fields.push({
-      name: "Gegnerischer Captain",
-      value: captain.discordId ? `${name} (<@${captain.discordId}>)` : name,
-    });
+    fields.push({ name: "Gegnerischer Captain", value: f.person(captain.name, captain.discordId) });
   }
   return fields;
 }

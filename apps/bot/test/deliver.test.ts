@@ -74,4 +74,47 @@ describe("createDeliver", () => {
       error: "fetch failed",
     });
   });
+
+  it("sends a mail through sendMail and never calls Discord", async () => {
+    const { rest, posts } = fakeRest(() => ({}));
+    const mails: unknown[] = [];
+    const deliver = createDeliver(rest, "https://scrims.example", async (mail) => {
+      mails.push(mail);
+    });
+    const message = {
+      ...MESSAGE,
+      recipient: {
+        kind: "EMAIL",
+        userId: "user-1",
+        email: "ana@example.org",
+        redirectedFrom: null,
+      },
+    } satisfies OutboxMessage;
+    expect(await deliver(message)).toEqual({ ok: true });
+    expect(posts).toEqual([]);
+    expect(mails).toEqual([
+      expect.objectContaining({ to: "ana@example.org", subject: "Team-Channel getrennt" }),
+    ]);
+  });
+
+  it("reports a mail error without a code, so it is retried", async () => {
+    const { rest } = fakeRest(() => ({}));
+    const deliver = createDeliver(rest, "https://scrims.example", async () => {
+      throw new Error("Greeting never received");
+    });
+    const message = {
+      ...MESSAGE,
+      recipient: {
+        kind: "EMAIL",
+        userId: "user-1",
+        email: "ana@example.org",
+        redirectedFrom: null,
+      },
+    } satisfies OutboxMessage;
+    expect(await deliver(message)).toEqual({
+      ok: false,
+      code: null,
+      error: "Greeting never received",
+    });
+  });
 });

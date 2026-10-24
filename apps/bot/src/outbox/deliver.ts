@@ -1,8 +1,10 @@
-// Discord side of the outbox sender (ARCHITECTURE §6.2): build the message and post it.
-// Relevance, recipients and what an error means are decided in core (deliverNotification).
+// Discord and mail side of the outbox sender (ARCHITECTURE §6.2, §5.17): build the message and
+// send it. Relevance, recipients and what an error means are decided in core (deliverNotification).
 import type { Deliver } from "@uni-scrims/core";
+import { sendMail as smtpSendMail } from "@uni-scrims/core/mail";
 import { DiscordAPIError, type REST, Routes } from "discord.js";
 import { buildMessage } from "../messages/index.ts";
+import { buildMail } from "../messages/mail.ts";
 
 /** Opens (or reuses) the DM channel with a user. */
 async function dmChannelId(rest: REST, discordId: string): Promise<string> {
@@ -13,9 +15,17 @@ async function dmChannelId(rest: REST, discordId: string): Promise<string> {
 }
 
 /** Never throws: Discord errors come back with their code, everything else with code null. */
-export function createDeliver(rest: REST, baseUrl: string): Deliver {
+export function createDeliver(
+  rest: REST,
+  baseUrl: string,
+  sendMail: typeof smtpSendMail = smtpSendMail,
+): Deliver {
   return async (message) => {
     try {
+      if (message.recipient.kind === "EMAIL") {
+        await sendMail(buildMail(message, message.recipient.email, baseUrl));
+        return { ok: true };
+      }
       const body = buildMessage(message, baseUrl);
       const channelId =
         message.recipient.kind === "DM"

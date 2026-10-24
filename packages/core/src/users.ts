@@ -149,6 +149,14 @@ export function discordProfileData(profile: DiscordProfile) {
   return { name, image };
 }
 
+/**
+ * Where a notification mail may go (§5.17): a confirmed address, not one of the placeholders on
+ * ".invalid" (accounts from before Phase 7 until completed, deleted accounts); else null.
+ */
+export function deliverableEmail(user: { email: string; emailVerified: boolean }): string | null {
+  return user.emailVerified && !user.email.endsWith(".invalid") ? user.email : null;
+}
+
 /** The user, unless the account was deleted; for writes that must not touch a deleted account. */
 export function notDeletedUserWhere(userId: string) {
   return { id: userId, email: { not: deletedUserEmail(userId) } };

@@ -281,6 +281,59 @@ describe("deliverNotification: recipients", () => {
   });
 });
 
+/** A mail entry for the user (§5.17), queued by hand like the fan-out does. */
+async function queueMail(userId: string) {
+  const entityId = uid();
+  await queueNotifications(prisma, NOW, [
+    {
+      type: NotifType.VERIFICATION_RESULT,
+      channel: NotifChannel.USER_EMAIL,
+      entityId,
+      targetUserId: userId,
+      payload: { approved: true, rejectReason: null },
+    },
+  ]);
+  return find({ dedupeKey: { startsWith: `${NotifType.VERIFICATION_RESULT}:${entityId}:` } });
+}
+
+/** A user with a real, confirmed address (the test users have placeholders). */
+async function userWithMail() {
+  const user = await createUser();
+  const email = `ana.${uid()}@example.org`;
+  await prisma.user.update({ where: { id: user.id }, data: { email } });
+  return { ...user, email };
+}
+
+describe("deliverNotification: mails (§5.17)", () => {
+  it("sends a mail to the confirmed address", async () => {
+    const user = await userWithMail();
+    const notification = await queueMail(user.id);
+    const { sent, deliver } = recorder();
+    expect(await send(notification.id, NOW, deliver)).toBe("SENT");
+    expect(sent[0]).toMatchObject({
+      type: NotifType.VERIFICATION_RESULT,
+      recipient: { kind: "EMAIL", userId: user.id, email: user.email },
+    });
+  });
+
+  it("drops a mail without a deliverable address", async () => {
+    const placeholder = await createUser();
+    expect(await send((await queueMail(placeholder.id)).id)).toBe("CANCELLED");
+    const unconfirmed = await userWithMail();
+    await prisma.user.update({ where: { id: unconfirmed.id }, data: { emailVerified: false } });
+    expect(await send((await queueMail(unconfirmed.id)).id)).toBe("CANCELLED");
+  });
+
+  it("retries every mail error and never marks DMs as failed", async () => {
+    expect(classifyDeliveryError(NotifChannel.USER_EMAIL, 50007)).toBe("RETRY");
+    const user = await userWithMail();
+    const notification = await queueMail(user.id);
+    const { deliver } = recorder({ ok: false, code: null, error: "Greeting never received" });
+    expect(await send(notification.id, NOW, deliver)).toBe("RETRY");
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).dmFailedAt).toBeNull();
+  });
+});
+
 describe("deliverNotification: relevance (§6.1)", () => {
   it("sends APPLICATION_RECEIVED only while the request is open", async () => {
     const host = await createReadyTeam();

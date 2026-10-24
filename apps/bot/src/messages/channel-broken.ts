@@ -1,10 +1,13 @@
 import type { NotifType } from "@uni-scrims/db";
-import { type MessageOf, type MessageParts, plain } from "./common.ts";
+import { type MessageOf, type MessageParts, team, type TextFormat } from "./common.ts";
 
-export function channelBroken(message: MessageOf<typeof NotifType.CHANNEL_BROKEN>): MessageParts {
+export function channelBroken(
+  message: MessageOf<typeof NotifType.CHANNEL_BROKEN>,
+  f: TextFormat,
+): MessageParts {
   return {
     title: "Team-Channel getrennt",
-    description: `Der Bot kann nicht mehr in den Team-Channel von **${plain(message.payload.teamName)}** schreiben, darum wurde die Verknüpfung entfernt. Nachrichten kommen jetzt nur noch per DM. Mit \`/setup\` kannst du einen Channel neu verknüpfen.`,
+    description: `Der Bot kann nicht mehr in den Team-Channel von ${team(message.payload.teamName, f)} schreiben, darum wurde die Verknüpfung entfernt. Posts für das ganze Team gibt es erst wieder mit einem neuen Channel; persönliche Benachrichtigungen kommen weiter per DM oder Mail, wie in den Einstellungen gewählt. Mit ${f.code("/setup")} verknüpfst du einen Channel neu.`,
     link: { label: "Zum Team", path: "/team" },
   };
 }

@@ -1,15 +1,25 @@
 import { describeStart } from "@uni-scrims/core";
 import type { NotifType } from "@uni-scrims/db";
-import { type MessageOf, type MessageParts, plain, scrimFields, scrimLink } from "./common.ts";
+import {
+  type MessageOf,
+  type MessageParts,
+  scrimFields,
+  scrimLink,
+  team,
+  type TextFormat,
+} from "./common.ts";
 
-export function feedbackPrompt(message: MessageOf<typeof NotifType.FEEDBACK_PROMPT>): MessageParts {
-  const fields = scrimFields(message);
+export function feedbackPrompt(
+  message: MessageOf<typeof NotifType.FEEDBACK_PROMPT>,
+  f: TextFormat,
+): MessageParts {
+  const fields = scrimFields(message, f);
   if (message.feedbackDeadline) {
     fields.push({ name: "Feedback bis", value: describeStart(message.feedbackDeadline) });
   }
   return {
     title: "Wie lief euer Scrim?",
-    description: `Gebt auf der Scrim-Seite an, ob der Scrim gegen **${plain(message.payload.opponentTeamName)}** stattgefunden hat. Pro Team zählt eine Antwort.`,
+    description: `Gebt auf der Scrim-Seite an, ob der Scrim gegen ${team(message.payload.opponentTeamName, f)} stattgefunden hat. Pro Team zählt eine Antwort.`,
     fields,
     link: scrimLink(message, "Feedback geben"),
   };

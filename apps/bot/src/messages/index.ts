@@ -5,7 +5,14 @@ import type { NotifType } from "@uni-scrims/db";
 import { applicationReceived } from "./application-received.ts";
 import { applicationRejected } from "./application-rejected.ts";
 import { channelBroken } from "./channel-broken.ts";
-import { type MessageBody, type MessageOf, type MessageParts, render } from "./common.ts";
+import {
+  type MessageBody,
+  type MessageOf,
+  type MessageParts,
+  type TextFormat,
+  discordFormat,
+  render,
+} from "./common.ts";
 import { feedbackPrompt } from "./feedback-prompt.ts";
 import { reminder1h } from "./reminder-1h.ts";
 import { reminder24h } from "./reminder-24h.ts";
@@ -16,7 +23,7 @@ import { scrimCancelled } from "./scrim-cancelled.ts";
 import { verificationResult } from "./verification-result.ts";
 
 // A Record over all types, so a new type cannot be left without a message.
-const builders: { [T in NotifType]: (message: MessageOf<T>) => MessageParts } = {
+const builders: { [T in NotifType]: (message: MessageOf<T>, f: TextFormat) => MessageParts } = {
   VERIFICATION_RESULT: verificationResult,
   APPLICATION_RECEIVED: applicationReceived,
   APPLICATION_REJECTED: applicationRejected,
@@ -30,9 +37,14 @@ const builders: { [T in NotifType]: (message: MessageOf<T>) => MessageParts } = 
   CHANNEL_BROKEN: channelBroken,
 };
 
+/** The parts of a message in a format: Discord embeds and mails share their text (§5.17). */
+export function messageParts(message: OutboxMessage, f: TextFormat): MessageParts {
+  // The builder is picked by message.type, so it matches the message.
+  const build = builders[message.type] as (message: OutboxMessage, f: TextFormat) => MessageParts;
+  return build(message, f);
+}
+
 /** The Discord message body for an outbox message; links point to baseUrl (PUBLIC_BASE_URL). */
 export function buildMessage(message: OutboxMessage, baseUrl: string): MessageBody {
-  // The builder is picked by message.type, so it matches the message.
-  const build = builders[message.type] as (message: OutboxMessage) => MessageParts;
-  return render(message, build(message), baseUrl);
+  return render(message, messageParts(message, discordFormat), baseUrl);
 }

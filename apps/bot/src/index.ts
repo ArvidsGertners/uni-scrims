@@ -30,6 +30,11 @@ const token = requireEnv("DISCORD_BOT_TOKEN");
 const baseUrl = requirePublicBaseUrl();
 // /setup refuses the hub server by this ID (§6.4); without it, the hub could be linked unnoticed.
 requireEnv("HUB_GUILD_ID");
+// Notification mails (§5.17); outside production sendMail only logs or redirects them.
+if (process.env.NODE_ENV === "production") {
+  requireEnv("SMTP_HOST");
+  requireEnv("MAIL_FROM");
+}
 
 const LOGIN_RETRY_MS = 60 * 1000;
 

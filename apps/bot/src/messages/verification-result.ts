@@ -1,8 +1,9 @@
 import type { NotifType } from "@uni-scrims/db";
-import { type MessageOf, type MessageParts, plain } from "./common.ts";
+import { type MessageOf, type MessageParts, type TextFormat } from "./common.ts";
 
 export function verificationResult(
   message: MessageOf<typeof NotifType.VERIFICATION_RESULT>,
+  f: TextFormat,
 ): MessageParts {
   const { approved, rejectReason } = message.payload;
   if (approved) {
@@ -16,7 +17,7 @@ export function verificationResult(
     title: "Verifizierung abgelehnt",
     description:
       "Deine Immatrikulationsbescheinigung wurde abgelehnt. Du kannst eine neue hochladen.",
-    fields: rejectReason ? [{ name: "Grund", value: plain(rejectReason) }] : [],
+    fields: rejectReason ? [{ name: "Grund", value: f.text(rejectReason) }] : [],
     link: { label: "Neu hochladen", path: "/verify" },
   };
 }
