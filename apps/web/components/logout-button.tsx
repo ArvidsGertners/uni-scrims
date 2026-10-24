@@ -17,7 +17,11 @@ export function LogoutButton({
       type="button"
       className={className}
       onClick={async () => {
-        await authClient.signOut();
+        const { error } = await authClient.signOut();
+        if (error) {
+          window.alert("Abmelden hat nicht geklappt. Bitte versuch es erneut.");
+          return;
+        }
         if (redirectTo) {
           window.location.assign(redirectTo);
           return;

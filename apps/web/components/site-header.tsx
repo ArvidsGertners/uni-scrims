@@ -7,17 +7,22 @@ import { isAdminHost, mainUrl } from "@/lib/admin-url";
 import { headerUser } from "@/lib/header-user";
 import { cn } from "@/lib/utils";
 
+const WORDMARK_CLASS =
+  "font-display text-[18px] font-extrabold tracking-[0.04em] whitespace-nowrap uppercase";
+
 function Logo({ href, admin = false }: { href: string; admin?: boolean }) {
   return (
     <Link href={href} className="flex items-center gap-2.5 text-foreground">
-      <span aria-hidden className="h-5 w-2.5 -skew-x-14 bg-primary" />
-      <span className="font-display text-[18px] font-extrabold tracking-[0.04em] whitespace-nowrap uppercase">
-        Uni Scrims
-      </span>
-      {/* The admin header has two more controls; small phones drop the label (§5.13). */}
+      <span aria-hidden className="h-5 w-2.5 shrink-0 -skew-x-14 bg-primary" />
       {admin ? (
-        <span className="type-label text-muted-foreground max-[399px]:hidden">Admin</span>
-      ) : null}
+        // Two more controls on the right: on small phones the label goes below the wordmark.
+        <span className="flex items-center gap-2.5 max-[399px]:flex-col max-[399px]:items-start max-[399px]:gap-0.5">
+          <span className={cn(WORDMARK_CLASS, "max-[359px]:text-[16px]")}>Uni Scrims</span>
+          <span className="type-label leading-none text-muted-foreground">Admin</span>
+        </span>
+      ) : (
+        <span className={WORDMARK_CLASS}>Uni Scrims</span>
+      )}
     </Link>
   );
 }
@@ -26,19 +31,19 @@ function Logo({ href, admin = false }: { href: string; admin?: boolean }) {
 function AdminHeader({ signedIn }: { signedIn: boolean }) {
   return (
     <header className="border-b border-border bg-background">
-      <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-5 sm:px-8">
+      <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
         <Logo href="/" admin />
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 max-[359px]:gap-0">
           <a
             href={mainUrl("/scrims")}
-            className="type-btn flex h-9 items-center px-2.5 text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-foreground max-[359px]:hidden"
+            className="type-btn flex h-9 items-center px-2.5 text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-foreground max-[359px]:px-1.5"
           >
             Zur Seite
           </a>
           {signedIn ? (
             <LogoutButton
               redirectTo={mainUrl("/")}
-              className="type-btn ml-1 h-9 cursor-pointer rounded-sm border border-border-strong px-3 text-[13px] font-semibold whitespace-nowrap text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+              className="type-btn ml-1 h-9 cursor-pointer rounded-sm border border-border-strong px-3 text-[13px] font-semibold whitespace-nowrap text-muted-foreground hover:border-muted-foreground hover:text-foreground max-[359px]:ml-0 max-[359px]:px-2"
             />
           ) : null}
         </div>

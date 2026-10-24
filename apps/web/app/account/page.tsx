@@ -266,8 +266,9 @@ export default async function AccountPage({
         </section>
       ) : null}
 
-      {user.staffRole ? (
-        // Replaces the former nav tab: the admin area has its own address (§5.13).
+      {user.staffRole && !account.banned && !account.setupStep ? (
+        // Replaces the former nav tab: the admin area has its own address (§5.13). Like there, only
+        // for active accounts (requireStaffMember).
         <section className={cardClass}>
           <h2 className="type-label text-muted-foreground">Admin-Bereich</h2>
           <p className="text-[14px] text-pretty text-muted-foreground">

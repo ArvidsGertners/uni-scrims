@@ -4,7 +4,7 @@
 
 type AdminPath = `/${string}`;
 
-function mainURL(): URL {
+function mainBaseURL(): URL {
   return new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000");
 }
 
@@ -13,7 +13,7 @@ export function adminOrigin(): string | null {
   const value = process.env.ADMIN_URL;
   if (!value) return null;
   const admin = new URL(value);
-  const main = mainURL();
+  const main = mainBaseURL();
   if (!admin.hostname.endsWith(`.${main.hostname}`) || admin.protocol !== main.protocol) {
     throw new Error(`ADMIN_URL ${value} must be a subdomain of BETTER_AUTH_URL ${main.origin}`);
   }
@@ -34,7 +34,7 @@ export function adminUrl(path: AdminPath): string {
 
 /** For links from the admin area back to the main host; a plain path without ADMIN_URL. */
 export function mainUrl(path: string): string {
-  return adminOrigin() ? `${mainURL().origin}${path}` : path;
+  return adminOrigin() ? `${mainBaseURL().origin}${path}` : path;
 }
 
 /**
@@ -42,7 +42,7 @@ export function mainUrl(path: string): string {
  * session and the flash message must survive the way between them.
  */
 export function sharedCookieDomain(): string | null {
-  return adminOrigin() ? mainURL().hostname : null;
+  return adminOrigin() ? mainBaseURL().hostname : null;
 }
 
 /** Whether a request's Host header names the admin host. */

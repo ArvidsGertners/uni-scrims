@@ -153,10 +153,10 @@ Mit `ADMIN_URL` (z. B. `https://admin.uniscrims.com`, eine Subdomain von `BETTER
 Einmalig beim Deploy von Phase 13, als root und vor dem Eintrag in der `.env`:
 
 1. DNS (Cloudflare): A-Record `admin` auf die Server-IP, wie die Hauptadresse „DNS only“.
-2. Zertifikat für beide Namen: `certbot --nginx --expand -d <domain> -d admin.<domain>`; im vHost steht `admin.<domain>` mit in beiden `server_name` (siehe „Variante: Server mit vorhandenem nginx“), dann `nginx -t && systemctl reload nginx`. Mit Caddy reicht der DNS-Eintrag, das Caddyfile bedient beide Namen.
+2. Zertifikat für beide Namen: `certbot --nginx --expand -d <domain> -d admin.<domain>`; im vHost steht `admin.<domain>` mit in beiden `server_name` (siehe „Variante: Server mit vorhandenem nginx“), dann `nginx -t && systemctl reload nginx`. Mit Caddy reicht der DNS-Eintrag, das Caddyfile bedient fest `<domain>` und `admin.<domain>` (`ADMIN_URL` ist dann `https://admin.<domain>`; ohne DNS-Eintrag scheitert das Zertifikat für `admin.` im Log).
 3. `ADMIN_URL=https://admin.<domain>` in die `.env`, dann `dc up -d --build`.
 
-Die Cookies heißen ab Phase 13 anders (`uni-scrims.*`), damit sie für beide Adressen gelten: Nach dem Deploy sind alle einmal abgemeldet. Das Session-Cookie geht an jede Subdomain der Hauptadresse; lass deshalb keine Subdomain auf einen fremden Dienst zeigen.
+Mit `ADMIN_URL` heißen die Cookies anders (`uni-scrims.*` statt `better-auth.*`) und gelten für beide Adressen: Nach dem Deploy mit `ADMIN_URL` (und nach jedem späteren Ein- oder Ausschalten) sind alle einmal abgemeldet. Das Session-Cookie geht an jede Subdomain der Hauptadresse; lass deshalb keine Subdomain auf einen fremden Dienst zeigen.
 
 Mit `ADMIN_URL` darf der Web-Server nicht an `127.0.0.1` gebunden sein (siehe Prüfpunkt 1); das Image bindet `0.0.0.0`. Lokal (`DEV_HOST=127.0.0.1`) deshalb ohne `ADMIN_URL` arbeiten; der Admin-Bereich liegt dann unter `/admin`.
 

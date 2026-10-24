@@ -136,11 +136,15 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    // A new name since Phase 13, so no older host-only cookie of the same name shadows the shared
-    // one; everybody signs in once more.
-    cookiePrefix: "uni-scrims",
-    // All Better Auth cookies, also the one of a pending 2FA login, for both hosts.
-    ...(cookieDomain ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } } : {}),
+    // All Better Auth cookies, also the one of a pending 2FA login, for both hosts. Under their own
+    // name, so no host-only cookie of the same name shadows them when ADMIN_URL is switched on or
+    // off; everybody signs in once more then.
+    ...(cookieDomain
+      ? {
+          cookiePrefix: "uni-scrims",
+          crossSubDomainCookies: { enabled: true, domain: cookieDomain },
+        }
+      : {}),
     // nginx and Caddy overwrite this header with the client address (ARCHITECTURE §8).
     ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
     // One long-running web process: the mail promise just runs on; Better Auth logs failures.

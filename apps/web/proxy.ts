@@ -12,6 +12,14 @@ function withoutAdminPrefix(pathname: string): string | null {
   return pathname.startsWith("/admin/") ? pathname.slice("/admin".length) : null;
 }
 
+/** Always on the admin host: the path is set, not joined, so "//host" stays a path. */
+function adminRedirect(origin: string, pathname: string, search: string) {
+  const url = new URL(origin);
+  url.pathname = pathname;
+  url.search = search;
+  return NextResponse.redirect(url);
+}
+
 export function proxy(request: NextRequest) {
   const origin = adminOrigin();
   if (!origin) return NextResponse.next();
@@ -19,14 +27,14 @@ export function proxy(request: NextRequest) {
   const stripped = withoutAdminPrefix(pathname);
 
   if (isAdminHost(request.headers.get("host"))) {
-    if (stripped !== null) return NextResponse.redirect(new URL(stripped + search, origin));
+    if (stripped !== null) return adminRedirect(origin, stripped, search);
     if (ADMIN_HOST_PASSTHROUGH.has(pathname)) return NextResponse.next();
     // Also server action POSTs and RSC requests, so the admin pages work as before.
     const target = request.nextUrl.clone();
     target.pathname = pathname === "/" ? "/admin" : `/admin${pathname}`;
     return NextResponse.rewrite(target);
   }
-  if (stripped !== null) return NextResponse.redirect(new URL(stripped + search, origin));
+  if (stripped !== null) return adminRedirect(origin, stripped, search);
   return NextResponse.next();
 }
 

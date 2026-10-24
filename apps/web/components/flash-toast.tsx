@@ -9,8 +9,10 @@ export function FlashToast({ message, domain }: { message: string; domain: strin
   const [visible, setVisible] = useState(true);
   useEffect(() => {
     // Shown once: the next page render must not find it again.
-    // Set for both hosts with ADMIN_URL (lib/flash.ts), so deleted with the same domain.
-    document.cookie = `${FLASH_COOKIE}=; Max-Age=0; path=/${domain ? `; domain=${domain}` : ""}`;
+    // Set for both hosts with ADMIN_URL (lib/flash.ts), so deleted with that domain too; also
+    // host-only, in case ADMIN_URL was switched on within the last minute.
+    document.cookie = `${FLASH_COOKIE}=; Max-Age=0; path=/`;
+    if (domain) document.cookie = `${FLASH_COOKIE}=; Max-Age=0; path=/; domain=${domain}`;
     const timer = setTimeout(() => setVisible(false), 3500);
     return () => clearTimeout(timer);
   }, [domain]);

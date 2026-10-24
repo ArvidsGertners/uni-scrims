@@ -63,6 +63,17 @@ describe("proxy with ADMIN_URL (§5.13)", () => {
     );
   });
 
+  it("keeps redirects on the admin host, also for a path starting with two slashes", () => {
+    for (const url of [
+      "https://uniscrims.com/admin//evil.com",
+      "https://admin.uniscrims.com/admin//evil.com",
+    ]) {
+      const target = new URL(redirectTarget(proxy(request(url)))!);
+      expect(target.origin, url).toBe("https://admin.uniscrims.com");
+      expect(target.pathname, url).toBe("//evil.com");
+    }
+  });
+
   it("sends /admin on the main host to the admin host", () => {
     expect(redirectTarget(proxy(request("https://uniscrims.com/admin/bans?q=ana")))).toBe(
       "https://admin.uniscrims.com/bans?q=ana",

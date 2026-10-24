@@ -63,7 +63,12 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
 
   return (
     <PageMain className="gap-7">
-      <BackLink href="/scrims">Zurück zum Board</BackLink>
+      {/* The own requests are in the Anfragen tab, not on the board (SPEC N-9). */}
+      {ownRequest ? (
+        <BackLink href="/scrims?tab=anfragen">Zurück zu euren Anfragen</BackLink>
+      ) : (
+        <BackLink href="/scrims">Zurück zum Board</BackLink>
+      )}
 
       <div className="flex items-center gap-4">
         <TeamAvatar team={team} size="lg" own={ownRequest} />

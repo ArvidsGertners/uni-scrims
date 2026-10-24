@@ -5,6 +5,8 @@ import { config } from "dotenv";
 // Only workers may trust an env already switched by the global setup; the global setup always checks.
 export function loadTestEnv({ trustInherited }: { trustInherited: boolean }): void {
   config({ path: path.resolve(import.meta.dirname, "../.env"), quiet: true });
+  // The admin host (ARCHITECTURE §5.13) only where a test switches it on itself.
+  delete process.env.ADMIN_URL;
   const testUrl = process.env.DATABASE_URL_TEST;
   if (!testUrl) {
     throw new Error("DATABASE_URL_TEST is not set");
