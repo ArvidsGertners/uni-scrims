@@ -327,13 +327,13 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Wie bisher geht die Auskunft auch formlos per Mail an die Adresse aus dem Impressum.
 
 **N-6 Team-Logo** (Phase 10)
-- [ ] Der Captain kann auf der Team-Seite ein Logo hochladen, ersetzen und entfernen (auch ohne eigene Verifizierung, wie die übrigen Teamdaten). Nicht in einem gesperrten Team.
-- [ ] Erlaubt sind PNG und WebP mit Alphakanal (durchsichtiger Hintergrund möglich), höchstens 2 MB und 4096 × 4096 Pixel, nicht animiert (auch kein animiertes PNG). Andere Formate und Bilder ohne Alphakanal werden mit einem Hinweis abgelehnt. Bilder mit EXIF-Ausrichtung werden so aufrecht gedreht, wie Bildbetrachter sie zeigen. Höchstens 5 Uploads pro Minute; laufen gerade viele, kommt „Bitte versuch es gleich noch einmal“. Ob die Fläche wirklich durchsichtig ist, wird nicht geprüft.
-- [ ] Der Server schneidet durchsichtige Ränder ab (Pixel mit Deckkraft bis 8 von 255 zählen als durchsichtig) und setzt das Logo mittig in ein Quadrat von 256 × 256 Pixeln, vergrößert oder verkleinert. Die längere Seite füllt das Quadrat, also berührt das Logo immer mindestens zwei gegenüberliegende Ränder. Ein komplett durchsichtiges Bild und ein Inhalt, dessen längere Seite kürzer als 128 Pixel ist, werden abgelehnt.
-- [ ] Gespeichert wird nur das neu erzeugte Bild (WebP, verlustfrei, ohne Metadaten), nicht die hochgeladene Datei.
-- [ ] Das Logo erscheint überall, wo bisher das Kürzel-Quadrat steht (Board, Anfrage mit Bewerbungen, Meine Scrims, Team-Seite, Einladungsseite); ohne Logo bleibt das Kürzel. Sehen können es alle eingeloggten, nicht gesperrten Nutzer, wie Teamnamen.
-- [ ] Admins können ein Logo auf der Seite „Sperren“ entfernen, und zwar nur das, das sie dort gesehen haben (hat der Captain inzwischen ein neues hochgeladen, kommt ein Hinweis). Beim Auflösen eines Teams wird sein Logo gelöscht; bei einer Sperre bleibt es, bis ein Admin es entfernt.
-- [ ] Die Datenauskunft nennt beim Team, seit wann es ein Logo hat; das Bild selbst ist Teamdaten ohne Personenbezug und steht nicht in der Datei.
+- [x] Der Captain kann auf der Team-Seite ein Logo hochladen, ersetzen und entfernen (auch ohne eigene Verifizierung, wie die übrigen Teamdaten). Nicht in einem gesperrten Team.
+- [x] Erlaubt sind PNG und WebP mit Alphakanal (durchsichtiger Hintergrund möglich), höchstens 2 MB und 4096 × 4096 Pixel, nicht animiert (auch kein animiertes PNG). Andere Formate und Bilder ohne Alphakanal werden mit einem Hinweis abgelehnt. Bilder mit EXIF-Ausrichtung werden so aufrecht gedreht, wie Bildbetrachter sie zeigen. Höchstens 5 Uploads pro Minute; laufen gerade viele, kommt „Bitte versuch es gleich noch einmal“. Ob die Fläche wirklich durchsichtig ist, wird nicht geprüft.
+- [x] Der Server schneidet durchsichtige Ränder ab (Pixel mit Deckkraft bis 8 von 255 zählen als durchsichtig) und setzt das Logo mittig in ein Quadrat von 256 × 256 Pixeln, vergrößert oder verkleinert. Die längere Seite füllt das Quadrat, also berührt das Logo immer mindestens zwei gegenüberliegende Ränder. Ein komplett durchsichtiges Bild und ein Inhalt, dessen längere Seite kürzer als 128 Pixel ist, werden abgelehnt.
+- [x] Gespeichert wird nur das neu erzeugte Bild (WebP, verlustfrei, ohne Metadaten), nicht die hochgeladene Datei.
+- [x] Das Logo erscheint überall, wo bisher das Kürzel-Quadrat steht (Board, Anfrage mit Bewerbungen, Meine Scrims, Team-Seite, Einladungsseite); ohne Logo bleibt das Kürzel. Sehen können es alle eingeloggten, nicht gesperrten Nutzer, wie Teamnamen.
+- [x] Admins können ein Logo auf der Seite „Sperren“ entfernen, und zwar nur das, das sie dort gesehen haben (hat der Captain inzwischen ein neues hochgeladen, kommt ein Hinweis). Beim Auflösen eines Teams wird sein Logo gelöscht; bei einer Sperre bleibt es, bis ein Admin es entfernt.
+- [x] Die Datenauskunft nennt beim Team, seit wann es ein Logo hat; das Bild selbst ist Teamdaten ohne Personenbezug und steht nicht in der Datei.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
