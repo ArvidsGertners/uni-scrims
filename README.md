@@ -135,6 +135,17 @@ Die Prüfpunkte aus ARCHITECTURE §11 Phase 8, nachgewiesen in `apps/web/test/au
 2. **Einrichten:** `enableTwoFactor` braucht das Passwort und legt Schlüssel und Backup-Codes verschlüsselt an (`verified = false`); erst `verifyTOTP` mit Session setzt `twoFactorEnabled` und tauscht die Session aus. Dieses Einschalten löst `databaseHooks.user.update.after` mit `ctx.path = "/two-factor/verify-totp"` aus; `finishTwoFactorSetup` beendet dort alle Sitzungen. Bei der Anmeldung mit Code ändert das Plugin den User nicht.
 3. **Staff-Sessions nur aus Passwort und Code:** Das Plugin fragt den Code nur bei `/sign-in/email`. `databaseHooks.session.create.before` sieht den Endpunkt in `ctx.path` (beim Discord-Login `/callback/:id`, beim Link zur neuen Adresse `/verify-email`) und lässt Staff nur unter der Allowlist in `auth-paths.ts` durch. Sonst wirft er eine Weiterleitung: Der Discord-Callback reicht sie durch (`/login?error=staff_discord`), `/verify-email` ebenso (`/login?error=staff_link`), und es entsteht keine Session; die Adresse bleibt unverändert. Discord verknüpfen legt keine Session an und geht weiter.
 
+## Discord-Profilbilder (ab Phase 12)
+
+Der Server speichert eine Kopie des Discord-Profilbilds beim Verknüpfen und bei jeder Anmeldung über Discord (ARCHITECTURE §5.12); der Browser lädt nie etwas von Discord. Für Konten, die schon vor Phase 12 verknüpft waren, holt ein Skript die Bilder einmal nach (nacheinander, Ausgabe: geladen, übersprungen, gescheitert):
+
+```sh
+# Production, einmal nach dem Deploy von Phase 12
+dc run --rm --no-deps -T bot node --import tsx src/scripts/backfill-avatars.ts </dev/null
+# lokal
+pnpm --filter @uni-scrims/bot backfill-avatars
+```
+
 ## Dev-Login
 
 Mit `NODE_ENV=development` und `DEV_LOGIN=true` gibt es unter `/dev-login` eine Liste der Seed-Nutzer. Ein Klick loggt dich ohne Discord als dieser Nutzer ein. So kannst du zwei Teams parallel testen (normales und privates Fenster). In Production ist die Seite aus, und der Endpoint `/api/auth/dev/sign-in` antwortet mit 404.

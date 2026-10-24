@@ -184,7 +184,8 @@ University
   id, name, city, slug (unique)
 
 User                                     # Better-Auth-Tabelle "user" + zusätzliche Felder
-  id, name, image                         # Better-Auth-Standardfelder (Username, Avatar)
+  id, name, image                         # Better-Auth-Standardfelder (Username, Avatar-URL bei Discord; wird nie im Browser geladen)
+  avatarUpdatedAt?                        # Phase 12: Zeitpunkt der Kopie des Profilbilds, null = keine; Version in der Bild-URL
   email                                   # bis Phase 6 Platzhalter (§5.1); ab Phase 7 die echte, bestätigte Adresse (§5.8),
                                           # Platzhalter nur noch bei Altkonten bis zum Vervollständigen und bei gelöschten Konten
   emailVerified                           # Better-Auth-Feld; ab Phase 7 Voraussetzung für alles außer der Konto-Seite
@@ -231,6 +232,11 @@ Team
   bannedAt?, dissolvedAt?, createdAt
   logoUpdatedAt?                          # letzte Änderung an einem Logo, null = kein Logo; Version in den Logo-URLs (Phase 10, ab 11 für beide Logos)
   ⚑ Team-Zustand: aktiv (beide null) | gesperrt (bannedAt) | aufgelöst (dissolvedAt). Gesperrt und aufgelöst sind im MVP final.
+
+UserAvatar                                # Phase 12, eigene Tabelle, damit requireUser (ganze User-Zeile) keine Bilddaten lädt
+  userId ──► User (PK)
+  data (Bytes)                            # 128×128-WebP, vom Server aus Discords Profilbild erzeugt (§5.12)
+  ⚑ Es gibt genau dann eine Zeile, wenn User.avatarUpdatedAt gesetzt ist.
 
 TeamLogo                                  # Phase 10, eigene Tabelle, damit die ~40 Lesepfade mit ganzer Team-Zeile keine Bilddaten laden
   teamId ──► Team, background (LogoBackground, default DARK)   # PK (teamId, background), ab Phase 11 je ein Logo pro Hintergrund
@@ -531,7 +537,7 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 
 **Abschnitte:**
 - `hinweis`, `erstelltAm`: was die Datei ist, Verweis auf die Datenschutzerklärung (Zwecke, Empfänger, Speicherdauer, Rechte) und was fehlt
-- `konto`: Konto-ID, Discord-Name (ohne Discord-Verknüpfung `null`, statt des Platzhalters „Neues Konto“), Avatar-URL, E-Mail und ob bestätigt (bei Altkonten `null`, statt des internen Platzhalters, wie auf der Konto-Seite), Vor- und Nachname, Hochschule bzw. Freitext, Zeitpunkte (angelegt, geändert, verifiziert, gesperrt, Hub-Beitritt bzw. DM gescheitert), Rolle, ob 2FA eingerichtet ist, Fehlversuche und Sperre der 2FA (Phase 8)
+- `konto`: Konto-ID, Discord-Name (ohne Discord-Verknüpfung `null`, statt des Platzhalters „Neues Konto“), Avatar-URL, ab Phase 12 die Kopie des Profilbilds als `data:`-URL und ihr Zeitpunkt, E-Mail und ob bestätigt (bei Altkonten `null`, statt des internen Platzhalters, wie auf der Konto-Seite), Vor- und Nachname, Hochschule bzw. Freitext, Zeitpunkte (angelegt, geändert, verifiziert, gesperrt, Hub-Beitritt bzw. DM gescheitert), Rolle, ob 2FA eingerichtet ist, Fehlversuche und Sperre der 2FA (Phase 8)
 - `anmeldung`: Discord-ID und wann verknüpft, ob ein Passwort gespeichert ist und wann es zuletzt geändert wurde, offene Links und laufende Anmeldungen aus `verification` (Zeilen mit der User-ID als Wert) nur mit Art und Ablauf
 - `sitzungen`: je Session angelegt, zuletzt verlängert (`updatedAt`; Better Auth schreibt die Zeile nur beim Verlängern, nicht bei jeder Nutzung), läuft ab, IP-Adresse, User-Agent
 - `prüfungen`: je `VerificationRequest` hochgeladen, Status, entschieden, „von Hand“ oder „automatisch“ (`decidedById` gesetzt, nicht wer), Ablehnungsgrund, Dateityp und -größe, Hochschule bzw. Freitext, ob die Datei noch gespeichert ist (geprüft im Upload-Ordner, weil nach einem Restore `filePath` auf eine fehlende Datei zeigen kann, §8)
@@ -576,6 +582,19 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 - Route `GET /api/teams/[id]/logo?bg=dark|light&v=<version>`; ein unbekanntes `bg` gibt 404, die Cache-Regel bleibt.
 - `TeamAvatar`: mit beiden Logos ein `<picture>` mit `<source media="(prefers-color-scheme: light)">` für `LIGHT` und `<img>` für `DARK`, der Browser wählt ohne JavaScript. Mit nur einem Logo dieses, im anderen Modus auf einem Kästchen in der Farbe, für die es gemacht ist, mit etwas Innenabstand: Die Tokens `--logo-tile-dark`/`--logo-tile-light` sind in beiden Modi gleich, die Varianten `light:`/`dark:` (Media-Queries) legen das Kästchen nur im unpassenden Modus an. Dieselben Flächen tragen die Vorschau `TeamLogoPreview` auf Team-Seite und `/admin/bans`, unabhängig vom Modus. Team-Seite: zwei Felder „Logo für dunklen Hintergrund“ und „Logo für hellen Hintergrund“ mit Vorschau auf passender Fläche. `/admin/bans` zeigt beide Logos, jedes auf seiner Fläche.
 - Datenauskunft: beim Team `logosGeändertAm` (letzte Änderung an einem Logo, bis Phase 10 `logoSeit`) und `logos` mit den Hintergründen der vorhandenen Logos.
+
+### 5.12 Discord-Profilbilder (ab Phase 12)
+
+**Laden:** `handleDiscordLogin` (§5.1) bekommt neben `joinHub` einen zweiten übergebenen Discord-Aufruf `fetchAvatar(url)` und ruft nach dem Hub-Beitritt `syncDiscordAvatar` auf (nicht für gesperrte und gelöschte Konten). Das Web stellt `fetchAvatar` in `apps/web/lib/discord-avatar.ts` bereit, das Backfill-Skript im Bot dieselbe Funktion: `fetch` mit 3 s Timeout und höchstens 1 MB Antwort.
+- `syncDiscordAvatar` liest `User.image`. Nur echte Profilbilder (`https://cdn.discordapp.com/avatars/<discordId>/<hash>.<png|gif>`) werden geladen, als `…/<hash>.png?size=128` (animierte damit als Standbild). Bei einem Standardbild (`embed/avatars/n.png`) oder ohne Bild wird eine vorhandene Kopie gelöscht.
+- `processDiscordAvatar` prüft die Antwort wie ein Logo (Typ aus den ersten Bytes: PNG, WebP, JPEG, GIF; höchstens 1024 × 1024 Pixel) und erzeugt mit `sharp` ein 128 × 128 WebP (`fit: "cover"`, ohne Metadaten). Es läuft durch dieselbe Warteschlange wie die Team-Logos.
+- Jeder Fehler (Netz, Timeout, Discord-Antwort, Bild) wird geloggt und behält die alte Kopie; Login und Verknüpfen laufen weiter.
+
+**Backfill:** `backfillDiscordAvatars(fetchAvatar, now)` holt für alle nicht gelöschten, nicht gesperrten Konten mit echter Bild-URL und ohne Kopie das Bild nach, nacheinander mit 200 ms Pause; Skript `apps/bot/src/scripts/backfill-avatars.ts`, einmal beim Deploy von Phase 12 (README).
+
+**Ansehen:** `getUserAvatar({ viewerId, userId })`: die Person selbst (`requireAccountUser`, also auch gesperrt), sonst nur ein nicht gesperrter Nutzer im selben aktiven Team (`findOwnTeam` beider) oder Staff mit Zugang zur Queue (`requireStaff(…, STAFF_AREAS.queue)`). Alle anderen und fehlende Bilder bekommen `NOT_FOUND`, damit sich nicht erraten lässt, wer ein Bild hat. Route `GET /api/users/[id]/avatar?v=<version>` mit denselben Headern und Cache-Regeln wie das Team-Logo (§5.11). Die Lesefunktionen liefern `avatarVersion`: `getAccount`, die Mitglieder in `getMyTeam`, `listPendingVerifications`. Web: `UserAvatar` (Kreis mit Bild, sonst Initialen) auf Konto-Seite, Team-Seite und Queue.
+
+**Löschen:** `deletedUserData` setzt `avatarUpdatedAt = null`, `deleteAccount` löscht die `UserAvatar`-Zeile in seiner Transaktion. Sperr-Platzhalter haben nie eine Kopie.
 
 ---
 
@@ -692,6 +711,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Ab Phase 10: Team-Logo hochladen, ersetzen, entfernen | aktueller Captain eines nicht gesperrten Teams (Verifizierung nicht nötig) |
 | Ab Phase 10: Team-Logo ansehen (`/api/teams/[id]/logo`) | eingeloggt, nicht gesperrt (wie Team-Karten) |
 | Ab Phase 10: Team-Logo entfernen (Moderation, `/admin/bans`) | Admin, Betreiber, mit 2FA |
+| Ab Phase 12: Profilbild ansehen (`/api/users/[id]/avatar`) | die Person selbst (auch gesperrt), Mitglieder desselben Teams, Prüfer, Admins, Betreiber mit 2FA |
 
 `leaveTeam` funktioniert für Nicht-Captains auch in gesperrten Teams. Nach Verlassen oder Auflösen sind vergangene Scrims für ehemalige Mitglieder nicht mehr sichtbar (gewollt).
 - **Zeit:** Eingabe im Formular in Europe/Berlin, Umrechnung nach UTC in `core`. Keine Zeitlogik im Browser.
@@ -929,3 +949,11 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Datenschutzerklärung: der Absatz zum Team-Logo nennt beide Logos (Dev-Kopie und Production)
 - *Fertig wenn:* Mit hellem System-Design ist die ganze Seite hell und gut lesbar, mit dunklem unverändert (Screenshot-Vergleich); der Captain lädt je ein Logo für dunklen und hellen Hintergrund hoch, und jeder Modus zeigt das passende; fehlt eins, steht das andere auf einem passenden Kästchen; Tests, Lint und Build sind grün.
 - *Stand (24.10.2026):* abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`, dazu ein `next build`), Review samt Fixes (`bg` der Route über eine Map, Hintergrund auch beim Abruf geprüft, Entfernen eines fehlenden Logos ändert nichts, Schrittnummern im hellen Modus mit 4,5:1, Formulare pro Logo, Feld `logosGeändertAm`); Screenshot-Durchgang über 49 Ansichten: dunkel pixelgleich zu vorher (außer den gewollt geänderten Inhalten Team-Seite und Datenschutzerklärung), hell geprüft; beide Logos in beiden Modi im Browser gegen eine Wegwerf-DB, auch ein Logo aus Phase 10 nach der Migration. Seit dem 24.10.2026 auch in Production (Migration `logo_background`, das vorhandene Logo wurde zum Logo für dunklen Hintergrund), mit dem geänderten Absatz zum Team-Logo in der Datenschutzerklärung.
+
+**Phase 12: Discord-Profilbilder** (SPEC N-8, §5.12)
+- Schema: `User.avatarUpdatedAt`, Tabelle `UserAvatar` (Migration, alles nullable bzw. neu)
+- `core`: `processDiscordAvatar`, `syncDiscordAvatar` (aus `handleDiscordLogin`), `getUserAvatar`, `backfillDiscordAvatars`; `avatarVersion` in `getAccount`, `getMyTeam`, `listPendingVerifications`; Löschen in `deleteAccount`; Datenauskunft. Tests: Kopie als 128×128 WebP, Standardbild löscht, Fehler behält, fremde Adresse wird nicht geladen, Rechte (selbst, Teamkollege, Staff, Fremder), Löschen, Auskunft, Backfill lädt nur Fehlendes
+- Web: `fetchAvatar` an `handleDiscordLogin`, Route `GET /api/users/[id]/avatar`, `UserAvatar` auf Konto-Seite, Team-Seite und Queue
+- Bot: Skript `backfill-avatars` (README), beim Deploy einmal ausführen
+- Datenschutzerklärung: Kopie des Profilbilds, wer es sieht (Dev-Kopie; beim Deploy nach Production)
+- *Fertig wenn:* Konto-Seite, Team-Seite und Queue zeigen die Kopie des Profilbilds, ohne dass der Browser etwas von Discord lädt; ohne Bild stehen Initialen; nach dem Löschen ist die Kopie weg; Tests, Lint und Build sind grün.

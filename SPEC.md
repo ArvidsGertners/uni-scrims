@@ -90,6 +90,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 26. Als Nutzer will ich alle Daten, die Uni Scrims zu meinem Konto speichert, selbst herunterladen können, ohne erst eine Mail zu schreiben.
 27. Als Captain will ich ein Logo für unser Team hochladen, damit andere Teams uns auf dem Board und in ihren Scrims sofort erkennen.
 28. Als Nutzer will ich die Seite hell sehen, wenn mein Gerät hell eingestellt ist, und als Captain dafür ein eigenes Logo für hellen Hintergrund hochladen.
+29. Als Spieler will ich mein Discord-Profilbild und das meiner Teamkollegen sehen, ohne dass mein Browser dafür Daten an Discord schickt.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -343,6 +344,14 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Admins sehen auf der Seite „Sperren“ beide Logos und entfernen mit „Logo entfernen“ beide, nur wenn sie den aktuellen Stand gesehen haben (wie in N-6).
 - [x] Die Datenauskunft nennt zusätzlich, für welche Hintergründe das Team Logos hat.
 
+**N-8 Discord-Profilbilder** (Phase 12)
+- [ ] Beim Verknüpfen mit Discord und bei jeder Anmeldung über Discord lädt der Server das Profilbild einmal von Discord und speichert eine Kopie (128 × 128 Pixel, neu erzeugt, ohne Metadaten). Animierte Bilder werden als Standbild gespeichert. Discords Standardbilder speichern wir nicht; wer zu einem Standardbild wechselt, verliert die Kopie.
+- [ ] Die Seite zeigt nur diese Kopie: auf der Konto-Seite, in der Mitgliederliste der Team-Seite und in der Prüf-Queue. Kein Browser lädt etwas von Discord. Ohne Kopie stehen wie bisher die Initialen.
+- [ ] Sehen dürfen das Bild die Person selbst, Mitglieder desselben Teams sowie Prüfer, Admins und der Betreiber; alle anderen nicht.
+- [ ] Scheitert das Laden, bleibt die alte Kopie; Anmeldung und Verknüpfen laufen immer weiter. Ein neues Bild auf Discord erscheint erst nach dem nächsten Verknüpfen oder der nächsten Anmeldung über Discord.
+- [ ] Beim Deploy holt ein einmaliges Skript die Bilder der schon verknüpften Konten nach.
+- [ ] Kontolöschung löscht die Kopie. Die Datenauskunft enthält das Bild selbst und den Zeitpunkt der Kopie.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -461,6 +470,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 9 | Datenauskunft per Knopfdruck (N-5) | Ein Nutzer lädt auf der Konto-Seite seine Daten herunter; die Datei enthält alle Abschnitte, aber keine Zugangsdaten und keine Daten anderer Personen |
 | 10 | Team-Logo (N-6) | Ein Captain lädt ein PNG mit durchsichtigem Rand hoch; es erscheint zugeschnitten überall statt des Kürzels; JPEG und Bilder ohne Alphakanal werden abgelehnt; ein Admin kann es entfernen, und beim Auflösen verschwindet es |
 | 11 | Hell-Modus und Logo pro Hintergrund (N-7) | Mit hellem System-Design ist die ganze Seite hell und gut lesbar, mit dunklem unverändert; jeder Modus zeigt das passende Logo, fehlt eins, steht das andere auf einem passenden Kästchen |
+| 12 | Discord-Profilbilder (N-8) | Konto-Seite, Team-Seite und Queue zeigen die Kopie des Profilbilds, der Browser lädt nichts von Discord, ohne Bild stehen Initialen, und beim Löschen ist die Kopie weg |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
