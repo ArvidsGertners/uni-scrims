@@ -275,11 +275,16 @@ export default async function TeamPage() {
               <p className="text-[13px] text-pretty text-muted-foreground">
                 {manage
                   ? "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Nur https-Links zur jeweiligen Plattform; ein leeres Feld entfernt den Link."
-                  : "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Ändern kann sie euer Captain."}
+                  : team.banned
+                    ? "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. In einem gesperrten Team lassen sie sich nicht ändern."
+                    : "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Ändern kann sie euer Captain."}
               </p>
             </div>
             {manage ? (
               <ActionForm
+                // Mounted anew once the stored links change, so the fields show the saved
+                // (normalized) addresses rather than what was typed.
+                key={team.links.map((link) => link.url).join(" ")}
                 action={updateTeamLinksAction}
                 submitLabel="Links speichern"
                 className="flex flex-col gap-4"
@@ -336,14 +341,21 @@ export default async function TeamPage() {
 
       <section className="flex flex-col gap-4 border-t border-border pt-6">
         {team.isCaptain && !soleMember ? (
-          <p className="text-[14px] text-pretty text-muted-foreground">
-            Als Captain kannst du das Team erst verlassen, wenn du die Captain-Rolle übertragen hast
-            (im Tab{" "}
-            <Link href="/team/members" className="text-foreground underline underline-offset-2">
-              Mitglieder
-            </Link>
-            ).
-          </p>
+          team.banned ? (
+            // A banned team cannot hand over the role (SPEC P0-10); the note above says what goes.
+            <p className="text-[14px] text-pretty text-muted-foreground">
+              Als letztes Mitglied kannst du das gesperrte Team auflösen.
+            </p>
+          ) : (
+            <p className="text-[14px] text-pretty text-muted-foreground">
+              Als Captain kannst du das Team erst verlassen, wenn du die Captain-Rolle übertragen
+              hast (im Tab{" "}
+              <Link href="/team/members" className="text-foreground underline underline-offset-2">
+                Mitglieder
+              </Link>
+              ).
+            </p>
+          )
         ) : (
           <ActionForm
             action={leaveTeamAction}
@@ -359,7 +371,7 @@ export default async function TeamPage() {
           />
         )}
 
-        {me && me.status !== "VERIFIED" && (me.role !== "COACH" || me.isCaptain) ? (
+        {me && me.status !== "VERIFIED" && me.needsVerification ? (
           <p className="text-[14px] text-muted-foreground">
             Noch nicht verifiziert?{" "}
             <Link href="/verify" className="text-foreground underline underline-offset-2">

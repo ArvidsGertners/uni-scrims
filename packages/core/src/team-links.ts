@@ -124,7 +124,8 @@ export function parseTeamLink(
   }
   let url: URL;
   try {
-    url = new URL(value.includes("://") ? value : `https://${value}`);
+    // A scheme only at the start: "://" later in the address (e.g. in a query) is not one.
+    url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(value) ? value : `https://${value}`);
   } catch {
     return fail("Das ist kein gültiger Link.");
   }

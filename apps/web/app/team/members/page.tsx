@@ -25,7 +25,7 @@ const STATUS = {
   VERIFIED: { label: "Verifiziert", className: "text-success" },
   PENDING: { label: "In Prüfung", className: "text-warning" },
   UNVERIFIED: { label: "Nicht verifiziert", className: "text-muted-foreground" },
-  // Coaches need no verification (SPEC N-1); a coach as captain still does for scrim actions.
+  // Members who need none (getMyTeam: coaches who are not captain, SPEC N-1).
   NOT_NEEDED: { label: "Nicht nötig", className: "text-faint" },
 };
 
@@ -63,7 +63,7 @@ export default async function TeamMembersPage() {
           <tbody className="max-md:flex max-md:flex-col max-md:gap-3">
             {team.members.map((member) => {
               const status =
-                member.role === "COACH" && !member.isCaptain && member.status !== "VERIFIED"
+                !member.needsVerification && member.status !== "VERIFIED"
                   ? STATUS.NOT_NEEDED
                   : STATUS[member.status];
               return (

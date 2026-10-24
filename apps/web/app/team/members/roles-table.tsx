@@ -13,7 +13,7 @@ const ROWS: { right: string; cells: [Cell, Cell, Cell, Cell] }[] = [
   { right: "Scrims, Anfragen und Bewerbungen des Teams sehen", cells: [true, true, true, true] },
   {
     right: "Benachrichtigungen zu Scrims (Buchung, Absage, Erinnerung, Feedback)",
-    cells: ["an", "wählbar", "wählbar", "wählbar"],
+    cells: ["Standard an", "wählbar", "wählbar", "wählbar"],
   },
   { right: "Benachrichtigungen zu Anfragen und Bewerbungen", cells: [true, false, false, false] },
   {
@@ -92,9 +92,8 @@ export function RolesTable() {
                     key={ROLES[index]}
                     className="p-3 text-center max-sm:flex max-sm:flex-col max-sm:items-center max-sm:gap-0.5 max-sm:p-0"
                   >
-                    <span aria-hidden className="text-[11px] text-faint sm:hidden">
-                      {ROLES[index]}
-                    </span>
+                    {/* The head is hidden below 640 px, so each value says its role there. */}
+                    <span className="text-[11px] text-faint sm:hidden">{ROLES[index]}</span>
                     <CellValue value={cell} />
                   </td>
                 ))}

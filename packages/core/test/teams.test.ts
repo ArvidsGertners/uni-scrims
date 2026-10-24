@@ -328,10 +328,27 @@ describe("reads", () => {
     expect(own?.inviteCode).toBe(team.inviteCode);
     expect(own?.members.find((member) => member.id === pending.id)?.status).toBe("PENDING");
     expect(own?.members.every((member) => member.role === MemberRole.PLAYER)).toBe(true);
+    expect(own?.members.every((member) => member.needsVerification)).toBe(true);
 
     const asMember = await getMyTeam(members[0]!.id);
     expect(asMember).toMatchObject({ isCaptain: false, inviteCode: null });
     expect(await getMyTeam((await createUser()).id)).toBeNull();
+  });
+
+  it("needs no verification of coaches, except a coach as captain", async () => {
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
+    for (const memberId of [captain.id, members[0]!.id]) {
+      await setMemberRole({
+        userId: captain.id,
+        teamId: team.id,
+        memberId,
+        role: MemberRole.COACH,
+      });
+    }
+    const needs = Object.fromEntries(
+      (await getMyTeam(captain.id))!.members.map((member) => [member.id, member.needsVerification]),
+    );
+    expect(needs).toEqual({ [captain.id]: true, [members[0]!.id]: false });
   });
 
   it("counts verified players and substitutes, never coaches", async () => {

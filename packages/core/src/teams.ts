@@ -1,6 +1,6 @@
 // Team lifecycle (SPEC P0-3, ARCHITECTURE §5.5). All paths ignore dissolved teams.
 import { randomBytes } from "node:crypto";
-import { AppStatus, type MemberRole, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
+import { AppStatus, MemberRole, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, problemError } from "./errors.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
@@ -522,6 +522,8 @@ export async function getMyTeam(userId: string) {
     joinedAt,
     role,
     isCaptain: isCaptainOf(member, team),
+    // Coaches need no verification (SPEC N-1); a coach as captain still does for scrim actions.
+    needsVerification: member.id === team.captainId || role !== MemberRole.COACH,
     status: isVerifiedMember(member)
       ? ("VERIFIED" as const)
       : member.pendingVerification

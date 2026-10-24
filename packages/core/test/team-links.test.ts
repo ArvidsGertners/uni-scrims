@@ -64,6 +64,9 @@ describe("parseTeamLink", () => {
       ["tiktok", "tiktok.com/@uniscrims", "https://tiktok.com/@uniscrims"],
       // The default port disappears when normalized.
       ["x", "https://x.com:443/uniscrims", "https://x.com/uniscrims"],
+      ["x", "HTTPS://X.com/uniscrims", "https://x.com/uniscrims"],
+      // "://" later in the address is no scheme; "https://" still goes in front.
+      ["website", "eure-seite.de/?ref=https://x.com", "https://eure-seite.de/?ref=https://x.com"],
     ];
     for (const [platform, raw, expected] of valid) {
       expect(url(platform, raw), `${platform} ${raw}`).toBe(expected);
