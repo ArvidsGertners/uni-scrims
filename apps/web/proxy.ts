@@ -3,8 +3,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { adminOrigin, isAdminHost } from "./lib/admin-url.ts";
 
-// Legal pages are reachable on the admin host too (its footer links them).
-const ADMIN_HOST_PASSTHROUGH = new Set(["/impressum", "/datenschutz"]);
+// Legal pages and support are reachable on the admin host too (its footer links them, §5.16).
+const ADMIN_HOST_PASSTHROUGH = new Set(["/impressum", "/datenschutz", "/support"]);
 
 /** "/admin/bans" → "/bans", "/admin" → "/", anything else null. */
 function withoutAdminPrefix(pathname: string): string | null {

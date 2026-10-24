@@ -46,8 +46,8 @@ describe("proxy with ADMIN_URL (§5.13)", () => {
     expect(new URL(getRewrittenUrl(action)!).pathname).toBe("/admin/bans");
   });
 
-  it("lets the legal pages through on the admin host", () => {
-    for (const path of ["/impressum", "/datenschutz"]) {
+  it("lets the legal pages and support through on the admin host", () => {
+    for (const path of ["/impressum", "/datenschutz", "/support"]) {
       const response = proxy(request(`https://admin.uniscrims.com${path}`));
       expect(isRewrite(response), path).toBe(false);
       expect(redirectTarget(response), path).toBeNull();

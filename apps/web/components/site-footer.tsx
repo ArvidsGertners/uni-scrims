@@ -21,6 +21,10 @@ export async function SiteFooter() {
           <Link href="/datenschutz" className="text-muted-foreground hover:text-foreground">
             Datenschutz
           </Link>
+          {/* For everyone, also when signing in does not work (SPEC N-13). */}
+          <Link href="/support" className="text-muted-foreground hover:text-foreground">
+            Support
+          </Link>
         </div>
         <span>Kein offizielles Produkt von Riot Games.</span>
       </div>
