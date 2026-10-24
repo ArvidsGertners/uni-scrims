@@ -136,6 +136,7 @@ export async function exportAccountData(input: {
               bannedAt: true,
               captainId: true,
               dissolvedAt: true,
+              logoUpdatedAt: true,
             },
           },
         },
@@ -283,6 +284,8 @@ export async function exportAccountData(input: {
                 kürzel: team.tag,
                 rang: RANK_LABELS[team.rank],
                 gesperrtAm: team.bannedAt,
+                // The image itself is team data and can be fetched on the site (SPEC N-6).
+                logoSeit: team.logoUpdatedAt,
                 rolle: MEMBER_ROLE_LABELS[membership.role],
                 captain: isCaptainOf(user, team),
                 beigetretenAm: membership.joinedAt,

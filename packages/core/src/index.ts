@@ -8,6 +8,7 @@ export * from "./uploads.ts";
 export * from "./verification.ts";
 export * from "./schemas.ts";
 export * from "./teams.ts";
+export * from "./team-logo.ts";
 export * from "./ranks.ts";
 export * from "./labels.ts";
 export * from "./time.ts";

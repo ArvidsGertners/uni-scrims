@@ -37,6 +37,7 @@ async function clearDomainTables() {
   await prisma.application.deleteMany();
   await prisma.scrimRequest.deleteMany();
   await prisma.teamMember.deleteMany();
+  await prisma.teamLogo.deleteMany();
   await prisma.team.deleteMany();
   await prisma.verificationRequest.deleteMany();
 }

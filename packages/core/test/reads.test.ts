@@ -539,7 +539,12 @@ describe("getScrimDetail and getMyScrims", () => {
     const scrim = await book(other, team);
 
     const mine = await getMyScrims({ userId: team.members[0]!.id, now: NOW });
-    expect(mine.team).toEqual({ name: team.team.name, tag: team.team.tag });
+    expect(mine.team).toEqual({
+      id: team.team.id,
+      name: team.team.name,
+      tag: team.team.tag,
+      logoVersion: null,
+    });
     expect(mine.requests).toEqual([expect.objectContaining({ id: ownRequest.id })]);
     // The accepted application of the booked scrim shows as a scrim, not as an application.
     expect(mine.applications).toEqual([
@@ -547,7 +552,7 @@ describe("getScrimDetail and getMyScrims", () => {
         id: application.id,
         status: AppStatus.PENDING,
         requestId: otherRequest.id,
-        team: { name: other.team.name, tag: other.team.tag },
+        team: { id: other.team.id, name: other.team.name, tag: other.team.tag, logoVersion: null },
       }),
     ]);
     expect(mine.upcoming).toMatchObject([

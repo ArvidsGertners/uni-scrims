@@ -66,6 +66,10 @@ async function review(
 async function fullAccount() {
   const { host, guest, scrim } = await bookScrim({ note: "Lobby über Discord: kontakt#1234" });
   const user = host.captain;
+  await prisma.team.update({
+    where: { id: host.team.id },
+    data: { logoUpdatedAt: NOW, logo: { create: { data: new Uint8Array([1, 2, 3]) } } },
+  });
   const university = await prisma.university.create({
     data: { name: "Uni Export", city: "Teststadt", slug: `uni-export-${uid()}` },
   });
@@ -241,6 +245,7 @@ describe("exportAccountData", () => {
       kürzel: host.team.tag,
       rang: "Gold",
       gesperrtAm: null,
+      logoSeit: NOW,
       rolle: "Spieler",
       captain: true,
       beigetretenAm: NOW,
@@ -476,7 +481,9 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     bannedAt: SHOWN,
     dissolvedAt: SHOWN,
     createdAt: SHOWN,
+    logoUpdatedAt: SHOWN,
   },
+  TeamLogo: { teamId: KEY, data: "Teamdaten, das Bild ist über die Seite abrufbar" },
   TeamMember: { teamId: SHOWN, userId: SELF, role: SHOWN, joinedAt: SHOWN },
   ScrimRequest: {
     id: KEY,

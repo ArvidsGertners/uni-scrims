@@ -19,6 +19,7 @@ import {
   requestPostingProblems,
 } from "./requests.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
+import { logoVersion } from "./team-logo.ts";
 import { teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
 import { getDiscordId } from "./users.ts";
@@ -104,6 +105,7 @@ const teamCardSelect = {
   name: true,
   tag: true,
   rank: true,
+  logoUpdatedAt: true,
   members: {
     select: {
       role: true,
@@ -121,6 +123,8 @@ export type TeamCardData = {
   name: string;
   tag: string;
   rank: Rank;
+  /** Version of the team logo for its URL; null without logo (§5.11). */
+  logoVersion: number | null;
   universities: { shown: string[]; more: number };
   reliability: Reliability;
 };
@@ -131,6 +135,7 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
     name: team.name,
     tag: team.tag,
     rank: team.rank,
+    logoVersion: logoVersion(team),
     universities: teamUniversities(team.members),
     reliability: reliabilities.get(team.id)!,
   };
@@ -490,7 +495,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
             id: true,
             startsAt: true,
             format: true,
-            team: { select: { name: true, tag: true } },
+            team: { select: { id: true, name: true, tag: true, logoUpdatedAt: true } },
           },
         },
       },
@@ -509,8 +514,10 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       rankMin: scrim.request.rankMin,
       rankMax: scrim.request.rankMax,
       opponent: {
+        id: opponent.id,
         name: opponent.name,
         tag: opponent.tag,
+        logoVersion: logoVersion(opponent),
         universities: teamUniversities(opponent.members),
         captainId: opponent.captain.id,
         captainName: opponent.captain.name,
@@ -529,7 +536,12 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
   );
   return {
     hasTeam: true,
-    team: { name: ownTeam.name, tag: ownTeam.tag },
+    team: {
+      id: ownTeam.id,
+      name: ownTeam.name,
+      tag: ownTeam.tag,
+      logoVersion: logoVersion(ownTeam),
+    },
     upcoming: upcoming.map((item, index) => ({
       ...item,
       opponent: { ...item.opponent, captainDiscordId: captainDiscordIds[index] ?? null },
@@ -550,7 +562,12 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       requestId: application.request.id,
       startsAt: application.request.startsAt,
       format: application.request.format,
-      team: application.request.team,
+      team: {
+        id: application.request.team.id,
+        name: application.request.team.name,
+        tag: application.request.team.tag,
+        logoVersion: logoVersion(application.request.team),
+      },
     })),
   };
 }

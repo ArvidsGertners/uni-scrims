@@ -12,6 +12,7 @@ import {
   VerifStatus,
   prisma,
 } from "@uni-scrims/db";
+import sharp from "sharp";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   autoRejectStaleVerifications,
@@ -33,6 +34,7 @@ import {
   submitFeedback,
   submitVerification,
   updateTeam,
+  setTeamLogo,
 } from "../src/index.ts";
 import {
   NOW,
@@ -213,6 +215,29 @@ describe("team changes while the team is dissolved", () => {
         nameNormalized: null,
         inviteCode: null,
       });
+    }
+  });
+});
+
+describe("team logo while the team is dissolved", () => {
+  it("never leaves a logo on a dissolved team", async () => {
+    const file = new Uint8Array(
+      await sharp({ create: { width: 300, height: 200, channels: 4, background: "#e62828" } })
+        .png()
+        .toBuffer(),
+    );
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team: target, captain } = await createTeamWithMembers();
+      const results = await Promise.allSettled([
+        setTeamLogo({ userId: captain.id, teamId: target.id, file, now: NOW }),
+        leaveTeam({ userId: captain.id, now: NOW }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(await prisma.teamLogo.count({ where: { teamId: target.id } })).toBe(0);
+      expect(
+        (await prisma.team.findUniqueOrThrow({ where: { id: target.id } })).logoUpdatedAt,
+      ).toBeNull();
     }
   });
 });

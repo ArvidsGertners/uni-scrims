@@ -3,6 +3,7 @@ import { type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAdmin } from "./permissions.ts";
+import { clearTeamLogo, logoVersion } from "./team-logo.ts";
 import { retireTeamActivity } from "./teams.ts";
 import { DISCORD_PROVIDER, getDiscordId } from "./users.ts";
 import { BAN_REJECT_REASON, removeFilesAfterCommit } from "./verification.ts";
@@ -54,6 +55,7 @@ export async function searchModerationTargets(input: { adminId: string; query: s
         name: true,
         tag: true,
         bannedAt: true,
+        logoUpdatedAt: true,
         captain: { select: { name: true } },
         _count: { select: { members: true } },
       },
@@ -79,6 +81,7 @@ export async function searchModerationTargets(input: { adminId: string; query: s
       id: team.id,
       name: team.name,
       tag: team.tag,
+      logoVersion: logoVersion(team),
       banned: team.bannedAt !== null,
       captainName: team.captain.name,
       memberCount: team._count.members,
@@ -104,6 +107,20 @@ export async function banTeamInTx(
   await tx.team.update({ where: { id: teamId }, data: { bannedAt: now } });
   await retireTeamActivity(teamId, now, tx);
   return true;
+}
+
+/** Moderation of logos (SPEC N-6): also for banned teams; a dissolved team has no logo left. */
+export async function removeTeamLogoAsAdmin(input: { adminId: string; teamId: string }) {
+  await requireAdmin(input.adminId);
+  await prisma.$transaction(async (tx) => {
+    await lockTeam(tx, input.teamId);
+    const team = await tx.team.findUnique({
+      where: { id: input.teamId },
+      select: { dissolvedAt: true },
+    });
+    if (!team || team.dissolvedAt) throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
+    await clearTeamLogo(tx, input.teamId);
+  });
 }
 
 export async function banTeam(input: { adminId: string; teamId: string; now: Date }) {

@@ -17,6 +17,7 @@ import { countReadyMembers, isReadyCount, isTeamActive, isVerifiedMember } from 
 import { closeOpenRequest, openRequestWhere } from "./requests.ts";
 import { type TeamInput, memberRoleSchema, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
+import { clearTeamLogo, logoVersion } from "./team-logo.ts";
 import { findUserByDiscordId } from "./users.ts";
 
 export const MAX_TEAM_MEMBERS = 10;
@@ -326,12 +327,13 @@ export async function leaveTeam(input: { userId: string; now: Date }) {
 
 /**
  * Internal building block without permission check (callers: leaveTeam, deleteAccount).
- * No hard delete: scrims keep the team ID. Name and invite link become free/invalid.
+ * No hard delete: scrims keep the team ID. Name and invite link become free/invalid, the logo goes.
  */
 export async function dissolveTeam(teamId: string, now: Date, db: Db = prisma): Promise<void> {
   await inTransaction(db, async (tx) => {
     await retireTeamActivity(teamId, now, tx);
     await tx.teamMember.deleteMany({ where: { teamId } });
+    await clearTeamLogo(tx, teamId);
     await tx.team.update({
       where: { id: teamId },
       data: { dissolvedAt: now, nameNormalized: null, inviteCode: null },
@@ -483,6 +485,7 @@ export async function getMyTeam(userId: string) {
     name: team.name,
     tag: team.tag,
     rank: team.rank,
+    logoVersion: logoVersion(team),
     banned: team.bannedAt !== null,
     isCaptain,
     // Only the captain manages the invite link.
@@ -511,6 +514,7 @@ export async function getTeamByInviteCode(userId: string, inviteCode: string) {
     name: team.name,
     tag: team.tag,
     rank: team.rank,
+    logoVersion: logoVersion(team),
     memberCount: team.members.length,
     full: team.members.length >= MAX_TEAM_MEMBERS,
     universities: teamUniversities(team.members),
