@@ -94,6 +94,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 30. Als Spieler will ich ein kurzes Menü, in dem Board und meine Scrims auf einer Seite liegen, und als Admin den Admin-Bereich unter einer eigenen Adresse, getrennt von der Spieler-Navigation.
 31. Als Admin will ich auf einen Blick sehen, was zu tun ist (offene Prüfungen, Streitfälle, Fehler, Bot), und als Captain den Stand meines Teams auf einen Blick.
 32. Als Spieler will ich die Seite wie ein Dashboard bedienen: alle Bereiche in einer Seitenleiste, Team und Konto unten, Unterseiten als Tabs.
+33. Als Spieler will ich auf einem großen Bildschirm die ganze Breite nutzen: die Leiste ganz links, die Inhalte daneben über den restlichen Platz.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -376,6 +377,12 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Kopfzeile mit dem Logo bleibt; die Navigation steht am Desktop nur noch in der Leiste. Unter 1024 px öffnet wie bisher der Menü-Knopf dieselben Einträge in derselben Reihenfolge (Scrims oben, Team und Konto unten).
 - [x] Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“. Abgemeldet (Startseite, Anmeldung, Rechtstexte) bleibt die Seite ohne Leiste. Der Admin-Bereich behält seine eigene Leiste.
 - [x] Unterseiten stehen als Tabs oben im Inhalt: auf „Scrims“ die Tabs aus N-9, auf „Konto“ die Tabs „Konto“ und „Verifizierung“ (statt des Zurück-Links). Die Team-Seite hat keine Unterseiten. Funktionen und Rechte ändern sich nicht.
+
+**N-12 Volle Breite** (Phase 16)
+- [ ] Am Desktop (ab 1024 px) steht die Seitenleiste ganz links am Bildschirmrand, auf der Seite wie im Admin-Bereich. Kopf (das Logo über der Leiste), Discord-Hinweis und Fußzeile gehen über die ganze Breite.
+- [ ] Die Ansichten füllen den Platz neben der Leiste ohne feste Obergrenze. Auf „Scrims“ stehen Karten und Listen nebeneinander (ab 1280 px zwei, ab 1536 px drei, ab 1920 px vier Spalten). Team, Konto, Anfrage und Scrim zeigen links die Angaben und rechts Aktionen und Hinweise (die Team-Seite wie bisher ab 768 px, die anderen ab 1024 px); ohne Team stehen „Team gründen“ und „Team beitreten“ nebeneinander. Im Admin-Bereich stehen die Listen ab 1280 px in zwei Spalten.
+- [ ] Formulare bleiben lesbar schmal: Anfrage erstellen, Team beitreten, Konto vervollständigen und Feedback stehen mittig im Inhalt, die Verifizierung links unter den Konto-Tabs. Abgemeldete Seiten (Startseite, Anmeldung, Rechtstexte) bleiben, wie sie sind. Unter 1024 px ändert sich nichts, auch nicht die Reihenfolge. Funktionen und Rechte ändern sich nicht.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -498,6 +505,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 13 | Navigation und Admin-Bereich auf eigener Adresse (N-9) | Das Menü zeigt Scrims, Team, Konto; Board und Meine Scrims sind Tabs einer Seite; Abmelden und Verifizierung liegen unter Konto; der Admin-Bereich läuft unter admin.uniscrims.com mit derselben Anmeldung |
 | 14 | Profilbild im Kopf, Dashboards für Admin-Bereich und Team (N-10) | Neben „Konto“ steht das Profilbild; der Admin-Bereich hat Seitenleiste mit Zählern, Profil und Abmelden sowie eine Übersicht mit Kacheln; die Team-Seite zeigt Kacheln und am Desktop zwei Spalten |
 | 15 | Die ganze Seite im Dashboard-Layout (N-11) | Angemeldet steht am Desktop links die Seitenleiste mit Scrims oben sowie Team und Konto unten; auf dem Handy dieselben Einträge im Menü; Scrims und Konto haben Tabs für ihre Unterseiten |
+| 16 | Volle Breite (N-12) | Am Desktop steht die Leiste ganz links, Seite und Admin-Bereich nutzen den Platz daneben (Scrims in Spalten, Detailseiten zweispaltig); Formulare bleiben schmal; unter 1024 px bleibt alles, wie es ist |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
