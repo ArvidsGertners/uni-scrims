@@ -1,5 +1,8 @@
 import {
   GAME_LABELS,
+  TEAM_LINK_LABELS,
+  TEAM_LINK_MAX,
+  TEAM_LINK_PLATFORMS,
   LOGO_BACKGROUNDS,
   LOGO_BACKGROUND_LABELS,
   MAX_TEAM_MEMBERS,
@@ -17,6 +20,9 @@ import { PageMain } from "@/components/page-main";
 import { StatTile } from "@/components/stat-tile";
 import { TeamLogoPreview } from "@/components/team-avatar";
 import { TeamFields } from "@/components/team-fields";
+import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
@@ -26,6 +32,7 @@ import {
   regenerateInviteAction,
   removeTeamLogoAction,
   updateTeamAction,
+  updateTeamLinksAction,
 } from "./actions";
 import { JoinLinkForm } from "./join-link-form";
 import { TeamLogoForm } from "./team-logo-form";
@@ -238,8 +245,8 @@ export default async function TeamPage() {
           ) : null}
         </div>
 
-        {manage ? (
-          <div className="flex min-w-0 flex-col gap-8 md:gap-6">
+        <div className="flex min-w-0 flex-col gap-8 md:gap-6">
+          {manage ? (
             <section className={`${cardClass} gap-3`}>
               <h2 className="type-h2">Interne Links</h2>
               <span className="text-[14px] font-medium">Einladungslink</span>
@@ -260,8 +267,71 @@ export default async function TeamPage() {
                 <input type="hidden" name="teamId" value={team.id} />
               </ActionForm>
             </section>
-          </div>
-        ) : null}
+          ) : null}
+
+          <section className={`${cardClass} gap-4`}>
+            <div className="flex flex-col gap-1">
+              <h2 className="type-h2">Externe Links</h2>
+              <p className="text-[13px] text-pretty text-muted-foreground">
+                {manage
+                  ? "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Nur https-Links zur jeweiligen Plattform; ein leeres Feld entfernt den Link."
+                  : "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Ändern kann sie euer Captain."}
+              </p>
+            </div>
+            {manage ? (
+              <ActionForm
+                action={updateTeamLinksAction}
+                submitLabel="Links speichern"
+                className="flex flex-col gap-4"
+              >
+                <input type="hidden" name="teamId" value={team.id} />
+                {TEAM_LINK_PLATFORMS.map((platform) => (
+                  <Field
+                    key={platform.key}
+                    label={
+                      <span className="flex items-center gap-2">
+                        <TeamLinkIcon platform={platform.key} />
+                        {platform.label}
+                      </span>
+                    }
+                  >
+                    <Input
+                      name={platform.key}
+                      defaultValue={
+                        team.links.find((link) => link.platform === platform.key)?.url ?? ""
+                      }
+                      placeholder={platform.placeholder}
+                      maxLength={TEAM_LINK_MAX}
+                      inputMode="url"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                  </Field>
+                ))}
+              </ActionForm>
+            ) : team.links.length === 0 ? (
+              <p className="text-[14px] text-muted-foreground">Noch keine Links.</p>
+            ) : (
+              <ul className="flex flex-col">
+                {team.links.map((link) => (
+                  <li key={link.platform} className="border-b border-border last:border-b-0">
+                    <a
+                      href={link.url}
+                      {...EXTERNAL_LINK_PROPS}
+                      className="flex min-h-11 items-center gap-3 py-2 text-[14px] hover:text-foreground"
+                    >
+                      <TeamLinkIcon platform={link.platform} />
+                      <span className="font-medium">{TEAM_LINK_LABELS[link.platform]}</span>
+                      <span className="ml-auto min-w-0 truncate text-muted-foreground">
+                        {link.url.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       </div>
 
       <section className="flex flex-col gap-4 border-t border-border pt-6">

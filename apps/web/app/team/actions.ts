@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  TEAM_LINK_PLATFORMS,
   createTeam,
   joinTeam,
   leaveTeam,
@@ -12,6 +13,7 @@ import {
   setTeamLogo,
   transferCaptain,
   updateTeam,
+  updateTeamLinks,
 } from "@uni-scrims/core";
 import type { MemberRole, Rank } from "@uni-scrims/db";
 import { revalidatePath } from "next/cache";
@@ -101,6 +103,25 @@ export async function updateTeamAction(_state: ActionState, formData: FormData) 
       await updateTeam({ ...input, userId, teamId: teamId.data });
     }),
   );
+}
+
+export async function updateTeamLinksAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  // Shape check only; which addresses a platform takes is core's teamLinksSchema.
+  const links = z
+    .record(z.string(), z.string().optional())
+    .safeParse(
+      Object.fromEntries(
+        TEAM_LINK_PLATFORMS.map((platform) => [platform.key, formField(formData, platform.key)]),
+      ),
+    );
+  if (!teamId.success || !links.success) return invalidInput;
+  const state = await runAction(async () => {
+    await updateTeamLinks({ userId, teamId: teamId.data, links: links.data, now: new Date() });
+  });
+  if (state.done) await setFlash("Links gespeichert");
+  return finish(state);
 }
 
 export async function regenerateInviteAction(_state: ActionState, formData: FormData) {

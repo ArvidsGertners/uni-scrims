@@ -1,15 +1,26 @@
-import { LOGO_BACKGROUNDS, MIN_SEARCH_LENGTH, searchModerationTargets } from "@uni-scrims/core";
+import {
+  LOGO_BACKGROUNDS,
+  MIN_SEARCH_LENGTH,
+  TEAM_LINK_LABELS,
+  searchModerationTargets,
+} from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { LIST_COLUMNS } from "@/components/list-group";
 import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
+import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
-import { banTeamAction, banUserAction, removeTeamLogoAction } from "../actions";
+import {
+  banTeamAction,
+  banUserAction,
+  removeTeamLinksAction,
+  removeTeamLogoAction,
+} from "../actions";
 import { adminHref } from "@/lib/admin-url";
 
 // Consequences from SPEC P0-9 and the edge cases.
@@ -130,6 +141,24 @@ export default async function BansPage({
                     ))}
                   </div>
                 )}
+                {team.links.length === 0 ? null : (
+                  // As addresses, so the admin sees where each one leads (SPEC N-15).
+                  <ul className="flex flex-col gap-1.5">
+                    {team.links.map((link) => (
+                      <li key={link.platform} className="flex min-w-0 items-center gap-2">
+                        <TeamLinkIcon platform={link.platform} />
+                        <span className="sr-only">{TEAM_LINK_LABELS[link.platform]}:</span>
+                        <a
+                          href={link.url}
+                          {...EXTERNAL_LINK_PROPS}
+                          className="min-w-0 break-all text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                        >
+                          {link.url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <div className="flex flex-wrap gap-2.5">
                   {team.banned ? null : (
                     <ActionForm
@@ -156,6 +185,19 @@ export default async function BansPage({
                       <input type="hidden" name="teamId" value={team.id} />
                       {/* Only the logos shown here, not one uploaded since (SPEC N-6). */}
                       <input type="hidden" name="logoVersion" value={team.logo.version} />
+                    </ActionForm>
+                  )}
+                  {team.linksVersion === null ? null : (
+                    // Links are not checked beyond their platform (SPEC §9); admins take bad ones down.
+                    <ActionForm
+                      action={removeTeamLinksAction}
+                      submitLabel="Links entfernen"
+                      variant="outline"
+                      confirmText={`Alle Links von ${team.name} entfernen?`}
+                    >
+                      <input type="hidden" name="teamId" value={team.id} />
+                      {/* Only the links shown here, not ones saved since. */}
+                      <input type="hidden" name="linksVersion" value={team.linksVersion} />
                     </ActionForm>
                   )}
                 </div>

@@ -5,6 +5,7 @@ import {
   banTeam,
   banUser,
   decideVerification,
+  removeTeamLinksAsAdmin,
   removeTeamLogoAsAdmin,
   resolveDispute,
   resolveUploadDir,
@@ -107,6 +108,25 @@ export async function removeTeamLogoAction(
   if (!teamId.success || !logoVersion.success) return invalidInput;
   const state = await runAction(async () => {
     await removeTeamLogoAsAdmin({ adminId, teamId: teamId.data, logoVersion: logoVersion.data });
+  });
+  revalidatePath("/admin/bans");
+  return state;
+}
+
+export async function removeTeamLinksAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const adminId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  const linksVersion = z.coerce.number().int().safeParse(formField(formData, "linksVersion"));
+  if (!teamId.success || !linksVersion.success) return invalidInput;
+  const state = await runAction(async () => {
+    await removeTeamLinksAsAdmin({
+      adminId,
+      teamId: teamId.data,
+      linksVersion: linksVersion.data,
+    });
   });
   revalidatePath("/admin/bans");
   return state;

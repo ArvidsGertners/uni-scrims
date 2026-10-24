@@ -12,6 +12,7 @@ import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { DiscordContact } from "@/components/discord-contact";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
+import { TeamLinks } from "@/components/team-links";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
@@ -73,7 +74,11 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
       </BackLink>
       <div className="flex flex-col gap-2.5">
         <span className="type-label text-muted-foreground">Scrim · {when}</span>
-        <h1 className="type-h1">gegen {scrim.opponent.name}</h1>
+        {/* The opponent's external links next to its name (SPEC N-15). */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h1 className="min-w-0 type-h1 break-words">gegen {scrim.opponent.name}</h1>
+          <TeamLinks teamName={scrim.opponent.name} links={scrim.opponent.links} />
+        </div>
         <span className="flex flex-wrap items-center gap-2 text-[14px] text-muted-foreground">
           <Badge variant={scrim.status === "SCHEDULED" ? "success" : "neutral"}>
             {SCRIM_STATUS_LABELS[scrim.status]}

@@ -14,6 +14,7 @@ import { CountedTextarea } from "@/components/counted-textarea";
 import { CheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { TeamAvatar } from "@/components/team-avatar";
+import { TeamLinks } from "@/components/team-links";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePageUser } from "@/lib/session";
@@ -75,7 +76,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
       <div className="flex items-center gap-4">
         <TeamAvatar team={team} size="lg" own={ownRequest} />
         <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="type-h1">{team.name}</h1>
+          {/* The team's external links next to its name (SPEC N-15). */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h1 className="min-w-0 type-h1 break-words">{team.name}</h1>
+            <TeamLinks teamName={team.name} links={team.links} />
+          </div>
           <span className="flex flex-wrap items-center gap-2 text-[14px] text-muted-foreground">
             {formatUniversities(team.universities)}
             {status ? <Badge className="h-[22px] px-2 text-[12px]">{status}</Badge> : null}
@@ -268,7 +273,14 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     <div className="flex items-center gap-3">
                       <TeamAvatar team={application.team} size="sm" className="bg-background" />
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="font-semibold">{application.team.name}</span>
+                        <div className="flex flex-wrap items-center gap-x-1.5">
+                          <span className="font-semibold">{application.team.name}</span>
+                          <TeamLinks
+                            teamName={application.team.name}
+                            links={application.team.links}
+                            className="-my-1.5"
+                          />
+                        </div>
                         <span className="text-[13px] text-muted-foreground">
                           {formatUniversities(application.team.universities)}
                         </span>

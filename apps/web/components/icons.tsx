@@ -70,6 +70,13 @@ export const MessageSquareIcon = createIcon(
 export const ExternalLinkIcon = createIcon(
   <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />,
 );
+/** The website among the external team links (SPEC N-15). */
+export const GlobeIcon = createIcon(
+  <>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20" />
+  </>,
+);
 export const CopyIcon = createIcon(
   <>
     <rect x="9" y="9" width="13" height="13" rx="2" />
