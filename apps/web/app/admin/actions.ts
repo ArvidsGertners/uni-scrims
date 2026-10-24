@@ -42,6 +42,8 @@ export async function decideVerificationAction(
       now: new Date(),
     });
   });
+  // The queue and the counts of the overview (§5.14).
+  revalidatePath("/admin/queue");
   revalidatePath("/admin");
   return state;
 }

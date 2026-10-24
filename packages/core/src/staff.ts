@@ -1,14 +1,22 @@
 // Staff roles (SPEC N-4, ARCHITECTURE §5.9): the operator, set by a script, makes existing accounts
 // admins or reviewers. Every change ends the person's sessions, so it applies at once and the next
 // login goes through password and code.
-import { type Prisma, StaffRole, prisma } from "@uni-scrims/db";
+import {
+  NotifStatus,
+  type Prisma,
+  ScrimStatus,
+  StaffRole,
+  VerifStatus,
+  prisma,
+} from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { lockUser } from "./locks.ts";
-import { requireOperator } from "./permissions.ts";
+import { STAFF_AREAS, requireOperator, requireStaff, staffArea } from "./permissions.ts";
 import { emailSchema } from "./schemas.ts";
 import { CREDENTIAL_PROVIDER } from "./account.ts";
-import { DISCORD_PROVIDER, accountSetupStep, isDeletedUser } from "./users.ts";
+import { getBotStatus } from "./sweeper.ts";
+import { DISCORD_PROVIDER, accountSetupStep, avatarVersion, isDeletedUser } from "./users.ts";
 
 /** Roles the operator assigns in the UI; the operator role only comes from the script. */
 export const ASSIGNABLE_STAFF_ROLES = [StaffRole.ADMIN, StaffRole.REVIEWER] as const;
@@ -223,4 +231,41 @@ export async function finishTwoFactorSetup(userId: string): Promise<boolean> {
     await endStaffSessions(tx, userId, !complete);
     return complete;
   });
+}
+
+/**
+ * Sidebar and overview of the admin area (§5.14): who is signed in, and what waits, by role. Every
+ * role with 2FA; disputes, failed notifications and the bot only for admins and the operator,
+ * otherwise null. Counts only, the pages show the entries.
+ */
+export async function getAdminOverview(input: { staffId: string; now: Date }) {
+  const staff = await requireStaff(input.staffId, STAFF_AREAS.queue);
+  const pending = { status: VerifStatus.PENDING };
+  const [pendingCount, oldest] = await Promise.all([
+    prisma.verificationRequest.count({ where: pending }),
+    prisma.verificationRequest.findFirst({
+      where: pending,
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+  ]);
+  const admin = staffArea(staff.staffRole, "admin")
+    ? await Promise.all([
+        prisma.scrim.count({ where: { status: ScrimStatus.DISPUTED } }),
+        prisma.notification.count({ where: { status: NotifStatus.FAILED } }),
+        getBotStatus(staff.id, input.now),
+      ])
+    : null;
+  return {
+    viewer: {
+      id: staff.id,
+      name: staff.name,
+      staffRole: staff.staffRole,
+      avatarVersion: avatarVersion(staff),
+    },
+    queue: { pending: pendingCount, oldestAt: oldest?.createdAt ?? null },
+    disputes: admin ? admin[0] : null,
+    failedNotifications: admin ? admin[1] : null,
+    bot: admin ? admin[2] : null,
+  };
 }

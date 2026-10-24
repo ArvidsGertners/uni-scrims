@@ -27,11 +27,14 @@ function Logo({ href, admin = false }: { href: string; admin?: boolean }) {
   );
 }
 
-/** Header of the admin host (§5.13): no player navigation and no Discord banner. */
+/**
+ * Header of the admin host (§5.13): no player navigation and no Discord banner. As wide as the
+ * dashboard (§5.14); from 1024 px the sidebar holds the logout, where a page has one.
+ */
 function AdminHeader({ signedIn }: { signedIn: boolean }) {
   return (
     <header className="border-b border-border bg-background">
-      <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
         <Logo href="/" admin />
         <div className="flex items-center gap-1 max-[359px]:gap-0">
           <a
@@ -43,7 +46,7 @@ function AdminHeader({ signedIn }: { signedIn: boolean }) {
           {signedIn ? (
             <LogoutButton
               redirectTo={mainUrl("/")}
-              className="type-btn ml-1 h-9 cursor-pointer rounded-sm border border-border-strong px-3 text-[13px] font-semibold whitespace-nowrap text-muted-foreground hover:border-muted-foreground hover:text-foreground max-[359px]:ml-0 max-[359px]:px-2"
+              className="type-btn ml-1 h-9 cursor-pointer rounded-sm border border-border-strong px-3 text-[13px] font-semibold whitespace-nowrap text-muted-foreground hover:border-muted-foreground hover:text-foreground max-[359px]:ml-0 max-[359px]:px-2 lg:[body:has([data-admin-sidebar])_&]:hidden"
             />
           ) : null}
         </div>

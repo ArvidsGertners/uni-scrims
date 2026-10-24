@@ -97,3 +97,27 @@ export const ShieldCheckIcon = createIcon(
 export const LogInIcon = createIcon(
   <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" />,
 );
+
+// Not in the prototype (it has no admin area): lucide shapes for the admin sidebar (§5.14).
+export const LayoutGridIcon = createIcon(
+  <>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </>,
+);
+export const BanIcon = createIcon(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m5.6 5.6 12.8 12.8" />
+  </>,
+);
+export const BarChartIcon = createIcon(<path d="M3 3v18h18M8 17v-5M13 17V8M18 17v-9" />);
+export const UsersIcon = createIcon(
+  <>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" />
+  </>,
+);

@@ -1,104 +1,115 @@
-import { listPendingVerifications, listUniversities, resolveUploadDir } from "@uni-scrims/core";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserAvatar } from "@/components/user-avatar";
+import { getAdminOverview, staffArea } from "@uni-scrims/core";
+import { cn } from "cn";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { adminHref } from "@/lib/admin-url";
 import { formatDateTime } from "@/lib/format";
 import { requireStaffPage } from "@/lib/session";
-import { AdminNav } from "./admin-nav";
-import { DecisionForm } from "./decision-form";
-import { PageMain } from "@/components/page-main";
+import { AdminShell } from "./admin-shell";
 
-// Fixed checklist from SPEC P0-2, with the name check of N-3.
-const CHECKLIST = [
-  "Bescheinigung gilt für das aktuelle Semester",
-  "Name stimmt mit dem Namen des Kontos überein",
-  "Hochschule stimmt mit der Auswahl überein",
-  "Dokument ist vollständig und lesbar",
-  "Keine offensichtliche Bearbeitung",
-];
+const BOT_LOOPS = [
+  { loop: "sweeper", label: "Zeitsteuerung" },
+  { loop: "outbox", label: "Versand" },
+] as const;
 
-export default async function AdminPage() {
-  // Layout and page render in parallel, so the page checks too.
-  const admin = await requireStaffPage("/", "queue");
-  const queue = await listPendingVerifications(admin.id, resolveUploadDir());
-  const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
+const tileClass = "flex flex-col gap-1.5 rounded-lg border border-border bg-card p-5";
+
+function Tile({
+  href,
+  label,
+  value,
+  children,
+  tone,
+}: {
+  href?: string;
+  label: string;
+  value: ReactNode;
+  children: ReactNode;
+  tone?: string;
+}) {
+  const content = (
+    <>
+      <span className="type-label text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "font-display text-[36px] leading-tight [font-weight:var(--display-weight)]",
+          tone,
+        )}
+      >
+        {value}
+      </span>
+      <span className="text-[13px] text-pretty text-muted-foreground">{children}</span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={cn(tileClass, "hover:border-border-strong hover:bg-secondary")}>
+      {content}
+    </Link>
+  ) : (
+    <div className={tileClass}>{content}</div>
+  );
+}
+
+const lastSeen = (heartbeatAt: Date | null) =>
+  heartbeatAt ? `zuletzt ${formatDateTime(heartbeatAt)} Uhr` : "noch kein Lebenszeichen";
+
+/** Start page of the admin area (SPEC N-10): what waits, by role. */
+export default async function AdminOverviewPage() {
+  const staff = await requireStaffPage("/", "queue");
+  const overview = await getAdminOverview({ staffId: staff.id, now: new Date() });
+  const { queue, bot } = overview;
 
   return (
-    <PageMain className="gap-6">
-      <AdminNav staff={admin} />
-      <h1 className="type-h1">Prüf-Queue</h1>
-      {queue.length === 0 ? <p>Keine offenen Prüfungen.</p> : null}
-      {queue.map((request) => {
-        const fileUrl = `/api/admin/uploads/${request.id}`;
-        const isImage = request.mimeType.startsWith("image/");
-        return (
-          <Card key={request.id}>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <UserAvatar user={request.user} className="size-10 text-[12px]" />
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  {/* The real name to compare with the certificate (SPEC N-3). */}
-                  <CardTitle>
-                    {request.user.firstName
-                      ? `${request.user.firstName} ${request.user.lastName ?? ""}`
-                      : "Kein Name (Konto von vor Phase 7)"}
-                  </CardTitle>
-                  <p className="text-[14px] text-muted-foreground">Discord: {request.user.name}</p>
-                </div>
-              </div>
-              <p className="text-[14px] text-muted-foreground">
-                Hochgeladen am {formatDateTime(request.createdAt)} ·{" "}
-                {request.university
-                  ? `${request.university.name} (${request.university.city})`
-                  : `Andere: ${request.universityOther}`}{" "}
-                · {request.mimeType} · {(request.sizeBytes / 1024 / 1024).toFixed(1)} MB
-              </p>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {!request.fileAvailable ? (
-                // Uploads are not in the backups (ARCHITECTURE §8): after a restore the file can be gone.
-                <p className="text-[14px] text-accent-text">
-                  Die Datei fehlt (z. B. nach dem Einspielen eines Backups). Bitte ablehnen, etwa
-                  mit „Bitte erneut hochladen“; freigeben geht ohne Datei nicht.
-                </p>
-              ) : (
-                <>
-                  {isImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- protected route, no optimisation
-                    <img
-                      src={fileUrl}
-                      alt="Immatrikulationsbescheinigung"
-                      className="max-h-[70vh] w-full object-contain"
-                    />
-                  ) : (
-                    <iframe
-                      src={fileUrl}
-                      title="Immatrikulationsbescheinigung"
-                      className="h-[70vh] w-full rounded-lg border"
-                    />
-                  )}
-                  <a
-                    href={fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[14px] underline underline-offset-2"
-                  >
-                    In neuem Tab öffnen
-                  </a>
-                </>
-              )}
-              <ul className="list-disc pl-5 text-[14px]">
-                {CHECKLIST.map((item) => (
-                  <li key={item}>{item}</li>
+    <AdminShell overview={overview} current="/">
+      <h1 className="type-h1">Übersicht</h1>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Tile
+          href={adminHref("/queue")}
+          label="Offene Prüfungen"
+          value={queue.pending}
+          tone={queue.pending > 0 ? "text-warning" : undefined}
+        >
+          {queue.oldestAt
+            ? `Älteste wartet seit ${formatDateTime(queue.oldestAt)} Uhr`
+            : "Nichts zu prüfen"}
+        </Tile>
+        {staffArea(overview.viewer.staffRole, "admin") ? (
+          <>
+            <Tile
+              href={adminHref("/disputes")}
+              label="Streitfälle"
+              value={overview.disputes}
+              tone={overview.disputes ? "text-accent-text" : undefined}
+            >
+              {overview.disputes ? "Warten auf eine Entscheidung" : "Keine offenen Streitfälle"}
+            </Tile>
+            <Tile
+              href={adminHref("/notifications")}
+              label="Nachrichten"
+              value={overview.failedNotifications}
+              tone={overview.failedNotifications ? "text-accent-text" : undefined}
+            >
+              {overview.failedNotifications
+                ? "Fehlgeschlagen, nicht zugestellt"
+                : "Keine fehlgeschlagen"}
+            </Tile>
+            {bot ? (
+              <Tile
+                label="Bot"
+                value={bot.online ? "Läuft" : "Offline"}
+                tone={bot.online ? "text-success" : "text-accent-text"}
+              >
+                {BOT_LOOPS.map(({ loop, label }) => (
+                  <span key={loop} className="block">
+                    {label}: {bot.loops[loop].online ? "läuft" : "steht"},{" "}
+                    {lastSeen(bot.loops[loop].heartbeatAt)}
+                  </span>
                 ))}
-              </ul>
-              <DecisionForm
-                requestId={request.id}
-                universities={request.university ? null : universities}
-              />
-            </CardContent>
-          </Card>
-        );
-      })}
-    </PageMain>
+              </Tile>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </AdminShell>
   );
 }

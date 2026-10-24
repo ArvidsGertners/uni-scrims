@@ -4,11 +4,11 @@ import {
   STAFF_ROLE_LABELS,
   findStaffCandidates,
   listStaff,
+  getAdminOverview,
 } from "@uni-scrims/core";
 import type { StaffRole } from "@uni-scrims/db";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
-import { PageMain } from "@/components/page-main";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { adminHref } from "@/lib/admin-url";
 import { requireStaffPage } from "@/lib/session";
-import { AdminNav } from "../admin-nav";
+import { AdminShell } from "../admin-shell";
 import { resetStaffTwoFactorAction, setStaffRoleAction } from "./actions";
 
 const cardClass = "flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-[14px]";
@@ -90,6 +90,7 @@ export default async function StaffPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const operator = await requireStaffPage("/staff", "staff");
+  const overview = await getAdminOverview({ staffId: operator.id, now: new Date() });
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
   const [staff, candidates] = await Promise.all([
@@ -99,8 +100,7 @@ export default async function StaffPage({
   const searched = query.length >= MIN_STAFF_SEARCH_LENGTH;
 
   return (
-    <PageMain className="gap-6">
-      <AdminNav staff={operator} />
+    <AdminShell overview={overview} current="/staff">
       <h1 className="type-h1">Rollen</h1>
       <div className="flex flex-col gap-1 text-[14px] text-pretty text-muted-foreground">
         <p>
@@ -176,6 +176,6 @@ export default async function StaffPage({
             ))}
         </ul>
       </section>
-    </PageMain>
+    </AdminShell>
   );
 }

@@ -1,4 +1,9 @@
-import { LOGO_BACKGROUNDS, MIN_SEARCH_LENGTH, searchModerationTargets } from "@uni-scrims/core";
+import {
+  LOGO_BACKGROUNDS,
+  MIN_SEARCH_LENGTH,
+  searchModerationTargets,
+  getAdminOverview,
+} from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
@@ -7,9 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requireStaffPage } from "@/lib/session";
-import { AdminNav } from "../admin-nav";
+import { AdminShell } from "../admin-shell";
 import { banTeamAction, banUserAction, removeTeamLogoAction } from "../actions";
-import { PageMain } from "@/components/page-main";
 import { adminHref } from "@/lib/admin-url";
 
 // Consequences from SPEC P0-9 and the edge cases.
@@ -22,6 +26,7 @@ export default async function BansPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const admin = await requireStaffPage("/bans", "admin");
+  const overview = await getAdminOverview({ staffId: admin.id, now: new Date() });
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
   const result = await searchModerationTargets({ adminId: admin.id, query });
@@ -29,8 +34,7 @@ export default async function BansPage({
   const searched = query.length >= MIN_SEARCH_LENGTH;
 
   return (
-    <PageMain className="gap-6">
-      <AdminNav staff={admin} />
+    <AdminShell overview={overview} current="/bans">
       <h1 className="type-h1">Sperren</h1>
       <div className="flex flex-col gap-1 text-[14px] text-muted-foreground">
         <p>
@@ -161,6 +165,6 @@ export default async function BansPage({
           ))}
         </section>
       ) : null}
-    </PageMain>
+    </AdminShell>
   );
 }

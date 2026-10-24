@@ -1,10 +1,14 @@
-import { FEEDBACK_OUTCOME_LABELS, describeStart, listDisputes } from "@uni-scrims/core";
+import {
+  FEEDBACK_OUTCOME_LABELS,
+  describeStart,
+  listDisputes,
+  getAdminOverview,
+} from "@uni-scrims/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFormat } from "@/lib/scrim-format";
 import { requireStaffPage } from "@/lib/session";
-import { AdminNav } from "../admin-nav";
+import { AdminShell } from "../admin-shell";
 import { DisputeForm } from "./dispute-form";
-import { PageMain } from "@/components/page-main";
 
 type Side = Awaited<ReturnType<typeof listDisputes>>[number]["host"];
 
@@ -24,11 +28,11 @@ function Answer({ side }: { side: Side }) {
 
 export default async function DisputesPage() {
   const admin = await requireStaffPage("/disputes", "admin");
+  const overview = await getAdminOverview({ staffId: admin.id, now: new Date() });
   const disputes = await listDisputes(admin.id);
 
   return (
-    <PageMain className="gap-6">
-      <AdminNav staff={admin} />
+    <AdminShell overview={overview} current="/disputes">
       <h1 className="type-h1">Streitfälle</h1>
       {disputes.length === 0 ? <p>Keine offenen Streitfälle.</p> : null}
       {disputes.map((dispute) => (
@@ -50,6 +54,6 @@ export default async function DisputesPage() {
           </CardContent>
         </Card>
       ))}
-    </PageMain>
+    </AdminShell>
   );
 }

@@ -1,11 +1,21 @@
 "use client";
 
+import { cn } from "cn";
 import { useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { FLASH_COOKIE } from "@/lib/flash-cookie";
 
 /** Success toast above the content, hidden after 3.5 s (design handoff). */
-export function FlashToast({ message, domain }: { message: string; domain: string | null }) {
+export function FlashToast({
+  message,
+  domain,
+  className,
+}: {
+  message: string;
+  domain: string | null;
+  /** The admin area places it in its content column (§5.14). */
+  className?: string;
+}) {
   const [visible, setVisible] = useState(true);
   useEffect(() => {
     // Shown once: the next page render must not find it again.
@@ -18,7 +28,7 @@ export function FlashToast({ message, domain }: { message: string; domain: strin
   }, [domain]);
   if (!visible) return null;
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 pt-4 sm:px-8">
+    <div className={cn("mx-auto w-full max-w-3xl px-5 pt-4 sm:px-8", className)}>
       <Alert variant="success" role="status" className="items-center">
         <span>{message}</span>
       </Alert>

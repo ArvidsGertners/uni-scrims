@@ -1,8 +1,16 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { StaffRole, VerifStatus, prisma } from "@uni-scrims/db";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  NotifChannel,
+  NotifStatus,
+  NotifType,
+  ScrimStatus,
+  StaffRole,
+  VerifStatus,
+  prisma,
+} from "@uni-scrims/db";
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from "vitest";
 import {
   CREDENTIAL_PROVIDER,
   banUser,
@@ -10,6 +18,7 @@ import {
   deleteAccount,
   findStaffCandidates,
   finishTwoFactorSetup,
+  getAdminOverview,
   hasStaffRole,
   isDomainError,
   listStaff,
@@ -19,7 +28,7 @@ import {
   setOperator,
   setStaffRole,
 } from "../src/index.ts";
-import { NOW, createSession, createUser, uid } from "./helpers.ts";
+import { NOW, bookScrim, createSession, createUser, uid } from "./helpers.ts";
 
 let uploadDir: string;
 let operator: Awaited<ReturnType<typeof createUser>>;
@@ -321,5 +330,115 @@ describe("races (§4)", () => {
       expect([VerifStatus.REJECTED, VerifStatus.PENDING]).toContain(decided.status);
       expect(await role(reviewer.id)).toBeNull();
     }
+  });
+});
+
+describe("getAdminOverview (§5.14)", () => {
+  const LONG_AGO = new Date("2020-01-01T00:00:00Z");
+
+  async function heartbeat(at: Date) {
+    for (const id of ["bot", "outbox"]) {
+      await prisma.systemStatus.upsert({
+        where: { id },
+        create: { id, heartbeatAt: at },
+        update: { heartbeatAt: at },
+      });
+    }
+  }
+
+  it("counts what waits for admins and the operator", async () => {
+    const applicant = await createUser();
+    const request = await prisma.verificationRequest.create({
+      data: {
+        userId: applicant.id,
+        pendingUserId: applicant.id,
+        mimeType: "application/pdf",
+        sizeBytes: 1000,
+        status: VerifStatus.PENDING,
+        createdAt: LONG_AGO,
+      },
+    });
+    const { scrim } = await bookScrim();
+    await prisma.scrim.update({ where: { id: scrim.id }, data: { status: ScrimStatus.DISPUTED } });
+    const notification = await prisma.notification.create({
+      data: {
+        type: NotifType.VERIFICATION_RESULT,
+        channel: NotifChannel.USER_DM,
+        targetUserId: applicant.id,
+        payload: {},
+        scheduledFor: NOW,
+        status: NotifStatus.FAILED,
+        dedupeKey: `overview:${uid()}`,
+        createdAt: NOW,
+      },
+    });
+    await heartbeat(NOW);
+    const admin = await createUser({ staffRole: StaffRole.ADMIN });
+
+    // Other test files count stale verifications, disputes and failed notifications too.
+    onTestFinished(async () => {
+      await prisma.verificationRequest.delete({ where: { id: request.id } });
+      await prisma.notification.delete({ where: { id: notification.id } });
+      await prisma.scrim.update({
+        where: { id: scrim.id },
+        data: { status: ScrimStatus.SCHEDULED },
+      });
+    });
+
+    for (const staff of [admin, operator]) {
+      const overview = await getAdminOverview({ staffId: staff.id, now: NOW });
+      expect(overview.viewer).toEqual({
+        id: staff.id,
+        name: staff.name,
+        staffRole: staff.staffRole,
+        avatarVersion: null,
+      });
+      expect(overview.queue).toEqual({
+        pending: await prisma.verificationRequest.count({ where: { status: VerifStatus.PENDING } }),
+        oldestAt: LONG_AGO,
+      });
+      expect(overview.disputes).toBe(
+        await prisma.scrim.count({ where: { status: ScrimStatus.DISPUTED } }),
+      );
+      expect(overview.disputes).toBeGreaterThan(0);
+      expect(overview.failedNotifications).toBe(
+        await prisma.notification.count({ where: { status: NotifStatus.FAILED } }),
+      );
+      expect(overview.failedNotifications).toBeGreaterThan(0);
+      expect(overview.bot).toMatchObject({ online: true });
+    }
+  });
+
+  it("shows reviewers only the queue", async () => {
+    const reviewer = await createUser({ staffRole: StaffRole.REVIEWER });
+    const overview = await getAdminOverview({ staffId: reviewer.id, now: NOW });
+    expect(overview.viewer.staffRole).toBe(StaffRole.REVIEWER);
+    expect(overview.queue.pending).toBe(
+      await prisma.verificationRequest.count({ where: { status: VerifStatus.PENDING } }),
+    );
+    expect(overview).toMatchObject({ disputes: null, failedNotifications: null, bot: null });
+  });
+
+  it("reports the bot offline after a stale heartbeat", async () => {
+    await heartbeat(NOW);
+    const later = new Date(NOW.getTime() + 10 * 60_000);
+    expect((await getAdminOverview({ staffId: operator.id, now: later })).bot).toMatchObject({
+      online: false,
+    });
+  });
+
+  it("needs a role with 2FA on an active account", async () => {
+    const withoutCode = await createUser({ staffRole: StaffRole.ADMIN, twoFactor: false });
+    await expect(getAdminOverview({ staffId: withoutCode.id, now: NOW })).rejects.toMatchObject({
+      code: "TWO_FACTOR_REQUIRED",
+    });
+    const player = await createUser();
+    await expect(getAdminOverview({ staffId: player.id, now: NOW })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    const banned = await createUser({ staffRole: StaffRole.REVIEWER, banned: true });
+    await expect(getAdminOverview({ staffId: banned.id, now: NOW })).rejects.toMatchObject({
+      code: "BANNED",
+    });
   });
 });

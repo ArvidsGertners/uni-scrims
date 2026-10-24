@@ -3,12 +3,12 @@ import {
   STATS_WINDOW_DAYS,
   type SuccessMetric,
   getSuccessMetrics,
+  getAdminOverview,
 } from "@uni-scrims/core";
-import { PageMain } from "@/components/page-main";
 import { Badge } from "@/components/ui/badge";
 import { formatCases, formatMetricValue, formatThreshold } from "@/lib/metric-format";
 import { requireStaffPage } from "@/lib/session";
-import { AdminNav } from "../admin-nav";
+import { AdminShell } from "../admin-shell";
 
 const GROUPS = [
   { group: "early", title: "Frühindikatoren", hint: "für die ersten 4 Wochen" },
@@ -77,11 +77,11 @@ function MetricCard({ metric }: { metric: SuccessMetric }) {
 /** Success metrics of SPEC §8 (SPEC N-2); only sums, no personal data. */
 export default async function StatsPage() {
   const admin = await requireStaffPage("/stats", "admin");
+  const overview = await getAdminOverview({ staffId: admin.id, now: new Date() });
   const metrics = await getSuccessMetrics({ adminId: admin.id, now: new Date() });
 
   return (
-    <PageMain className="gap-6">
-      <AdminNav staff={admin} />
+    <AdminShell overview={overview} current="/stats">
       <h1 className="type-h1">Statistik</h1>
       <p className="text-[14px] text-pretty text-muted-foreground">
         Die Erfolgskriterien aus der Spezifikation, jeweils bis jetzt. Prüfungen gelöschter Konten
@@ -101,6 +101,6 @@ export default async function StatsPage() {
           </ul>
         </section>
       ))}
-    </PageMain>
+    </AdminShell>
   );
 }
