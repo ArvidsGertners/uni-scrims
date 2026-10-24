@@ -245,6 +245,7 @@ In der `.env`:
 - `DOMAIN=<domain>`, `BETTER_AUTH_URL=https://<domain>`, `PUBLIC_BASE_URL=https://<domain>`, `ADMIN_URL=https://admin.<domain>` (Admin-Bereich, ab Phase 13; der DNS-Eintrag für `admin.<domain>` muss wie der für `<domain>` auf den Server zeigen)
 - `BETTER_AUTH_SECRET` mit `openssl rand -base64 32`, `POSTGRES_PASSWORD` mit `openssl rand -hex 32` (hex, weil es in `DATABASE_URL` steht)
 - Discord-Werte, `HUB_GUILD_ID`, `HUB_INVITE_URL` (`ADMIN_DISCORD_IDS` gibt es seit Phase 8 nicht mehr; eine alte Zeile stört nicht)
+- `CONTACT_EMAIL`: die Kontaktadresse auf der Support-Seite (ab Phase 17), z. B. `support@uniscrims.com`; leer verweist die Seite auf das Impressum
 - `DATABASE_URL` setzt die Compose-Datei selbst, ebenso `UPLOAD_DIR` und `LEGAL_DIR` für `web` (der Bot braucht beide nicht; nur das Skript beim Wiederherstellen bekommt `UPLOAD_DIR` im Aufruf). Die `DEV_*`-Schalter sind in Production ohnehin aus.
 
 Rechtstexte anlegen (Format siehe ARCHITECTURE §8):

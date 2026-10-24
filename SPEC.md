@@ -95,6 +95,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 31. Als Admin will ich auf einen Blick sehen, was zu tun ist (offene Prüfungen, Streitfälle, Fehler, Bot), und als Captain den Stand meines Teams auf einen Blick.
 32. Als Spieler will ich die Seite wie ein Dashboard bedienen: alle Bereiche in einer Seitenleiste, Team und Konto unten, Unterseiten als Tabs.
 33. Als Spieler will ich auf einem großen Bildschirm die ganze Breite nutzen: die Leiste ganz links, die Inhalte daneben über den restlichen Platz.
+34. Als Spieler will ich über mein Konto in der Leiste schnell zu Einstellungen, Support und Abmelden kommen, meine Profil-ID nachsehen und hell oder dunkel unabhängig von meinem Gerät wählen.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -342,7 +343,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Datenauskunft nennt beim Team, wann sich sein Logo zuletzt geändert hat; das Bild selbst ist Teamdaten ohne Personenbezug und steht nicht in der Datei.
 
 **N-7 Hell-Modus und Logo pro Hintergrund** (Phase 11)
-- [x] Die Seite folgt der Systemeinstellung des Geräts: hell oder dunkel. Einen Schalter auf der Seite gibt es nicht. Das dunkle Design bleibt, wie es ist; das helle nutzt dieselben Bausteine mit hellen Farben, Text mit ausreichendem Kontrast (mindestens 4,5:1).
+- [x] Die Seite folgt der Systemeinstellung des Geräts: hell oder dunkel. Einen Schalter auf der Seite gibt es nicht (seit Phase 17 wählbar, N-13). Das dunkle Design bleibt, wie es ist; das helle nutzt dieselben Bausteine mit hellen Farben, Text mit ausreichendem Kontrast (mindestens 4,5:1).
 - [x] Der Captain kann zwei Logos hochladen, ersetzen und entfernen: eins für dunklen Hintergrund und eins für hellen Hintergrund, beide optional und mit denselben Regeln wie in N-6 (Formate, Grenzen, Zuschnitt). Ein Logo aus Phase 10 gilt als Logo für dunklen Hintergrund.
 - [x] Angezeigt wird das Logo, das zum Modus passt. Gibt es nur eins, steht es im anderen Modus auf einem kleinen Kästchen in der Farbe, für die es gemacht ist, damit es lesbar bleibt. Ohne Logo bleibt das Kürzel.
 - [x] Admins sehen auf der Seite „Sperren“ beide Logos und entfernen mit „Logo entfernen“ beide, nur wenn sie den aktuellen Stand gesehen haben (wie in N-6).
@@ -358,10 +359,10 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 
 **N-9 Navigation und Admin-Bereich auf eigener Adresse** (Phase 13)
 - [x] Das Hauptmenü hat nur noch drei Punkte: Scrims, Team, Konto. Der Warnpunkt für eine fehlende Verifizierung steht an „Konto“. Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“.
-- [x] „Abmelden“ steht nur noch auf der Konto-Seite (oben, neben der Überschrift), nicht mehr im Kopf oder Menü.
+- [x] „Abmelden“ steht nur noch auf der Konto-Seite (oben, neben der Überschrift), nicht mehr im Kopf oder Menü. Seit Phase 17 steht es im Konto-Menü (N-13).
 - [x] Board und Meine Scrims sind eine Seite „Scrims“ mit den Tabs Board, Anstehend, Anfragen, Bewerbungen, Vergangen. Board ist der erste Tab und zeigt die Anfragen anderer Teams mit den Filtern aus P0-4; die eigenen offenen Anfragen stehen nur im Tab Anfragen. Der Feedback-Hinweis steht über den Tabs, „Anfrage erstellen“ (nur für den Captain) oben auf der Seite. Ohne Team ist das Board nutzbar; die anderen Tabs zeigen den Hinweis auf die Team-Seite. Alte Links auf das Board (auch in Discord-Nachrichten) führen auf den Tab Board, mit denselben Filtern.
 - [x] Die Verifizierung gehört zu „Konto“: Die Konto-Seite zeigt den Studierendenstatus als ersten Kasten, mit einem Knopf zur Verifizierungsseite (je nach Status „Bescheinigung hochladen“, „Status ansehen“ oder „Details“). Die Verifizierungsseite bleibt eine eigene Seite mit Zurück-Link zum Konto; im Menü ist dort „Konto“ markiert.
-- [x] Der Admin-Bereich (Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Statistik, Rollen, 2FA-Einrichtung) liegt unter einer eigenen Adresse, admin.uniscrims.com, und steht nicht mehr im Menü. Admins, Prüfer und der Betreiber finden auf ihrer Konto-Seite einen Link dorthin. Alte Adressen unter uniscrims.com/admin leiten weiter.
+- [x] Der Admin-Bereich (Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Statistik, Rollen, 2FA-Einrichtung) liegt unter einer eigenen Adresse, admin.uniscrims.com, und steht nicht mehr im Menü. Admins, Prüfer und der Betreiber finden auf ihrer Konto-Seite einen Link dorthin (seit Phase 17 im Konto-Menü, N-13). Alte Adressen unter uniscrims.com/admin leiten weiter.
 - [x] Die Anmeldung gilt für beide Adressen: Wer auf uniscrims.com angemeldet ist, ist es auch im Admin-Bereich; ohne Anmeldung führt der Admin-Bereich zur normalen Anmeldung (für Staff mit Passwort und Code wie in N-4) und danach zurück. Abmelden im Admin-Bereich meldet überall ab. Beim Deploy von Phase 13 werden alle einmal abgemeldet.
 - [x] Der Admin-Bereich hat einen eigenen Kopf mit „Uni Scrims Admin“, einem Link zurück zur Seite und „Abmelden“ (seit Phase 14 am Desktop unten in der Seitenleiste, N-10). Wer keine Rolle hat, sieht dort nichts (wie bisher: Seite nicht gefunden). Impressum und Datenschutz sind auch dort erreichbar.
 
@@ -382,6 +383,12 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Am Desktop (ab 1024 px) steht die Seitenleiste ganz links am Bildschirmrand, auf der Seite wie im Admin-Bereich. Kopf (das Logo über der Leiste), Discord-Hinweis und Fußzeile gehen über die ganze Breite.
 - [x] Die Ansichten füllen den Platz neben der Leiste ohne feste Obergrenze. Auf „Scrims“ stehen Karten und Listen nebeneinander (ab 1280 px zwei, ab 1536 px drei, ab 1920 px vier Spalten). Team, Konto, Anfrage und Scrim zeigen links die Angaben und rechts Aktionen und Hinweise (die Team-Seite für den Captain wie bisher ab 768 px, sonst ab 1024 px); ohne Team stehen „Team gründen“ und „Team beitreten“ nebeneinander. Im Admin-Bereich stehen die Listen ab 1280 px in zwei Spalten.
 - [x] Formulare bleiben lesbar schmal: Anfrage erstellen, Team beitreten, Konto vervollständigen und Feedback stehen mittig im Inhalt, die Verifizierung links unter den Konto-Tabs. Abgemeldete Seiten (Startseite, Anmeldung, Rechtstexte) bleiben, wie sie sind. Unter 1024 px ändert sich nichts, auch nicht die Reihenfolge. Funktionen und Rechte ändern sich nicht.
+
+**N-13 Konto-Menü, Einstellungen, Design und Support** (Phase 17)
+- [ ] „Konto“ in der Seitenleiste öffnet ein Menü mit Einstellungen, Support, für Staff dem Admin-Bereich und Abmelden. Auf dem Handy stehen dieselben Punkte im Menü unter dem Konto. Der Knopf „Abmelden“ oben auf der Konto-Seite und der Kasten „Admin-Bereich“ entfallen. Gesperrte und unvollständige Konten bekommen dasselbe Menü, ohne den Admin-Bereich.
+- [ ] Die Konto-Seite heißt „Einstellungen“, ihre Tabs „Allgemein“ und „Verifizierung“. Links stehen unter „Grundeinstellungen“ die Profil-ID (nicht änderbar, zum Kopieren) und das Design, darunter wie bisher Studierendenstatus, Name und Anmeldung, Deine Daten und Konto löschen. Rechts stehen unter „Verknüpfte Konten“ Discord (Profilbild, Name, ob Nachrichten ankommen, erneut verbinden); weitere Konten wie Riot kommen erst mit ihrer Anbindung.
+- [ ] Das Design ist wählbar: System (Standard, folgt wie bisher dem Gerät), Hell oder Dunkel. Die Wahl gilt für das Konto auf allen Geräten und auch im Admin-Bereich; abgemeldet folgt die Seite dem Gerät. Die Logos folgen dem gewählten Design wie in N-7. Gesperrte und unvollständige Konten können das Design auch wählen. Die Datenauskunft nennt die Wahl.
+- [ ] Neue Seite „Support“ (für alle erreichbar, auch abgemeldet): ein Knopf zum Uni-Scrims-Discord-Server und die Kontaktadresse support@uniscrims.com zum Schreiben. Fehlt eins davon in der Konfiguration, entfällt es; fehlt beides, verweist die Seite auf das Impressum.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -506,6 +513,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 14 | Profilbild im Kopf, Dashboards für Admin-Bereich und Team (N-10) | Neben „Konto“ steht das Profilbild; der Admin-Bereich hat Seitenleiste mit Zählern, Profil und Abmelden sowie eine Übersicht mit Kacheln; die Team-Seite zeigt Kacheln und am Desktop zwei Spalten |
 | 15 | Die ganze Seite im Dashboard-Layout (N-11) | Angemeldet steht am Desktop links die Seitenleiste mit Scrims oben sowie Team und Konto unten; auf dem Handy dieselben Einträge im Menü; Scrims und Konto haben Tabs für ihre Unterseiten |
 | 16 | Volle Breite (N-12) | Am Desktop steht die Leiste ganz links, Seite und Admin-Bereich nutzen den Platz daneben (Scrims in Spalten, Detailseiten zweispaltig); Formulare bleiben schmal; unter 1024 px bleibt alles, wie es ist |
+| 17 | Konto-Menü, Einstellungen, Design und Support (N-13) | „Konto“ öffnet ein Menü mit Einstellungen, Support, Admin-Bereich und Abmelden; die Einstellungen zeigen Profil-ID, Design und verknüpfte Konten; Hell und Dunkel lassen sich fest wählen und gelten überall; die Support-Seite nennt Discord und support@uniscrims.com |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
