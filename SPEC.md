@@ -337,11 +337,11 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Datenauskunft nennt beim Team, wann sich sein Logo zuletzt geändert hat; das Bild selbst ist Teamdaten ohne Personenbezug und steht nicht in der Datei.
 
 **N-7 Hell-Modus und Logo pro Hintergrund** (Phase 11)
-- [ ] Die Seite folgt der Systemeinstellung des Geräts: hell oder dunkel. Einen Schalter auf der Seite gibt es nicht. Das dunkle Design bleibt, wie es ist; das helle nutzt dieselben Bausteine mit hellen Farben, Text mit ausreichendem Kontrast (mindestens 4,5:1).
-- [ ] Der Captain kann zwei Logos hochladen, ersetzen und entfernen: eins für dunklen Hintergrund und eins für hellen Hintergrund, beide optional und mit denselben Regeln wie in N-6 (Formate, Grenzen, Zuschnitt). Ein Logo aus Phase 10 gilt als Logo für dunklen Hintergrund.
-- [ ] Angezeigt wird das Logo, das zum Modus passt. Gibt es nur eins, steht es im anderen Modus auf einem kleinen Kästchen in der Farbe, für die es gemacht ist, damit es lesbar bleibt. Ohne Logo bleibt das Kürzel.
-- [ ] Admins sehen auf der Seite „Sperren“ beide Logos und entfernen mit „Logo entfernen“ beide, nur wenn sie den aktuellen Stand gesehen haben (wie in N-6).
-- [ ] Die Datenauskunft nennt zusätzlich, für welche Hintergründe das Team Logos hat.
+- [x] Die Seite folgt der Systemeinstellung des Geräts: hell oder dunkel. Einen Schalter auf der Seite gibt es nicht. Das dunkle Design bleibt, wie es ist; das helle nutzt dieselben Bausteine mit hellen Farben, Text mit ausreichendem Kontrast (mindestens 4,5:1).
+- [x] Der Captain kann zwei Logos hochladen, ersetzen und entfernen: eins für dunklen Hintergrund und eins für hellen Hintergrund, beide optional und mit denselben Regeln wie in N-6 (Formate, Grenzen, Zuschnitt). Ein Logo aus Phase 10 gilt als Logo für dunklen Hintergrund.
+- [x] Angezeigt wird das Logo, das zum Modus passt. Gibt es nur eins, steht es im anderen Modus auf einem kleinen Kästchen in der Farbe, für die es gemacht ist, damit es lesbar bleibt. Ohne Logo bleibt das Kürzel.
+- [x] Admins sehen auf der Seite „Sperren“ beide Logos und entfernen mit „Logo entfernen“ beide, nur wenn sie den aktuellen Stand gesehen haben (wie in N-6).
+- [x] Die Datenauskunft nennt zusätzlich, für welche Hintergründe das Team Logos hat.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
