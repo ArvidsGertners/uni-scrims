@@ -58,7 +58,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 ### Captain
 1. Als Captain will ich mich mit Discord anmelden, damit ich kein extra Passwort brauche.
 2. Als Captain will ich ein Team anlegen und Mitspieler per Einladungslink hinzufügen, damit unser Roster auf der Plattform steht. Die Spieler dürfen von verschiedenen Hochschulen sein.
-3. Als Captain will ich den Team-Rang anpassen können, damit er im Laufe des Semesters aktuell bleibt.
+3. Als Captain will ich den Team-Rang anpassen können, damit er im Laufe des Semesters aktuell bleibt. (Seit Phase 20 ergibt er sich aus den Rängen der Spieler, Story 37.)
 4. Als Captain will ich eine Scrim-Anfrage mit Datum, Uhrzeit, Format und gewünschtem Rang-Bereich posten, damit passende Teams sie finden.
 5. Als Captain will ich offene Anfragen nach Datum und Rang filtern, damit ich schnell einen passenden Gegner sehe.
 6. Als Captain will ich mich mit einem Klick auf eine Anfrage bewerben, damit der Ersteller uns als Gegner auswählen kann.
@@ -98,6 +98,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 34. Als Spieler will ich über mein Konto in der Leiste schnell zu Einstellungen, Support und Abmelden kommen, meine Profil-ID nachsehen und hell oder dunkel unabhängig von meinem Gerät wählen.
 35. Als Spieler will ich selbst bestimmen, welche Benachrichtigungen ich per Discord oder per Mail bekomme, und als Mitglied auch Buchungen und Erinnerungen zu unseren Scrims bekommen, nicht nur der Captain.
 36. Als Captain will ich auf der Team-Seite die Teamdaten und unsere Mitglieder getrennt sehen und Links zu unserem Discord-Server, unserer Website und unseren Kanälen angeben, damit andere Teams uns dort finden.
+37. Als Spieler will ich meinen Rang selbst angeben, und als Team will ich, dass sich unser Team-Rang daraus ergibt, damit er stimmt, ohne dass der Captain ihn pflegen muss.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -126,7 +127,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 2. Verifizierung: Hochschule aus einer Liste wählen (oder "Andere" mit Freitext), Immatrikulationsbescheinigung als PDF/JPG/PNG hochladen. Vorher Pflicht-Checkbox mit Kurzinfo: was gespeichert wird, wozu und wann es gelöscht wird. Der Status steht dann auf "in Prüfung".
 3. Ein Admin prüft anhand der Checkliste (siehe 7, P0-2) und gibt frei oder lehnt ab (mit Grund). Bei "Andere" ordnet er die Hochschule nach Möglichkeit einem Eintrag der Liste zu. Der Nutzer bekommt eine Discord-DM. **Die Datei wird nach der Entscheidung gelöscht.** Gespeichert bleiben nur Status, Hochschule, Dateityp, Dateigröße, Ablehnungsgrund, Zeitpunkte und wer geprüft hat.
 4. Prüfungen, die nach 14 Tagen noch offen sind, werden automatisch abgelehnt und die Datei gelöscht. Der Nutzer kann neu hochladen.
-5. Team anlegen (Name, Kürzel, Team-Rang) oder einem Team per Einladungslink beitreten. Das geht auch schon, während die Prüfung läuft.
+5. Team anlegen (Name, Kürzel, Team-Rang; seit Phase 20 ohne Rang, N-16) oder einem Team per Einladungslink beitreten. Das geht auch schon, während die Prüfung läuft.
 6. Optional: Bot auf den Team-Server einladen und mit `/setup` verknüpfen.
 
 ### Flow B: Scrim posten, bewerben, bestätigen
@@ -190,8 +191,8 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Bewusst akzeptiertes Restrisiko: Ob die Bescheinigung wirklich dem Uploader gehört, ist nicht prüfbar. Seit Phase 7 vergleicht der Prüfer den Namen, aber wer eine fremde Bescheinigung hochlädt, kann auch deren Namen angeben. Missbrauch wird über Sperren behandelt.
 
 **P0-3 Teams**
-- [x] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Iron bis Radiant, englische Rangnamen wie im Spiel üblich)
-- [x] Captain kann Name, Kürzel und Team-Rang ändern; seit Phase 10 auch ein Logo hochladen (N-6), seit Phase 19 auch Links zu Discord-Server, Website und Social Media angeben (N-15)
+- [x] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Iron bis Radiant, englische Rangnamen wie im Spiel üblich; seit Phase 20 berechnet aus den Rängen der Spieler statt gewählt, N-16)
+- [x] Captain kann Name, Kürzel und Team-Rang ändern (den Rang bis Phase 20, N-16); seit Phase 10 auch ein Logo hochladen (N-6), seit Phase 19 auch Links zu Discord-Server, Website und Social Media angeben (N-15)
 - [x] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
 - [x] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite
 - [x] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team
@@ -204,14 +205,14 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 **P0-4 Scrim-Anfragen und Board**
 - [x] Felder: Datum, Startzeit (Europe/Berlin, 15-Minuten-Raster, 10:00–01:45 Uhr, mindestens 30 Minuten in der Zukunft; das Datum ist immer das Kalenderdatum des tatsächlichen Starts, die UI zeigt bei Startzeiten nach Mitternacht "(Nacht auf Mi, 22.10.)"), Format (`1 Map`, `2 Maps`, `BO3`), Rang-Bereich min–max, Maps (optional, Mehrfachauswahl aus festem Map-Pool), Notiz (max. 300 Zeichen)
 - [x] Nur spielbereite Teams können posten; max. 5 offene Anfragen pro Team
-- [x] Board zeigt offene, zukünftige Anfragen; Filter nach Datum und Rang; Standardfilter: Anfragen, deren Rang-Bereich den eigenen Team-Rang enthält. Im Rang-Filter sind mehrere Ränge wählbar: Es erscheinen Anfragen, deren Rang-Bereich einen davon enthält; ohne Auswahl alle Ränge
+- [x] Board zeigt offene, zukünftige Anfragen; Filter nach Datum und Rang; Standardfilter: Anfragen, deren Rang-Bereich den eigenen Team-Rang enthält (seit Phase 20 ohne Team-Rang kein Standardfilter, N-16). Im Rang-Filter sind mehrere Ränge wählbar: Es erscheinen Anfragen, deren Rang-Bereich einen davon enthält; ohne Auswahl alle Ränge
 - [x] Jede Karte zeigt Team, Hochschulen, Rang, Zuverlässigkeit und die Anzahl der Bewerbungen
 - [x] Ersteller kann eine offene Anfrage löschen; offene Bewerbungen werden abgelehnt und die Bewerber bekommen Bescheid
 - [x] Anfragen ohne bestätigte Bewerbung verfallen zur Startzeit; Bewerber bekommen Bescheid
 
 **P0-5 Bewerbungen und Bestätigung**
 - [x] Spielbereite Teams können sich bewerben, optional mit Nachricht (max. 200 Zeichen); nicht auf eigene Anfragen; max. 1 Bewerbung pro Team und Anfrage, auch nach Zurückziehen
-- [x] Bewerbung außerhalb des Rang-Bereichs ist erlaubt, mit Hinweis beim Bewerben und beim Ersteller
+- [x] Bewerbung außerhalb des Rang-Bereichs ist erlaubt, mit Hinweis beim Bewerben und beim Ersteller (seit Phase 20 nur, wenn das Team einen Rang hat, N-16)
 - [x] Ersteller sieht alle Bewerbungen mit Rang, Hochschulen und Zuverlässigkeit
 - [x] Bestätigen prüft, dass beide Teams spielbereit und aktiv sind (nicht gesperrt, nicht aufgelöst); genau eine Bewerbung wird angenommen, alle anderen automatisch abgelehnt
 - [x] Bewerber können zurückziehen, solange nicht bestätigt
@@ -249,7 +250,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 **P0-10 Rechtliches und Datenschutz**
 - [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
 - [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Bis Phase 6 wurden bei einer erneuten Anmeldung nach der Löschung Discord-Name, Avatar und Session an diesem Platzhalter gespeichert; seit Phase 7 speichert eine Anmeldung über Discord dort nichts mehr, und der Platzhalter bleibt abgemeldet (N-3). Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
-- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3); seit Phase 10 ein optionales Team-Logo, nur als vom Server neu erzeugtes Bild ohne Metadaten (N-6); seit Phase 19 optionale Links des Teams, die der Captain angibt (N-15)
+- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3); seit Phase 10 ein optionales Team-Logo, nur als vom Server neu erzeugtes Bild ohne Metadaten (N-6); seit Phase 19 optionale Links des Teams, die der Captain angibt (N-15); seit Phase 20 der selbst angegebene Rang (N-16)
 - [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
 ### Nach dem MVP umgesetzt
@@ -411,6 +412,15 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Admins sehen die Links eines Teams auf der Seite „Sperren“ als Adressen und entfernen mit „Links entfernen“ alle auf einmal, nur wenn sie den aktuellen Stand gesehen haben (wie bei Logos, N-6), auch bei gesperrten Teams. Beim Auflösen eines Teams werden seine Links gelöscht; bei einer Sperre bleiben sie, bis ein Admin sie entfernt.
 - [x] Die Datenauskunft nennt beim Team die Links und wann sie zuletzt geändert wurden. Die Datenschutzerklärung nennt die Links. Sonst ändern sich Funktionen und Rechte der Team-Seite nicht.
 
+**N-16 Spieler-Rang und Team-Rang** (Phase 20)
+- [ ] Jeder gibt in den Einstellungen unter „Allgemein“ seinen Rang an (Iron bis Radiant) oder lässt ihn leer, und kann ihn jederzeit ändern oder löschen. Der Rang ist selbst angegeben, bis eine Riot-Anbindung kommt (P2). Gesperrte und unvollständige Konten können ihn nicht setzen.
+- [ ] Der Team-Rang wird nicht mehr gewählt, sondern beim Anzeigen berechnet: der Durchschnitt der Ränge aller Spieler und Ersatzspieler, die einen Rang angegeben haben (auch wenn sie noch nicht verifiziert sind), auf einen Rang gerundet, bei genau der Mitte aufwärts. Coaches zählen nie. Hat niemand davon einen Rang, hat das Team keinen Rang („Ohne Rang“).
+- [ ] Gründen und Bearbeiten eines Teams haben kein Rangfeld mehr. Alle bestehenden Teams starten nach dem Update ohne Rang; der bisher gewählte Rang wird nicht übernommen.
+- [ ] Ohne Team-Rang filtert das Board nicht vorab (alle Ränge), eine neue Anfrage startet mit dem Rang-Bereich Iron bis Radiant, und es gibt keinen Hinweis „außerhalb des Bereichs“, weder beim Bewerben noch beim Ersteller. Mit Team-Rang bleibt alles wie bisher.
+- [ ] Andere Teams sehen nur den Team-Rang (Board, Anfrage, Bewerbungen, Einladungsseite). Die Mitglieder eines Teams sehen zusätzlich den Rang jedes Einzelnen im Tab „Mitglieder“.
+- [ ] Der Tab „Team“ zeigt den Team-Rang mit der Anzahl der Ränge, aus denen er berechnet ist. Wer als Spieler oder Ersatzspieler zählt und keinen Rang angegeben hat, sieht dort einen Link „Rang angeben“ zu den Einstellungen.
+- [ ] Die Datenauskunft enthält den eigenen Rang und den Rang des Teams; die Kontolöschung löscht den eigenen Rang. Die Datenschutzerklärung nennt den Rang, wer ihn sieht und dass er in den Team-Rang einfließt.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -473,7 +483,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Feedback-Frist | Eine Frist: 72 h nach dem Feedback-Hinweis. |
 | Beide "Wir konnten nicht" | Unbestätigt, keiner wird bestraft. |
 | Bewerbung außerhalb des Rang-Bereichs | Erlaubt, mit Hinweis. |
-| Neue-Anfragen-Benachrichtigung | Nach P1 verschoben. Dafür ist der editierbare Team-Rang im MVP. |
+| Neue-Anfragen-Benachrichtigung | Nach P1 verschoben. Dafür ist der editierbare Team-Rang im MVP (seit Phase 20 aus den Rängen der Spieler berechnet, N-16). |
 | Auth | Better Auth (siehe ARCHITECTURE). |
 | Sichtbarkeit | Board und Anfragen nur für eingeloggte Nutzer. |
 | Captain-Rechte | Scrim-Aktionen nur, wenn der Captain selbst verifiziert ist. Teamverwaltung geht auch ohne. |
@@ -538,6 +548,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 17 | Konto-Menü, Einstellungen, Design und Support (N-13) | „Konto“ öffnet ein Menü mit Einstellungen, Support, Admin-Bereich und Abmelden; die Einstellungen zeigen Profil-ID, Design und verknüpfte Konten; Hell und Dunkel lassen sich fest wählen und gelten überall; die Support-Seite nennt Discord und support@uniscrims.com |
 | 18 | Benachrichtigungen einstellen (N-14) | Jede Benachrichtigung lässt sich per Discord und/oder Mail ein- und ausschalten; ohne Einstellung bleibt alles wie bisher; Mitglieder bekommen Scrim-Benachrichtigungen, wenn sie sie einschalten; Mails kommen als reiner Text mit Link und Abmelde-Hinweis |
 | 19 | Team-Tabs und Links (N-15) | Die Team-Seite hat die Tabs „Team“ (Karte mit Team-ID und Spiel, Logos, Einladung, externe Links) und „Mitglieder“ (Tabelle mit Beitrittsdatum, Rollen und Rechte); falsche Links werden abgelehnt; andere Teams sehen die Links auf Anfrage, Bewerbung und Scrim; ein Admin kann sie entfernen |
+| 20 | Spieler-Rang und Team-Rang (N-16) | Spieler geben ihren Rang in den Einstellungen an; der Team-Rang ist der gerundete Durchschnitt der Spieler und Ersatzspieler mit Rang, sonst „Ohne Rang“; Gründen und Bearbeiten ohne Rangfeld; ohne Team-Rang filtert das Board nicht vorab und eine Anfrage startet bei Iron–Radiant |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
