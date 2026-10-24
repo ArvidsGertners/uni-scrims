@@ -8,7 +8,7 @@ import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { setFlash } from "@/lib/flash";
 import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
-import { getSessionUserId } from "@/lib/session";
+import { adminLoginUrl, getSessionUserId } from "@/lib/session";
 
 /** Step 1 hands the page what the authenticator app needs (§5.9). */
 export type TwoFactorSetupState = ActionState & {
@@ -64,5 +64,5 @@ export async function confirmTwoFactorAction(
   if (!enabled)
     return { error: "Die Zwei-Faktor-Anmeldung wurde zurückgesetzt. Lade die Seite neu." };
   await setFlash("Zwei-Faktor-Anmeldung eingerichtet. Melde dich jetzt mit Passwort und Code an");
-  redirect("/login?callbackURL=%2Fadmin");
+  redirect(adminLoginUrl("/"));
 }

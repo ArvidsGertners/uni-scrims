@@ -12,6 +12,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { adminUrl } from "@/lib/admin-url";
 import { requirePageAccountUser, setupUrl } from "@/lib/session";
 import {
   changeEmailAction,
@@ -126,7 +127,7 @@ export default async function AccountPage({
           },
         ]}
       >
-        <div className="mb-1 flex items-center justify-between gap-3">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <h2 className="type-label text-muted-foreground">Studierendenstatus</h2>
           {/* /verify needs an active account (requirePageUser). */}
           {account.banned || account.setupStep ? null : (
@@ -273,7 +274,7 @@ export default async function AccountPage({
             Prüf-Queue und Verwaltung liegen auf einer eigenen Seite.
           </p>
           <a
-            href="/admin"
+            href={adminUrl("/")}
             className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}
           >
             Admin-Bereich öffnen

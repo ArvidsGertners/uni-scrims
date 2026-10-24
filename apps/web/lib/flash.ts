@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
+import { sharedCookieDomain } from "./admin-url.ts";
 import { FLASH_COOKIE } from "./flash-cookie.ts";
 
 /**
@@ -14,6 +15,8 @@ export async function setFlash(message: string): Promise<void> {
       path: "/",
       maxAge: 60,
       sameSite: "lax",
+      // An action on the admin host may lead to the login on the main host (§5.13).
+      domain: sharedCookieDomain() ?? undefined,
     },
   );
 }

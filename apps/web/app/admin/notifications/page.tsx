@@ -6,7 +6,7 @@ import { AdminNav } from "../admin-nav";
 import { PageMain } from "@/components/page-main";
 
 export default async function FailedNotificationsPage() {
-  const admin = await requireStaffPage("/admin/notifications", "admin");
+  const admin = await requireStaffPage("/notifications", "admin");
   const { entries: failed, total } = await listFailedNotifications(admin.id);
 
   return (

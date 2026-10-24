@@ -23,7 +23,7 @@ function Answer({ side }: { side: Side }) {
 }
 
 export default async function DisputesPage() {
-  const admin = await requireStaffPage("/admin/disputes", "admin");
+  const admin = await requireStaffPage("/disputes", "admin");
   const disputes = await listDisputes(admin.id);
 
   return (

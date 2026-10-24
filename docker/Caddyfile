@@ -1,5 +1,6 @@
-# Production reverse proxy with automatic HTTPS (ARCHITECTURE §8). DOMAIN comes from the caddy service.
-{$DOMAIN} {
+# Production reverse proxy with automatic HTTPS (ARCHITECTURE §8). DOMAIN comes from the caddy service;
+# the admin area has its own host (ADMIN_URL, §5.13), both need a DNS record.
+{$DOMAIN}, admin.{$DOMAIN} {
 	# Verification uploads are up to 5 MB (§5.2), like the server action body limit.
 	request_body {
 		max_size 6MB

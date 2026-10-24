@@ -16,6 +16,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins";
+import { adminOrigin, sharedCookieDomain } from "./admin-url.ts";
 import { isAllowedAuthPath, staffSessionAllowed, staffSessionError } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
 import { fetchDiscordImage, fetchDiscordProfile } from "./discord-avatar.ts";
@@ -60,8 +61,14 @@ async function sendAccountMail(mail: Mail) {
   }
 }
 
+// The admin area on its own host shares the login (§5.13).
+const admin = adminOrigin();
+const cookieDomain = sharedCookieDomain();
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
+  // Signing out from the admin host.
+  trustedOrigins: admin ? [admin] : [],
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
@@ -129,6 +136,11 @@ export const auth = betterAuth({
     },
   },
   advanced: {
+    // A new name since Phase 13, so no older host-only cookie of the same name shadows the shared
+    // one; everybody signs in once more.
+    cookiePrefix: "uni-scrims",
+    // All Better Auth cookies, also the one of a pending 2FA login, for both hosts.
+    ...(cookieDomain ? { crossSubDomainCookies: { enabled: true, domain: cookieDomain } } : {}),
     // nginx and Caddy overwrite this header with the client address (ARCHITECTURE §8).
     ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
     // One long-running web process: the mail promise just runs on; Better Auth logs failures.

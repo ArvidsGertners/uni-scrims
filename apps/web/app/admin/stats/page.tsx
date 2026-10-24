@@ -76,7 +76,7 @@ function MetricCard({ metric }: { metric: SuccessMetric }) {
 
 /** Success metrics of SPEC §8 (SPEC N-2); only sums, no personal data. */
 export default async function StatsPage() {
-  const admin = await requireStaffPage("/admin/stats", "admin");
+  const admin = await requireStaffPage("/stats", "admin");
   const metrics = await getSuccessMetrics({ adminId: admin.id, now: new Date() });
 
   return (

@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { PageMain } from "@/components/page-main";
+import { adminHref } from "@/lib/admin-url";
 import { requireStaffMemberPage } from "@/lib/session";
 import { TwoFactorSetup } from "./two-factor-setup";
 
 /** Staff set up their 2FA before anything else in the admin area (SPEC N-4, §5.9). */
 export default async function TwoFactorSetupPage() {
-  const staff = await requireStaffMemberPage("/admin/2fa");
-  if (staff.twoFactorEnabled) redirect("/admin");
+  const staff = await requireStaffMemberPage("/2fa");
+  if (staff.twoFactorEnabled) redirect(adminHref("/"));
   return (
     <PageMain className="gap-7">
       <div className="flex flex-col gap-2.5">

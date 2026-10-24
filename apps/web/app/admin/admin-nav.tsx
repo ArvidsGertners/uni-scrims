@@ -1,6 +1,7 @@
 import { type StaffArea, getBotStatus, staffArea } from "@uni-scrims/core";
 import type { StaffRole } from "@uni-scrims/db";
 import Link from "next/link";
+import { adminHref } from "@/lib/admin-url";
 import { formatDateTime } from "@/lib/format";
 import { missingLegalPages } from "@/lib/legal";
 
@@ -9,13 +10,14 @@ const BOT_LOOP_LABELS = [
   { loop: "outbox", label: "Versand der Nachrichten (auch Reminder)" },
 ] as const;
 
-const LINKS: { href: string; label: string; area: StaffArea }[] = [
-  { href: "/admin", label: "Prüf-Queue", area: "queue" },
-  { href: "/admin/disputes", label: "Streitfälle", area: "admin" },
-  { href: "/admin/bans", label: "Sperren", area: "admin" },
-  { href: "/admin/notifications", label: "Fehlgeschlagene Nachrichten", area: "admin" },
-  { href: "/admin/stats", label: "Statistik", area: "admin" },
-  { href: "/admin/staff", label: "Rollen", area: "staff" },
+// Paths inside the admin area (adminHref, §5.13).
+const LINKS: { path: `/${string}`; label: string; area: StaffArea }[] = [
+  { path: "/", label: "Prüf-Queue", area: "queue" },
+  { path: "/disputes", label: "Streitfälle", area: "admin" },
+  { path: "/bans", label: "Sperren", area: "admin" },
+  { path: "/notifications", label: "Fehlgeschlagene Nachrichten", area: "admin" },
+  { path: "/stats", label: "Statistik", area: "admin" },
+  { path: "/staff", label: "Rollen", area: "staff" },
 ];
 
 /**
@@ -24,7 +26,10 @@ const LINKS: { href: string; label: string; area: StaffArea }[] = [
  * navigation and the status would go stale.
  */
 export async function AdminNav({ staff }: { staff: { id: string; staffRole: StaffRole } }) {
-  const links = LINKS.filter((link) => staffArea(staff.staffRole, link.area));
+  const links = LINKS.filter((link) => staffArea(staff.staffRole, link.area)).map((link) => ({
+    href: adminHref(link.path),
+    label: link.label,
+  }));
   // Bot status and the legal texts concern admins; reviewers only see their queue.
   if (!staffArea(staff.staffRole, "admin")) {
     return links.length > 1 ? <NavLinks links={links} /> : null;

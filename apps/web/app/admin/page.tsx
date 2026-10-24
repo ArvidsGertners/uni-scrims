@@ -18,7 +18,7 @@ const CHECKLIST = [
 
 export default async function AdminPage() {
   // Layout and page render in parallel, so the page checks too.
-  const admin = await requireStaffPage("/admin", "queue");
+  const admin = await requireStaffPage("/", "queue");
   const queue = await listPendingVerifications(admin.id, resolveUploadDir());
   const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
 

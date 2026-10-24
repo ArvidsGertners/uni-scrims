@@ -10,6 +10,7 @@ import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
 import { banTeamAction, banUserAction, removeTeamLogoAction } from "../actions";
 import { PageMain } from "@/components/page-main";
+import { adminHref } from "@/lib/admin-url";
 
 // Consequences from SPEC P0-9 and the edge cases.
 const TEAM_BAN_CONSEQUENCES =
@@ -20,7 +21,7 @@ export default async function BansPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const admin = await requireStaffPage("/admin/bans", "admin");
+  const admin = await requireStaffPage("/bans", "admin");
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
   const result = await searchModerationTargets({ adminId: admin.id, query });
@@ -48,7 +49,7 @@ export default async function BansPage({
         <Button type="submit" variant="outline">
           Suchen
         </Button>
-        <Link href="/admin/bans" className="text-[14px] underline underline-offset-2">
+        <Link href={adminHref("/bans")} className="text-[14px] underline underline-offset-2">
           Zurücksetzen
         </Link>
       </form>

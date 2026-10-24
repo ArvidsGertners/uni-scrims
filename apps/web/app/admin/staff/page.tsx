@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { adminHref } from "@/lib/admin-url";
 import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
 import { resetStaffTwoFactorAction, setStaffRoleAction } from "./actions";
@@ -88,7 +89,7 @@ export default async function StaffPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const operator = await requireStaffPage("/admin/staff", "staff");
+  const operator = await requireStaffPage("/staff", "staff");
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
   const [staff, candidates] = await Promise.all([
@@ -150,7 +151,7 @@ export default async function StaffPage({
           <Button type="submit" variant="outline">
             Suchen
           </Button>
-          <Link href="/admin/staff" className="text-[14px] underline underline-offset-2">
+          <Link href={adminHref("/staff")} className="text-[14px] underline underline-offset-2">
             Zurücksetzen
           </Link>
         </form>

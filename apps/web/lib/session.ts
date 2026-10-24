@@ -10,6 +10,7 @@ import {
 } from "@uni-scrims/core";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { adminHref, adminUrl, mainUrl } from "./admin-url.ts";
 import { auth } from "./auth.ts";
 
 export async function getSessionUserId(): Promise<string | null> {
@@ -64,28 +65,45 @@ export async function requirePageAccountUser(path: string) {
   }
 }
 
+/** The login on the main host, back to this page of the admin area afterwards (§5.13). */
+export function adminLoginUrl(path: `/${string}`): string {
+  return mainUrl(loginUrl(adminUrl(path)));
+}
+
 /**
- * For admin pages: a role that may use `area`, with 2FA (§5.9). Without 2FA to the setup, without
- * the role a 404, so the admin area stays invisible.
+ * Without a session to the login; banned, incomplete and accounts without a role get a 404, so the
+ * admin area stays invisible. requirePageUser's redirects would loop on the admin host (§5.13).
  */
-export async function requireStaffPage(path: string, area: StaffArea) {
-  const user = await requirePageUser(path);
+function adminPageProblem(error: unknown, path: `/${string}`): never {
+  if (isDomainError(error) && error.code === "UNAUTHENTICATED") redirect(adminLoginUrl(path));
+  if (isDomainError(error) && error.code === "TWO_FACTOR_REQUIRED") redirect(adminHref("/2fa"));
+  if (isDomainError(error) && ADMIN_HIDDEN.has(error.code)) notFound();
+  throw error;
+}
+
+const ADMIN_HIDDEN = new Set(["BANNED", "ACCOUNT_INCOMPLETE", "FORBIDDEN"]);
+
+/**
+ * For admin pages: a role that may use `area`, with 2FA (§5.9). Without 2FA to the setup. `path`
+ * is the page inside the admin area, e.g. "/bans".
+ */
+export async function requireStaffPage(path: `/${string}`, area: StaffArea) {
+  const userId = await getSessionUserId();
+  if (!userId) redirect(adminLoginUrl(path));
   try {
-    return await requireStaff(user.id, STAFF_AREAS[area]);
+    return await requireStaff(userId, STAFF_AREAS[area]);
   } catch (error) {
-    if (isDomainError(error) && error.code === "TWO_FACTOR_REQUIRED") redirect("/admin/2fa");
-    if (isDomainError(error) && error.code === "FORBIDDEN") notFound();
-    throw error;
+    adminPageProblem(error, path);
   }
 }
 
 /** For the admin layout and the 2FA setup: any role, 2FA not needed yet (§5.9). */
-export async function requireStaffMemberPage(path: string) {
-  const user = await requirePageUser(path);
+export async function requireStaffMemberPage(path: `/${string}`) {
+  const userId = await getSessionUserId();
+  if (!userId) redirect(adminLoginUrl(path));
   try {
-    return await requireStaffMember(user.id);
+    return await requireStaffMember(userId);
   } catch (error) {
-    if (isDomainError(error) && error.code === "FORBIDDEN") notFound();
-    throw error;
+    adminPageProblem(error, path);
   }
 }

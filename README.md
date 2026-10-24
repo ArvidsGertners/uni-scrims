@@ -158,6 +158,17 @@ Einmalig beim Deploy von Phase 13, als root und vor dem Eintrag in der `.env`:
 
 Die Cookies heißen ab Phase 13 anders (`uni-scrims.*`), damit sie für beide Adressen gelten: Nach dem Deploy sind alle einmal abgemeldet. Das Session-Cookie geht an jede Subdomain der Hauptadresse; lass deshalb keine Subdomain auf einen fremden Dienst zeigen.
 
+Mit `ADMIN_URL` darf der Web-Server nicht an `127.0.0.1` gebunden sein (siehe Prüfpunkt 1); das Image bindet `0.0.0.0`. Lokal (`DEV_HOST=127.0.0.1`) deshalb ohne `ADMIN_URL` arbeiten; der Admin-Bereich liegt dann unter `/admin`.
+
+### Geprüfte Annahmen (Phase 13, Next 16.4.2, Better Auth 1.7.12)
+
+Geprüft mit dem Web-Image (gebaut ohne `ADMIN_URL`, gestartet mit) gegen eine Wegwerf-Datenbank, zwei Testnamen per `--host-resolver-rules` in Chromium, und in `apps/web/test/admin-cookies.test.ts` und `proxy.test.ts`:
+
+1. **Laufzeit:** Der Proxy liest `process.env.ADMIN_URL` erst zur Laufzeit; das ohne `ADMIN_URL` gebaute Image schreibt mit `ADMIN_URL` beim Start um. Next schreibt nur dann intern um, wenn das Ziel denselben Origin hat wie die gebundene Adresse; im Proxy normalisiert Next `127.0.0.1` aber zu `localhost`. Ein Server auf `127.0.0.1` hält das Ziel deshalb für extern, und die Anfrage kreist über die Weiterleitung von `/admin`. Im Container (`0.0.0.0`) tritt das nicht auf.
+2. **Server Actions:** Rolle geben und entziehen auf `/staff` des Admin-Hosts laufen über die umgeschriebene Route, und die Seite zeigt danach ohne Neuladen den neuen Stand (`revalidatePath` mit dem internen Pfad).
+3. **Cookies:** Session-Cookie und das Cookie der laufenden 2FA-Anmeldung tragen `Domain=<Hauptdomain>`; `trustedOrigins` enthält `ADMIN_URL`. Better Auth lässt seine Origin-Prüfung in Tests aus; im Browser meldet „Abmelden“ auf dem Admin-Host überall ab.
+4. **Rückweg:** Ohne Session führt der Admin-Host zu `/login` der Hauptadresse; nach Passwort und Code (und schon nach dem Passwort, solange die 2FA fehlt, zur Einrichtung) geht es auf die absolute Admin-Adresse zurück. Nach der Einrichtung zeigt die Anmeldung der Hauptadresse die Erfolgsmeldung. Weil das Admin-Layout zuerst prüft, führt der Rückweg zur Prüf-Queue, nicht zur ursprünglich aufgerufenen Admin-Seite (wie vor Phase 13).
+
 ## Dev-Login
 
 Mit `NODE_ENV=development` und `DEV_LOGIN=true` gibt es unter `/dev-login` eine Liste der Seed-Nutzer. Ein Klick loggt dich ohne Discord als dieser Nutzer ein. So kannst du zwei Teams parallel testen (normales und privates Fenster). In Production ist die Seite aus, und der Endpoint `/api/auth/dev/sign-in` antwortet mit 404.
