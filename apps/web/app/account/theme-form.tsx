@@ -42,7 +42,11 @@ export function ThemeForm({
           </button>
         ))}
       </div>
-      {state.error ? <p className="text-[14px] text-accent-text">{state.error}</p> : null}
+      {state.error ? (
+        <p role="alert" className="text-[14px] text-accent-text">
+          {state.error}
+        </p>
+      ) : null}
     </form>
   );
 }

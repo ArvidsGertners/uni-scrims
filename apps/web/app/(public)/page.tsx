@@ -23,7 +23,7 @@ export default async function LandingPage({
             <span>
               Dein Konto ist gesperrt. Du kannst es unter{" "}
               <Link href="/account" className={linkClass}>
-                Konto
+                Einstellungen
               </Link>{" "}
               löschen.
             </span>

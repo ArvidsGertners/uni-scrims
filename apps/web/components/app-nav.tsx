@@ -50,8 +50,15 @@ type Entry = {
   leading: ReactNode;
 };
 
-/** Path sections that count as Konto (§5.16). */
-const ACCOUNT_SECTIONS = ["/account", "/verify", "/support"];
+/** The items of the account menu before Abmelden (§5.16), for both navigations. */
+type AccountItem = {
+  key: string;
+  href: string;
+  label: string;
+  sections: string[];
+  /** Another host or area: a plain link with a full page load. */
+  external?: boolean;
+};
 
 function inSection(sections: string[], pathname: string): boolean {
   return sections.includes(`/${pathname.split("/")[1] ?? ""}`);
@@ -83,6 +90,45 @@ function entries(nav: AppNavData) {
   return { top: [scrims], team };
 }
 
+function accountItems(nav: AppNavData): AccountItem[] {
+  return [
+    {
+      key: "settings",
+      href: "/account",
+      label: "Einstellungen",
+      sections: ["/account", "/verify"],
+    },
+    { key: "support", href: "/support", label: "Support", sections: ["/support"] },
+    ...(nav.adminUrl
+      ? [{ key: "admin", href: nav.adminUrl, label: "Admin-Bereich", sections: [], external: true }]
+      : []),
+  ];
+}
+
+function EntryLink({
+  entry,
+  pathname,
+  className,
+  onClick,
+}: {
+  entry: Entry;
+  pathname: string;
+  className?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <SidebarLink
+      href={entry.href}
+      active={inSection(entry.sections, pathname)}
+      leading={entry.leading}
+      label={entry.label}
+      sub={entry.sub}
+      className={className}
+      onClick={onClick}
+    />
+  );
+}
+
 /** Profile picture, name and "Konto" with the warning dot: the account in both navigations. */
 function AccountContent({ nav, trailing }: { nav: AppNavData; trailing?: ReactNode }) {
   return (
@@ -100,12 +146,19 @@ function AccountContent({ nav, trailing }: { nav: AppNavData; trailing?: ReactNo
   );
 }
 
+const externalIcon = <ExternalLinkIcon size={15} className="text-muted-foreground" />;
+
 /** Konto as a menu from 1024 px (§5.16): settings, support, admin area, logout; opens upwards. */
-function AccountMenu({ nav, active }: { nav: AppNavData; active: boolean }) {
+function AccountMenu({ nav, pathname }: { nav: AppNavData; pathname: string }) {
   const logout = useLogout();
+  const items = accountItems(nav);
+  const active = items.some((item) => inSection(item.sections, pathname));
   return (
     <MenuRoot>
-      <MenuTrigger className={sidebarEntryClass(active, "group w-full cursor-pointer text-left")}>
+      <MenuTrigger
+        aria-current={active ? "page" : undefined}
+        className={sidebarEntryClass(active, "group w-full cursor-pointer text-left")}
+      >
         <AccountContent
           nav={nav}
           trailing={
@@ -117,14 +170,18 @@ function AccountMenu({ nav, active }: { nav: AppNavData; active: boolean }) {
         />
       </MenuTrigger>
       <MenuPopup side="top">
-        <MenuLinkItem render={<Link href="/account" />}>Einstellungen</MenuLinkItem>
-        <MenuLinkItem render={<Link href="/support" />}>Support</MenuLinkItem>
-        {nav.adminUrl ? (
-          <MenuLinkItem href={nav.adminUrl}>
-            <span className="flex-1">Admin-Bereich</span>
-            <ExternalLinkIcon size={15} className="text-muted-foreground" />
-          </MenuLinkItem>
-        ) : null}
+        {items.map((item) =>
+          item.external ? (
+            <MenuLinkItem key={item.key} href={item.href}>
+              <span className="flex-1">{item.label}</span>
+              {externalIcon}
+            </MenuLinkItem>
+          ) : (
+            <MenuLinkItem key={item.key} render={<Link href={item.href} />}>
+              {item.label}
+            </MenuLinkItem>
+          ),
+        )}
         <MenuSeparator />
         <MenuItem onClick={logout}>Abmelden</MenuItem>
       </MenuPopup>
@@ -142,30 +199,15 @@ export function AppSidebar({ nav }: { nav: AppNavData }) {
         top.length > 0 ? (
           <nav aria-label="Hauptmenü" className="flex flex-col gap-0.5">
             {top.map((entry) => (
-              <SidebarLink
-                key={entry.key}
-                href={entry.href}
-                active={inSection(entry.sections, pathname)}
-                leading={entry.leading}
-                label={entry.label}
-                sub={entry.sub}
-              />
+              <EntryLink key={entry.key} entry={entry} pathname={pathname} />
             ))}
           </nav>
         ) : null
       }
       bottom={
         <nav aria-label="Team und Konto" className="flex flex-col gap-1">
-          {team ? (
-            <SidebarLink
-              href={team.href}
-              active={inSection(team.sections, pathname)}
-              leading={team.leading}
-              label={team.label}
-              sub={team.sub}
-            />
-          ) : null}
-          <AccountMenu nav={nav} active={inSection(ACCOUNT_SECTIONS, pathname)} />
+          {team ? <EntryLink entry={team} pathname={pathname} /> : null}
+          <AccountMenu nav={nav} pathname={pathname} />
         </nav>
       }
     />
@@ -214,13 +256,10 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
             <>
               <nav aria-label="Hauptmenü" className="flex flex-col gap-1">
                 {top.map((entry) => (
-                  <SidebarLink
+                  <EntryLink
                     key={entry.key}
-                    href={entry.href}
-                    active={inSection(entry.sections, pathname)}
-                    leading={entry.leading}
-                    label={entry.label}
-                    sub={entry.sub}
+                    entry={entry}
+                    pathname={pathname}
                     className={itemClass}
                     onClick={close}
                   />
@@ -231,44 +270,37 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
           ) : null}
           <nav aria-label="Team und Konto" className="flex flex-col gap-1">
             {team ? (
-              <SidebarLink
-                href={team.href}
-                active={inSection(team.sections, pathname)}
-                leading={team.leading}
-                label={team.label}
-                sub={team.sub}
-                className={itemClass}
-                onClick={close}
-              />
+              <EntryLink entry={team} pathname={pathname} className={itemClass} onClick={close} />
             ) : null}
-            {/* The account as a heading with the items of the account menu below (§5.16). */}
-            <div className={sidebarEntryClass(false, cn(itemClass, "hover:bg-transparent"))}>
+            {/* The account as the heading of the items of the account menu (§5.16). */}
+            <div
+              role="heading"
+              aria-level={2}
+              className="flex min-h-14 items-center gap-2.5 px-3.5 py-1.5 text-[16px] font-semibold text-foreground"
+            >
               <AccountContent nav={nav} />
             </div>
-            <SidebarLink
-              href="/account"
-              active={inSection(["/account", "/verify"], pathname)}
-              label="Einstellungen"
-              className={subItemClass}
-              onClick={close}
-            />
-            <SidebarLink
-              href="/support"
-              active={inSection(["/support"], pathname)}
-              label="Support"
-              className={subItemClass}
-              onClick={close}
-            />
-            {nav.adminUrl ? (
-              <SidebarLink
-                href={nav.adminUrl}
-                active={false}
-                label="Admin-Bereich"
-                trailing={<ExternalLinkIcon size={15} className="text-muted-foreground" />}
-                className={subItemClass}
-                onClick={close}
-              />
-            ) : null}
+            {accountItems(nav).map((item) =>
+              item.external ? (
+                <a
+                  key={item.key}
+                  href={item.href}
+                  onClick={close}
+                  className={sidebarEntryClass(false, subItemClass)}
+                >
+                  <SidebarEntryContent label={item.label} trailing={externalIcon} />
+                </a>
+              ) : (
+                <SidebarLink
+                  key={item.key}
+                  href={item.href}
+                  active={inSection(item.sections, pathname)}
+                  label={item.label}
+                  className={subItemClass}
+                  onClick={close}
+                />
+              ),
+            )}
             <button
               type="button"
               onClick={() => {

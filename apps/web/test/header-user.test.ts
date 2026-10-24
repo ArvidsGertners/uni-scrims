@@ -8,7 +8,7 @@ vi.mock("@uni-scrims/core", () => core);
 const request = vi.hoisted(() => ({ host: "uniscrims.test" }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ host: request.host }) }));
 
-const { headerUser, siteChrome } = await import("../lib/header-user.ts");
+const { headerUser, siteChrome, siteNav } = await import("../lib/header-user.ts");
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -88,5 +88,38 @@ describe("siteChrome (§5.15)", () => {
       "Could not load the team for the sidebar",
       expect.any(Error),
     );
+  });
+});
+
+describe("siteNav (§5.16)", () => {
+  const staff = {
+    id: "u1",
+    name: "Nutzer",
+    avatarVersion: null,
+    verifiedAt: new Date(),
+    bannedAt: null,
+    setupStep: null,
+    staffRole: "ADMIN",
+  };
+
+  it("links the admin area for staff with an active account", async () => {
+    session.getSignedInUser.mockResolvedValue(staff);
+    core.getNavTeam.mockResolvedValue(null);
+    await expect(siteNav()).resolves.toMatchObject({ full: true, adminUrl: "/admin" });
+    vi.stubEnv("BETTER_AUTH_URL", "https://uniscrims.test");
+    vi.stubEnv("ADMIN_URL", "https://admin.uniscrims.test");
+    await expect(siteNav()).resolves.toMatchObject({ adminUrl: "https://admin.uniscrims.test/" });
+  });
+
+  it("has no admin link without a role or with a banned or incomplete account", async () => {
+    core.getNavTeam.mockResolvedValue(null);
+    for (const user of [
+      { ...staff, staffRole: null },
+      { ...staff, bannedAt: new Date() },
+      { ...staff, setupStep: "LINK_DISCORD" },
+    ]) {
+      session.getSignedInUser.mockResolvedValue(user);
+      await expect(siteNav()).resolves.toMatchObject({ adminUrl: null });
+    }
   });
 });

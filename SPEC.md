@@ -294,7 +294,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Ändern kann man den Namen auf der Konto-Seite, solange man nicht verifiziert ist und keine Prüfung offen ist; danach nur per Mail an die Adresse aus dem Impressum
 
 *Bestehende Konten*
-- [x] Wer sich vor Phase 7 nur mit Discord angemeldet hat, wird beim nächsten Discord-Login durch „Konto vervollständigen“ geführt: Vorname, Nachname, E-Mail, Passwort, dann der Bestätigungslink. Bis dahin gehen nur diese Seite und die Konto-Seite (Löschen, Abmelden). Ist die angegebene Adresse schon vergeben, sagt die Seite das (nur hier, für angemeldete Altkonten).
+- [x] Wer sich vor Phase 7 nur mit Discord angemeldet hat, wird beim nächsten Discord-Login durch „Konto vervollständigen“ geführt: Vorname, Nachname, E-Mail, Passwort, dann der Bestätigungslink. Bis dahin gehen nur diese Seite und die Konto-Seite (Löschen, Abmelden; seit Phase 17 Abmelden über das Konto-Menü, N-13). Ist die angegebene Adresse schon vergeben, sagt die Seite das (nur hier, für angemeldete Altkonten).
 - [x] Ein Captain mit Altkonto kann die Captain-Rolle auf der Konto-Seite übertragen, damit er sein Konto löschen kann, ohne es vorher zu vervollständigen
 - [x] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
 

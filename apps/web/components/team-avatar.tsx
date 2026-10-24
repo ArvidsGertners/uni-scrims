@@ -1,9 +1,8 @@
-"use client";
-
 import type { TeamLogoInfo } from "@uni-scrims/core";
 import type { LogoBackground } from "@uni-scrims/db";
 import { cn } from "cn";
-import { useTheme } from "@/components/theme-provider";
+import { TeamLogoImage } from "@/components/team-logo-image";
+import { teamLogoUrl } from "@/lib/team-logo-url";
 
 const SIZES = {
   sm: "size-10 rounded-sm text-[11px]",
@@ -13,15 +12,9 @@ const SIZES = {
 
 export type AvatarTeam = { id: string; tag: string; logo: TeamLogoInfo | null };
 
-/** URL of one logo; the version changes with every logo change, so caching never shows an old one. */
-export function teamLogoUrl(team: { id: string; logo: TeamLogoInfo }, background: LogoBackground) {
-  return `/api/teams/${encodeURIComponent(team.id)}/logo?bg=${background.toLowerCase()}&v=${team.logo.version}`;
-}
-
 /**
  * The team logo (SPEC N-6, N-7) for the current mode, filling the square; without one the "logo"
- * of the design handoff: the tag in a square, the own team on accent. The mode is the system setting
- * or the account's choice (SPEC N-13), which comes from ThemeProvider.
+ * of the design handoff: the tag in a square, the own team on accent.
  */
 export function TeamAvatar({
   team,
@@ -35,49 +28,8 @@ export function TeamAvatar({
   className?: string;
 }) {
   const { logo } = team;
-  const theme = useTheme();
   if (logo) {
-    const dark = logo.backgrounds.includes("DARK");
-    const light = logo.backgrounds.includes("LIGHT");
-    const imageClass = cn(
-      "shrink-0 object-contain",
-      SIZES[size],
-      // Only one logo: in the other mode it stands on a tile in the colour it was made for.
-      !light && "light:bg-logo-tile-dark light:p-[12%]",
-      !dark && "dark:bg-logo-tile-light dark:p-[12%]",
-      className,
-    );
-    if (dark && light && theme === "SYSTEM") {
-      return (
-        // The browser picks the logo for the system setting, without JavaScript.
-        <picture className="shrink-0">
-          <source
-            media="(prefers-color-scheme: light)"
-            srcSet={teamLogoUrl({ id: team.id, logo }, "LIGHT")}
-          />
-          <img
-            src={teamLogoUrl({ id: team.id, logo }, "DARK")}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className={imageClass}
-          />
-        </picture>
-      );
-    }
-    // One logo, or the account chose a design (§5.16): the logo for that mode, if there is one.
-    const background =
-      dark && light ? (theme === "LIGHT" ? "LIGHT" : "DARK") : dark ? "DARK" : "LIGHT";
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- small session-protected image, no optimisation
-      <img
-        src={teamLogoUrl({ id: team.id, logo }, background)}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        className={imageClass}
-      />
-    );
+    return <TeamLogoImage team={{ id: team.id, logo }} className={cn(SIZES[size], className)} />;
   }
   return (
     <span

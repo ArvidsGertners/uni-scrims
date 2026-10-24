@@ -113,9 +113,9 @@ export default async function AccountSetupPage({
         </>
       )}
       <p className="text-[14px] text-muted-foreground">
-        Abmelden oder Konto löschen geht unter{" "}
+        Abmelden geht über das Konto-Menü, dein Konto löschen unter{" "}
         <Link href="/account" className="text-foreground underline underline-offset-2">
-          Konto
+          Einstellungen
         </Link>
         .
       </p>
