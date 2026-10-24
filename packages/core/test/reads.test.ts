@@ -111,13 +111,13 @@ describe("getBoard", () => {
       board.requests.map((request) => request.id);
 
     const board = await getBoard({ userId: viewer.captain.id, now: NOW });
-    expect(board.filter.rank).toBe(Rank.GOLD);
+    expect(board.filter.ranks).toEqual([Rank.GOLD]);
     expect(ids(board)).toContain(matching.id);
     expect(ids(board)).not.toContain(higher.id);
-    expect(ids(await getBoard({ userId: viewer.captain.id, rank: "ALL", now: NOW }))).toEqual(
+    expect(ids(await getBoard({ userId: viewer.captain.id, ranks: "ALL", now: NOW }))).toEqual(
       expect.arrayContaining([matching.id, higher.id]),
     );
-    const diamond = await getBoard({ userId: viewer.captain.id, rank: Rank.DIAMOND, now: NOW });
+    const diamond = await getBoard({ userId: viewer.captain.id, ranks: [Rank.DIAMOND], now: NOW });
     expect(ids(diamond)).toContain(higher.id);
     expect(ids(diamond)).not.toContain(matching.id);
     // Started requests are no longer on the board.
@@ -126,12 +126,46 @@ describe("getBoard", () => {
     ).not.toContain(matching.id);
   });
 
+  it("filters by several ranks: the range has to contain one of them", async () => {
+    const viewer = await createReadyTeam({ rank: Rank.GOLD });
+    const author = await createReadyTeam();
+    const low = await createOpenRequest(author.captain.id, {
+      rankMin: Rank.IRON,
+      rankMax: Rank.BRONZE,
+    });
+    // Lies between the chosen ranks but contains neither.
+    const between = await createOpenRequest(author.captain.id, {
+      rankMin: Rank.GOLD,
+      rankMax: Rank.PLATINUM,
+    });
+    const high = await createOpenRequest(author.captain.id, {
+      rankMin: Rank.DIAMOND,
+      rankMax: Rank.IMMORTAL,
+    });
+    const board = await getBoard({
+      userId: viewer.captain.id,
+      ranks: [Rank.IMMORTAL, Rank.BRONZE, Rank.IMMORTAL],
+      now: NOW,
+    });
+    expect(board.filter.ranks).toEqual([Rank.BRONZE, Rank.IMMORTAL]);
+    const ids = board.requests.map((request) => request.id);
+    expect(ids).toEqual(expect.arrayContaining([low.id, high.id]));
+    expect(ids).not.toContain(between.id);
+    // No choice falls back to the own rank, "ALL" shows every range.
+    expect(
+      (await getBoard({ userId: viewer.captain.id, ranks: [], now: NOW })).filter.ranks,
+    ).toEqual([Rank.GOLD]);
+    expect(
+      (await getBoard({ userId: viewer.captain.id, ranks: "ALL", now: NOW })).filter.ranks,
+    ).toEqual([]);
+  });
+
   it("filters by the Berlin calendar date of the start", async () => {
     const viewer = await createReadyTeam();
     const author = await createReadyTeam();
     const night = await createOpenRequest(author.captain.id, { date: "2026-10-23", time: "01:00" });
     const board = (date: string) =>
-      getBoard({ userId: viewer.captain.id, date, rank: "ALL", now: NOW });
+      getBoard({ userId: viewer.captain.id, date, ranks: "ALL", now: NOW });
     expect((await board("2026-10-23")).requests.map((r) => r.id)).toContain(night.id);
     expect((await board("2026-10-22")).requests.map((r) => r.id)).not.toContain(night.id);
     expect((await board("kaputt")).filter.date).toBeNull();
@@ -159,7 +193,7 @@ describe("getBoard", () => {
       now: NOW,
     });
 
-    const board = await getBoard({ userId: viewer.members[0]!.id, rank: "ALL", now: NOW });
+    const board = await getBoard({ userId: viewer.members[0]!.id, ranks: "ALL", now: NOW });
     expect(board.ownTeam).toMatchObject({ id: viewer.team.id, isCaptain: false });
     expect(board.requests.find((r) => r.id === request.id)).toMatchObject({
       applicationCount: 1,
@@ -181,7 +215,7 @@ describe("getBoard", () => {
     const author = await createReadyTeam();
     const request = await createOpenRequest(author.captain.id);
     await prisma.team.update({ where: { id: author.team.id }, data: { bannedAt: NOW } });
-    const board = await getBoard({ userId: viewer.captain.id, rank: "ALL", now: NOW });
+    const board = await getBoard({ userId: viewer.captain.id, ranks: "ALL", now: NOW });
     expect(board.requests.map((r) => r.id)).not.toContain(request.id);
     const banned = await createUser({ banned: true });
     await expect(getBoard({ userId: banned.id, now: NOW })).rejects.toMatchObject({

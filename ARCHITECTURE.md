@@ -382,7 +382,7 @@ Alle Funktionen in diesem Abschnitt prüfen zuerst die Berechtigung laut §7 (ak
 - `applyToRequest`: Team spielbereit und aktiv, nicht das Ersteller-Team; Anfrage OPEN und zukünftig; `unique(requestId, teamId)`. Liegt der Team-Rang außerhalb des Bereichs, wird die Bewerbung trotzdem angelegt; die UI zeigt einen Hinweis. Notification `APPLICATION_RECEIVED`.
 - `withdrawApplication`: nur PENDING → WITHDRAWN.
 - `deleteRequest`: nur OPEN und vor dem Start → CANCELLED; PENDING-Bewerbungen → REJECTED; `REQUEST_DELETED` an die Bewerber.
-- **Board-Standardfilter:** `rankMin ≤ eigenerRang ≤ rankMax`. Die eigenen Anfragen stehen ungefiltert in einem eigenen Abschnitt.
+- **Board-Filter nach Rang:** Mehrere Ränge sind wählbar (`?rang=GOLD&rang=PLATINUM`); eine Anfrage passt, wenn ihr Bereich einen davon enthält (`rankMin ≤ r ≤ rankMax` für ein gewähltes `r`, also kein Bereich von kleinstem bis größtem gewählten Rang). Standard ohne `rang` ist der eigene Team-Rang; ohne Auswahl schickt das Formular `rang=ALL` für alle Ränge. Die eigenen Anfragen stehen ungefiltert in einem eigenen Abschnitt.
 
 ### 5.4 Bestätigen (atomar)
 

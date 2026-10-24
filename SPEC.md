@@ -194,7 +194,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 **P0-4 Scrim-Anfragen und Board**
 - [x] Felder: Datum, Startzeit (Europe/Berlin, 15-Minuten-Raster, 10:00–01:45 Uhr, mindestens 30 Minuten in der Zukunft; das Datum ist immer das Kalenderdatum des tatsächlichen Starts, die UI zeigt bei Startzeiten nach Mitternacht "(Nacht auf Mi, 22.10.)"), Format (`1 Map`, `2 Maps`, `BO3`), Rang-Bereich min–max, Maps (optional, Mehrfachauswahl aus festem Map-Pool), Notiz (max. 300 Zeichen)
 - [x] Nur spielbereite Teams können posten; max. 5 offene Anfragen pro Team
-- [x] Board zeigt offene, zukünftige Anfragen; Filter nach Datum und Rang; Standardfilter: Anfragen, deren Rang-Bereich den eigenen Team-Rang enthält
+- [x] Board zeigt offene, zukünftige Anfragen; Filter nach Datum und Rang; Standardfilter: Anfragen, deren Rang-Bereich den eigenen Team-Rang enthält. Im Rang-Filter sind mehrere Ränge wählbar: Es erscheinen Anfragen, deren Rang-Bereich einen davon enthält; ohne Auswahl alle Ränge
 - [x] Jede Karte zeigt Team, Hochschulen, Rang, Zuverlässigkeit und die Anzahl der Bewerbungen
 - [x] Ersteller kann eine offene Anfrage löschen; offene Bewerbungen werden abgelehnt und die Bewerber bekommen Bescheid
 - [x] Anfragen ohne bestätigte Bewerbung verfallen zur Startzeit; Bewerber bekommen Bescheid

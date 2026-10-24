@@ -15,11 +15,15 @@ import { RequestCard } from "@/components/request-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 import { requirePageUser } from "@/lib/session";
+import { RankFilter } from "./rank-filter";
 
 function single(value: string | string[] | undefined): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+function list(value: string | string[] | undefined): string[] {
+  return value === undefined ? [] : typeof value === "string" ? [value] : value;
 }
 
 function requestCountLabel(count: number): string {
@@ -45,16 +49,16 @@ export default async function BoardPage({
 }) {
   const user = await requirePageUser("/board");
   const params = await searchParams;
-  const rankParam = single(params.rang);
-  const rank =
-    rankParam === "ALL" ? "ALL" : RANKS.includes(rankParam as Rank) ? (rankParam as Rank) : null;
+  const rankParams = list(params.rang);
   const board = await getBoard({
     userId: user.id,
     date: single(params.datum) ?? null,
-    rank,
+    ranks: rankParams.includes("ALL")
+      ? "ALL"
+      : rankParams.filter((value): value is Rank => RANKS.includes(value as Rank)),
     now: new Date(),
   });
-  const filtered = board.filter.date !== null || board.filter.rank !== null;
+  const filtered = board.filter.date !== null || board.filter.ranks.length > 0;
   const count = board.requests.length;
   const total = count + board.ownRequests.length;
   const createLink = board.ownTeam?.isCaptain ? (
@@ -82,7 +86,7 @@ export default async function BoardPage({
 
       {/* Keyed by the applied filter: soft navigations would otherwise keep stale select values. */}
       <form
-        key={`${board.filter.date ?? ""}|${board.filter.rank ?? "ALL"}`}
+        key={`${board.filter.date ?? ""}|${board.filter.ranks.join(",")}`}
         method="get"
         className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"
       >
@@ -90,15 +94,14 @@ export default async function BoardPage({
           <Input name="datum" type="date" defaultValue={board.filter.date ?? ""} />
         </Field>
         <Field label="Rang im Bereich">
-          <NativeSelect name="rang" defaultValue={board.filter.rank ?? "ALL"}>
-            <option value="ALL">Alle Ränge</option>
-            {RANKS.map((value) => (
-              <option key={value} value={value}>
-                {RANK_LABELS[value]}
-                {value === board.ownTeam?.rank ? " (euer Rang)" : ""}
-              </option>
-            ))}
-          </NativeSelect>
+          <RankFilter
+            defaultValue={board.filter.ranks}
+            options={RANKS.map((value) => ({
+              value,
+              label: RANK_LABELS[value],
+              hint: value === board.ownTeam?.rank ? "euer Rang" : undefined,
+            }))}
+          />
         </Field>
         <Button type="submit" variant="outline" className="px-[18px]">
           Filtern

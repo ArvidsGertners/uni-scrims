@@ -142,8 +142,11 @@ export type BoardInput = {
   userId: string;
   /** Berlin calendar date "YYYY-MM-DD"; invalid values are ignored. */
   date?: string | null;
-  /** Requests whose range contains this rank. Default: own team rank; "ALL" = no rank filter. */
-  rank?: Rank | "ALL" | null;
+  /**
+   * Requests whose range contains one of these ranks. Default (missing or empty): own team rank;
+   * "ALL" = no rank filter.
+   */
+  ranks?: readonly Rank[] | "ALL" | null;
   now: Date;
 };
 
@@ -151,7 +154,16 @@ export type BoardInput = {
 export async function getBoard(input: BoardInput) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
-  const rank = input.rank === "ALL" ? null : (input.rank ?? ownTeam?.rank ?? null);
+  const chosen = input.ranks;
+  // In rank order, without duplicates; empty = all ranks.
+  const ranks =
+    chosen === "ALL"
+      ? []
+      : chosen?.length
+        ? RANKS.filter((rank) => chosen.includes(rank))
+        : ownTeam
+          ? [ownTeam.rank]
+          : [];
   const date = input.date && isValidDateString(input.date) ? input.date : null;
   const range = date ? berlinDayRange(date) : null;
 
@@ -166,11 +178,13 @@ export async function getBoard(input: BoardInput) {
       ...(range ? [{ startsAt: { gte: range.from, lt: range.to } }] : []),
       ...(ownTeam ? [{ teamId: { not: ownTeam.id } }] : []),
       // Enums have no order in Prisma filters: rankMin ≤ rank ≤ rankMax via the rank list.
-      ...(rank
+      ...(ranks.length > 0
         ? [
             {
-              rankMin: { in: RANKS.slice(0, rankValue(rank)) },
-              rankMax: { in: RANKS.slice(rankValue(rank) - 1) },
+              OR: ranks.map((rank) => ({
+                rankMin: { in: RANKS.slice(0, rankValue(rank)) },
+                rankMax: { in: RANKS.slice(rankValue(rank) - 1) },
+              })),
             },
           ]
         : []),
@@ -218,7 +232,7 @@ export async function getBoard(input: BoardInput) {
     ownTeam: ownTeam
       ? { id: ownTeam.id, rank: ownTeam.rank, isCaptain: isCaptainOf(user, ownTeam) }
       : null,
-    filter: { date, rank },
+    filter: { date, ranks },
     requests: requests.map(toCard),
     ownRequests: ownRequests.map(toCard),
   };
