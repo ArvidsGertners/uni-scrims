@@ -93,6 +93,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 29. Als Spieler will ich mein Discord-Profilbild und das meiner Teamkollegen sehen, ohne dass mein Browser dafür Daten an Discord schickt.
 30. Als Spieler will ich ein kurzes Menü, in dem Board und meine Scrims auf einer Seite liegen, und als Admin den Admin-Bereich unter einer eigenen Adresse, getrennt von der Spieler-Navigation.
 31. Als Admin will ich auf einen Blick sehen, was zu tun ist (offene Prüfungen, Streitfälle, Fehler, Bot), und als Captain den Stand meines Teams auf einen Blick.
+32. Als Spieler will ich die Seite wie ein Dashboard bedienen: alle Bereiche in einer Seitenleiste, Team und Konto unten, Unterseiten als Tabs.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -369,6 +370,12 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Startseite des Admin-Bereichs ist eine Übersicht mit Kacheln: offene Prüfungen (und seit wann die älteste wartet), Streitfälle, fehlgeschlagene Nachrichten und der Bot-Status; die Kacheln der drei Bereiche führen dorthin, die Bot-Kachel zeigt nur den Stand der beiden Schleifen. Prüfer sehen nur die Kachel der Prüf-Queue. Die Prüf-Queue liegt unter /queue. Die Warnung zu fehlenden Rechtstexten bleibt für Admins sichtbar.
 - [x] Die Team-Seite zeigt oben Kacheln: Mitglieder (x von 10), verifizierte Spieler (x von 5, spielbereit oder wie viele fehlen), Zuverlässigkeit (gespielt, No-Shows, kurzfristige Absagen, Ø Bewertung; dieselben Werte, die andere Teams auf dem Board sehen) und das nächste anstehende Scrim (verlinkt; ohne Scrim ein Link zum Board). Darunter am Desktop zwei Spalten: links der Kader, rechts Einladen und Team bearbeiten (nur für den Captain). Auf dem Handy bleibt alles untereinander. Funktionen und Rechte der Team-Seite ändern sich nicht.
 
+
+**N-11 Die ganze Seite im Dashboard-Layout** (Phase 15)
+- [ ] Angemeldet hat die Seite am Desktop (ab 1024 px) links eine feste Seitenleiste wie der Admin-Bereich: oben „Scrims“, unten „Team“ mit dem Team-Logo (oder Kürzel) und dem Teamnamen, darunter „Konto“ mit dem Profilbild und dem Discord-Namen. Ohne Team steht dort „Team“ mit dem Hinweis zum Gründen oder Beitreten. Der Eintrag der aktuellen Seite ist markiert, auch auf Detailseiten (Anfrage, Scrim) und der Verifizierung. Der Warnpunkt für eine fehlende Verifizierung steht an „Konto“.
+- [ ] Die Kopfzeile mit dem Logo bleibt; die Navigation steht am Desktop nur noch in der Leiste. Unter 1024 px öffnet wie bisher der Menü-Knopf dieselben Einträge in derselben Reihenfolge (Scrims oben, Team und Konto unten).
+- [ ] Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“. Abgemeldet (Startseite, Anmeldung, Rechtstexte) bleibt die Seite ohne Leiste. Der Admin-Bereich behält seine eigene Leiste.
+- [ ] Unterseiten stehen als Tabs oben im Inhalt: auf „Scrims“ die Tabs aus N-9, auf „Konto“ die Tabs „Konto“ und „Verifizierung“ (statt des Zurück-Links). Die Team-Seite hat keine Unterseiten. Funktionen und Rechte ändern sich nicht.
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -490,6 +497,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 12 | Discord-Profilbilder (N-8) | Konto-Seite, Team-Seite und Queue zeigen die Kopie des Profilbilds, der Browser lädt nichts von Discord, ohne Bild stehen Initialen, und beim Löschen ist die Kopie weg |
 | 13 | Navigation und Admin-Bereich auf eigener Adresse (N-9) | Das Menü zeigt Scrims, Team, Konto; Board und Meine Scrims sind Tabs einer Seite; Abmelden und Verifizierung liegen unter Konto; der Admin-Bereich läuft unter admin.uniscrims.com mit derselben Anmeldung |
 | 14 | Profilbild im Kopf, Dashboards für Admin-Bereich und Team (N-10) | Neben „Konto“ steht das Profilbild; der Admin-Bereich hat Seitenleiste mit Zählern, Profil und Abmelden sowie eine Übersicht mit Kacheln; die Team-Seite zeigt Kacheln und am Desktop zwei Spalten |
+| 15 | Die ganze Seite im Dashboard-Layout (N-11) | Angemeldet steht am Desktop links die Seitenleiste mit Scrims oben sowie Team und Konto unten; auf dem Handy dieselben Einträge im Menü; Scrims und Konto haben Tabs für ihre Unterseiten |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
