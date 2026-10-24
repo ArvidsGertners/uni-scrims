@@ -31,7 +31,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 | Andere Games (LoL, CS, RL …) | Erst ein Game richtig machen. Datenmodell aber game-agnostisch anlegen (siehe P2). |
 | Teams außerhalb Deutschlands | Eine Zeitzone, eine Sprache, ein Semesterrhythmus. |
 | Verifizierung per Uni-Mail | Domain-Listen pflegen ist zu aufwendig. Es gibt nur den Upload-Weg. |
-| Benachrichtigungen per E-Mail | Alle Benachrichtigungen laufen über Discord. Mails gibt es seit Phase 7 nur für das Konto selbst (Bestätigung, Passwort, E-Mail-Wechsel; N-3). |
+| Benachrichtigungen per E-Mail | Alle Benachrichtigungen laufen über Discord. Mails gibt es seit Phase 7 nur für das Konto selbst (Bestätigung, Passwort, E-Mail-Wechsel; N-3). Seit Phase 18 kann jeder Benachrichtigungen zusätzlich oder statt Discord per Mail einschalten (N-14). |
 | Rang-Verifizierung über die Riot-API | Braucht Riot-Freigabe (RSO). Ränge werden selbst angegeben. |
 | Automatisches Matchmaking | Ein Board mit Filtern reicht bei wenigen Dutzend Teams. |
 | Interaktive Bot-Buttons (Feedback in Discord) | Feedback läuft über die Web-App, Discord verlinkt nur dorthin. Spart viel Bot-Logik und funktioniert auch bei blockierten DMs. |
@@ -96,6 +96,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 32. Als Spieler will ich die Seite wie ein Dashboard bedienen: alle Bereiche in einer Seitenleiste, Team und Konto unten, Unterseiten als Tabs.
 33. Als Spieler will ich auf einem großen Bildschirm die ganze Breite nutzen: die Leiste ganz links, die Inhalte daneben über den restlichen Platz.
 34. Als Spieler will ich über mein Konto in der Leiste schnell zu Einstellungen, Support und Abmelden kommen, meine Profil-ID nachsehen und hell oder dunkel unabhängig von meinem Gerät wählen.
+35. Als Spieler will ich selbst bestimmen, welche Benachrichtigungen ich per Discord oder per Mail bekomme, und als Mitglied auch Buchungen und Erinnerungen zu unseren Scrims bekommen, nicht nur der Captain.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -112,7 +113,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 - Ein Spieler wird gesperrt: Er wird aus seinem Team entfernt. Ein gesperrter Captain bleibt im Team, das Team wird mitgesperrt. Die übrigen Mitglieder können das gesperrte Team verlassen und ein neues gründen oder einem anderen beitreten. Eine offene Prüfung seiner Bescheinigung wird ohne Nachricht abgelehnt und die Datei gelöscht.
 - Der Captain ist selbst noch nicht verifiziert: Er kann das Team verwalten und einladen, aber keine Scrim-Aktionen ausführen.
 - Der Bot ist nicht auf dem Team-Server: Benachrichtigungen gehen dann nur per DM an den Captain.
-- DMs kommen nicht an (Hub-Server-Beitritt gescheitert, DMs blockiert): dauerhafter Hinweis auf der Website, bis eine DM wieder zugestellt wurde.
+- DMs kommen nicht an (Hub-Server-Beitritt gescheitert, DMs blockiert): dauerhafter Hinweis auf der Website, bis eine DM wieder zugestellt wurde. Seit Phase 18 verschwindet der Hinweis zu blockierten DMs auch, wenn man Discord für alle Benachrichtigungen abschaltet (N-14).
 
 ---
 
@@ -182,7 +183,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Freigeben oder Ablehnen mit Grund; beim Ablehnen ist ein erneuter Upload möglich
 - [x] Nach der Entscheidung wird die Datei sofort physisch gelöscht
 - [x] Offene Prüfungen werden nach 14 Tagen automatisch abgelehnt, die Datei wird gelöscht
-- [x] Der Nutzer bekommt eine Discord-DM mit dem Ergebnis
+- [x] Der Nutzer bekommt eine Discord-DM mit dem Ergebnis (seit Phase 18 je nach Einstellung per DM und/oder Mail, N-14)
 - [x] Max. 1 offene Prüfung pro Nutzer; bereits verifizierte Nutzer können nicht erneut hochladen
 - [x] **Prüf-Checkliste für Admins** (in der Queue angezeigt): Bescheinigung gilt für das aktuelle Semester; Hochschule stimmt mit der Auswahl überein; Dokument vollständig und lesbar; keine offensichtliche Bearbeitung; seit Phase 7 außerdem: Name auf der Bescheinigung stimmt mit dem Namen des Kontos überein (N-3)
 - [x] Bewusst akzeptiertes Restrisiko: Ob die Bescheinigung wirklich dem Uploader gehört, ist nicht prüfbar. Seit Phase 7 vergleicht der Prüfer den Namen, aber wer eine fremde Bescheinigung hochlädt, kann auch deren Namen angeben. Missbrauch wird über Sperren behandelt.
@@ -213,7 +214,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Ersteller sieht alle Bewerbungen mit Rang, Hochschulen und Zuverlässigkeit
 - [x] Bestätigen prüft, dass beide Teams spielbereit und aktiv sind (nicht gesperrt, nicht aufgelöst); genau eine Bewerbung wird angenommen, alle anderen automatisch abgelehnt
 - [x] Bewerber können zurückziehen, solange nicht bestätigt
-- [x] Bot-DM an den Ersteller bei jeder neuen Bewerbung; Bot-DM an Bewerber bei Bestätigung oder Absage
+- [x] Bot-DM an den Ersteller bei jeder neuen Bewerbung; Bot-DM an Bewerber bei Bestätigung oder Absage (seit Phase 18 je nach Einstellung des Captains per DM und/oder Mail, N-14)
 
 **P0-6 Gebuchte Scrims**
 - [x] Übersicht "Meine Scrims" (anstehend und vergangen, dazu die eigenen offenen Anfragen und Bewerbungen als Listen; die Aktionen bleiben auf Anfrage- und Scrim-Seite); seit Phase 13 Tabs der Seite „Scrims“ neben dem Board (N-9)
@@ -222,7 +223,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 **P0-7 Discord-Bot: Benachrichtigungen**
 - [x] `/setup` auf dem Team-Server verknüpft Server und Channel mit dem Team (nur Captain)
-- [x] Bestätigung bei Buchung und Absage: DM an die Captains und Post im Team-Channel, falls verknüpft
+- [x] Bestätigung bei Buchung und Absage: DM an die Captains und Post im Team-Channel, falls verknüpft (seit Phase 18 nach den Einstellungen auch an Mitglieder und per Mail, N-14)
 - [x] Reminder 24 h und 1 h vor Start
 - [x] Feedback-Hinweis 3 h nach Start mit Link zur Scrim-Seite
 - [x] Nachrichten gehen immer an den **aktuellen** Captain, auch wenn die Rolle nach der Buchung übertragen wurde
@@ -299,7 +300,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
 
 *Mails, Löschen, Sperren*
-- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com`
+- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com` (seit Phase 18 auch Benachrichtigungen, wenn man sie einschaltet, N-14)
 - [x] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
 - [x] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen; Name, E-Mail und Passwort ändern sie nicht
 
@@ -386,10 +387,18 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 
 **N-13 Konto-Menü, Einstellungen, Design und Support** (Phase 17)
 - [x] „Konto“ in der Seitenleiste öffnet ein Menü mit Einstellungen, Support, für Staff dem Admin-Bereich und Abmelden. Auf dem Handy stehen dieselben Punkte im Menü unter dem Konto. Der Knopf „Abmelden“ oben auf der Konto-Seite und der Kasten „Admin-Bereich“ entfallen. Gesperrte und unvollständige Konten bekommen dasselbe Menü, ohne den Admin-Bereich.
-- [x] Die Konto-Seite heißt „Einstellungen“, ihre Tabs „Allgemein“ und „Verifizierung“. Links stehen unter „Grundeinstellungen“ die Profil-ID (nicht änderbar, zum Kopieren) und das Design, darunter wie bisher Studierendenstatus, Name und Anmeldung, Deine Daten und Konto löschen. Rechts stehen unter „Verknüpfte Konten“ Discord (Profilbild, Name, ob Nachrichten ankommen, erneut verbinden); weitere Konten wie Riot kommen erst mit ihrer Anbindung.
+- [x] Die Konto-Seite heißt „Einstellungen“, ihre Tabs „Allgemein“ und „Verifizierung“ (seit Phase 18 dazwischen „Benachrichtigungen“, N-14). Links stehen unter „Grundeinstellungen“ die Profil-ID (nicht änderbar, zum Kopieren) und das Design, darunter wie bisher Studierendenstatus, Name und Anmeldung, Deine Daten und Konto löschen. Rechts stehen unter „Verknüpfte Konten“ Discord (Profilbild, Name, ob Nachrichten ankommen, erneut verbinden); weitere Konten wie Riot kommen erst mit ihrer Anbindung.
 - [x] Das Design ist wählbar: System (Standard, folgt wie bisher dem Gerät), Hell oder Dunkel. Die Wahl gilt für das Konto auf allen Geräten und auch im Admin-Bereich; abgemeldet folgt die Seite dem Gerät. Die Logos folgen dem gewählten Design wie in N-7. Gesperrte und unvollständige Konten können das Design auch wählen. Die Datenauskunft nennt die Wahl.
 - [x] Neue Seite „Support“ (für alle erreichbar, auch abgemeldet und auf dem Admin-Host; verlinkt im Konto-Menü und in der Fußzeile neben Impressum und Datenschutz): ein Knopf zum Uni-Scrims-Discord-Server und die Kontaktadresse support@uniscrims.com zum Schreiben. Fehlt eins davon in der Konfiguration, entfällt es; fehlt beides, verweist die Seite auf das Impressum.
 - [x] Die Datenschutzerklärung nennt die gespeicherte Design-Wahl und heißt die Konto-Seite „Einstellungen“.
+
+**N-14 Benachrichtigungen einstellen** (Phase 18)
+- [ ] Die Einstellungen haben einen Tab „Benachrichtigungen“ zwischen „Allgemein“ und „Verifizierung“. Dort stellt jeder für jede Benachrichtigung ein, ob sie per Discord-DM, per Mail, auf beiden Wegen oder gar nicht kommt, nach Kategorien: Verifizierung (Ergebnis der Prüfung); Anfragen und Bewerbungen (Bewerbung erhalten, Bewerbung abgelehnt, Anfrage gelöscht, Anfrage abgelaufen; nur für den Captain); Scrims (gebucht, abgesagt, Erinnerung 24 Stunden und 1 Stunde vorher, Bitte um Feedback); Team (Verknüpfung mit dem Team-Channel ist weg; nur für den Captain). Speichern geht auch ohne JavaScript.
+- [ ] Ohne eigene Einstellung bleibt alles wie bisher: Discord an, Mail aus, und Scrim-Benachrichtigungen bekommt nur der Captain. Mitglieder können sie für sich einschalten, per Discord und/oder Mail. Anfragen, Bewerbungen und der Team-Hinweis gehen weiter nur an den Captain; die Einstellung eines Mitglieds gilt, sobald es Captain ist.
+- [ ] Wer etwas bekommt, entscheidet sich beim Versand: der Captain und die Mitglieder in diesem Moment, mit ihrer Einstellung in diesem Moment. Wer vorher das Team verlässt oder abschaltet, bekommt nichts mehr. Erinnerungen zu Scrims, die vor dem Update gebucht wurden, folgen ebenfalls den Einstellungen.
+- [ ] Mails gehen an die bestätigte Adresse des Kontos, als reiner Text auf Deutsch von `noreply@uniscrims.com`, mit dem Link zur passenden Seite und dem Hinweis, wo man sie abschaltet. Kommt eine Mail nicht an, versucht der Bot es mehrmals wie bei Discord; der Hinweis auf der Website hängt nur an DMs.
+- [ ] Nicht einstellbar sind die Konto-Mails (Bestätigung, Passwort, E-Mail-Wechsel) und die Posts im Team-Channel; die gehören zum Team.
+- [ ] Wer Discord für alle Benachrichtigungen abschaltet, sieht den Hinweis zu blockierten DMs nicht mehr. Die Datenauskunft enthält die Einstellungen und die persönlichen Nachrichten (DMs und Mails); die Kontolöschung löscht beides. Die Datenschutzerklärung nennt die Mails für Benachrichtigungen.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -445,7 +454,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Buchung | Bewerben + Bestätigung durch den Ersteller. |
 | Uploads | Löschen direkt nach der Prüfung, spätestens nach 14 Tagen. |
 | Team-Logo | Seit Phase 10 optional (N-6). Es liegt als kleines, vom Server erzeugtes Bild in der Datenbank, nicht im Upload-Ordner: So ist es in den Backups und wird nicht wie verwaiste Uploads gelöscht. |
-| Mail-Dienst | Bis Phase 6 keiner. Seit Phase 7 nur Konto-Mails (Bestätigung, Passwort, E-Mail-Wechsel) über das Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting, SMTP). Benachrichtigungen bleiben bei Discord. |
+| Mail-Dienst | Bis Phase 6 keiner. Seit Phase 7 nur Konto-Mails (Bestätigung, Passwort, E-Mail-Wechsel) über das Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting, SMTP). Benachrichtigungen bleiben bei Discord; seit Phase 18 auf Wunsch auch per Mail über dasselbe Postfach (N-14). |
 | Konto | Seit Phase 7 E-Mail, Passwort und Klarname; Discord wird verknüpft und bleibt Pflicht (Benachrichtigungen, Hub-Beitritt, Kontakt zum gegnerischen Captain). Der Klarname ist nur für die Person selbst und für Prüfer und Admins sichtbar. |
 | Hosting | Eigener VPS mit Docker. |
 | Betreiber | Privatperson, nicht-kommerziell. |
@@ -468,7 +477,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 |---|---|
 | Nur Upload-Verifizierung | Echtheit bzw. Zugehörigkeit der Bescheinigung ist nicht prüfbar; der Namensabgleich seit Phase 7 hilft nur gegen Bescheinigungen unter fremdem Namen. Der Prüfaufwand liegt anfangs bei einer Person (15 Teams ≈ 75+ Prüfungen). |
 | Löschen nach Prüfung | Bei späterem Verdacht gibt es nichts mehr nachzuprüfen. |
-| Nur Discord als Kanal | Blockierte DMs sind ein stiller Ausfall. Fallback: Team-Channel und Hinweis auf der Website. |
+| Nur Discord als Kanal | Blockierte DMs sind ein stiller Ausfall. Fallback: Team-Channel und Hinweis auf der Website. Seit Phase 18 kann jeder zusätzlich Mail einschalten (N-14). |
 | Eigener VPS | Du betreibst ein System, das kurzzeitig ausweisähnliche Dokumente hält: Updates, Zugangsschutz und Vorfallreaktion liegen bei dir. |
 | Altersbestätigung nur per Checkbox | Wer den Login-Endpunkt direkt aufruft, umgeht sie, und es wird kein Nachweis gespeichert. Im MVP bewusst akzeptiert. |
 | Team-Logos ohne Vorabprüfung | Ein unpassendes Logo ist sofort für alle Eingeloggten sichtbar, bis ein Admin es entfernt. Nach einer Wiederherstellung aus dem Backup kann ein entferntes Logo zurückkommen. |
@@ -515,6 +524,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 15 | Die ganze Seite im Dashboard-Layout (N-11) | Angemeldet steht am Desktop links die Seitenleiste mit Scrims oben sowie Team und Konto unten; auf dem Handy dieselben Einträge im Menü; Scrims und Konto haben Tabs für ihre Unterseiten |
 | 16 | Volle Breite (N-12) | Am Desktop steht die Leiste ganz links, Seite und Admin-Bereich nutzen den Platz daneben (Scrims in Spalten, Detailseiten zweispaltig); Formulare bleiben schmal; unter 1024 px bleibt alles, wie es ist |
 | 17 | Konto-Menü, Einstellungen, Design und Support (N-13) | „Konto“ öffnet ein Menü mit Einstellungen, Support, Admin-Bereich und Abmelden; die Einstellungen zeigen Profil-ID, Design und verknüpfte Konten; Hell und Dunkel lassen sich fest wählen und gelten überall; die Support-Seite nennt Discord und support@uniscrims.com |
+| 18 | Benachrichtigungen einstellen (N-14) | Jede Benachrichtigung lässt sich per Discord und/oder Mail ein- und ausschalten; ohne Einstellung bleibt alles wie bisher; Mitglieder bekommen Scrim-Benachrichtigungen, wenn sie sie einschalten; Mails kommen als reiner Text mit Link und Abmelde-Hinweis |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
