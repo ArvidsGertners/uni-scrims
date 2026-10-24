@@ -35,7 +35,7 @@ export function MemberRoleSelect({ action, teamId, memberId, memberName, role, o
     <form
       action={formAction}
       onSubmit={(event) => submitKeepingValues(event, formAction)}
-      className="flex flex-col items-end gap-1"
+      className="flex flex-col items-start gap-1"
     >
       <input type="hidden" name="teamId" value={teamId} />
       <input type="hidden" name="memberId" value={memberId} />

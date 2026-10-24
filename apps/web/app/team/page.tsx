@@ -1,9 +1,8 @@
 import {
+  GAME_LABELS,
   LOGO_BACKGROUNDS,
   LOGO_BACKGROUND_LABELS,
   MAX_TEAM_MEMBERS,
-  MEMBER_ROLES,
-  MEMBER_ROLE_LABELS,
   RANK_LABELS,
   READY_MEMBER_COUNT,
   describeStartDay,
@@ -16,33 +15,23 @@ import { ActionForm } from "@/components/action-form";
 import { CopyValue } from "@/components/copy-value";
 import { PageMain } from "@/components/page-main";
 import { StatTile } from "@/components/stat-tile";
-import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
+import { TeamLogoPreview } from "@/components/team-avatar";
 import { TeamFields } from "@/components/team-fields";
-import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import {
   createTeamAction,
   leaveTeamAction,
   regenerateInviteAction,
-  removeMemberAction,
   removeTeamLogoAction,
-  setMemberRoleAction,
-  transferCaptainAction,
   updateTeamAction,
 } from "./actions";
 import { JoinLinkForm } from "./join-link-form";
-import { MemberRoleSelect } from "./member-role-select";
 import { TeamLogoForm } from "./team-logo-form";
+import { TeamHeader } from "./team-tabs";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
-const memberActionClass = "min-h-10 px-2.5 text-[14px]";
-const ROLE_OPTIONS = MEMBER_ROLES.map((role) => ({
-  value: role,
-  label: MEMBER_ROLE_LABELS[role],
-}));
 
 export default async function TeamPage() {
   const user = await requirePageUser("/team");
@@ -100,30 +89,16 @@ export default async function TeamPage() {
 
   return (
     <PageMain width="wide" className="gap-8">
-      <div className="flex items-center gap-4">
-        <TeamAvatar team={team} size="lg" own />
-        <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="type-h1">{team.name}</h1>
-          <span className="text-[14px] text-muted-foreground">
-            {formatUniversities(team.universities)} · Teamrang {RANK_LABELS[team.rank]}
-          </span>
-        </div>
-      </div>
-
-      {team.banned ? (
-        <Alert>
-          <span>
-            {team.isCaptain && !soleMember
-              ? "Dieses Team ist gesperrt. Die anderen Mitglieder können es verlassen und ein neues gründen oder einem anderen beitreten. Danach kannst du es als letztes Mitglied auflösen."
-              : "Dieses Team ist gesperrt. Du kannst es verlassen und ein neues gründen oder einem anderen beitreten."}
-          </span>
-        </Alert>
-      ) : null}
+      <TeamHeader team={team} current="/team" />
 
       {/* The team at a glance (SPEC N-10): instead of the member bar. */}
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile label="Mitglieder" value={`${memberCount} / ${MAX_TEAM_MEMBERS}`}>
+          <StatTile
+            href="/team/members"
+            label="Mitglieder"
+            value={`${memberCount} / ${MAX_TEAM_MEMBERS}`}
+          >
             {memberCount >= MAX_TEAM_MEMBERS
               ? "Kader voll"
               : `Platz für ${MAX_TEAM_MEMBERS - memberCount} weitere`}
@@ -167,123 +142,63 @@ export default async function TeamPage() {
         ) : null}
       </div>
 
-      {/* Squad left, the captain's cards and leaving right: for the captain from 768 px, for the
-          others from 1024 px (SPEC N-12); on phones in this order. */}
+      {/* The team and its logos left, the links right: for the captain from 768 px, for the
+          others from 1024 px (SPEC N-12, N-15); on phones in this order. */}
       <div
         className={cn(
           "flex flex-col gap-8",
           manage
-            ? "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:grid-rows-[auto_auto_1fr] md:items-start md:gap-x-6 md:gap-y-6 xl:grid-cols-[minmax(0,1fr)_400px]"
-            : "lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-x-6 lg:gap-y-6 xl:grid-cols-[minmax(0,1fr)_400px]",
+            ? "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:items-start md:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]"
+            : "lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]",
         )}
       >
-        {manage ? (
-          <section className={`${cardClass} gap-3 md:col-start-2 md:row-start-1`}>
-            <h2 className="type-h2">Spieler einladen</h2>
-            <p className="text-[14px] text-pretty text-muted-foreground">
-              Teile den Link in eurem Team-Discord. Erneuerst du ihn, funktioniert der alte nicht
-              mehr.
-            </p>
-            {inviteUrl ? (
-              <CopyValue value={inviteUrl} display={inviteUrl.replace(/^https?:\/\//, "")} />
-            ) : null}
-            <ActionForm
-              action={regenerateInviteAction}
-              submitLabel="Link erneuern"
-              variant="link"
-              size="bare"
-              submitClassName="min-h-10"
-              confirmText="Neuen Link erzeugen? Der alte funktioniert dann nicht mehr."
-            >
-              <input type="hidden" name="teamId" value={team.id} />
-            </ActionForm>
-          </section>
-        ) : null}
-
-        <section className="flex flex-col gap-2 md:col-start-1 md:row-span-3 md:row-start-1">
-          <h2 className="mb-1 type-label text-muted-foreground">Kader</h2>
-          <ul className="flex flex-col gap-2">
-            {team.members.map((member) => (
-              <li
-                key={member.id}
-                className="flex min-h-[60px] flex-wrap items-center gap-3 border-b border-border py-2"
+        <div className="flex min-w-0 flex-col gap-8 md:gap-6">
+          <section className={`${cardClass} gap-[18px]`}>
+            <h2 className="type-h2 break-words">Team {team.name}</h2>
+            {manage ? (
+              <ActionForm
+                action={updateTeamAction}
+                submitLabel="Speichern"
+                className="flex flex-col gap-[18px]"
               >
-                <UserAvatar user={member} className="size-10 text-[12px] text-muted-foreground" />
-                <div className="flex min-w-36 flex-1 flex-wrap items-center gap-2">
-                  <span className="font-label text-[14px] font-semibold">{member.name}</span>
-                  {member.isCaptain ? (
-                    <Badge variant="accent" className="h-[22px] px-2 text-[12px]">
-                      Captain
-                    </Badge>
-                  ) : null}
-                  {!manage && member.role !== "PLAYER" ? (
-                    <Badge className="h-[22px] px-2 text-[12px]">
-                      {MEMBER_ROLE_LABELS[member.role]}
-                    </Badge>
-                  ) : null}
-                  {/* Coaches need no verification (SPEC N-1); a coach as captain still does. */}
-                  {member.role === "COACH" && !member.isCaptain ? null : member.status ===
-                    "PENDING" ? (
-                    <Badge variant="warning" className="h-[22px] px-2 text-[12px]">
-                      In Prüfung
-                    </Badge>
-                  ) : member.status === "UNVERIFIED" ? (
-                    <Badge className="h-[22px] px-2 text-[12px]">Nicht verifiziert</Badge>
-                  ) : null}
-                  {member.id === user.id ? (
-                    <span className="text-[13px] text-faint">Du</span>
-                  ) : null}
+                <input type="hidden" name="teamId" value={team.id} />
+                <TeamFields defaults={{ name: team.name, tag: team.tag, rank: team.rank }} />
+              </ActionForm>
+            ) : null}
+            <dl className="flex flex-col border-t border-border text-[14px]">
+              {[
+                ...(manage
+                  ? []
+                  : [
+                      { label: "Name", value: team.name },
+                      { label: "Kürzel", value: team.tag },
+                      { label: "Team-Rang", value: RANK_LABELS[team.rank] },
+                    ]),
+                { label: "Spiel", value: GAME_LABELS[team.game] ?? team.game },
+                { label: "Hochschulen", value: formatUniversities(team.universities) },
+              ].map((row) => (
+                <div
+                  key={row.label}
+                  className="flex justify-between gap-3 border-b border-border py-3 last:border-b-0"
+                >
+                  <dt className="text-muted-foreground">{row.label}</dt>
+                  <dd className="min-w-0 text-right break-words">{row.value}</dd>
                 </div>
-                {manage ? (
-                  <div className="ml-auto flex max-w-full flex-wrap items-start justify-end gap-1">
-                    <MemberRoleSelect
-                      key={`${member.id}-${member.role}`}
-                      action={setMemberRoleAction}
-                      teamId={team.id}
-                      memberId={member.id}
-                      memberName={member.name}
-                      role={member.role}
-                      options={ROLE_OPTIONS}
-                    />
-                    {member.isCaptain ? null : (
-                      <>
-                        <ActionForm
-                          action={transferCaptainAction}
-                          submitLabel="Zum Captain"
-                          variant="ghost"
-                          size="bare"
-                          submitClassName={memberActionClass}
-                          confirmText={`${member.name} zum Captain machen? Du bist danach normales Mitglied.`}
-                        >
-                          <input type="hidden" name="teamId" value={team.id} />
-                          <input type="hidden" name="memberId" value={member.id} />
-                        </ActionForm>
-                        <ActionForm
-                          action={removeMemberAction}
-                          submitLabel="Entfernen"
-                          variant="ghost"
-                          size="bare"
-                          submitClassName={`${memberActionClass} not-disabled:hover:bg-accent-soft not-disabled:hover:text-accent-text`}
-                          confirmText={`${member.name} aus dem Team entfernen?`}
-                        >
-                          <input type="hidden" name="teamId" value={team.id} />
-                          <input type="hidden" name="memberId" value={member.id} />
-                        </ActionForm>
-                      </>
-                    )}
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
+              ))}
+            </dl>
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <span className="text-[14px] font-medium">Team-ID</span>
+              <CopyValue value={team.id} />
+              <p className="text-[13px] text-muted-foreground">
+                Nenn sie uns, wenn du dich für euer Team beim Support meldest.
+              </p>
+            </div>
+          </section>
 
-        {manage ? (
-          <section className={`${cardClass} gap-[18px] md:col-start-2`}>
-            <h2 className="type-h2">Team bearbeiten</h2>
-            <div className="flex flex-col gap-4 border-b border-border pb-[18px]">
+          {manage ? (
+            <section className={`${cardClass} gap-4`}>
               <div className="flex flex-col gap-1">
-                <span className="text-[14px] font-medium">Logos</span>
+                <h2 className="type-h2">Logos</h2>
                 <p className="text-[13px] text-pretty text-muted-foreground">
                   PNG oder WebP mit durchsichtigem Hintergrund, max. 2 MB. Durchsichtige Ränder
                   schneiden wir ab, damit das Logo die Fläche füllt. Die Seite zeigt das Logo, das
@@ -319,51 +234,70 @@ export default async function TeamPage() {
                   </div>
                 );
               })}
-            </div>
-            <ActionForm
-              action={updateTeamAction}
-              submitLabel="Speichern"
-              size="lg"
-              submitClassName="w-full"
-              className="flex flex-col gap-[18px]"
-            >
-              <input type="hidden" name="teamId" value={team.id} />
-              <TeamFields defaults={{ name: team.name, tag: team.tag, rank: team.rank }} />
-            </ActionForm>
-          </section>
-        ) : null}
-
-        <div className="flex flex-col gap-4 md:col-start-2">
-          {team.isCaptain && !soleMember ? (
-            <p className="text-[14px] text-pretty text-muted-foreground">
-              Als Captain kannst du das Team erst verlassen, wenn du die Captain-Rolle übertragen
-              hast.
-            </p>
-          ) : (
-            <ActionForm
-              action={leaveTeamAction}
-              submitLabel={team.isCaptain ? "Team auflösen und verlassen" : "Team verlassen"}
-              variant="destructive"
-              size="sm"
-              submitClassName="border-border-strong"
-              confirmText={
-                team.isCaptain
-                  ? "Du bist das einzige Mitglied. Das Team wird aufgelöst. Fortfahren?"
-                  : "Team wirklich verlassen?"
-              }
-            />
-          )}
-
-          {me && me.status !== "VERIFIED" && (me.role !== "COACH" || me.isCaptain) ? (
-            <p className="text-[14px] text-muted-foreground">
-              Noch nicht verifiziert?{" "}
-              <Link href="/verify" className="text-foreground underline underline-offset-2">
-                Zur Verifizierung
-              </Link>
-            </p>
+            </section>
           ) : null}
         </div>
+
+        {manage ? (
+          <div className="flex min-w-0 flex-col gap-8 md:gap-6">
+            <section className={`${cardClass} gap-3`}>
+              <h2 className="type-h2">Interne Links</h2>
+              <span className="text-[14px] font-medium">Einladungslink</span>
+              <p className="text-[14px] text-pretty text-muted-foreground">
+                Teile ihn in eurem Team-Discord. Erneuerst du ihn, funktioniert der alte nicht mehr.
+              </p>
+              {inviteUrl ? (
+                <CopyValue value={inviteUrl} display={inviteUrl.replace(/^https?:\/\//, "")} />
+              ) : null}
+              <ActionForm
+                action={regenerateInviteAction}
+                submitLabel="Link erneuern"
+                variant="link"
+                size="bare"
+                submitClassName="min-h-10"
+                confirmText="Neuen Link erzeugen? Der alte funktioniert dann nicht mehr."
+              >
+                <input type="hidden" name="teamId" value={team.id} />
+              </ActionForm>
+            </section>
+          </div>
+        ) : null}
       </div>
+
+      <section className="flex flex-col gap-4 border-t border-border pt-6">
+        {team.isCaptain && !soleMember ? (
+          <p className="text-[14px] text-pretty text-muted-foreground">
+            Als Captain kannst du das Team erst verlassen, wenn du die Captain-Rolle übertragen hast
+            (im Tab{" "}
+            <Link href="/team/members" className="text-foreground underline underline-offset-2">
+              Mitglieder
+            </Link>
+            ).
+          </p>
+        ) : (
+          <ActionForm
+            action={leaveTeamAction}
+            submitLabel={team.isCaptain ? "Team auflösen und verlassen" : "Team verlassen"}
+            variant="destructive"
+            size="sm"
+            submitClassName="border-border-strong"
+            confirmText={
+              team.isCaptain
+                ? "Du bist das einzige Mitglied. Das Team wird aufgelöst. Fortfahren?"
+                : "Team wirklich verlassen?"
+            }
+          />
+        )}
+
+        {me && me.status !== "VERIFIED" && (me.role !== "COACH" || me.isCaptain) ? (
+          <p className="text-[14px] text-muted-foreground">
+            Noch nicht verifiziert?{" "}
+            <Link href="/verify" className="text-foreground underline underline-offset-2">
+              Zur Verifizierung
+            </Link>
+          </p>
+        ) : null}
+      </section>
     </PageMain>
   );
 }

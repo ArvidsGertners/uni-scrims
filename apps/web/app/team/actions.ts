@@ -35,7 +35,9 @@ function teamInput(formData: FormData) {
 }
 
 async function finish(state: ActionState): Promise<ActionState> {
+  // Both team tabs show the members and the team (SPEC N-15).
   revalidatePath("/team");
+  revalidatePath("/team/members");
   return state;
 }
 
