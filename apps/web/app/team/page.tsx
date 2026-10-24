@@ -13,9 +13,9 @@ import { ActionForm } from "@/components/action-form";
 import { PageMain } from "@/components/page-main";
 import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
 import { TeamFields } from "@/components/team-fields";
+import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { initials } from "@/lib/format";
 import { formatUniversities } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import {
@@ -177,9 +177,7 @@ export default async function TeamPage() {
               key={member.id}
               className="flex min-h-[60px] flex-wrap items-center gap-3 border-b border-border py-2"
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary font-label text-[12px] font-bold text-muted-foreground">
-                {initials(member.name)}
-              </span>
+              <UserAvatar user={member} className="size-10 text-[12px] text-muted-foreground" />
               <div className="flex min-w-36 flex-1 flex-wrap items-center gap-2">
                 <span className="font-label text-[14px] font-semibold">{member.name}</span>
                 {member.isCaptain ? (

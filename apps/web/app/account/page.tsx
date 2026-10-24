@@ -8,10 +8,10 @@ import { DiscordDmWarning } from "@/components/discord-dm-warning";
 import { CheckIcon } from "@/components/icons";
 import { LogoutButton } from "@/components/logout-button";
 import { PageMain } from "@/components/page-main";
+import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { initials } from "@/lib/format";
 import { requirePageAccountUser, setupUrl } from "@/lib/session";
 import {
   changeEmailAction,
@@ -94,9 +94,10 @@ export default async function AccountPage({
         {account.hasDiscord ? (
           <>
             <div className="flex items-center gap-3.5">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary font-label text-[14px] font-bold">
-                {initials(account.name)}
-              </span>
+              <UserAvatar
+                user={{ id: user.id, name: account.name, avatarVersion: account.avatarVersion }}
+                className="size-12 text-[14px]"
+              />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-label font-semibold">{account.name}</span>
                 <span className="text-[13px] text-muted-foreground">Mit Discord verknüpft</span>

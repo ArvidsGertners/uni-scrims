@@ -1,4 +1,5 @@
 import { prisma } from "@uni-scrims/db";
+import { type DiscordAvatarCalls, refreshDiscordAvatar } from "./user-avatar.ts";
 import {
   DISCORD_PROVIDER,
   clearOAuthTokens,
@@ -11,13 +12,14 @@ export type HubJoiner = (discordId: string, accessToken: string) => Promise<bool
 
 /**
  * Runs whenever fresh Discord tokens arrive, after a Discord login and after linking Discord
- * (§5.1, §5.8): try to join the hub server (skipped for banned and deleted users), record the
- * result, then always remove the tokens. Name and avatar Better Auth writes itself
+ * (§5.1, §5.8): try to join the hub server and copy the avatar (both skipped for banned and deleted
+ * users), record the result, then always remove the tokens. Name and avatar Better Auth writes itself
  * (discordLoginUserInfo).
  */
 export async function handleDiscordLogin(
   userId: string,
   joinHub: HubJoiner,
+  avatar: DiscordAvatarCalls,
   now: Date,
 ): Promise<void> {
   try {
@@ -51,6 +53,8 @@ export async function handleDiscordLogin(
     if (user.bannedAt || !account.accessToken) return;
     const joined = await joinHub(account.accountId, account.accessToken);
     await recordHubJoinResult(userId, joined, now);
+    // The copy of the Discord avatar (§5.12); failures keep the old one and never stop the login.
+    await refreshDiscordAvatar(userId, account.accessToken, avatar, now);
   } finally {
     await clearOAuthTokens(userId);
   }

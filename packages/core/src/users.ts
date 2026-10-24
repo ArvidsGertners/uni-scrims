@@ -31,6 +31,7 @@ export function deletedUserData(userId: string) {
     lastName: null,
     staffRole: null,
     twoFactorEnabled: false,
+    avatarUpdatedAt: null,
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
 

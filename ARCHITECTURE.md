@@ -585,8 +585,8 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 
 ### 5.12 Discord-Profilbilder (ab Phase 12)
 
-**Laden:** `handleDiscordLogin` (§5.1) bekommt neben `joinHub` einen zweiten übergebenen Discord-Aufruf `fetchAvatar(url)` und ruft nach dem Hub-Beitritt `syncDiscordAvatar` auf (nicht für gesperrte und gelöschte Konten). Das Web stellt `fetchAvatar` in `apps/web/lib/discord-avatar.ts` bereit, das Backfill-Skript im Bot dieselbe Funktion: `fetch` mit 3 s Timeout und höchstens 1 MB Antwort.
-- `syncDiscordAvatar` liest `User.image`. Nur echte Profilbilder (`https://cdn.discordapp.com/avatars/<discordId>/<hash>.<png|gif>`) werden geladen, als `…/<hash>.png?size=128` (animierte damit als Standbild). Bei einem Standardbild (`embed/avatars/n.png`) oder ohne Bild wird eine vorhandene Kopie gelöscht.
+**Laden:** `handleDiscordLogin` (§5.1) bekommt neben `joinHub` die übergebenen Discord-Aufrufe `{ fetchProfile, fetchImage }` und ruft nach dem Hub-Beitritt `refreshDiscordAvatar` auf (nicht für gesperrte und gelöschte Konten). Better Auth 1.7.12 schreibt Name und Avatar-URL erst nach dem Account-Hook (`updateAccount`/`linkAccount` vor `updateUser`), `User.image` ist dort also noch die alte Adresse. Deshalb holt `fetchProfile` das aktuelle Profil mit dem frischen Zugangs-Token (`GET /users/@me`, Scope `identify`), und `discordProfileData` baut daraus die Adresse; das Token wird danach wie bisher gelöscht. Das Web stellt beide Aufrufe in `apps/web/lib/discord-avatar.ts` bereit (3 s Timeout, Bilder höchstens 1 MB, nur von `https://cdn.discordapp.com/`, keine Weiterleitungen), das Backfill-Skript im Bot sein eigenes `fetchImage`.
+- `syncDiscordAvatar(userId, image, fetchImage, now)` bekommt die Adresse (beim Login aus dem Profil, beim Backfill aus `User.image`). Nur echte Profilbilder (`https://cdn.discordapp.com/avatars/<discordId>/<hash>.<png|gif>`) werden geladen, als `…/<hash>.png?size=128` (animierte damit als Standbild). Bei einem Standardbild (`embed/avatars/n.png`) oder ohne Bild wird eine vorhandene Kopie gelöscht.
 - `processDiscordAvatar` prüft die Antwort wie ein Logo (Typ aus den ersten Bytes: PNG, WebP, JPEG, GIF; höchstens 1024 × 1024 Pixel) und erzeugt mit `sharp` ein 128 × 128 WebP (`fit: "cover"`, ohne Metadaten). Es läuft durch dieselbe Warteschlange wie die Team-Logos.
 - Jeder Fehler (Netz, Timeout, Discord-Antwort, Bild) wird geloggt und behält die alte Kopie; Login und Verknüpfen laufen weiter.
 
@@ -952,8 +952,8 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 
 **Phase 12: Discord-Profilbilder** (SPEC N-8, §5.12)
 - Schema: `User.avatarUpdatedAt`, Tabelle `UserAvatar` (Migration, alles nullable bzw. neu)
-- `core`: `processDiscordAvatar`, `syncDiscordAvatar` (aus `handleDiscordLogin`), `getUserAvatar`, `backfillDiscordAvatars`; `avatarVersion` in `getAccount`, `getMyTeam`, `listPendingVerifications`; Löschen in `deleteAccount`; Datenauskunft. Tests: Kopie als 128×128 WebP, Standardbild löscht, Fehler behält, fremde Adresse wird nicht geladen, Rechte (selbst, Teamkollege, Staff, Fremder), Löschen, Auskunft, Backfill lädt nur Fehlendes
-- Web: `fetchAvatar` an `handleDiscordLogin`, Route `GET /api/users/[id]/avatar`, `UserAvatar` auf Konto-Seite, Team-Seite und Queue
+- `core`: `processDiscordAvatar`, `syncDiscordAvatar`, `refreshDiscordAvatar` (aus `handleDiscordLogin`), `getUserAvatar`, `backfillDiscordAvatars`; `avatarVersion` in `getAccount`, `getMyTeam`, `listPendingVerifications`; Löschen in `deleteAccount`; Datenauskunft. Tests: Kopie als 128×128 WebP, Standardbild löscht, Fehler behält, fremde Adresse wird nicht geladen, Rechte (selbst, Teamkollege, Staff, Fremder), Löschen, Auskunft, Backfill lädt nur Fehlendes
+- Web: `fetchProfile`/`fetchImage` an `handleDiscordLogin`, Route `GET /api/users/[id]/avatar`, `UserAvatar` auf Konto-Seite, Team-Seite und Queue
 - Bot: Skript `backfill-avatars` (README), beim Deploy einmal ausführen
 - Datenschutzerklärung: Kopie des Profilbilds, wer es sieht (Dev-Kopie; beim Deploy nach Production)
 - *Fertig wenn:* Konto-Seite, Team-Seite und Queue zeigen die Kopie des Profilbilds, ohne dass der Browser etwas von Discord lädt; ohne Bild stehen Initialen; nach dem Löschen ist die Kopie weg; Tests, Lint und Build sind grün.

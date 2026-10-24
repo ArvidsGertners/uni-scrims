@@ -8,7 +8,8 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test-dm": "tsx src/scripts/test-dm.ts",
-    "set-operator": "tsx src/scripts/set-operator.ts"
+    "set-operator": "tsx src/scripts/set-operator.ts",
+    "backfill-avatars": "tsx src/scripts/backfill-avatars.ts"
   },
   "dependencies": {
     "@uni-scrims/core": "workspace:*",

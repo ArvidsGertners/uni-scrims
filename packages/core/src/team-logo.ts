@@ -52,17 +52,17 @@ export function logoContentBox(alpha: Uint8Array, width: number, height: number)
   return right < 0 ? null : { left, top, width: right - left + 1, height: bottom - top + 1 };
 }
 
-/** Logos processed at once and logos waiting; more uploads are turned away for the moment. */
+/** Images processed at once and waiting; more are turned away for the moment. */
 const LOGO_JOBS_RUNNING = 1;
 const LOGO_JOBS_WAITING = 3;
 let logoJobs = 0;
 const logoQueue: (() => void)[] = [];
 
 /**
- * Runs one logo job at a time: a large upload briefly needs tens of MB and some time on the main
- * thread, and any logged-in user can found a team (§5.11).
+ * Runs one image job at a time, logos and Discord avatars (§5.11, §5.12): a large upload briefly
+ * needs tens of MB and some time on the main thread, and any logged-in user can found a team.
  */
-async function inLogoQueue<T>(job: () => Promise<T>): Promise<T> {
+export async function inImageQueue<T>(job: () => Promise<T>): Promise<T> {
   if (logoJobs < LOGO_JOBS_RUNNING) {
     logoJobs++;
   } else {
@@ -98,7 +98,7 @@ export async function processTeamLogo(bytes: Uint8Array): Promise<Uint8Array<Arr
   if (!type || !ALLOWED_LOGO_TYPES.has(type.mime)) {
     throw invalid("Erlaubt sind nur PNG und WebP.");
   }
-  return inLogoQueue(() => renderTeamLogo(bytes));
+  return inImageQueue(() => renderTeamLogo(bytes));
 }
 
 async function renderTeamLogo(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {

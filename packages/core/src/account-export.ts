@@ -71,6 +71,10 @@ export async function exportAccountData(input: {
   return prisma.$transaction(
     async (tx) => {
       const user = await requireAccountUser(input.userId, tx);
+      const avatar = await tx.userAvatar.findUnique({
+        where: { userId: user.id },
+        select: { data: true },
+      });
       const university = user.universityId
         ? await tx.university.findUnique({
             where: { id: user.universityId },
@@ -225,6 +229,11 @@ export async function exportAccountData(input: {
           // Without a Discord link the name is the placeholder "Neues Konto" (§5.8).
           discordName: discord ? user.name : null,
           avatar: user.image,
+          // The copy itself is personal data (SPEC N-8), small enough to carry inline.
+          profilbild: avatar
+            ? `data:image/webp;base64,${Buffer.from(avatar.data).toString("base64")}`
+            : null,
+          profilbildKopiertAm: user.avatarUpdatedAt,
           // An account from before Phase 7 has only the internal placeholder, as on the account page.
           eMail: user.firstName ? user.email : null,
           eMailBestätigt: user.emailVerified,

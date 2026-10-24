@@ -14,6 +14,7 @@ import {
 import { emailSchema, parseInput, realNameSchema } from "./schemas.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
+import { avatarVersion } from "./user-avatar.ts";
 import {
   readStudentStatus,
   removeFilesAfterCommit,
@@ -78,7 +79,8 @@ export async function getAccount(userId: string) {
   const setupStep = accountSetupStep(user, discordId !== null);
   return {
     name: user.name,
-    image: user.image,
+    /** Version of the avatar copy for its URL, null without one (§5.12). */
+    avatarVersion: avatarVersion(user),
     banned: user.bannedAt !== null,
     /** What the account still lacks (§5.8), or null. */
     setupStep,
@@ -257,6 +259,8 @@ export async function deleteAccount(input: {
       select: { filePath: true },
     });
     await tx.verificationRequest.deleteMany({ where: { userId: user.id } });
+    // The copy of the Discord avatar goes with the account (SPEC N-8).
+    await tx.userAvatar.deleteMany({ where: { userId: user.id } });
     await tx.notification.deleteMany({ where: { targetUserId: user.id } });
     await tx.session.deleteMany({ where: { userId: user.id } });
     // Better Auth keeps password reset tokens with the user ID as value; an open link would

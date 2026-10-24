@@ -18,6 +18,7 @@ import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins";
 import { isAllowedAuthPath, staffSessionAllowed, staffSessionError } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
+import { fetchDiscordImage, fetchDiscordProfile } from "./discord-avatar.ts";
 import { joinHubGuild } from "./hub-join.ts";
 import { MAIL_FAILED, type Mail, passwordResetMail, sendMail, verificationMail } from "./mail.ts";
 
@@ -28,13 +29,18 @@ const registrationOnly = { required: false, input: true } as const;
 
 /**
  * Fresh Discord tokens arrive with an account row: created when Discord is linked, updated on every
- * Discord login. Join the hub, then remove the tokens. Login and linking always continue; the row
+ * Discord login. Join the hub, copy the avatar (§5.12), then remove the tokens. Login and linking always continue; the row
  * is null when the account was deleted meanwhile.
  */
 async function onDiscordTokens(account: { userId: string; providerId: string } | null) {
   try {
     if (account?.providerId !== "discord") return;
-    await handleDiscordLogin(account.userId, joinHubGuild, new Date());
+    await handleDiscordLogin(
+      account.userId,
+      joinHubGuild,
+      { fetchProfile: fetchDiscordProfile, fetchImage: fetchDiscordImage },
+      new Date(),
+    );
   } catch (error) {
     console.error("Post-login handling failed", error);
   }

@@ -1,5 +1,6 @@
 import { listPendingVerifications, listUniversities, resolveUploadDir } from "@uni-scrims/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserAvatar } from "@/components/user-avatar";
 import { formatDateTime } from "@/lib/format";
 import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "./admin-nav";
@@ -32,13 +33,18 @@ export default async function AdminPage() {
         return (
           <Card key={request.id}>
             <CardHeader>
-              {/* The real name to compare with the certificate (SPEC N-3). */}
-              <CardTitle>
-                {request.user.firstName
-                  ? `${request.user.firstName} ${request.user.lastName ?? ""}`
-                  : "Kein Name (Konto von vor Phase 7)"}
-              </CardTitle>
-              <p className="text-[14px] text-muted-foreground">Discord: {request.user.name}</p>
+              <div className="flex items-center gap-3">
+                <UserAvatar user={request.user} className="size-10 text-[12px]" />
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  {/* The real name to compare with the certificate (SPEC N-3). */}
+                  <CardTitle>
+                    {request.user.firstName
+                      ? `${request.user.firstName} ${request.user.lastName ?? ""}`
+                      : "Kein Name (Konto von vor Phase 7)"}
+                  </CardTitle>
+                  <p className="text-[14px] text-muted-foreground">Discord: {request.user.name}</p>
+                </div>
+              </div>
               <p className="text-[14px] text-muted-foreground">
                 Hochgeladen am {formatDateTime(request.createdAt)} ·{" "}
                 {request.university

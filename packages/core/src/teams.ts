@@ -18,6 +18,7 @@ import { closeOpenRequest, openRequestWhere } from "./requests.ts";
 import { type TeamInput, memberRoleSchema, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 import { clearTeamLogo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
+import { avatarVersion } from "./user-avatar.ts";
 import { findUserByDiscordId } from "./users.ts";
 
 export const MAX_TEAM_MEMBERS = 10;
@@ -444,7 +445,7 @@ const memberSelect = {
     select: {
       id: true,
       name: true,
-      image: true,
+      avatarUpdatedAt: true,
       verifiedAt: true,
       universityOther: true,
       university: { select: { name: true } },
@@ -471,7 +472,7 @@ export async function getMyTeam(userId: string) {
   const members = memberRows.map(({ user: member, joinedAt, role }) => ({
     id: member.id,
     name: member.name,
-    image: member.image,
+    avatarVersion: avatarVersion(member),
     joinedAt,
     role,
     isCaptain: isCaptainOf(member, team),

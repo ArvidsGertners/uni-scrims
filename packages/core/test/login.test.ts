@@ -24,6 +24,14 @@ async function tokensOf(userId: string) {
 }
 
 /** Records the hub joins. */
+/** Discord's profile without an own avatar: nothing to copy (avatars have their own tests). */
+const NO_AVATAR = {
+  fetchProfile: async () => ({ id: "1", username: "spieler", discriminator: "0", avatar: null }),
+  fetchImage: async () => {
+    throw new Error("not called without an avatar");
+  },
+};
+
 function hubJoin(joined = true) {
   const calls: [string, string][] = [];
   const join = async (discordId: string, token: string) => {
@@ -53,7 +61,7 @@ describe("handleDiscordLogin", () => {
   it("joins the hub with the fresh token and removes the tokens", async () => {
     const user = await createUser();
     const { join, calls } = hubJoin();
-    await handleDiscordLogin(user.id, join, NOW);
+    await handleDiscordLogin(user.id, join, NO_AVATAR, NOW);
     expect(calls).toEqual([[user.discordId, "access"]]);
     expect(await tokensOf(user.id)).toEqual({ accessToken: null, refreshToken: null });
     const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
@@ -62,7 +70,7 @@ describe("handleDiscordLogin", () => {
 
   it("records a failed join", async () => {
     const user = await createUser();
-    await handleDiscordLogin(user.id, hubJoin(false).join, NOW);
+    await handleDiscordLogin(user.id, hubJoin(false).join, NO_AVATAR, NOW);
     const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(row.hubJoinFailedAt).toEqual(NOW);
     expect(await tokensOf(user.id)).toEqual({ accessToken: null, refreshToken: null });
@@ -71,7 +79,7 @@ describe("handleDiscordLogin", () => {
   it("skips the join for banned users but still removes the tokens", async () => {
     const user = await createUser({ banned: true });
     const { join, calls } = hubJoin();
-    await handleDiscordLogin(user.id, join, NOW);
+    await handleDiscordLogin(user.id, join, NO_AVATAR, NOW);
     expect(calls).toEqual([]);
     expect(await tokensOf(user.id)).toEqual({ accessToken: null, refreshToken: null });
   });
@@ -79,7 +87,7 @@ describe("handleDiscordLogin", () => {
   it("keeps a ban placeholder's link but does not join for it", async () => {
     const id = await banPlaceholder();
     const { join, calls } = hubJoin();
-    await handleDiscordLogin(id, join, NOW);
+    await handleDiscordLogin(id, join, NO_AVATAR, NOW);
     expect(calls).toEqual([]);
     expect(await tokensOf(id)).toEqual({ accessToken: null, refreshToken: null });
   });
@@ -93,7 +101,7 @@ describe("handleDiscordLogin", () => {
       data: { deletedAt: NOW, email: deletedUserEmail(user.id), name: DELETED_USER_NAME },
     });
     const { join, calls } = hubJoin();
-    await handleDiscordLogin(user.id, join, NOW);
+    await handleDiscordLogin(user.id, join, NO_AVATAR, NOW);
     expect(calls).toEqual([]);
     expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
     expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0);
@@ -110,7 +118,7 @@ describe("handleDiscordLogin", () => {
       data: { deletedAt: NOW, image: "https://cdn/avatar.png", dmFailedAt: NOW, firstName: "Ana" },
     });
 
-    await handleDiscordLogin(user.id, hubJoin().join, NOW);
+    await handleDiscordLogin(user.id, hubJoin().join, NO_AVATAR, NOW);
 
     expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
       name: DELETED_USER_NAME,
@@ -125,7 +133,7 @@ describe("handleDiscordLogin", () => {
   it("leaves a user without Discord link alone unless it was deleted", async () => {
     const user = await createUser();
     await prisma.account.deleteMany({ where: { userId: user.id } });
-    await handleDiscordLogin(user.id, hubJoin().join, NOW);
+    await handleDiscordLogin(user.id, hubJoin().join, NO_AVATAR, NOW);
     expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
       name: user.name,
       email: user.email,

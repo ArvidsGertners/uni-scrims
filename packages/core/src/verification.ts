@@ -8,6 +8,7 @@ import { queueNotifications } from "./notifications.ts";
 import { lockUser } from "./locks.ts";
 import { requireReviewer, requireUser } from "./permissions.ts";
 import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./uploads.ts";
+import { avatarVersion } from "./user-avatar.ts";
 
 export const AUTO_REJECT_REASON = "Prüfung nicht rechtzeitig erfolgt";
 /** Approving needs the file; after restoring a backup it may be missing (§8). */
@@ -498,13 +499,16 @@ export async function listPendingVerifications(adminId: string, uploadDir: strin
       universityOther: true,
       university: { select: { name: true, city: true } },
       // The real name to compare with the certificate (SPEC N-3); null for accounts from before Phase 7.
-      user: { select: { id: true, name: true, image: true, firstName: true, lastName: true } },
+      user: {
+        select: { id: true, name: true, avatarUpdatedAt: true, firstName: true, lastName: true },
+      },
       filePath: true,
     },
   });
   return Promise.all(
-    requests.map(async ({ filePath, ...request }) => ({
+    requests.map(async ({ filePath, user: { avatarUpdatedAt, ...user }, ...request }) => ({
       ...request,
+      user: { ...user, avatarVersion: avatarVersion({ avatarUpdatedAt }) },
       fileAvailable: await uploadExists(uploadDir, filePath),
     })),
   );
