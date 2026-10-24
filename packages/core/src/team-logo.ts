@@ -1,11 +1,14 @@
-// Team logo (SPEC N-6, ARCHITECTURE §5.11): the captain uploads a PNG or WebP with an alpha channel;
-// the server trims transparent margins and stores a 256×256 lossless WebP in TeamLogo.
-import { type Prisma, prisma } from "@uni-scrims/db";
+// Team logo (SPEC N-6, N-7, ARCHITECTURE §5.11): the captain uploads a PNG or WebP with an alpha
+// channel, one per background; the server trims transparent margins and stores a 256×256 lossless
+// WebP in TeamLogo.
+import { LogoBackground, type Prisma, prisma } from "@uni-scrims/db";
 import { fileTypeFromBuffer } from "file-type";
+import { z } from "zod";
 import { MAX_LOGO_BYTES } from "../config/uploads.ts";
 import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
 import { requireCaptain, requireUser } from "./permissions.ts";
+import { parseInput } from "./schemas.ts";
 
 export { MAX_LOGO_BYTES };
 
@@ -147,25 +150,70 @@ async function renderTeamLogo(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer
   return new Uint8Array(logo);
 }
 
-/** Removes the logo in the caller's transaction, which holds the team lock. */
+/** Form values of the background, as the web sends them. */
+export const logoBackgroundSchema = z.enum(LogoBackground);
+
+/** The two logos in display order: for dark backgrounds, then for light ones (SPEC N-7). */
+export const LOGO_BACKGROUNDS: readonly LogoBackground[] = [
+  LogoBackground.DARK,
+  LogoBackground.LIGHT,
+];
+
+/** Removes all logos in the caller's transaction, which holds the team lock. */
 export async function clearTeamLogo(tx: Prisma.TransactionClient, teamId: string): Promise<void> {
   await tx.teamLogo.deleteMany({ where: { teamId } });
   await tx.team.update({ where: { id: teamId }, data: { logoUpdatedAt: null } });
 }
 
-/** URL version of a team's logo, null without one (§5.11). */
+/** URL version of a team's logos, null without any (§5.11). */
 export function logoVersion(team: { logoUpdatedAt: Date | null }): number | null {
   return team.logoUpdatedAt?.getTime() ?? null;
+}
+
+/** What pages need to show a team's logos: the URL version and which backgrounds have one. */
+export type TeamLogoInfo = { version: number; backgrounds: LogoBackground[] };
+
+/** Team fields for teamLogoInfo; the backgrounds come without image bytes. */
+export const teamLogoSelect = {
+  logoUpdatedAt: true,
+  logos: { select: { background: true } },
+} satisfies Prisma.TeamSelect;
+
+export function teamLogoInfo(team: {
+  logoUpdatedAt: Date | null;
+  logos: { background: LogoBackground }[];
+}): TeamLogoInfo | null {
+  const backgrounds = LOGO_BACKGROUNDS.filter((background) =>
+    team.logos.some((logo) => logo.background === background),
+  );
+  return team.logoUpdatedAt && backgrounds.length > 0
+    ? { version: team.logoUpdatedAt.getTime(), backgrounds }
+    : null;
+}
+
+/** teamLogoInfo for a team row loaded without its logos (findOwnTeam); queries only if needed. */
+export async function loadTeamLogoInfo(team: {
+  id: string;
+  logoUpdatedAt: Date | null;
+}): Promise<TeamLogoInfo | null> {
+  if (!team.logoUpdatedAt) return null;
+  const logos = await prisma.teamLogo.findMany({
+    where: { teamId: team.id },
+    select: { background: true },
+  });
+  return teamLogoInfo({ logoUpdatedAt: team.logoUpdatedAt, logos });
 }
 
 /** Captain of a team that is not banned; verification is not needed, as for the other team data. */
 export async function setTeamLogo(input: {
   userId: string;
   teamId: string;
+  background: LogoBackground;
   file: Uint8Array;
   now: Date;
 }): Promise<void> {
   await requireCaptain(input.userId, input.teamId);
+  const background = parseInput(logoBackgroundSchema, input.background);
   // Image work runs before the transaction, so it holds no lock.
   const data = await processTeamLogo(input.file);
   await prisma.$transaction(async (tx) => {
@@ -173,36 +221,53 @@ export async function setTeamLogo(input: {
     await lockTeam(tx, input.teamId);
     await requireCaptain(input.userId, input.teamId, tx);
     await tx.teamLogo.upsert({
-      where: { teamId: input.teamId },
-      create: { teamId: input.teamId, data },
+      where: { teamId_background: { teamId: input.teamId, background } },
+      create: { teamId: input.teamId, background, data },
       update: { data },
     });
     await tx.team.update({ where: { id: input.teamId }, data: { logoUpdatedAt: input.now } });
   });
 }
 
-export async function removeTeamLogo(input: { userId: string; teamId: string }): Promise<void> {
+/** Removes one logo; the version moves on while the other one is left, else it is cleared. */
+export async function removeTeamLogo(input: {
+  userId: string;
+  teamId: string;
+  background: LogoBackground;
+  now: Date;
+}): Promise<void> {
   await requireCaptain(input.userId, input.teamId);
+  const background = parseInput(logoBackgroundSchema, input.background);
   await prisma.$transaction(async (tx) => {
     await lockTeam(tx, input.teamId);
     await requireCaptain(input.userId, input.teamId, tx);
-    await clearTeamLogo(tx, input.teamId);
+    await tx.teamLogo.deleteMany({ where: { teamId: input.teamId, background } });
+    const left = await tx.teamLogo.count({ where: { teamId: input.teamId } });
+    await tx.team.update({
+      where: { id: input.teamId },
+      data: { logoUpdatedAt: left > 0 ? input.now : null },
+    });
   });
 }
 
 /**
- * The stored WebP and its version for logged-in users who are not banned, like team cards;
- * dissolved teams have none.
+ * The stored WebP for one background and the version, for logged-in users who are not banned,
+ * like team cards; dissolved teams have none.
  */
 export async function getTeamLogo(input: {
   userId: string;
   teamId: string;
+  background: LogoBackground;
 }): Promise<{ data: Uint8Array<ArrayBuffer>; version: number }> {
   await requireUser(input.userId);
   const team = await prisma.team.findFirst({
     where: { id: input.teamId, dissolvedAt: null },
-    select: { logoUpdatedAt: true, logo: { select: { data: true } } },
+    select: {
+      logoUpdatedAt: true,
+      logos: { where: { background: input.background }, select: { data: true } },
+    },
   });
-  if (!team?.logo || !team.logoUpdatedAt) throw new DomainError("NOT_FOUND", "Kein Logo.");
-  return { data: team.logo.data, version: team.logoUpdatedAt.getTime() };
+  const logo = team?.logos[0];
+  if (!logo || !team.logoUpdatedAt) throw new DomainError("NOT_FOUND", "Kein Logo.");
+  return { data: logo.data, version: team.logoUpdatedAt.getTime() };
 }

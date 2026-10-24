@@ -4,6 +4,7 @@
 
 /* Light and dark follow the system setting (ARCHITECTURE §11 Phase 11); no class toggles them. */
 @custom-variant dark (@media (prefers-color-scheme: dark));
+@custom-variant light (@media (prefers-color-scheme: light));
 
 /* Tailwind names for the design tokens below. */
 @theme inline {
@@ -42,6 +43,8 @@
   --color-success-line: var(--success-line);
   --color-accent-soft-hover: var(--accent-soft-hover);
   --color-placeholder: var(--placeholder);
+  --color-logo-tile-dark: var(--logo-tile-dark);
+  --color-logo-tile-light: var(--logo-tile-light);
   --radius-sm: var(--radius-sm);
   --radius-lg: var(--radius);
   --radius-pill: var(--radius-pill);
@@ -95,6 +98,9 @@
   --shadow-popup: 0 16px 40px rgba(0, 0, 0, 0.55);
   --shadow-overlay: 0 24px 48px rgba(0, 0, 0, 0.6);
   --backdrop: rgb(0 0 0 / 0.6);
+  /* Surfaces for a team logo made for a dark or light background, the same in both modes (N-7). */
+  --logo-tile-dark: #16181d;
+  --logo-tile-light: #f5f6f8;
   --clip: none;
   --clip-btn: none;
   --card-border: 1px solid #262a31;

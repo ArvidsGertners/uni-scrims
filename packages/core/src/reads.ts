@@ -19,7 +19,7 @@ import {
   requestPostingProblems,
 } from "./requests.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
-import { logoVersion } from "./team-logo.ts";
+import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
 import { teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
 import { getDiscordId } from "./users.ts";
@@ -105,7 +105,7 @@ const teamCardSelect = {
   name: true,
   tag: true,
   rank: true,
-  logoUpdatedAt: true,
+  ...teamLogoSelect,
   members: {
     select: {
       role: true,
@@ -123,8 +123,8 @@ export type TeamCardData = {
   name: string;
   tag: string;
   rank: Rank;
-  /** Version of the team logo for its URL; null without logo (§5.11). */
-  logoVersion: number | null;
+  /** The team's logos for their URLs; null without logo (§5.11). */
+  logo: TeamLogoInfo | null;
   universities: { shown: string[]; more: number };
   reliability: Reliability;
 };
@@ -135,7 +135,7 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
     name: team.name,
     tag: team.tag,
     rank: team.rank,
-    logoVersion: logoVersion(team),
+    logo: teamLogoInfo(team),
     universities: teamUniversities(team.members),
     reliability: reliabilities.get(team.id)!,
   };
@@ -495,7 +495,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
             id: true,
             startsAt: true,
             format: true,
-            team: { select: { id: true, name: true, tag: true, logoUpdatedAt: true } },
+            team: { select: { id: true, name: true, tag: true, ...teamLogoSelect } },
           },
         },
       },
@@ -517,7 +517,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
         id: opponent.id,
         name: opponent.name,
         tag: opponent.tag,
-        logoVersion: logoVersion(opponent),
+        logo: teamLogoInfo(opponent),
         universities: teamUniversities(opponent.members),
         captainId: opponent.captain.id,
         captainName: opponent.captain.name,
@@ -540,7 +540,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       id: ownTeam.id,
       name: ownTeam.name,
       tag: ownTeam.tag,
-      logoVersion: logoVersion(ownTeam),
+      logo: await loadTeamLogoInfo(ownTeam),
     },
     upcoming: upcoming.map((item, index) => ({
       ...item,
@@ -566,7 +566,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
         id: application.request.team.id,
         name: application.request.team.name,
         tag: application.request.team.tag,
-        logoVersion: logoVersion(application.request.team),
+        logo: teamLogoInfo(application.request.team),
       },
     })),
   };

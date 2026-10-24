@@ -1,7 +1,7 @@
-import { MIN_SEARCH_LENGTH, searchModerationTargets } from "@uni-scrims/core";
+import { LOGO_BACKGROUNDS, MIN_SEARCH_LENGTH, searchModerationTargets } from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
-import { TeamAvatar } from "@/components/team-avatar";
+import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,6 +114,19 @@ export default async function BansPage({
                   </p>
                 </div>
               </div>
+              {team.logo === null ? null : (
+                // Both logos, each on its background, so neither goes unseen.
+                <div className="flex gap-2.5">
+                  {LOGO_BACKGROUNDS.map((background) => (
+                    <TeamLogoPreview
+                      key={background}
+                      team={team}
+                      background={background}
+                      className="size-12"
+                    />
+                  ))}
+                </div>
+              )}
               <div className="flex flex-wrap gap-2.5">
                 {team.banned ? null : (
                   <ActionForm
@@ -125,17 +138,17 @@ export default async function BansPage({
                     <input type="hidden" name="teamId" value={team.id} />
                   </ActionForm>
                 )}
-                {team.logoVersion === null ? null : (
+                {team.logo === null ? null : (
                   // Logos are not checked before they show (SPEC §9); admins take bad ones down.
                   <ActionForm
                     action={removeTeamLogoAction}
-                    submitLabel="Logo entfernen"
+                    submitLabel="Logos entfernen"
                     variant="outline"
-                    confirmText={`Logo von ${team.name} entfernen?`}
+                    confirmText={`Beide Logos von ${team.name} entfernen?`}
                   >
                     <input type="hidden" name="teamId" value={team.id} />
-                    {/* Only the logo shown here, not one uploaded since (SPEC N-6). */}
-                    <input type="hidden" name="logoVersion" value={team.logoVersion} />
+                    {/* Only the logos shown here, not one uploaded since (SPEC N-6). */}
+                    <input type="hidden" name="logoVersion" value={team.logo.version} />
                   </ActionForm>
                 )}
               </div>

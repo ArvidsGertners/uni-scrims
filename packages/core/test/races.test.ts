@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   AppStatus,
   FeedbackOutcome,
+  LogoBackground,
   NotifType,
   ScrimStatus,
   VerifStatus,
@@ -229,7 +230,13 @@ describe("team logo while the team is dissolved", () => {
     for (let round = 0; round < ROUNDS; round++) {
       const { team: target, captain } = await createTeamWithMembers();
       const results = await Promise.allSettled([
-        setTeamLogo({ userId: captain.id, teamId: target.id, file, now: NOW }),
+        setTeamLogo({
+          userId: captain.id,
+          teamId: target.id,
+          background: LogoBackground.DARK,
+          file,
+          now: NOW,
+        }),
         leaveTeam({ userId: captain.id, now: NOW }),
       ]);
       expectOnlyDomainErrors(results);

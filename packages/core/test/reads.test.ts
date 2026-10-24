@@ -543,7 +543,7 @@ describe("getScrimDetail and getMyScrims", () => {
       id: team.team.id,
       name: team.team.name,
       tag: team.team.tag,
-      logoVersion: null,
+      logo: null,
     });
     expect(mine.requests).toEqual([expect.objectContaining({ id: ownRequest.id })]);
     // The accepted application of the booked scrim shows as a scrim, not as an application.
@@ -552,7 +552,7 @@ describe("getScrimDetail and getMyScrims", () => {
         id: application.id,
         status: AppStatus.PENDING,
         requestId: otherRequest.id,
-        team: { id: other.team.id, name: other.team.name, tag: other.team.tag, logoVersion: null },
+        team: { id: other.team.id, name: other.team.name, tag: other.team.tag, logo: null },
       }),
     ]);
     expect(mine.upcoming).toMatchObject([

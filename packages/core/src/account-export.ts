@@ -5,6 +5,7 @@ import { NotifType, Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { CREDENTIAL_PROVIDER } from "./account.ts";
 import {
   FEEDBACK_OUTCOME_LABELS,
+  LOGO_BACKGROUND_LABELS,
   MEMBER_ROLE_LABELS,
   NOTIF_STATUS_LABELS,
   NOTIFICATION_TYPE_LABELS,
@@ -137,6 +138,7 @@ export async function exportAccountData(input: {
               captainId: true,
               dissolvedAt: true,
               logoUpdatedAt: true,
+              logos: { select: { background: true }, orderBy: { background: "asc" } },
             },
           },
         },
@@ -286,6 +288,7 @@ export async function exportAccountData(input: {
                 gesperrtAm: team.bannedAt,
                 // The image itself is team data without personal reference (SPEC N-6).
                 logoSeit: team.logoUpdatedAt,
+                logos: team.logos.map((logo) => LOGO_BACKGROUND_LABELS[logo.background]),
                 rolle: MEMBER_ROLE_LABELS[membership.role],
                 captain: isCaptainOf(user, team),
                 beigetretenAm: membership.joinedAt,

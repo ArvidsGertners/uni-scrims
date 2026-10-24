@@ -307,7 +307,7 @@ describe("searchModerationTargets", () => {
         id: active.team.id,
         name: `Aktiv ${marker}`,
         tag: "TST",
-        logoVersion: null,
+        logo: null,
         banned: false,
         captainName: active.captain.name,
         memberCount: 5,

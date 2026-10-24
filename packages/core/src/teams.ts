@@ -17,7 +17,7 @@ import { countReadyMembers, isReadyCount, isTeamActive, isVerifiedMember } from 
 import { closeOpenRequest, openRequestWhere } from "./requests.ts";
 import { type TeamInput, memberRoleSchema, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
-import { clearTeamLogo, logoVersion } from "./team-logo.ts";
+import { clearTeamLogo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
 import { findUserByDiscordId } from "./users.ts";
 
 export const MAX_TEAM_MEMBERS = 10;
@@ -485,7 +485,7 @@ export async function getMyTeam(userId: string) {
     name: team.name,
     tag: team.tag,
     rank: team.rank,
-    logoVersion: logoVersion(team),
+    logo: await loadTeamLogoInfo(team),
     banned: team.bannedAt !== null,
     isCaptain,
     // Only the captain manages the invite link.
@@ -506,7 +506,7 @@ export async function getTeamByInviteCode(userId: string, inviteCode: string) {
   await requireUser(userId);
   const team = await prisma.team.findUnique({
     where: { inviteCode },
-    include: { members: { select: memberSelect } },
+    include: { members: { select: memberSelect }, logos: teamLogoSelect.logos },
   });
   if (!team || !isTeamActive(team)) return null;
   return {
@@ -514,7 +514,7 @@ export async function getTeamByInviteCode(userId: string, inviteCode: string) {
     name: team.name,
     tag: team.tag,
     rank: team.rank,
-    logoVersion: logoVersion(team),
+    logo: teamLogoInfo(team),
     memberCount: team.members.length,
     full: team.members.length >= MAX_TEAM_MEMBERS,
     universities: teamUniversities(team.members),

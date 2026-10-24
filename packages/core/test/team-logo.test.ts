@@ -1,5 +1,5 @@
 import { crc32 } from "node:zlib";
-import { prisma } from "@uni-scrims/db";
+import { LogoBackground, prisma } from "@uni-scrims/db";
 import { fileTypeFromBuffer } from "file-type";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
@@ -7,6 +7,7 @@ import {
   LOGO_SIZE,
   MAX_LOGO_BYTES,
   getBoard,
+  getMyTeam,
   getTeamLogo,
   leaveTeam,
   logoContentBox,
@@ -224,109 +225,123 @@ describe("processTeamLogo (SPEC N-6)", () => {
 
 describe("team logo actions", () => {
   const admin = useAdmin();
+  const { DARK, LIGHT } = LogoBackground;
   const upload = () => logo(400, 300, [{ left: 50, top: 50, width: 200, height: 150 }]);
+  const set = async (userId: string, teamId: string, background: LogoBackground, now = NOW) =>
+    setTeamLogo({ userId, teamId, background, file: await upload(), now });
+  const teamRow = (id: string) => prisma.team.findUniqueOrThrow({ where: { id } });
+  const later = new Date(NOW.getTime() + 1000);
+  const evenLater = new Date(NOW.getTime() + 2000);
 
-  it("lets the captain set, replace and remove the logo; others see it", async () => {
+  it("lets the captain set, replace and remove one logo per background; others see each", async () => {
     const { team, captain, members } = await createTeamWithMembers({
       verifiedCaptain: false,
       extraMembers: 1,
     });
-    await setTeamLogo({ userId: captain.id, teamId: team.id, file: await upload(), now: NOW });
-    expect(await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).toMatchObject({
-      logoUpdatedAt: NOW,
-    });
+    await set(captain.id, team.id, DARK);
+    expect((await teamRow(team.id)).logoUpdatedAt).toEqual(NOW);
     const viewer = await createUser();
-    const stored = await getTeamLogo({ userId: viewer.id, teamId: team.id });
-    expect(stored.version).toBe(NOW.getTime());
-    expect((await inspect(stored.data)).width).toBe(LOGO_SIZE);
+    const fetch = (background: LogoBackground) =>
+      getTeamLogo({ userId: viewer.id, teamId: team.id, background });
+    const dark = await fetch(DARK);
+    expect(dark.version).toBe(NOW.getTime());
+    expect((await inspect(dark.data)).width).toBe(LOGO_SIZE);
+    await expect(fetch(LIGHT)).rejects.toMatchObject({ code: "NOT_FOUND" });
 
-    const later = new Date(NOW.getTime() + 1000);
-    await setTeamLogo({ userId: captain.id, teamId: team.id, file: await upload(), now: later });
-    expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(1);
-    expect((await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).logoUpdatedAt).toEqual(
-      later,
-    );
+    // Replacing keeps one row per background; the version covers both URLs.
+    await set(captain.id, team.id, LIGHT, later);
+    await set(captain.id, team.id, LIGHT, later);
+    expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(2);
+    expect((await fetch(DARK)).version).toBe(later.getTime());
 
-    await expect(removeTeamLogo({ userId: members[0]!.id, teamId: team.id })).rejects.toMatchObject(
-      { code: "FORBIDDEN" },
-    );
-    await removeTeamLogo({ userId: captain.id, teamId: team.id });
-    expect(
-      (await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).logoUpdatedAt,
-    ).toBeNull();
-    await expect(getTeamLogo({ userId: viewer.id, teamId: team.id })).rejects.toMatchObject({
-      code: "NOT_FOUND",
+    await expect(
+      removeTeamLogo({ userId: members[0]!.id, teamId: team.id, background: DARK, now: later }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await removeTeamLogo({ userId: captain.id, teamId: team.id, background: DARK, now: evenLater });
+    // One logo is left, so the version moves on instead of ending.
+    expect((await teamRow(team.id)).logoUpdatedAt).toEqual(evenLater);
+    await expect(fetch(DARK)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect((await fetch(LIGHT)).version).toBe(evenLater.getTime());
+    await removeTeamLogo({
+      userId: captain.id,
+      teamId: team.id,
+      background: LIGHT,
+      now: evenLater,
     });
+    expect((await teamRow(team.id)).logoUpdatedAt).toBeNull();
   });
 
-  it("refuses members without the captain role, outsiders and banned teams", async () => {
+  it("refuses members without the captain role, outsiders, banned teams and unknown backgrounds", async () => {
     const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
-    const file = await upload();
     for (const userId of [members[0]!.id, (await createUser()).id]) {
-      await expect(setTeamLogo({ userId, teamId: team.id, file, now: NOW })).rejects.toMatchObject({
-        code: "FORBIDDEN",
-      });
+      await expect(set(userId, team.id, DARK)).rejects.toMatchObject({ code: "FORBIDDEN" });
     }
+    await expect(set(captain.id, team.id, "BLUE" as LogoBackground)).rejects.toMatchObject({
+      code: "INVALID",
+    });
     await prisma.team.update({ where: { id: team.id }, data: { bannedAt: NOW } });
-    await expect(
-      setTeamLogo({ userId: captain.id, teamId: team.id, file, now: NOW }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "Das Team ist gesperrt." });
+    await expect(set(captain.id, team.id, LIGHT)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "Das Team ist gesperrt.",
+    });
     expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(0);
   });
 
-  it("lets admins remove a logo, also of a banned team; banned users cannot fetch logos", async () => {
+  it("lets admins remove both logos, also of a banned team; banned users cannot fetch logos", async () => {
     const { team, captain } = await createTeamWithMembers();
-    await setTeamLogo({ userId: captain.id, teamId: team.id, file: await upload(), now: NOW });
+    await set(captain.id, team.id, DARK);
+    await set(captain.id, team.id, LIGHT);
     const logoVersion = NOW.getTime();
     await expect(
       removeTeamLogoAsAdmin({ adminId: captain.id, teamId: team.id, logoVersion }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     const banned = await createUser({ banned: true });
-    await expect(getTeamLogo({ userId: banned.id, teamId: team.id })).rejects.toMatchObject({
-      code: "BANNED",
-    });
+    await expect(
+      getTeamLogo({ userId: banned.id, teamId: team.id, background: DARK }),
+    ).rejects.toMatchObject({ code: "BANNED" });
 
-    // A logo the admin did not see (replaced meanwhile) stays.
+    // A state the admin did not see (changed meanwhile) stays.
     await expect(
       removeTeamLogoAsAdmin({ adminId: admin.id, teamId: team.id, logoVersion: logoVersion - 1 }),
     ).rejects.toMatchObject({ code: "CONFLICT" });
-    expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(1);
+    expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(2);
 
     await prisma.team.update({ where: { id: team.id }, data: { bannedAt: NOW } });
     await removeTeamLogoAsAdmin({ adminId: admin.id, teamId: team.id, logoVersion });
     expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(0);
-    expect(
-      (await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).logoUpdatedAt,
-    ).toBeNull();
+    expect((await teamRow(team.id)).logoUpdatedAt).toBeNull();
   });
 
-  it("deletes the logo when the team is dissolved", async () => {
+  it("deletes both logos when the team is dissolved", async () => {
     const { team, captain } = await createTeamWithMembers();
-    await setTeamLogo({ userId: captain.id, teamId: team.id, file: await upload(), now: NOW });
+    await set(captain.id, team.id, DARK);
+    await set(captain.id, team.id, LIGHT);
     await leaveTeam({ userId: captain.id, now: NOW });
     expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(0);
-    expect(await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).toMatchObject({
-      dissolvedAt: NOW,
-      logoUpdatedAt: null,
-    });
+    expect(await teamRow(team.id)).toMatchObject({ dissolvedAt: NOW, logoUpdatedAt: null });
     await expect(
       removeTeamLogoAsAdmin({ adminId: admin.id, teamId: team.id, logoVersion: NOW.getTime() }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("gives team cards the logo version for the URL", async () => {
+  it("gives team reads the version and the backgrounds with a logo", async () => {
     const viewer = await createReadyTeam();
     const author = await createReadyTeam();
-    await setTeamLogo({
-      userId: author.captain.id,
-      teamId: author.team.id,
-      file: await upload(),
-      now: NOW,
-    });
+    await set(author.captain.id, author.team.id, LIGHT);
     const request = await createOpenRequest(author.captain.id);
-    const board = await getBoard({ userId: viewer.captain.id, ranks: "ALL", now: NOW });
-    expect(board.requests.find((card) => card.id === request.id)?.team.logoVersion).toBe(
-      NOW.getTime(),
-    );
+    const card = async () =>
+      (await getBoard({ userId: viewer.captain.id, ranks: "ALL", now: NOW })).requests.find(
+        (item) => item.id === request.id,
+      )?.team.logo;
+    expect(await card()).toEqual({ version: NOW.getTime(), backgrounds: [LIGHT] });
+    await set(author.captain.id, author.team.id, DARK, later);
+    // Always in the order DARK, LIGHT.
+    expect(await card()).toEqual({ version: later.getTime(), backgrounds: [DARK, LIGHT] });
+    // The own team comes from findOwnTeam, its logos from an extra query.
+    expect((await getMyTeam(author.captain.id))?.logo).toEqual({
+      version: later.getTime(),
+      backgrounds: [DARK, LIGHT],
+    });
+    expect((await getMyTeam(viewer.captain.id))?.logo).toBeNull();
   });
 });

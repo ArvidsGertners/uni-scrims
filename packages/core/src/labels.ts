@@ -1,5 +1,6 @@
 import {
   type FeedbackOutcome,
+  type LogoBackground,
   MemberRole,
   type NotifStatus,
   type NotifType,
@@ -88,4 +89,10 @@ export const NOTIF_STATUS_LABELS: Record<NotifStatus, string> = {
   SENT: "Gesendet",
   FAILED: "Nicht zustellbar",
   CANCELLED: "Verworfen",
+};
+
+/** The two team logos (SPEC N-7). */
+export const LOGO_BACKGROUND_LABELS: Record<LogoBackground, string> = {
+  DARK: "Logo für dunklen Hintergrund",
+  LIGHT: "Logo für hellen Hintergrund",
 };

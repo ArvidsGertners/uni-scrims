@@ -1,8 +1,11 @@
 import { getTeamLogo, isDomainError } from "@uni-scrims/core";
+import type { LogoBackground } from "@uni-scrims/db";
 import { statusForDomainError } from "@/lib/route-status";
 import { getSessionUserId } from "@/lib/session";
 
-// Team logo for logged-in users (SPEC N-6, ARCHITECTURE §5.11). A URL with the current version may
+const BACKGROUNDS: Record<string, LogoBackground> = { dark: "DARK", light: "LIGHT" };
+
+// Team logo for one background (`bg`) for logged-in users (SPEC N-6, N-7, ARCHITECTURE §5.11). A URL with the current version may
 // stay in the browser cache for good, as a new logo gets a new URL; any other version is served
 // uncached, so an old URL never keeps a newer logo.
 export async function GET(
@@ -12,10 +15,13 @@ export async function GET(
   const { id } = await params;
   const userId = await getSessionUserId();
   if (!userId) return new Response(null, { status: 401 });
+  const search = new URL(request.url).searchParams;
+  const background = BACKGROUNDS[search.get("bg") ?? ""];
+  if (!background) return new Response(null, { status: 404 });
 
   let logo: Awaited<ReturnType<typeof getTeamLogo>>;
   try {
-    logo = await getTeamLogo({ userId, teamId: id });
+    logo = await getTeamLogo({ userId, teamId: id, background });
   } catch (error) {
     if (isDomainError(error)) {
       return new Response(null, { status: statusForDomainError(error) });
@@ -23,7 +29,7 @@ export async function GET(
     throw error;
   }
 
-  const current = new URL(request.url).searchParams.get("v") === String(logo.version);
+  const current = search.get("v") === String(logo.version);
   return new Response(logo.data, {
     headers: {
       // Always the WebP the server made itself (§5.11).

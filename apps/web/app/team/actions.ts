@@ -6,6 +6,7 @@ import {
   leaveTeam,
   regenerateInvite,
   removeMember,
+  logoBackgroundSchema,
   removeTeamLogo,
   setMemberRole,
   setTeamLogo,
@@ -53,8 +54,9 @@ export async function createTeamAction(_state: ActionState, formData: FormData) 
 export async function setTeamLogoAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  const background = logoBackgroundSchema.safeParse(formField(formData, "background"));
   const file = z.instanceof(File).safeParse(formData.get("logo"));
-  if (!teamId.success) return invalidInput;
+  if (!teamId.success || !background.success) return invalidInput;
   if (!file.success || file.data.size === 0) return { error: "Bitte wähle ein Bild aus." };
   if (!(await allowAttempt("logo"))) return { error: RATE_LIMITED };
   return finish(
@@ -62,6 +64,7 @@ export async function setTeamLogoAction(_state: ActionState, formData: FormData)
       await setTeamLogo({
         userId,
         teamId: teamId.data,
+        background: background.data,
         file: new Uint8Array(await file.data.arrayBuffer()),
         now: new Date(),
       });
@@ -72,10 +75,16 @@ export async function setTeamLogoAction(_state: ActionState, formData: FormData)
 export async function removeTeamLogoAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
-  if (!teamId.success) return invalidInput;
+  const background = logoBackgroundSchema.safeParse(formField(formData, "background"));
+  if (!teamId.success || !background.success) return invalidInput;
   return finish(
     await runAction(async () => {
-      await removeTeamLogo({ userId, teamId: teamId.data });
+      await removeTeamLogo({
+        userId,
+        teamId: teamId.data,
+        background: background.data,
+        now: new Date(),
+      });
     }),
   );
 }

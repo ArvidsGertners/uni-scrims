@@ -1,4 +1,6 @@
 import {
+  LOGO_BACKGROUNDS,
+  LOGO_BACKGROUND_LABELS,
   MAX_TEAM_MEMBERS,
   MEMBER_ROLES,
   MEMBER_ROLE_LABELS,
@@ -9,7 +11,7 @@ import {
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { PageMain } from "@/components/page-main";
-import { TeamAvatar } from "@/components/team-avatar";
+import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
 import { TeamFields } from "@/components/team-fields";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -248,35 +250,49 @@ export default async function TeamPage() {
       {manage ? (
         <section className={`${cardClass} gap-[18px]`}>
           <h2 className="type-h2">Team bearbeiten</h2>
-          <div className="flex flex-col gap-3 border-b border-border pb-[18px]">
-            <span className="text-[14px] font-medium">Logo</span>
-            <div className="flex items-start gap-4">
-              <TeamAvatar team={team} size="lg" own />
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
-                <p className="text-[13px] text-pretty text-muted-foreground">
-                  PNG oder WebP mit durchsichtigem Hintergrund, max. 2 MB. Durchsichtige Ränder
-                  schneiden wir ab, damit das Logo die Fläche füllt.
-                </p>
-                <TeamLogoForm
-                  key={team.logoVersion ?? "none"}
-                  teamId={team.id}
-                  hasLogo={team.logoVersion !== null}
-                />
-                {team.logoVersion === null ? null : (
-                  <ActionForm
-                    action={removeTeamLogoAction}
-                    submitLabel="Logo entfernen"
-                    variant="ghost"
-                    size="sm"
-                    className="flex flex-col"
-                    submitClassName="-ml-4"
-                    confirmText="Logo wirklich entfernen?"
-                  >
-                    <input type="hidden" name="teamId" value={team.id} />
-                  </ActionForm>
-                )}
-              </div>
+          <div className="flex flex-col gap-4 border-b border-border pb-[18px]">
+            <div className="flex flex-col gap-1">
+              <span className="text-[14px] font-medium">Logos</span>
+              <p className="text-[13px] text-pretty text-muted-foreground">
+                PNG oder WebP mit durchsichtigem Hintergrund, max. 2 MB. Durchsichtige Ränder
+                schneiden wir ab, damit das Logo die Fläche füllt. Die Seite zeigt das Logo, das zum
+                hellen oder dunklen Modus passt; fehlt eins, steht das andere auf einem passenden
+                Kästchen.
+              </p>
             </div>
+            {LOGO_BACKGROUNDS.map((background) => {
+              const hasLogo = team.logo?.backgrounds.includes(background) ?? false;
+              return (
+                <div key={background} className="flex items-start gap-4">
+                  <TeamLogoPreview team={team} background={background} />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+                    <span className="text-[14px] font-medium">
+                      {LOGO_BACKGROUND_LABELS[background]}
+                    </span>
+                    <TeamLogoForm
+                      key={team.logo?.version ?? "none"}
+                      teamId={team.id}
+                      background={background}
+                      hasLogo={hasLogo}
+                    />
+                    {hasLogo ? (
+                      <ActionForm
+                        action={removeTeamLogoAction}
+                        submitLabel="Entfernen"
+                        variant="ghost"
+                        size="sm"
+                        className="flex flex-col"
+                        submitClassName="-ml-4"
+                        confirmText={`${LOGO_BACKGROUND_LABELS[background]} wirklich entfernen?`}
+                      >
+                        <input type="hidden" name="teamId" value={team.id} />
+                        <input type="hidden" name="background" value={background} />
+                      </ActionForm>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <ActionForm
             action={updateTeamAction}

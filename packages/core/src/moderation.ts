@@ -3,7 +3,7 @@ import { type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAdmin } from "./permissions.ts";
-import { clearTeamLogo, logoVersion } from "./team-logo.ts";
+import { clearTeamLogo, logoVersion, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
 import { retireTeamActivity } from "./teams.ts";
 import { DISCORD_PROVIDER, getDiscordId } from "./users.ts";
 import { BAN_REJECT_REASON, removeFilesAfterCommit } from "./verification.ts";
@@ -55,7 +55,7 @@ export async function searchModerationTargets(input: { adminId: string; query: s
         name: true,
         tag: true,
         bannedAt: true,
-        logoUpdatedAt: true,
+        ...teamLogoSelect,
         captain: { select: { name: true } },
         _count: { select: { members: true } },
       },
@@ -81,7 +81,7 @@ export async function searchModerationTargets(input: { adminId: string; query: s
       id: team.id,
       name: team.name,
       tag: team.tag,
-      logoVersion: logoVersion(team),
+      logo: teamLogoInfo(team),
       banned: team.bannedAt !== null,
       captainName: team.captain.name,
       memberCount: team._count.members,
@@ -110,8 +110,9 @@ export async function banTeamInTx(
 }
 
 /**
- * Moderation of logos (SPEC N-6): also for banned teams; a dissolved team has no logo left. Only
- * the logo the admin looked at (`logoVersion`), not one the captain uploaded in the meantime.
+ * Moderation of logos (SPEC N-6, N-7): removes both logos, also of banned teams; a dissolved team
+ * has none left. Only the state the admin looked at (`logoVersion`), not a logo the captain
+ * uploaded in the meantime.
  */
 export async function removeTeamLogoAsAdmin(input: {
   adminId: string;

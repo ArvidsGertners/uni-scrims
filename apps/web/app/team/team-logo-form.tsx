@@ -1,6 +1,7 @@
 "use client";
 
 import { MAX_LOGO_BYTES } from "@uni-scrims/core/config/uploads";
+import type { LogoBackground } from "@uni-scrims/db";
 import { useActionState, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { initialActionState } from "@/lib/action-state";
@@ -8,10 +9,18 @@ import { submitKeepingValues } from "@/lib/submit-form";
 import { setTeamLogoAction } from "./actions";
 
 /**
- * Logo upload of the captain (SPEC N-6). The page keys it by the logo version, so it starts over
- * once a new logo is saved.
+ * Upload of one of the captain's two logos (SPEC N-6, N-7). The page keys it by the logo version,
+ * so it starts over once a new logo is saved.
  */
-export function TeamLogoForm({ teamId, hasLogo }: { teamId: string; hasLogo: boolean }) {
+export function TeamLogoForm({
+  teamId,
+  background,
+  hasLogo,
+}: {
+  teamId: string;
+  background: LogoBackground;
+  hasLogo: boolean;
+}) {
   const [state, action, pending] = useActionState(setTeamLogoAction, initialActionState);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -43,6 +52,7 @@ export function TeamLogoForm({ teamId, hasLogo }: { teamId: string; hasLogo: boo
       }}
     >
       <input type="hidden" name="teamId" value={teamId} />
+      <input type="hidden" name="background" value={background} />
       <input
         ref={inputRef}
         type="file"

@@ -68,7 +68,7 @@ async function fullAccount() {
   const user = host.captain;
   await prisma.team.update({
     where: { id: host.team.id },
-    data: { logoUpdatedAt: NOW, logo: { create: { data: new Uint8Array([1, 2, 3]) } } },
+    data: { logoUpdatedAt: NOW, logos: { create: { data: new Uint8Array([1, 2, 3]) } } },
   });
   const university = await prisma.university.create({
     data: { name: "Uni Export", city: "Teststadt", slug: `uni-export-${uid()}` },
@@ -246,6 +246,7 @@ describe("exportAccountData", () => {
       rang: "Gold",
       gesperrtAm: null,
       logoSeit: NOW,
+      logos: ["Logo für dunklen Hintergrund"],
       rolle: "Spieler",
       captain: true,
       beigetretenAm: NOW,
@@ -483,7 +484,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     createdAt: SHOWN,
     logoUpdatedAt: SHOWN,
   },
-  TeamLogo: { teamId: KEY, data: TEAM },
+  TeamLogo: { teamId: KEY, background: TEAM, data: TEAM },
   TeamMember: { teamId: SHOWN, userId: SELF, role: SHOWN, joinedAt: SHOWN },
   ScrimRequest: {
     id: KEY,
