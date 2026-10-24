@@ -65,7 +65,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   })();
 
   return (
-    <PageMain className="gap-7">
+    <PageMain width="wide" className="gap-7">
       {/* Upcoming scrims are exactly the cancellable ones (getMyScrims). */}
       <BackLink href={`/scrims?tab=${scrim.cancellable ? "anstehend" : "vergangen"}`}>
         Scrims
@@ -81,73 +81,79 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
         </span>
       </div>
 
-      <DiscordContact
-        captainName={scrim.opponent.captainName}
-        captainDiscordId={scrim.opponent.captainDiscordId}
-        teamName={scrim.opponent.name}
-      />
+      {/* From 1024 px the details left, feedback and cancelling right (SPEC N-12). */}
+      <div className="flex flex-col gap-7 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:items-start lg:gap-8">
+        <div className="flex min-w-0 flex-col gap-7">
+          <DiscordContact
+            captainName={scrim.opponent.captainName}
+            captainDiscordId={scrim.opponent.captainDiscordId}
+            teamName={scrim.opponent.name}
+          />
 
-      <div className="flex flex-col gap-2">
-        <span className="type-label text-muted-foreground">Maps</span>
-        <p>{formatMaps(scrim.maps)}</p>
-        <p className="text-[14px] text-muted-foreground">
-          {scrim.isHost ? "Ihr habt die Anfrage gestellt." : "Ihr habt euch beworben."}
-        </p>
-      </div>
+          <div className="flex flex-col gap-2">
+            <span className="type-label text-muted-foreground">Maps</span>
+            <p>{formatMaps(scrim.maps)}</p>
+            <p className="text-[14px] text-muted-foreground">
+              {scrim.isHost ? "Ihr habt die Anfrage gestellt." : "Ihr habt euch beworben."}
+            </p>
+          </div>
 
-      {scrim.note ? (
-        <div className="flex flex-col gap-2">
-          <span className="type-label text-muted-foreground">Notiz zur Anfrage</span>
-          <p className="text-[16px] text-pretty whitespace-pre-line">„{scrim.note}“</p>
+          {scrim.note ? (
+            <div className="flex flex-col gap-2">
+              <span className="type-label text-muted-foreground">Notiz zur Anfrage</span>
+              <p className="text-[16px] text-pretty whitespace-pre-line">„{scrim.note}“</p>
+            </div>
+          ) : null}
         </div>
-      ) : null}
-
-      <section className="flex flex-col gap-2.5">
-        <h2 className="type-h2">Feedback</h2>
-        {scrim.ownFeedback ? (
-          <Alert variant="success">
-            <span>
-              Feedback gegeben: {FEEDBACK_OUTCOME_LABELS[scrim.ownFeedback.outcome]}
-              {scrim.ownFeedback.rating ? ` · ${"★".repeat(scrim.ownFeedback.rating)}` : ""}
-            </span>
-          </Alert>
-        ) : (
-          <p className="text-[14px] text-pretty text-muted-foreground">
-            {scrim.feedbackClosed ?? scrim.actionProblem}
-          </p>
-        )}
-      </section>
-
-      {scrim.cancellable ? (
-        <section className="flex flex-col gap-2.5">
-          <h2 className="type-h2">Scrim absagen</h2>
-          {scrim.canCancel ? (
-            <>
+        <div className="flex min-w-0 flex-col gap-7">
+          <section className="flex flex-col gap-2.5">
+            <h2 className="type-h2">Feedback</h2>
+            {scrim.ownFeedback ? (
+              <Alert variant="success">
+                <span>
+                  Feedback gegeben: {FEEDBACK_OUTCOME_LABELS[scrim.ownFeedback.outcome]}
+                  {scrim.ownFeedback.rating ? ` · ${"★".repeat(scrim.ownFeedback.rating)}` : ""}
+                </span>
+              </Alert>
+            ) : (
               <p className="text-[14px] text-pretty text-muted-foreground">
-                {scrim.cancelWouldBeLate
-                  ? "Weniger als 24 Stunden vor Start: Die Absage zählt als kurzfristig."
-                  : "Möglich bis zum Start. Das andere Team bekommt eine Discord-Nachricht."}
+                {scrim.feedbackClosed ?? scrim.actionProblem}
               </p>
-              <ActionForm
-                action={cancelScrimAction}
-                submitLabel="Scrim absagen"
-                variant="destructive"
-                size="sm"
-                className="mt-1.5 flex flex-col gap-3"
-                confirmText={
-                  scrim.cancelWouldBeLate
-                    ? "Scrim absagen? Die Absage zählt als kurzfristig."
-                    : "Scrim absagen?"
-                }
-              >
-                <input type="hidden" name="scrimId" value={scrim.id} />
-              </ActionForm>
-            </>
-          ) : (
-            <p className="text-[14px] text-muted-foreground">{scrim.actionProblem}</p>
-          )}
-        </section>
-      ) : null}
+            )}
+          </section>
+
+          {scrim.cancellable ? (
+            <section className="flex flex-col gap-2.5">
+              <h2 className="type-h2">Scrim absagen</h2>
+              {scrim.canCancel ? (
+                <>
+                  <p className="text-[14px] text-pretty text-muted-foreground">
+                    {scrim.cancelWouldBeLate
+                      ? "Weniger als 24 Stunden vor Start: Die Absage zählt als kurzfristig."
+                      : "Möglich bis zum Start. Das andere Team bekommt eine Discord-Nachricht."}
+                  </p>
+                  <ActionForm
+                    action={cancelScrimAction}
+                    submitLabel="Scrim absagen"
+                    variant="destructive"
+                    size="sm"
+                    className="mt-1.5 flex flex-col gap-3"
+                    confirmText={
+                      scrim.cancelWouldBeLate
+                        ? "Scrim absagen? Die Absage zählt als kurzfristig."
+                        : "Scrim absagen?"
+                    }
+                  >
+                    <input type="hidden" name="scrimId" value={scrim.id} />
+                  </ActionForm>
+                </>
+              ) : (
+                <p className="text-[14px] text-muted-foreground">{scrim.actionProblem}</p>
+              )}
+            </section>
+          ) : null}
+        </div>
+      </div>
     </PageMain>
   );
 }

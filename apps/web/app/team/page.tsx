@@ -51,39 +51,42 @@ export default async function TeamPage() {
 
   if (!team) {
     return (
-      <PageMain className="gap-7">
+      <PageMain width="wide" className="gap-7">
         <div className="flex flex-col gap-2.5">
           <h1 className="type-h1">Du bist noch in keinem Team</h1>
-          <p className="text-pretty text-muted-foreground">
+          <p className="max-w-3xl text-pretty text-muted-foreground">
             Gründe ein Team oder tritt über einen Einladungslink bei. Ein Team braucht mindestens{" "}
             {READY_MEMBER_COUNT} verifizierte Spieler und hat höchstens {MAX_TEAM_MEMBERS}{" "}
             Mitglieder. Das geht auch, während deine Verifizierung noch läuft.
           </p>
         </div>
-        <section className={`${cardClass} gap-[18px]`}>
-          <h2 className="type-h2">Team gründen</h2>
-          <ActionForm
-            action={createTeamAction}
-            submitLabel="Team gründen"
-            size="lg"
-            submitClassName="w-full"
-            className="flex flex-col gap-[18px]"
-          >
-            <TeamFields />
-          </ActionForm>
-        </section>
-        <div className="flex items-center gap-3 text-[13px] text-faint">
-          <span className="h-px flex-1 bg-border" />
-          oder
-          <span className="h-px flex-1 bg-border" />
+        {/* From 1024 px both ways side by side (SPEC N-12); below in this order. */}
+        <div className="contents lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+          <section className={`${cardClass} gap-[18px]`}>
+            <h2 className="type-h2">Team gründen</h2>
+            <ActionForm
+              action={createTeamAction}
+              submitLabel="Team gründen"
+              size="lg"
+              submitClassName="w-full"
+              className="flex flex-col gap-[18px]"
+            >
+              <TeamFields />
+            </ActionForm>
+          </section>
+          <div className="flex items-center gap-3 text-[13px] text-faint lg:hidden">
+            <span className="h-px flex-1 bg-border" />
+            oder
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <section className={`${cardClass} gap-3.5`}>
+            <h2 className="type-h2">Team beitreten</h2>
+            <p className="text-[14px] text-pretty text-muted-foreground">
+              Frag deinen Captain nach dem Einladungslink und öffne ihn. Oder füge ihn hier ein:
+            </p>
+            <JoinLinkForm placeholder={`${baseUrl.replace(/^https?:\/\//, "")}/join/…`} />
+          </section>
         </div>
-        <section className={`${cardClass} gap-3.5`}>
-          <h2 className="type-h2">Team beitreten</h2>
-          <p className="text-[14px] text-pretty text-muted-foreground">
-            Frag deinen Captain nach dem Einladungslink und öffne ihn. Oder füge ihn hier ein:
-          </p>
-          <JoinLinkForm placeholder={`${baseUrl.replace(/^https?:\/\//, "")}/join/…`} />
-        </section>
       </PageMain>
     );
   }
@@ -96,7 +99,7 @@ export default async function TeamPage() {
   const me = team.members.find((member) => member.id === user.id);
 
   return (
-    <PageMain className="gap-8">
+    <PageMain width="wide" className="gap-8">
       <div className="flex items-center gap-4">
         <TeamAvatar team={team} size="lg" own />
         <div className="flex min-w-0 flex-col gap-1">
@@ -164,12 +167,14 @@ export default async function TeamPage() {
         ) : null}
       </div>
 
-      {/* From 768 px: squad left, the captain's cards right; on phones in this order. */}
+      {/* Squad left, the captain's cards and leaving right: for the captain from 768 px, for the
+          others from 1024 px (SPEC N-12); on phones in this order. */}
       <div
         className={cn(
           "flex flex-col gap-8",
-          manage &&
-            "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:grid-rows-[auto_auto_1fr] md:items-start md:gap-x-6 md:gap-y-6",
+          manage
+            ? "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:grid-rows-[auto_auto_1fr] md:items-start md:gap-x-6 md:gap-y-6 xl:grid-cols-[minmax(0,1fr)_400px]"
+            : "lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-x-6 lg:gap-y-6 xl:grid-cols-[minmax(0,1fr)_400px]",
         )}
       >
         {manage ? (

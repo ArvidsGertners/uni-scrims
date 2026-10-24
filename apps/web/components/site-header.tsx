@@ -27,14 +27,14 @@ function Logo({ href, admin = false }: { href: string; admin?: boolean }) {
 }
 
 /**
- * Header of the admin host (§5.13): no player navigation and no Discord banner. As wide as the
- * dashboard (§5.14); from 1024 px the sidebar holds the logout, where a page has one.
+ * Header of the admin host (§5.13): no player navigation and no Discord banner. Full width like the
+ * dashboard (§5.14, §5.15); from 1024 px the sidebar holds the logout, where a page has one.
  */
 function AdminHeader({ signedIn }: { signedIn: boolean }) {
   return (
     // Sticky like the header of the site, so the sidebar sits below it either way (§5.14).
     <header className="sticky top-0 z-30 border-b border-border bg-background">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
+      <div className="flex h-16 items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
         <Logo href="/" admin />
         <div className="flex items-center gap-1 max-[359px]:gap-0">
           <a
@@ -59,7 +59,8 @@ export async function SiteHeader() {
   const { user, active, adminHost } = await siteChrome();
   if (adminHost) return <AdminHeader signedIn={user !== null} />;
   const showBanner = user !== null && (user.hubJoinFailedAt !== null || user.dmFailedAt !== null);
-  // The navigation is the sidebar from 1024 px and the menu below (§5.15).
+  // The navigation is the sidebar from 1024 px and the menu below (§5.15). Signed in, the header is
+  // full width with the logo above the sidebar.
   const nav = await siteNav();
 
   return (
@@ -67,8 +68,8 @@ export async function SiteHeader() {
       <header className={cn("border-b border-border bg-background", user && "sticky top-0 z-30")}>
         <div
           className={cn(
-            "mx-auto flex h-16 items-center justify-between gap-3 px-5 sm:px-8",
-            user ? "max-w-6xl" : "max-w-3xl",
+            "flex h-16 items-center justify-between gap-3 px-5 sm:px-8",
+            !user && "mx-auto max-w-3xl",
           )}
         >
           <Logo href={active ? "/scrims" : "/"} />

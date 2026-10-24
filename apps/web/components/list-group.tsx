@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 
+/** Columns of card lists on wide pages (§5.15): one below 1280 px, up to four from 1920 px. */
+export const CARD_COLUMNS =
+  "grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 min-[120rem]:grid-cols-4";
+
 /** List section with a label, a hairline and a count, e.g. one day on the board. */
 export function ListGroup({
   title,
@@ -17,7 +21,7 @@ export function ListGroup({
         <span aria-hidden className="h-px flex-1 bg-border" />
         <span className="type-label font-normal text-faint">{count}</span>
       </div>
-      {children}
+      <div className={`${CARD_COLUMNS} gap-3`}>{children}</div>
     </section>
   );
 }

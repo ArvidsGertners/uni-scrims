@@ -29,25 +29,27 @@ export default async function DisputesPage() {
     <AdminShell overview={overview} current="/disputes">
       <h1 className="type-h1">Streitfälle</h1>
       {disputes.length === 0 ? <p>Keine offenen Streitfälle.</p> : null}
-      {disputes.map((dispute) => (
-        <Card key={dispute.id}>
-          <CardHeader>
-            <CardTitle>
-              {dispute.host.name} gegen {dispute.guest.name}
-            </CardTitle>
-            <p className="text-[14px] text-muted-foreground">
-              {describeStart(dispute.startsAt)} · {formatFormat(dispute.format)}
-            </p>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <ul className="flex flex-col gap-2 text-[14px]">
-              <Answer side={dispute.host} />
-              <Answer side={dispute.guest} />
-            </ul>
-            <DisputeForm scrimId={dispute.id} host={dispute.host} guest={dispute.guest} />
-          </CardContent>
-        </Card>
-      ))}
+      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+        {disputes.map((dispute) => (
+          <Card key={dispute.id}>
+            <CardHeader>
+              <CardTitle>
+                {dispute.host.name} gegen {dispute.guest.name}
+              </CardTitle>
+              <p className="text-[14px] text-muted-foreground">
+                {describeStart(dispute.startsAt)} · {formatFormat(dispute.format)}
+              </p>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <ul className="flex flex-col gap-2 text-[14px]">
+                <Answer side={dispute.host} />
+                <Answer side={dispute.guest} />
+              </ul>
+              <DisputeForm scrimId={dispute.id} host={dispute.host} guest={dispute.guest} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </AdminShell>
   );
 }

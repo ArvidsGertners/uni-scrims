@@ -103,7 +103,6 @@ export function AppSidebar({ nav }: { nav: AppNavData }) {
   const { top, bottom } = entries(nav);
   return (
     <SidebarFrame
-      className="py-7"
       top={
         top.length > 0 ? (
           <nav aria-label="Hauptmenü" className="flex flex-col gap-0.5">

@@ -13,7 +13,7 @@ export function FlashToast({
 }: {
   message: string;
   domain: string | null;
-  /** The admin area places it in its content column (§5.14). */
+  /** The admin area and wide pages place it in their content column (§5.14, §5.15). */
   className?: string;
 }) {
   const [visible, setVisible] = useState(true);

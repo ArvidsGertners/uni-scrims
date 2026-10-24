@@ -119,7 +119,8 @@ export async function AdminShell({
   const flash = await readFlash();
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl gap-10 px-5 pt-7 pb-16 sm:px-8">
+    // Like the site (§5.15): the sidebar at the left edge, the content filling the rest.
+    <div className="flex w-full flex-1">
       {/* data-admin-sidebar: the admin header hides its logout from 1024 px while this exists. */}
       <SidebarFrame
         data-admin-sidebar
@@ -163,7 +164,7 @@ export async function AdminShell({
         }
       />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-6 px-5 pt-7 pb-16 sm:px-8 xl:px-10">
         <div className="flex flex-col gap-3 lg:hidden">
           <TabNav
             label="Admin-Bereich"

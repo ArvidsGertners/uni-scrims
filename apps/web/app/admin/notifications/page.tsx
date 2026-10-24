@@ -11,7 +11,7 @@ export default async function FailedNotificationsPage() {
   return (
     <AdminShell overview={overview} current="/notifications">
       <h1 className="type-h1">Fehlgeschlagene Nachrichten</h1>
-      <p className="text-[14px] text-muted-foreground">
+      <p className="max-w-3xl text-[14px] text-muted-foreground">
         Nachrichten, die dauerhaft nicht zugestellt werden konnten, zuletzt fehlgeschlagene zuerst
         (höchstens {MAX_FAILED_SHOWN}). 30 Tage nach dem letzten Versuch werden sie gelöscht.
       </p>
@@ -21,7 +21,7 @@ export default async function FailedNotificationsPage() {
           {total - failed.length} ältere fehlgeschlagene Nachrichten werden nicht angezeigt.
         </p>
       ) : null}
-      <ul className="flex flex-col gap-3">
+      <ul className="grid gap-3 xl:grid-cols-2 xl:items-start">
         {failed.map((entry) => (
           <li
             key={entry.id}

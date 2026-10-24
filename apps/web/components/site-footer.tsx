@@ -3,15 +3,15 @@ import { siteChrome } from "@/lib/header-user";
 import { cn } from "@/lib/utils";
 
 export async function SiteFooter() {
-  // As wide as the sidebar frame where there is one (§5.14, §5.15).
+  // Full width where there is a sidebar (§5.14, §5.15), narrow like the pages elsewhere.
   const { user, adminHost } = await siteChrome();
   const wide = user !== null || adminHost;
   return (
     <footer className="border-t border-border">
       <div
         className={cn(
-          "mx-auto flex flex-wrap justify-between gap-x-6 gap-y-3 px-5 pt-6 pb-8 text-[13px] text-faint sm:px-8",
-          wide ? "max-w-6xl" : "max-w-3xl",
+          "flex flex-wrap justify-between gap-x-6 gap-y-3 px-5 pt-6 pb-8 text-[13px] text-faint sm:px-8",
+          !wide && "mx-auto max-w-3xl",
         )}
       >
         <div className="flex gap-5">

@@ -100,7 +100,7 @@ export default async function StaffPage({
   return (
     <AdminShell overview={overview} current="/staff">
       <h1 className="type-h1">Rollen</h1>
-      <div className="flex flex-col gap-1 text-[14px] text-pretty text-muted-foreground">
+      <div className="flex max-w-3xl flex-col gap-1 text-[14px] text-pretty text-muted-foreground">
         <p>
           Prüfer sehen nur die Prüf-Queue. Admins sehen den ganzen Admin-Bereich außer dieser Seite.
           Beide richten beim ersten Besuch eine Zwei-Faktor-Anmeldung ein und melden sich danach nur
@@ -114,7 +114,7 @@ export default async function StaffPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="type-h2">Admins und Prüfer</h2>
-        <ul className="flex flex-col gap-3">
+        <ul className="grid gap-3 xl:grid-cols-2 xl:items-start">
           {staff.map((person) => (
             <li key={person.id} className={cardClass}>
               <PersonLine person={person} />
@@ -141,7 +141,7 @@ export default async function StaffPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="type-h2">Konto hinzufügen</h2>
-        <form key={query} method="get" className="flex flex-wrap items-end gap-3">
+        <form key={query} method="get" className="flex max-w-3xl flex-wrap items-end gap-3">
           <div className="flex min-w-60 flex-1 flex-col gap-1.5">
             <Label htmlFor="q">E-Mail-Adresse (genau) oder Discord-Name</Label>
             <Input id="q" name="q" defaultValue={query} />
@@ -163,7 +163,7 @@ export default async function StaffPage({
             Keine Treffer. Gefunden werden nur vollständige, nicht gesperrte Konten mit Passwort.
           </p>
         ) : null}
-        <ul className="flex flex-col gap-3">
+        <ul className="grid gap-3 xl:grid-cols-2 xl:items-start">
           {candidates
             .filter((person) => person.staffRole !== "OPERATOR")
             .map((person) => (

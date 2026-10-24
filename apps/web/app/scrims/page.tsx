@@ -19,7 +19,7 @@ import {
   MessageSquareIcon,
   PlusIcon,
 } from "@/components/icons";
-import { ListGroup } from "@/components/list-group";
+import { CARD_COLUMNS, ListGroup } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
 import { RequestCard } from "@/components/request-card";
 import { TabNav } from "@/components/tab-nav";
@@ -143,7 +143,7 @@ export default async function ScrimsPage({
   const feedbackDue = mine.past.find((scrim) => scrim.canGiveFeedback);
 
   return (
-    <PageMain className="gap-6">
+    <PageMain width="wide" className="gap-6">
       <div className="flex flex-wrap items-end justify-between gap-5">
         <h1 className="type-h1">Scrims</h1>
         {board.ownTeam?.isCaptain ? (
@@ -231,7 +231,7 @@ function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequests: boo
         key={`${board.filter.date ?? ""}|${board.filter.ranks.join(",")}`}
         method="get"
         action="/scrims"
-        className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"
+        className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,18rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
       >
         <Field label="Datum">
           <DatePicker
@@ -301,83 +301,91 @@ function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequests: boo
 }
 
 function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
-  return mine.upcoming.map((scrim) => (
-    <div
-      key={scrim.id}
-      className="flex flex-col gap-[18px] rounded-lg border border-border bg-card p-5"
-    >
-      <Link href={`/scrims/${scrim.id}`} className="group flex flex-col gap-[18px]">
-        <div className="flex items-center justify-between gap-2.5">
-          <Badge variant="success">
-            <BadgeDot />
-            Bestätigt
-          </Badge>
-          <span className="font-label text-[13px]">{describeStartShort(scrim.startsAt)}</span>
+  return (
+    <div className={cn(CARD_COLUMNS, "gap-6")}>
+      {mine.upcoming.map((scrim) => (
+        <div
+          key={scrim.id}
+          className="flex flex-col gap-[18px] rounded-lg border border-border bg-card p-5"
+        >
+          <Link href={`/scrims/${scrim.id}`} className="group flex flex-col gap-[18px]">
+            <div className="flex items-center justify-between gap-2.5">
+              <Badge variant="success">
+                <BadgeDot />
+                Bestätigt
+              </Badge>
+              <span className="font-label text-[13px]">{describeStartShort(scrim.startsAt)}</span>
+            </div>
+            <div className="flex items-center gap-3.5">
+              <div className="flex shrink-0 items-center">
+                <TeamAvatar
+                  team={ownTeam}
+                  own
+                  className={cn(
+                    "relative z-[1] shadow-[0_0_0_3px_var(--card)]",
+                    // A transparent logo would let the opponent show through underneath.
+                    ownTeam.logo !== null && "bg-card",
+                  )}
+                />
+                <TeamAvatar team={scrim.opponent} className="-ml-2" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="type-h2 group-hover:underline">gegen {scrim.opponent.name}</span>
+                <span className="text-[13px] text-muted-foreground">
+                  {formatUniversities(scrim.opponent.universities)} · {formatFormat(scrim.format)} ·{" "}
+                  {formatRankRange(scrim.rankMin, scrim.rankMax)}
+                </span>
+              </div>
+            </div>
+          </Link>
+          <DiscordContact
+            captainName={scrim.opponent.captainName}
+            captainDiscordId={scrim.opponent.captainDiscordId}
+            teamName={scrim.opponent.name}
+          />
         </div>
-        <div className="flex items-center gap-3.5">
-          <div className="flex shrink-0 items-center">
-            <TeamAvatar
-              team={ownTeam}
-              own
-              className={cn(
-                "relative z-[1] shadow-[0_0_0_3px_var(--card)]",
-                // A transparent logo would let the opponent show through underneath.
-                ownTeam.logo !== null && "bg-card",
-              )}
-            />
-            <TeamAvatar team={scrim.opponent} className="-ml-2" />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="type-h2 group-hover:underline">gegen {scrim.opponent.name}</span>
-            <span className="text-[13px] text-muted-foreground">
-              {formatUniversities(scrim.opponent.universities)} · {formatFormat(scrim.format)} ·{" "}
-              {formatRankRange(scrim.rankMin, scrim.rankMax)}
-            </span>
-          </div>
-        </div>
-      </Link>
-      <DiscordContact
-        captainName={scrim.opponent.captainName}
-        captainDiscordId={scrim.opponent.captainDiscordId}
-        teamName={scrim.opponent.name}
-      />
+      ))}
     </div>
-  ));
+  );
 }
 
 function Requests({ mine }: { mine: MyScrims }) {
-  return mine.requests.map((request) => (
-    <Link
-      key={request.id}
-      href={`/requests/${request.id}`}
-      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 hover:border-border-strong hover:bg-secondary"
-    >
-      <div className="flex items-start justify-between gap-2.5">
-        <div className="flex flex-col gap-0.5">
-          <span className="type-h2">{describeStartShort(request.startsAt)}</span>
-          <span className="text-[13px] text-muted-foreground">
-            {formatFormat(request.format)} · {formatRankRange(request.rankMin, request.rankMax)} ·{" "}
-            {formatMaps(request.maps)}
-          </span>
-        </div>
-        <Badge variant="accent">Offen</Badge>
-      </div>
-      <div className="flex items-center justify-between border-t border-border pt-3.5">
-        <span className="type-label text-muted-foreground">
-          Bewerbungen ({request.applicationCount})
-        </span>
-        <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
-          Ansehen
-          <ChevronRightIcon strokeWidth={2.5} />
-        </span>
-      </div>
-    </Link>
-  ));
+  return (
+    <div className={cn(CARD_COLUMNS, "gap-6")}>
+      {mine.requests.map((request) => (
+        <Link
+          key={request.id}
+          href={`/requests/${request.id}`}
+          className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 hover:border-border-strong hover:bg-secondary"
+        >
+          <div className="flex items-start justify-between gap-2.5">
+            <div className="flex flex-col gap-0.5">
+              <span className="type-h2">{describeStartShort(request.startsAt)}</span>
+              <span className="text-[13px] text-muted-foreground">
+                {formatFormat(request.format)} · {formatRankRange(request.rankMin, request.rankMax)}{" "}
+                · {formatMaps(request.maps)}
+              </span>
+            </div>
+            <Badge variant="accent">Offen</Badge>
+          </div>
+          <div className="flex items-center justify-between border-t border-border pt-3.5">
+            <span className="type-label text-muted-foreground">
+              Bewerbungen ({request.applicationCount})
+            </span>
+            <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
+              Ansehen
+              <ChevronRightIcon strokeWidth={2.5} />
+            </span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 function Applications({ mine }: { mine: MyScrims }) {
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className={cn(CARD_COLUMNS, "gap-2.5")}>
       {mine.applications.map((application) => (
         <Link key={application.id} href={`/requests/${application.requestId}`} className={rowClass}>
           <TeamAvatar team={application.team} />
@@ -403,7 +411,7 @@ function Applications({ mine }: { mine: MyScrims }) {
 
 function Past({ mine }: { mine: MyScrims }) {
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className={cn(CARD_COLUMNS, "gap-2.5")}>
       {mine.past.map((scrim) => (
         <Link key={scrim.id} href={`/scrims/${scrim.id}`} className={cn(rowClass, "flex-wrap")}>
           <TeamAvatar team={scrim.opponent} />

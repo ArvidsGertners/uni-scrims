@@ -4,11 +4,20 @@ import { FlashToast } from "@/components/flash-toast";
 import { sharedCookieDomain } from "@/lib/admin-url";
 import { readFlash } from "@/lib/flash";
 
-/** Content column of every screen (design handoff): 768 px, 20/32 px side padding, toast above. */
+// Narrow: the 768 px column of the design handoff, centred (forms, signed-out pages). Wide: the
+// whole content column next to the sidebar (§5.15).
+const WIDTH = {
+  narrow: "mx-auto max-w-3xl px-5 sm:px-8",
+  wide: "px-5 sm:px-8 xl:px-10",
+};
+
+/** Content column of every screen: 20/32 px side padding, toast above. */
 export async function PageMain({
+  width = "narrow",
   className,
   children,
 }: {
+  width?: keyof typeof WIDTH;
   className?: string;
   children: ReactNode;
 }) {
@@ -16,11 +25,14 @@ export async function PageMain({
   return (
     <>
       {flash ? (
-        <FlashToast key={flash.id} message={flash.message} domain={sharedCookieDomain()} />
+        <FlashToast
+          key={flash.id}
+          message={flash.message}
+          domain={sharedCookieDomain()}
+          className={width === "wide" ? "max-w-none xl:px-10" : undefined}
+        />
       ) : null}
-      <main
-        className={cn("mx-auto flex w-full max-w-3xl flex-col px-5 pt-7 pb-16 sm:px-8", className)}
-      >
+      <main className={cn("flex w-full flex-col pt-7 pb-16", WIDTH[width], className)}>
         {children}
       </main>
     </>

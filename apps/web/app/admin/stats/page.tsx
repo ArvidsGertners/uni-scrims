@@ -81,7 +81,7 @@ export default async function StatsPage() {
   return (
     <AdminShell overview={overview} current="/stats">
       <h1 className="type-h1">Statistik</h1>
-      <p className="text-[14px] text-pretty text-muted-foreground">
+      <p className="max-w-3xl text-[14px] text-pretty text-muted-foreground">
         Die Erfolgskriterien aus der Spezifikation, jeweils bis jetzt. Prüfungen gelöschter Konten
         fehlen, weil sie mit dem Konto gelöscht werden.
       </p>
@@ -90,7 +90,7 @@ export default async function StatsPage() {
           <h2 className="type-h2">
             {title} <span className="text-[14px] font-normal text-muted-foreground">{hint}</span>
           </h2>
-          <ul className="flex flex-col gap-3">
+          <ul className="grid gap-3 xl:grid-cols-2 xl:items-start">
             {metrics
               .filter((metric) => metric.group === group)
               .map((metric) => (
