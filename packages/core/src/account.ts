@@ -11,7 +11,7 @@ import {
   requireAccountUser,
   requireActiveAccountUser,
 } from "./permissions.ts";
-import { emailSchema, parseInput, realNameSchema } from "./schemas.ts";
+import { emailSchema, parseInput, realNameSchema, themePreferenceSchema } from "./schemas.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
 import { avatarVersion } from "./users.ts";
@@ -27,6 +27,7 @@ import {
   banPlaceholderData,
   deletedUserData,
   getDiscordId,
+  notDeletedUserWhere,
 } from "./users.ts";
 
 /** Better Auth's provider ID for the email and password login (§5.8). */
@@ -191,6 +192,17 @@ export async function updateRealName(input: {
     if (realNameLocked(current, pending !== null)) throw new DomainError("CONFLICT", NAME_LOCKED);
     await tx.user.update({ where: { id: user.id }, data: name });
   });
+}
+
+/**
+ * The design of the own account (SPEC N-13, §5.16); banned users and incomplete accounts included,
+ * like the account page itself.
+ */
+export async function setThemePreference(input: { userId: string; theme: string }): Promise<void> {
+  const user = await requireAccountUser(input.userId);
+  const theme = parseInput(themePreferenceSchema, input.theme);
+  // updateMany: a deletion that commits meanwhile has reset the row, which then stays as it is.
+  await prisma.user.updateMany({ where: notDeletedUserWhere(user.id), data: { theme } });
 }
 
 /**

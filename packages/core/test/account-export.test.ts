@@ -72,7 +72,11 @@ async function fullAccount() {
   });
   await prisma.user.update({
     where: { id: user.id },
-    data: { avatarUpdatedAt: NOW, avatar: { create: { data: new Uint8Array([4, 5, 6]) } } },
+    data: {
+      avatarUpdatedAt: NOW,
+      avatar: { create: { data: new Uint8Array([4, 5, 6]) } },
+      theme: "DARK",
+    },
   });
   const university = await prisma.university.create({
     data: { name: "Uni Export", city: "Teststadt", slug: `uni-export-${uid()}` },
@@ -211,6 +215,7 @@ describe("exportAccountData", () => {
       zweiFaktorEingerichtet: true,
       zweiFaktorFehlversuche: 2,
       zweiFaktorGesperrtBis: null,
+      design: "Dunkel",
     });
     expect(data.anmeldung).toMatchObject({
       discordId: user.discordId,
@@ -416,6 +421,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     staffRole: SHOWN,
     twoFactorEnabled: SHOWN,
     avatarUpdatedAt: SHOWN,
+    theme: SHOWN,
   },
   UserAvatar: { userId: KEY, data: SHOWN },
   Session: {

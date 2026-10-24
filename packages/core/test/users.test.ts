@@ -80,6 +80,7 @@ describe("getCurrentUser", () => {
       staffRole: null,
       setupStep: null,
       avatarVersion: null,
+      theme: "SYSTEM",
     });
     expect(await getCurrentUser(admin.id)).toMatchObject({ staffRole: "ADMIN" });
   });

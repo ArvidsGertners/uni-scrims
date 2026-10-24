@@ -24,11 +24,13 @@ import {
   findUserByDiscordId,
   finishInterruptedDeletions,
   getAccount,
+  getCurrentUser,
   getReliability,
   handOverCaptain,
   registrationSchema,
   requireAccountUser,
   requireUser,
+  setThemePreference,
   updateRealName,
 } from "../src/index.ts";
 import { queueNotifications } from "../src/notifications.ts";
@@ -655,6 +657,43 @@ describe("updateRealName", () => {
     await expect(
       updateRealName({ userId: legacy.id, firstName: "Cleo", lastName: "Neu" }),
     ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+});
+
+describe("setThemePreference", () => {
+  it("stores the design of the own account, banned and incomplete accounts included", async () => {
+    const user = await createUser();
+    expect(await getCurrentUser(user.id)).toMatchObject({ theme: "SYSTEM" });
+    await setThemePreference({ userId: user.id, theme: "LIGHT" });
+    expect(await getCurrentUser(user.id)).toMatchObject({ theme: "LIGHT" });
+
+    const banned = await createUser({ banned: true });
+    const legacy = await createUser({ legacy: true });
+    for (const other of [banned, legacy]) {
+      await setThemePreference({ userId: other.id, theme: "DARK" });
+      expect((await prisma.user.findUniqueOrThrow({ where: { id: other.id } })).theme).toBe("DARK");
+    }
+  });
+
+  it("rejects unknown designs and missing or deleted accounts", async () => {
+    const user = await createUser();
+    await expect(setThemePreference({ userId: user.id, theme: "BLUE" })).rejects.toMatchObject({
+      code: "INVALID",
+    });
+    await expect(setThemePreference({ userId: "missing", theme: "DARK" })).rejects.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
+    await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
+    await expect(setThemePreference({ userId: user.id, theme: "DARK" })).rejects.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
+  });
+
+  it("goes back to the system setting when the account is deleted", async () => {
+    const user = await createUser();
+    await setThemePreference({ userId: user.id, theme: "LIGHT" });
+    await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).theme).toBe("SYSTEM");
   });
 });
 

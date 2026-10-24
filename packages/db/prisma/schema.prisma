@@ -118,6 +118,13 @@ enum LogoBackground {
   LIGHT
 }
 
+// The design an account chose (Phase 17, §5.16): SYSTEM follows the device setting.
+enum ThemePreference {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
 // ─── Better Auth ──────────────────────────────────────────────────────────────
 
 model User {
@@ -132,23 +139,25 @@ model User {
 
   // Additional fields (Better Auth `additionalFields` with `input: false`), set only by core.
   universityId     String?
-  university       University? @relation(fields: [universityId], references: [id])
+  university       University?     @relation(fields: [universityId], references: [id])
   universityOther  String?
-  verifiedAt       DateTime?   @db.Timestamptz(3)
-  bannedAt         DateTime?   @db.Timestamptz(3)
-  hubJoinFailedAt  DateTime?   @db.Timestamptz(3)
-  dmFailedAt       DateTime?   @db.Timestamptz(3)
+  verifiedAt       DateTime?       @db.Timestamptz(3)
+  bannedAt         DateTime?       @db.Timestamptz(3)
+  hubJoinFailedAt  DateTime?       @db.Timestamptz(3)
+  dmFailedAt       DateTime?       @db.Timestamptz(3)
   // Set by deleteAccount and kept, also if a racing login writes the Discord profile back (§4, §5.1).
-  deletedAt        DateTime?   @db.Timestamptz(3)
+  deletedAt        DateTime?       @db.Timestamptz(3)
   // Real name from the registration (Phase 7, §5.8); null for accounts from before Phase 7 until
   // they are completed, and for deleted ones. Only the user and reviewers see it.
   firstName        String?
   lastName         String?
   // Phase 8 (§5.9): null = no role. twoFactorEnabled belongs to Better Auth's twoFactor plugin.
   staffRole        StaffRole?
-  twoFactorEnabled Boolean     @default(false)
+  twoFactorEnabled Boolean         @default(false)
   // Phase 12 (§5.12): when the copy of the Discord avatar was made; null = none. Versions its URL.
-  avatarUpdatedAt  DateTime?   @db.Timestamptz(3)
+  avatarUpdatedAt  DateTime?       @db.Timestamptz(3)
+  // Phase 17 (§5.16): light or dark for this account on every device.
+  theme            ThemePreference @default(SYSTEM)
 
   avatar     UserAvatar?
   sessions   Session[]

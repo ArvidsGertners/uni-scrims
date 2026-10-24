@@ -1,5 +1,5 @@
 // Zod schemas for user input, shared by core and the web forms.
-import { FeedbackOutcome, MemberRole, Rank, ScrimFormat } from "@uni-scrims/db";
+import { FeedbackOutcome, MemberRole, Rank, ScrimFormat, ThemePreference } from "@uni-scrims/db";
 import { z } from "zod";
 import { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../config/account.ts";
 import { mapSchema } from "../config/maps.ts";
@@ -29,6 +29,9 @@ export const teamInputSchema = z.object({
 export type TeamInput = z.infer<typeof teamInputSchema>;
 
 export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
+
+/** The design of the own account (Phase 17, §5.16). */
+export const themePreferenceSchema = z.enum(ThemePreference, "Bitte wähle ein Design.");
 
 // ─── Accounts (Phase 7, §5.8) ─────────────────────────────────────────────────
 

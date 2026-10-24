@@ -32,6 +32,7 @@ export function deletedUserData(userId: string) {
     staffRole: null,
     twoFactorEnabled: false,
     avatarUpdatedAt: null,
+    theme: "SYSTEM",
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
 
@@ -234,6 +235,7 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
       emailVerified: true,
       staffRole: true,
       avatarUpdatedAt: true,
+      theme: true,
     },
   });
   if (!user) return null;
@@ -252,6 +254,8 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
     setupStep: accountSetupStep(user, discordId !== null),
     /** For the avatar next to "Konto" (§5.14). */
     avatarVersion: avatarVersion(user),
+    /** The chosen design, set on <html> by the root layout (§5.16). */
+    theme: user.theme,
   };
 }
 

@@ -8,6 +8,7 @@ import {
   type ScrimFormat,
   type ScrimStatus,
   type StaffRole,
+  type ThemePreference,
   type VerifStatus,
 } from "@uni-scrims/db";
 
@@ -89,6 +90,13 @@ export const NOTIF_STATUS_LABELS: Record<NotifStatus, string> = {
   SENT: "Gesendet",
   FAILED: "Nicht zustellbar",
   CANCELLED: "Verworfen",
+};
+
+/** The design choices in the settings (SPEC N-13), in their order there. */
+export const THEME_LABELS: Record<ThemePreference, string> = {
+  SYSTEM: "System",
+  LIGHT: "Hell",
+  DARK: "Dunkel",
 };
 
 /** The two team logos (SPEC N-7). */

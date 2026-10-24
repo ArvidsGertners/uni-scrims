@@ -13,6 +13,7 @@ import {
   SCRIM_FORMAT_LABELS,
   SCRIM_STATUS_LABELS,
   STAFF_ROLE_LABELS,
+  THEME_LABELS,
   VERIF_STATUS_LABELS,
 } from "./labels.ts";
 import { parseNotificationPayload } from "./notifications.ts";
@@ -251,6 +252,7 @@ export async function exportAccountData(input: {
           zweiFaktorEingerichtet: user.twoFactorEnabled,
           zweiFaktorFehlversuche: twoFactor?.failedVerificationCount ?? null,
           zweiFaktorGesperrtBis: twoFactor?.lockedUntil ?? null,
+          design: THEME_LABELS[user.theme],
         },
         anmeldung: {
           discordId: discord?.accountId ?? null,
