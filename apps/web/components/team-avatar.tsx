@@ -6,18 +6,36 @@ const SIZES = {
   lg: "size-16 rounded-lg text-[15px]",
 };
 
-/** The team "logo" of the design handoff: its tag in a square; the own team on accent. */
+export type AvatarTeam = { id: string; tag: string; logoVersion: number | null };
+
+/**
+ * The team logo (SPEC N-6), filling the square; without one the "logo" of the design handoff: the
+ * tag in a square, the own team on accent.
+ */
 export function TeamAvatar({
-  tag,
+  team,
   size = "md",
   own = false,
   className,
 }: {
-  tag: string;
+  team: AvatarTeam;
   size?: keyof typeof SIZES;
   own?: boolean;
   className?: string;
 }) {
+  if (team.logoVersion !== null) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- small session-protected image, no optimisation
+      <img
+        // The version changes with every new logo, so the long browser cache never shows an old one.
+        src={`/api/teams/${encodeURIComponent(team.id)}/logo?v=${team.logoVersion}`}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={cn("shrink-0 object-contain", SIZES[size], className)}
+      />
+    );
+  }
   return (
     <span
       className={cn(
@@ -30,7 +48,7 @@ export function TeamAvatar({
         className,
       )}
     >
-      {tag}
+      {team.tag}
     </span>
   );
 }

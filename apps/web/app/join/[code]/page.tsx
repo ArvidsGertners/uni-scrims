@@ -37,7 +37,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
     <PageMain className="gap-7">
       <span className="type-label text-muted-foreground">Einladung</span>
       <div className="flex items-center gap-4">
-        <TeamAvatar tag={team.tag} size="lg" />
+        <TeamAvatar team={team} size="lg" />
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="type-h1">{team.name}</h1>
           <span className="text-[14px] text-muted-foreground">

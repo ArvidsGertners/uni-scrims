@@ -5,7 +5,7 @@ import { DiscordContact } from "@/components/discord-contact";
 import { EmptyState } from "@/components/empty-state";
 import { CheckIcon, ChevronRightIcon, MessageSquareIcon } from "@/components/icons";
 import { PageMain } from "@/components/page-main";
-import { TeamAvatar } from "@/components/team-avatar";
+import { type AvatarTeam, TeamAvatar } from "@/components/team-avatar";
 import { Alert } from "@/components/ui/alert";
 import { Badge, BadgeDot } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -146,7 +146,7 @@ export default async function MyScrimsPage({
               {EMPTY[tab].text}
             </EmptyState>
           ) : tab === "anstehend" ? (
-            <Upcoming mine={mine} ownTag={mine.team.tag} />
+            <Upcoming mine={mine} ownTeam={mine.team} />
           ) : tab === "anfragen" ? (
             <Requests mine={mine} />
           ) : tab === "bewerbungen" ? (
@@ -160,7 +160,7 @@ export default async function MyScrimsPage({
   );
 }
 
-function Upcoming({ mine, ownTag }: { mine: MyScrims; ownTag: string }) {
+function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
   return mine.upcoming.map((scrim) => (
     <div
       key={scrim.id}
@@ -177,11 +177,11 @@ function Upcoming({ mine, ownTag }: { mine: MyScrims; ownTag: string }) {
         <div className="flex items-center gap-3.5">
           <div className="flex shrink-0 items-center">
             <TeamAvatar
-              tag={ownTag}
+              team={ownTeam}
               own
               className="relative z-[1] shadow-[0_0_0_3px_var(--card)]"
             />
-            <TeamAvatar tag={scrim.opponent.tag} className="-ml-2" />
+            <TeamAvatar team={scrim.opponent} className="-ml-2" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="type-h2 group-hover:underline">gegen {scrim.opponent.name}</span>
@@ -236,7 +236,7 @@ function Applications({ mine }: { mine: MyScrims }) {
     <div className="flex flex-col gap-2.5">
       {mine.applications.map((application) => (
         <Link key={application.id} href={`/requests/${application.requestId}`} className={rowClass}>
-          <TeamAvatar tag={application.team.tag} />
+          <TeamAvatar team={application.team} />
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="font-semibold">{application.team.name}</span>
             <span className="text-[13px] text-muted-foreground">
@@ -262,7 +262,7 @@ function Past({ mine }: { mine: MyScrims }) {
     <div className="flex flex-col gap-2.5">
       {mine.past.map((scrim) => (
         <Link key={scrim.id} href={`/scrims/${scrim.id}`} className={cn(rowClass, "flex-wrap")}>
-          <TeamAvatar tag={scrim.opponent.tag} />
+          <TeamAvatar team={scrim.opponent} />
           <div className="flex min-w-[140px] flex-1 flex-col">
             <span className="font-semibold">gegen {scrim.opponent.name}</span>
             <span className="text-[13px] text-muted-foreground">

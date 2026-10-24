@@ -1,13 +1,14 @@
 import { MIN_SEARCH_LENGTH, searchModerationTargets } from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
+import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
-import { banTeamAction, banUserAction } from "../actions";
+import { banTeamAction, banUserAction, removeTeamLogoAction } from "../actions";
 import { PageMain } from "@/components/page-main";
 
 // Consequences from SPEC P0-9 and the edge cases.
@@ -100,24 +101,42 @@ export default async function BansPage({
               key={team.id}
               className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-[14px]"
             >
-              <p className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{team.name}</span>
-                <span className="text-muted-foreground">[{team.tag}]</span>
-                {team.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
-              </p>
-              <p>
-                Captain: {team.captainName} · {team.memberCount} Mitglieder
-              </p>
-              {team.banned ? null : (
-                <ActionForm
-                  action={banTeamAction}
-                  submitLabel="Team sperren"
-                  variant="destructive"
-                  confirmText={`${team.name} sperren? ${TEAM_BAN_CONSEQUENCES}`}
-                >
-                  <input type="hidden" name="teamId" value={team.id} />
-                </ActionForm>
-              )}
+              <div className="flex items-center gap-3">
+                <TeamAvatar team={team} size="sm" />
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{team.name}</span>
+                    <span className="text-muted-foreground">[{team.tag}]</span>
+                    {team.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
+                  </p>
+                  <p>
+                    Captain: {team.captainName} · {team.memberCount} Mitglieder
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {team.banned ? null : (
+                  <ActionForm
+                    action={banTeamAction}
+                    submitLabel="Team sperren"
+                    variant="destructive"
+                    confirmText={`${team.name} sperren? ${TEAM_BAN_CONSEQUENCES}`}
+                  >
+                    <input type="hidden" name="teamId" value={team.id} />
+                  </ActionForm>
+                )}
+                {team.logoVersion === null ? null : (
+                  // Logos are not checked before they show (SPEC §9); admins take bad ones down.
+                  <ActionForm
+                    action={removeTeamLogoAction}
+                    submitLabel="Logo entfernen"
+                    variant="outline"
+                    confirmText={`Logo von ${team.name} entfernen?`}
+                  >
+                    <input type="hidden" name="teamId" value={team.id} />
+                  </ActionForm>
+                )}
+              </div>
             </div>
           ))}
         </section>

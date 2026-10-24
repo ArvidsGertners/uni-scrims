@@ -44,7 +44,7 @@ export function RequestCard({ request, own = false }: Props) {
       className="flex flex-col gap-4 rounded-lg border border-border bg-card p-[18px] hover:border-border-strong hover:bg-secondary"
     >
       <div className="flex items-center gap-3">
-        <TeamAvatar tag={team.tag} own={own} className={own ? undefined : "border-border"} />
+        <TeamAvatar team={team} own={own} className={own ? undefined : "border-border"} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-[16px] font-semibold">{team.name}</span>
           <span className="truncate text-[13px] text-muted-foreground">

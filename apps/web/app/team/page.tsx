@@ -21,6 +21,7 @@ import {
   leaveTeamAction,
   regenerateInviteAction,
   removeMemberAction,
+  removeTeamLogoAction,
   setMemberRoleAction,
   transferCaptainAction,
   updateTeamAction,
@@ -28,6 +29,7 @@ import {
 import { CopyLink } from "./copy-link";
 import { JoinLinkForm } from "./join-link-form";
 import { MemberRoleSelect } from "./member-role-select";
+import { TeamLogoForm } from "./team-logo-form";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 const memberActionClass = "min-h-10 px-2.5 text-[14px]";
@@ -90,7 +92,7 @@ export default async function TeamPage() {
   return (
     <PageMain className="gap-8">
       <div className="flex items-center gap-4">
-        <TeamAvatar tag={team.tag} size="lg" own />
+        <TeamAvatar team={team} size="lg" own />
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="type-h1">{team.name}</h1>
           <span className="text-[14px] text-muted-foreground">
@@ -246,6 +248,36 @@ export default async function TeamPage() {
       {manage ? (
         <section className={`${cardClass} gap-[18px]`}>
           <h2 className="type-h2">Team bearbeiten</h2>
+          <div className="flex flex-col gap-3 border-b border-border pb-[18px]">
+            <span className="text-[14px] font-medium">Logo</span>
+            <div className="flex items-start gap-4">
+              <TeamAvatar team={team} size="lg" own />
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <p className="text-[13px] text-pretty text-muted-foreground">
+                  PNG oder WebP mit durchsichtigem Hintergrund, max. 2 MB. Durchsichtige Ränder
+                  schneiden wir ab, damit das Logo die Fläche füllt.
+                </p>
+                <TeamLogoForm
+                  key={team.logoVersion ?? "none"}
+                  teamId={team.id}
+                  hasLogo={team.logoVersion !== null}
+                />
+                {team.logoVersion === null ? null : (
+                  <ActionForm
+                    action={removeTeamLogoAction}
+                    submitLabel="Logo entfernen"
+                    variant="ghost"
+                    size="sm"
+                    className="flex flex-col"
+                    submitClassName="-ml-4"
+                    confirmText="Logo wirklich entfernen?"
+                  >
+                    <input type="hidden" name="teamId" value={team.id} />
+                  </ActionForm>
+                )}
+              </div>
+            </div>
+          </div>
           <ActionForm
             action={updateTeamAction}
             submitLabel="Speichern"

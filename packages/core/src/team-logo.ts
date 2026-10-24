@@ -152,7 +152,10 @@ export async function removeTeamLogo(input: { userId: string; teamId: string }):
 }
 
 /** The stored WebP for logged-in users who are not banned, like team cards; dissolved teams have none. */
-export async function getTeamLogo(input: { userId: string; teamId: string }): Promise<Uint8Array> {
+export async function getTeamLogo(input: {
+  userId: string;
+  teamId: string;
+}): Promise<Uint8Array<ArrayBuffer>> {
   await requireUser(input.userId);
   const team = await prisma.team.findFirst({
     where: { id: input.teamId, dissolvedAt: null },

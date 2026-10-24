@@ -6,7 +6,9 @@ import {
   leaveTeam,
   regenerateInvite,
   removeMember,
+  removeTeamLogo,
   setMemberRole,
+  setTeamLogo,
   transferCaptain,
   updateTeam,
 } from "@uni-scrims/core";
@@ -45,6 +47,35 @@ export async function createTeamAction(_state: ActionState, formData: FormData) 
   });
   if (state.done) await setFlash(`Willkommen bei ${teamName}`);
   return finish(state);
+}
+
+export async function setTeamLogoAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  const file = z.instanceof(File).safeParse(formData.get("logo"));
+  if (!teamId.success) return invalidInput;
+  if (!file.success || file.data.size === 0) return { error: "Bitte wähle ein Bild aus." };
+  return finish(
+    await runAction(async () => {
+      await setTeamLogo({
+        userId,
+        teamId: teamId.data,
+        file: new Uint8Array(await file.data.arrayBuffer()),
+        now: new Date(),
+      });
+    }),
+  );
+}
+
+export async function removeTeamLogoAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  if (!teamId.success) return invalidInput;
+  return finish(
+    await runAction(async () => {
+      await removeTeamLogo({ userId, teamId: teamId.data });
+    }),
+  );
 }
 
 export async function updateTeamAction(_state: ActionState, formData: FormData) {

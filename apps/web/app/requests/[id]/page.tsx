@@ -66,7 +66,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
       <BackLink href="/board">Zurück zum Board</BackLink>
 
       <div className="flex items-center gap-4">
-        <TeamAvatar tag={team.tag} size="lg" own={ownRequest} />
+        <TeamAvatar team={team} size="lg" own={ownRequest} />
         <div className="flex min-w-0 flex-col gap-1.5">
           <h1 className="type-h1">{team.name}</h1>
           <span className="flex flex-wrap items-center gap-2 text-[14px] text-muted-foreground">
@@ -236,7 +236,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           {request.applications.map((application) => (
             <div key={application.id} className="flex flex-col gap-3 rounded-sm bg-secondary p-3.5">
               <div className="flex items-center gap-3">
-                <TeamAvatar tag={application.team.tag} size="sm" className="bg-background" />
+                <TeamAvatar team={application.team} size="sm" className="bg-background" />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="font-semibold">{application.team.name}</span>
                   <span className="text-[13px] text-muted-foreground">

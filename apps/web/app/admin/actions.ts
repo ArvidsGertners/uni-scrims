@@ -5,6 +5,7 @@ import {
   banTeam,
   banUser,
   decideVerification,
+  removeTeamLogoAsAdmin,
   resolveDispute,
   resolveUploadDir,
 } from "@uni-scrims/core";
@@ -89,6 +90,20 @@ export async function banTeamAction(_state: ActionState, formData: FormData): Pr
   if (!teamId.success) return invalidInput;
   const state = await runAction(async () => {
     await banTeam({ adminId, teamId: teamId.data, now: new Date() });
+  });
+  revalidatePath("/admin/bans");
+  return state;
+}
+
+export async function removeTeamLogoAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const adminId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  if (!teamId.success) return invalidInput;
+  const state = await runAction(async () => {
+    await removeTeamLogoAsAdmin({ adminId, teamId: teamId.data });
   });
   revalidatePath("/admin/bans");
   return state;
