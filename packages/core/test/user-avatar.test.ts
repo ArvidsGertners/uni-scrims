@@ -12,7 +12,6 @@ import {
   deleteAccount,
   getUserAvatar,
   handleDiscordLogin,
-  refreshDiscordAvatar,
   syncDiscordAvatar,
 } from "../src/index.ts";
 import { NOW, createTeamWithMembers, createUser } from "./helpers.ts";
@@ -113,63 +112,128 @@ describe("syncDiscordAvatar (SPEC N-8)", () => {
     );
     expect(await userRow(user.id)).toEqual({ avatarUpdatedAt: null, avatar: null });
   });
+
+  it("fetches nothing while the copy belongs to the same address", async () => {
+    const user = await createUser();
+    await withAvatarUrl(user);
+    const fake = cdn();
+    await syncDiscordAvatar(user.id, avatarUrl(user.discordId), fake.fetchImage, NOW);
+    const later = new Date(NOW.getTime() + 1000);
+    expect(
+      await syncDiscordAvatar(user.id, avatarUrl(user.discordId), fake.fetchImage, later),
+    ).toBe("unchanged");
+    expect(fake.urls).toHaveLength(1);
+    // The version stays, so browsers keep their cached copy.
+    expect((await userRow(user.id)).avatarUpdatedAt).toEqual(NOW);
+  });
+
+  it("stores nothing for a ban that commits during the download", async () => {
+    const user = await createUser();
+    const banning = cdn(async () => {
+      await prisma.user.update({ where: { id: user.id }, data: { bannedAt: NOW } });
+      return picture;
+    });
+    expect(
+      await syncDiscordAvatar(user.id, avatarUrl(user.discordId), banning.fetchImage, NOW),
+    ).toBe("unchanged");
+    expect(await userRow(user.id)).toEqual({ avatarUpdatedAt: null, avatar: null });
+  });
+
+  it("lets a backfill yield to a Discord login that stored a copy meanwhile", async () => {
+    const user = await createUser();
+    await withAvatarUrl(user);
+    const login = new Date(NOW.getTime() + 5000);
+    const racing = cdn(async () => {
+      await syncDiscordAvatar(
+        user.id,
+        avatarUrl(user.discordId, "f".repeat(32)),
+        cdn().fetchImage,
+        login,
+      );
+      return picture;
+    });
+    expect(
+      await syncDiscordAvatar(user.id, avatarUrl(user.discordId), racing.fetchImage, NOW, {
+        backfill: true,
+      }),
+    ).toBe("unchanged");
+    expect((await userRow(user.id)).avatarUpdatedAt).toEqual(login);
+  });
 });
 
-describe("refreshDiscordAvatar and handleDiscordLogin", () => {
+describe("handleDiscordLogin", () => {
   const profile = (id: string, avatar: string | null) => ({
     id,
     username: "spieler",
     discriminator: "0",
     avatar,
   });
+  const withToken = (userId: string) =>
+    prisma.account.updateMany({ where: { userId }, data: { accessToken: "fresh-token" } });
 
-  it("takes the current avatar from Discord's profile, as Better Auth writes it only later", async () => {
+  it("takes the avatar from Discord's current profile and fetches it after the tokens are gone", async () => {
     const user = await createUser();
-    // The stored address is outdated; the profile has the new hash.
+    // The stored address is outdated: Better Auth writes the new one only after the hook.
     await prisma.user.update({
       where: { id: user.id },
       data: { image: avatarUrl(user.discordId, "0".repeat(32)) },
     });
-    const fake = cdn();
+    await withToken(user.id);
     const tokens: string[] = [];
-    const calls = {
-      fetchProfile: async (token: string) => {
-        tokens.push(token);
-        return profile(user.discordId, HASH);
+    const tokenAtFetch: (string | null)[] = [];
+    const fake = cdn(async () => {
+      const account = await prisma.account.findFirstOrThrow({ where: { userId: user.id } });
+      tokenAtFetch.push(account.accessToken);
+      return picture;
+    });
+    await handleDiscordLogin(
+      user.id,
+      async () => true,
+      {
+        fetchProfile: async (token) => {
+          tokens.push(token);
+          return profile(user.discordId, HASH);
+        },
+        fetchImage: fake.fetchImage,
       },
-      fetchImage: fake.fetchImage,
-    };
-    expect(await refreshDiscordAvatar(user.id, "token-1", calls, NOW)).toBe("stored");
-    expect(tokens).toEqual(["token-1"]);
+      NOW,
+    );
+    expect(tokens).toEqual(["fresh-token"]);
     expect(fake.urls).toEqual([avatarFetchUrl(avatarUrl(user.discordId))]);
-
-    const failing = {
-      fetchProfile: async () => {
-        throw new Error("401");
-      },
-      fetchImage: fake.fetchImage,
-    };
-    expect(await refreshDiscordAvatar(user.id, "token-2", failing, NOW)).toBe("failed");
-    expect((await userRow(user.id)).avatar).not.toBeNull();
+    expect(tokenAtFetch).toEqual([null]);
+    expect((await userRow(user.id)).avatarUpdatedAt).toEqual(NOW);
   });
 
-  it("copies the avatar at a Discord login, but not for banned users", async () => {
-    for (const banned of [false, true]) {
-      const user = await createUser({ banned });
-      await prisma.account.updateMany({
-        where: { userId: user.id },
-        data: { accessToken: "fresh-token" },
-      });
-      const fake = cdn();
-      await handleDiscordLogin(
-        user.id,
-        async () => true,
-        { fetchProfile: async () => profile(user.discordId, HASH), fetchImage: fake.fetchImage },
-        NOW,
-      );
-      expect(fake.urls).toHaveLength(banned ? 0 : 1);
-      expect((await userRow(user.id)).avatarUpdatedAt).toEqual(banned ? null : NOW);
-    }
+  it("keeps the login going when the profile fails, and skips banned users", async () => {
+    const failing = await createUser();
+    await withToken(failing.id);
+    const fake = cdn();
+    await handleDiscordLogin(
+      failing.id,
+      async () => true,
+      {
+        fetchProfile: async () => {
+          throw new Error("401");
+        },
+        fetchImage: fake.fetchImage,
+      },
+      NOW,
+    );
+    expect(await prisma.user.findUniqueOrThrow({ where: { id: failing.id } })).toMatchObject({
+      hubJoinFailedAt: null,
+      avatarUpdatedAt: null,
+    });
+
+    const banned = await createUser({ banned: true });
+    await withToken(banned.id);
+    await handleDiscordLogin(
+      banned.id,
+      async () => true,
+      { fetchProfile: async () => profile(banned.discordId, HASH), fetchImage: fake.fetchImage },
+      NOW,
+    );
+    expect(fake.urls).toHaveLength(0);
+    expect((await userRow(banned.id)).avatarUpdatedAt).toBeNull();
   });
 });
 

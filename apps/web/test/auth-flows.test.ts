@@ -59,7 +59,16 @@ async function http(jar: CookieJar, path: string, init: { method?: string; body?
 const discord = {
   profile: { id: "", username: "", discriminator: "0", avatar: null as string | null },
   hubJoins: [] as string[],
+  cdn: [] as string[],
 };
+
+/** A 1×1 PNG as Discord's CDN answer for avatars (§5.12). */
+const TINY_PNG = Uint8Array.from(
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64",
+  ),
+);
 
 function stubDiscord() {
   vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -75,6 +84,10 @@ function stubDiscord() {
     }
     if (url.endsWith("/users/@me")) {
       return Response.json({ ...discord.profile, global_name: "Anzeigename", verified: false });
+    }
+    if (url.startsWith("https://cdn.discordapp.com/avatars/")) {
+      discord.cdn.push(url);
+      return new Response(TINY_PNG, { headers: { "content-type": "image/png" } });
     }
     if (url.includes("/guilds/") && init?.method === "PUT") {
       discord.hubJoins.push(String(JSON.parse(String(init.body)).access_token));
@@ -124,6 +137,7 @@ async function confirmedUser() {
 beforeEach(() => {
   sentMails.length = 0;
   discord.hubJoins.length = 0;
+  discord.cdn.length = 0;
   discord.profile = {
     id: String(BigInt(`0x${crypto.randomUUID().replaceAll("-", "").slice(0, 15)}`)),
     username: `ana_${crypto.randomUUID().slice(0, 6)}`,
@@ -202,7 +216,13 @@ describe("Discord (checks 2 and 3)", () => {
       email: user.email,
       emailVerified: true,
       hubJoinFailedAt: null,
+      avatarUpdatedAt: expect.any(Date),
     });
+    // The copy of the avatar from Discord's CDN (§5.12), as a 128 px PNG.
+    expect(discord.cdn).toEqual([
+      `https://cdn.discordapp.com/avatars/${discord.profile.id}/abc.png?size=128`,
+    ]);
+    expect(await prisma.userAvatar.count({ where: { userId: user.id } })).toBe(1);
   });
 
   it("signs in linked accounts with Discord without touching their address", async () => {

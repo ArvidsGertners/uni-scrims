@@ -3,11 +3,10 @@
 //   dc run --rm --no-deps -T bot node --import tsx src/scripts/backfill-avatars.ts </dev/null
 // Locally: pnpm --filter @uni-scrims/bot backfill-avatars
 import "../env.ts";
-import { backfillDiscordAvatars } from "@uni-scrims/core";
+import { MAX_AVATAR_BYTES, backfillDiscordAvatars } from "@uni-scrims/core";
 import { prisma } from "@uni-scrims/db";
 
 const TIMEOUT_MS = 3000;
-const MAX_BYTES = 1024 * 1024;
 
 /** An image from Discord's CDN, at most 1 MB; throws on any failure (as apps/web/lib/discord-avatar.ts). */
 async function fetchDiscordImage(url: string): Promise<Uint8Array> {
@@ -15,8 +14,11 @@ async function fetchDiscordImage(url: string): Promise<Uint8Array> {
     throw new Error(`Not a Discord CDN address: ${url}`);
   const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!response.ok) throw new Error(`Discord CDN: status ${response.status}`);
+  const length = Number(response.headers.get("content-length") ?? 0);
+  if (length > MAX_AVATAR_BYTES) throw new Error(`Discord CDN: ${length} bytes`);
   const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > MAX_BYTES) throw new Error(`Discord CDN: ${bytes.byteLength} bytes`);
+  if (bytes.byteLength > MAX_AVATAR_BYTES)
+    throw new Error(`Discord CDN: ${bytes.byteLength} bytes`);
   return bytes;
 }
 

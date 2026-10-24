@@ -1,8 +1,7 @@
 // Discord HTTP calls for the avatar copy (ARCHITECTURE §5.12). No domain logic here.
-import type { DiscordProfile } from "@uni-scrims/core";
+import { type DiscordProfile, MAX_AVATAR_BYTES } from "@uni-scrims/core";
 
 const TIMEOUT_MS = 3000;
-const MAX_BYTES = 1024 * 1024;
 const CDN = "https://cdn.discordapp.com/";
 
 /** GET /users/@me with the user's access token (scope identify); throws on any failure. */
@@ -27,8 +26,9 @@ export async function fetchDiscordImage(url: string): Promise<Uint8Array> {
   const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!response.ok) throw new Error(`Discord CDN: status ${response.status}`);
   const length = Number(response.headers.get("content-length") ?? 0);
-  if (length > MAX_BYTES) throw new Error(`Discord CDN: ${length} bytes`);
+  if (length > MAX_AVATAR_BYTES) throw new Error(`Discord CDN: ${length} bytes`);
   const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > MAX_BYTES) throw new Error(`Discord CDN: ${bytes.byteLength} bytes`);
+  if (bytes.byteLength > MAX_AVATAR_BYTES)
+    throw new Error(`Discord CDN: ${bytes.byteLength} bytes`);
   return bytes;
 }

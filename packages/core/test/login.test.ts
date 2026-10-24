@@ -23,7 +23,6 @@ async function tokensOf(userId: string) {
   });
 }
 
-/** Records the hub joins. */
 /** Discord's profile without an own avatar: nothing to copy (avatars have their own tests). */
 const NO_AVATAR = {
   fetchProfile: async () => ({ id: "1", username: "spieler", discriminator: "0", avatar: null }),
@@ -32,6 +31,7 @@ const NO_AVATAR = {
   },
 };
 
+/** Records the hub joins. */
 function hubJoin(joined = true) {
   const calls: [string, string][] = [];
   const join = async (discordId: string, token: string) => {

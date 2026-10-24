@@ -9,6 +9,7 @@ import {
   DomainError,
   type Problem,
   TwoFactorRequiredError,
+  isDomainError,
   problemError,
 } from "./errors.ts";
 import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
@@ -241,6 +242,29 @@ export async function requireAdmin(userId: string | null | undefined, db: Db = p
 /** The operator: roles and 2FA resets (§5.9). */
 export async function requireOperator(userId: string | null | undefined, db: Db = prisma) {
   return requireStaff(userId, STAFF_AREAS.staff, db);
+}
+
+/**
+ * Who sees a user's avatar copy (§5.12, §7): the user, also banned; otherwise an unbanned member of
+ * the same team (also a banned team, whose members still see their team page) or staff with access
+ * to the queue.
+ */
+export async function canSeeAvatar(
+  viewer: { id: string; bannedAt: Date | null },
+  userId: string,
+  db: Db = prisma,
+): Promise<boolean> {
+  if (viewer.id === userId) return true;
+  if (viewer.bannedAt) return false;
+  const [own, theirs] = await Promise.all([findOwnTeam(viewer.id, db), findOwnTeam(userId, db)]);
+  if (own && theirs && own.id === theirs.id) return true;
+  try {
+    await requireStaff(viewer.id, STAFF_AREAS.queue, db);
+    return true;
+  } catch (error) {
+    if (isDomainError(error)) return false;
+    throw error;
+  }
 }
 
 /** The user and the team they are in; user and membership are read once. */

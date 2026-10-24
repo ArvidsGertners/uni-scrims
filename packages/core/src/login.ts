@@ -1,8 +1,9 @@
 import { prisma } from "@uni-scrims/db";
-import { type DiscordAvatarCalls, refreshDiscordAvatar } from "./user-avatar.ts";
+import { type DiscordAvatarCalls, syncDiscordAvatar } from "./user-avatar.ts";
 import {
   DISCORD_PROVIDER,
   clearOAuthTokens,
+  discordProfileData,
   recordHubJoinResult,
   restoreDeletedUser,
 } from "./users.ts";
@@ -12,9 +13,9 @@ export type HubJoiner = (discordId: string, accessToken: string) => Promise<bool
 
 /**
  * Runs whenever fresh Discord tokens arrive, after a Discord login and after linking Discord
- * (§5.1, §5.8): try to join the hub server and copy the avatar (both skipped for banned and deleted
- * users), record the result, then always remove the tokens. Name and avatar Better Auth writes itself
- * (discordLoginUserInfo).
+ * (§5.1, §5.8): try to join the hub server and read the current profile (both skipped for banned
+ * and deleted users), record the result, always remove the tokens, then copy the avatar (§5.12).
+ * Name and avatar address Better Auth writes itself (discordLoginUserInfo), after this hook.
  */
 export async function handleDiscordLogin(
   userId: string,
@@ -22,6 +23,8 @@ export async function handleDiscordLogin(
   avatar: DiscordAvatarCalls,
   now: Date,
 ): Promise<void> {
+  // The avatar address of Discord's current profile; undefined while not loaded.
+  let avatarImage: string | null | undefined;
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -51,11 +54,22 @@ export async function handleDiscordLogin(
       return;
     }
     if (user.bannedAt || !account.accessToken) return;
-    const joined = await joinHub(account.accountId, account.accessToken);
+    const token = account.accessToken;
+    // Better Auth writes the new avatar address only after this hook, so it comes from Discord.
+    const [joined, profile] = await Promise.all([
+      joinHub(account.accountId, token),
+      avatar.fetchProfile(token).catch((error: unknown) => {
+        console.warn(`Discord profile of ${userId} not loaded`, error);
+        return null;
+      }),
+    ]);
     await recordHubJoinResult(userId, joined, now);
-    // The copy of the Discord avatar (§5.12); failures keep the old one and never stop the login.
-    await refreshDiscordAvatar(userId, account.accessToken, avatar, now);
+    if (profile) avatarImage = discordProfileData(profile).image;
   } finally {
     await clearOAuthTokens(userId);
+  }
+  // The CDN needs no token. Failures keep the old copy and never stop the login.
+  if (avatarImage !== undefined) {
+    await syncDiscordAvatar(userId, avatarImage, avatar.fetchImage, now);
   }
 }
