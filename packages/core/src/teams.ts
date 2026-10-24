@@ -18,8 +18,7 @@ import { closeOpenRequest, openRequestWhere } from "./requests.ts";
 import { type TeamInput, memberRoleSchema, parseInput, teamInputSchema } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 import { clearTeamLogo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
-import { avatarVersion } from "./user-avatar.ts";
-import { findUserByDiscordId } from "./users.ts";
+import { avatarVersion, findUserByDiscordId } from "./users.ts";
 
 export const MAX_TEAM_MEMBERS = 10;
 /** Team cards show at most this many universities, then "+n" (SPEC P0-3). */

@@ -14,7 +14,7 @@ import {
 import { emailSchema, parseInput, realNameSchema } from "./schemas.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
-import { avatarVersion } from "./user-avatar.ts";
+import { avatarVersion } from "./users.ts";
 import {
   readStudentStatus,
   removeFilesAfterCommit,

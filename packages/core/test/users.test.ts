@@ -79,8 +79,15 @@ describe("getCurrentUser", () => {
       dmFailedAt: NOW,
       staffRole: null,
       setupStep: null,
+      avatarVersion: null,
     });
     expect(await getCurrentUser(admin.id)).toMatchObject({ staffRole: "ADMIN" });
+  });
+
+  it("returns the version of the avatar copy for the header (§5.14)", async () => {
+    const user = await createUser();
+    await prisma.user.update({ where: { id: user.id }, data: { avatarUpdatedAt: NOW } });
+    expect(await getCurrentUser(user.id)).toMatchObject({ avatarVersion: NOW.getTime() });
   });
 
   it("treats missing, deleted and unlinked users as logged out", async () => {

@@ -61,13 +61,16 @@ export async function SiteHeader() {
   // Banned users and incomplete accounts only get Konto: there they may delete their account or
   // finish its setup (ARCHITECTURE §7, §5.8). Verification and logout live under Konto, the admin
   // area on its own address (§5.13).
+  const avatar = user
+    ? { id: user.id, name: user.name, avatarVersion: user.avatarVersion }
+    : undefined;
   const items: NavItem[] = active
     ? [
         { href: "/scrims", label: "Scrims" },
         { href: "/team", label: "Team" },
-        { href: "/account", label: "Konto", dot: !user.verifiedAt },
+        { href: "/account", label: "Konto", dot: !user.verifiedAt, avatar },
       ]
-    : [{ href: "/account", label: "Konto" }];
+    : [{ href: "/account", label: "Konto", avatar }];
 
   return (
     <>

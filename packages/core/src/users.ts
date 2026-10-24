@@ -207,6 +207,11 @@ export async function accountCreateProblem(
   return existing ? "already linked" : null;
 }
 
+/** URL version of a user's avatar copy, null without one (§5.12). */
+export function avatarVersion(user: { avatarUpdatedAt: Date | null }): number | null {
+  return user.avatarUpdatedAt?.getTime() ?? null;
+}
+
 /**
  * Header, navigation and the Discord banner. Does not reject banned users. null for a user that
  * requireAccountUser treats as logged out (isLoggedOutUser). setupStep tells what the account still
@@ -228,6 +233,7 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
       firstName: true,
       emailVerified: true,
       staffRole: true,
+      avatarUpdatedAt: true,
     },
   });
   if (!user) return null;
@@ -244,6 +250,8 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
     /** Shows the admin link; the admin pages check the role per area themselves (§5.9). */
     staffRole: user.staffRole,
     setupStep: accountSetupStep(user, discordId !== null),
+    /** For the avatar next to "Konto" (§5.14). */
+    avatarVersion: avatarVersion(user),
   };
 }
 

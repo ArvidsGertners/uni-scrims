@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { MenuIcon, XIcon } from "@/components/icons";
+import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
 
 export type NavItem = {
@@ -11,6 +12,8 @@ export type NavItem = {
   label: string;
   /** Warning dot, e.g. on "Konto" while the user is not verified. */
   dot?: boolean;
+  /** The own avatar in front of the label, on "Konto" (§5.14). */
+  avatar?: { id: string; name: string; avatarVersion: number | null };
 };
 
 // Request detail and create count as Scrims (design README); the scrim page with the feedback form
@@ -45,6 +48,7 @@ export function HeaderNav({ items }: { items: NavItem[] }) {
                 active && "text-foreground",
               )}
             >
+              {item.avatar ? <UserAvatar user={item.avatar} className="size-6 text-[9px]" /> : null}
               {item.label}
               {item.dot ? <span className="size-1.5 rounded-full bg-warning" /> : null}
               {active ? (
@@ -84,6 +88,9 @@ export function HeaderNav({ items }: { items: NavItem[] }) {
                 )}
               >
                 <span className="flex items-center gap-2.5">
+                  {item.avatar ? (
+                    <UserAvatar user={item.avatar} className="size-7 text-[10px]" />
+                  ) : null}
                   {item.label}
                   {item.dot ? <span className="size-[7px] rounded-full bg-warning" /> : null}
                 </span>

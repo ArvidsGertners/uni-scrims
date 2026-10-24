@@ -161,11 +161,6 @@ export async function backfillDiscordAvatars(
   return counts;
 }
 
-/** URL version of a user's avatar copy, null without one (§5.12). */
-export function avatarVersion(user: { avatarUpdatedAt: Date | null }): number | null {
-  return user.avatarUpdatedAt?.getTime() ?? null;
-}
-
 /**
  * The stored avatar and its version. Whoever may not see it gets NOT_FOUND like a missing one, so
  * nobody can find out who has an avatar.

@@ -8,7 +8,7 @@ import { queueNotifications } from "./notifications.ts";
 import { lockUser } from "./locks.ts";
 import { requireReviewer, requireUser } from "./permissions.ts";
 import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./uploads.ts";
-import { avatarVersion } from "./user-avatar.ts";
+import { avatarVersion } from "./users.ts";
 
 export const AUTO_REJECT_REASON = "Prüfung nicht rechtzeitig erfolgt";
 /** Approving needs the file; after restoring a backup it may be missing (§8). */
