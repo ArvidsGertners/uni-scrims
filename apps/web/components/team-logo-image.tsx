@@ -10,11 +10,21 @@ import { teamLogoUrl } from "@/lib/team-logo-url";
  * N-13), which comes from ThemeProvider. Gets only what it shows, so pages pass no further team data
  * to the browser.
  */
+// Padding of the tile per TeamAvatar size, about 10–12 % of its side. Fixed values: a percentage
+// would refer to the width of the parent, not the logo, and squeeze it to nothing in wide rows.
+const TILE_PADDING = {
+  sm: { light: "light:p-1", dark: "dark:p-1" },
+  md: { light: "light:p-[5px]", dark: "dark:p-[5px]" },
+  lg: { light: "light:p-2", dark: "dark:p-2" },
+};
+
 export function TeamLogoImage({
   team,
+  size,
   className,
 }: {
   team: { id: string; logo: TeamLogoInfo };
+  size: keyof typeof TILE_PADDING;
   className?: string;
 }) {
   const theme = useTheme();
@@ -24,8 +34,8 @@ export function TeamLogoImage({
   const imageClass = cn(
     "shrink-0 object-contain",
     // Only one logo: in the other mode it stands on a tile in the colour it was made for.
-    !light && "light:bg-logo-tile-dark light:p-[12%]",
-    !dark && "dark:bg-logo-tile-light dark:p-[12%]",
+    !light && ["light:bg-logo-tile-dark", TILE_PADDING[size].light],
+    !dark && ["dark:bg-logo-tile-light", TILE_PADDING[size].dark],
     className,
   );
   if (dark && light && theme === "SYSTEM") {

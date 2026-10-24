@@ -29,7 +29,13 @@ export function TeamAvatar({
 }) {
   const { logo } = team;
   if (logo) {
-    return <TeamLogoImage team={{ id: team.id, logo }} className={cn(SIZES[size], className)} />;
+    return (
+      <TeamLogoImage
+        team={{ id: team.id, logo }}
+        size={size}
+        className={cn(SIZES[size], className)}
+      />
+    );
   }
   return (
     <span
