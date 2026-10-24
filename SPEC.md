@@ -345,12 +345,12 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Datenauskunft nennt zusätzlich, für welche Hintergründe das Team Logos hat.
 
 **N-8 Discord-Profilbilder** (Phase 12)
-- [ ] Beim Verknüpfen mit Discord und bei jeder Anmeldung über Discord lädt der Server das Profilbild einmal von Discord und speichert eine Kopie (128 × 128 Pixel, neu erzeugt, ohne Metadaten). Animierte Bilder werden als Standbild gespeichert. Discords Standardbilder speichern wir nicht; wer zu einem Standardbild wechselt, verliert die Kopie.
-- [ ] Die Seite zeigt nur diese Kopie: auf der Konto-Seite, in der Mitgliederliste der Team-Seite und in der Prüf-Queue. Kein Browser lädt etwas von Discord. Ohne Kopie stehen wie bisher die Initialen.
-- [ ] Sehen dürfen das Bild die Person selbst, Mitglieder desselben Teams sowie Prüfer, Admins und der Betreiber; alle anderen nicht.
-- [ ] Scheitert das Laden, bleibt die alte Kopie; Anmeldung und Verknüpfen laufen immer weiter. Ein neues Bild auf Discord erscheint erst nach dem nächsten Verknüpfen oder der nächsten Anmeldung über Discord.
-- [ ] Beim Deploy holt ein einmaliges Skript die Bilder der schon verknüpften Konten nach.
-- [ ] Kontolöschung löscht die Kopie. Die Datenauskunft enthält das Bild selbst und den Zeitpunkt der Kopie.
+- [x] Beim Verknüpfen mit Discord und bei jeder Anmeldung über Discord lädt der Server das Profilbild einmal von Discord und speichert eine Kopie (128 × 128 Pixel, neu erzeugt, ohne Metadaten). Animierte Bilder werden als Standbild gespeichert. Discords Standardbilder speichern wir nicht; wer zu einem Standardbild wechselt, verliert die Kopie.
+- [x] Die Seite zeigt nur diese Kopie: auf der Konto-Seite, in der Mitgliederliste der Team-Seite und in der Prüf-Queue. Kein Browser lädt etwas von Discord. Ohne Kopie stehen wie bisher die Initialen.
+- [x] Sehen dürfen das Bild die Person selbst, Mitglieder desselben Teams sowie Prüfer, Admins und der Betreiber; alle anderen nicht.
+- [x] Scheitert das Laden, bleibt die alte Kopie; Anmeldung und Verknüpfen laufen immer weiter. Ein neues Bild auf Discord erscheint erst nach dem nächsten Verknüpfen oder der nächsten Anmeldung über Discord.
+- [x] Beim Deploy holt ein einmaliges Skript die Bilder der schon verknüpften Konten nach.
+- [x] Kontolöschung löscht die Kopie. Die Datenauskunft enthält das Bild selbst und den Zeitpunkt der Kopie.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
