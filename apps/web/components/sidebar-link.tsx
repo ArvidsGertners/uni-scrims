@@ -2,6 +2,46 @@ import { cn } from "cn";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+/** The look of a sidebar entry, also for the button of the account menu (§5.16). */
+export function sidebarEntryClass(active: boolean, className?: string) {
+  return cn(
+    "type-btn flex min-h-10 items-center gap-2.5 rounded-sm px-3 py-1.5 text-[14px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground",
+    active && "bg-secondary text-foreground",
+    className,
+  );
+}
+
+/** Symbol or avatar in front, label with an optional second line, something at the end. */
+export function SidebarEntryContent({
+  leading,
+  label,
+  sub,
+  trailing,
+}: {
+  leading?: ReactNode;
+  label: ReactNode;
+  sub?: ReactNode;
+  trailing?: ReactNode;
+}) {
+  return (
+    <>
+      {/* Icons, avatars and initials are decoration; the label names the entry. */}
+      {leading ? (
+        <span aria-hidden className="flex shrink-0">
+          {leading}
+        </span>
+      ) : null}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate">{label}</span>
+        {sub ? (
+          <span className="truncate text-[12px] font-normal text-muted-foreground">{sub}</span>
+        ) : null}
+      </span>
+      {trailing}
+    </>
+  );
+}
+
 /**
  * One entry of a sidebar (§5.14, §5.15): symbol or avatar in front, label with an optional second
  * line, something at the end (count, warning dot). For the site and the admin area alike.
@@ -30,25 +70,9 @@ export function SidebarLink({
       href={href}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={cn(
-        "type-btn flex min-h-10 items-center gap-2.5 rounded-sm px-3 py-1.5 text-[14px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground",
-        active && "bg-secondary text-foreground",
-        className,
-      )}
+      className={sidebarEntryClass(active, className)}
     >
-      {/* Icons, avatars and initials are decoration; the label names the entry. */}
-      {leading ? (
-        <span aria-hidden className="flex shrink-0">
-          {leading}
-        </span>
-      ) : null}
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate">{label}</span>
-        {sub ? (
-          <span className="truncate text-[12px] font-normal text-muted-foreground">{sub}</span>
-        ) : null}
-      </span>
-      {trailing}
+      <SidebarEntryContent leading={leading} label={label} sub={sub} trailing={trailing} />
     </Link>
   );
 }

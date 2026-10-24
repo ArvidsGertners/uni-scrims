@@ -10,7 +10,7 @@ import { requirePageUser } from "@/lib/session";
 import { AccountTabs } from "../account/account-tabs";
 import { VerificationForm } from "./verification-form";
 
-// A sub page of Konto (SPEC N-11): the page title is Konto, the state below it.
+// A tab of the settings (SPEC N-11, N-13): the page title is Einstellungen, the state below it.
 function Headline({ title, children }: { title: string; children: string }) {
   return (
     <div className="flex flex-col gap-2.5">
@@ -35,7 +35,7 @@ export default async function VerifyPage({
     // (SPEC N-12).
     <PageMain width="wide" className="gap-7">
       <div className="flex min-h-11 items-center">
-        <h1 className="type-h1">Konto</h1>
+        <h1 className="type-h1">Einstellungen</h1>
       </div>
       <AccountTabs current="/verify" unverified={!verifiedAt} />
       <div className="flex w-full max-w-[44rem] flex-col">

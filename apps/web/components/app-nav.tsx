@@ -2,12 +2,29 @@
 
 import type { TeamLogoInfo } from "@uni-scrims/core";
 import { cn } from "cn";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
-import { LayersIcon, MenuIcon, UsersIcon, XIcon } from "@/components/icons";
+import {
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  LayersIcon,
+  MenuIcon,
+  UsersIcon,
+  XIcon,
+} from "@/components/icons";
+import { useLogout } from "@/components/logout-button";
 import { SidebarFrame } from "@/components/sidebar-frame";
-import { SidebarLink } from "@/components/sidebar-link";
+import { SidebarEntryContent, SidebarLink, sidebarEntryClass } from "@/components/sidebar-link";
 import { TeamAvatar } from "@/components/team-avatar";
+import {
+  MenuItem,
+  MenuLinkItem,
+  MenuPopup,
+  MenuRoot,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu";
 import { UserAvatar } from "@/components/user-avatar";
 import { WarningDot } from "@/components/warning-dot";
 
@@ -19,6 +36,8 @@ export type AppNavData = {
   team: { id: string; name: string; tag: string; logo: TeamLogoInfo | null } | null;
   /** The team query failed: a neutral entry instead of claiming there is no team. */
   teamUnavailable: boolean;
+  /** The admin area for staff with an active account (§5.16), else null. */
+  adminUrl: string | null;
 };
 
 type Entry = {
@@ -29,20 +48,17 @@ type Entry = {
   /** Path sections that count as this entry, e.g. request pages as Scrims. */
   sections: string[];
   leading: ReactNode;
-  dot?: boolean;
 };
 
+/** Path sections that count as Konto (§5.16). */
+const ACCOUNT_SECTIONS = ["/account", "/verify", "/support"];
+
+function inSection(sections: string[], pathname: string): boolean {
+  return sections.includes(`/${pathname.split("/")[1] ?? ""}`);
+}
+
 function entries(nav: AppNavData) {
-  const account: Entry = {
-    key: "account",
-    href: "/account",
-    label: nav.account.name,
-    sub: "Konto",
-    sections: ["/account", "/verify"],
-    leading: <UserAvatar user={nav.account} className="size-8 text-[10px]" />,
-    dot: nav.account.unverified,
-  };
-  if (!nav.full) return { top: [], bottom: [account] };
+  if (!nav.full) return { top: [], team: null };
   const team: Entry = {
     key: "team",
     href: "/team",
@@ -64,59 +80,92 @@ function entries(nav: AppNavData) {
     sections: ["/scrims", "/requests"],
     leading: <LayersIcon size={17} />,
   };
-  return { top: [scrims], bottom: [team, account] };
+  return { top: [scrims], team };
 }
 
-function isActive(entry: Entry, pathname: string): boolean {
-  const section = `/${pathname.split("/")[1] ?? ""}`;
-  return entry.sections.includes(section);
-}
-
-function EntryLink({
-  entry,
-  pathname,
-  className,
-  onClick,
-}: {
-  entry: Entry;
-  pathname: string;
-  className?: string;
-  onClick?: () => void;
-}) {
+/** Profile picture, name and "Konto" with the warning dot: the account in both navigations. */
+function AccountContent({ nav, trailing }: { nav: AppNavData; trailing?: ReactNode }) {
   return (
-    <SidebarLink
-      href={entry.href}
-      active={isActive(entry, pathname)}
-      leading={entry.leading}
-      label={entry.label}
-      sub={entry.sub}
-      trailing={entry.dot ? <WarningDot /> : undefined}
-      className={className}
-      onClick={onClick}
+    <SidebarEntryContent
+      leading={<UserAvatar user={nav.account} className="size-8 text-[10px]" />}
+      label={nav.account.name}
+      sub="Konto"
+      trailing={
+        <>
+          {nav.account.unverified ? <WarningDot /> : null}
+          {trailing}
+        </>
+      }
     />
+  );
+}
+
+/** Konto as a menu from 1024 px (§5.16): settings, support, admin area, logout; opens upwards. */
+function AccountMenu({ nav, active }: { nav: AppNavData; active: boolean }) {
+  const logout = useLogout();
+  return (
+    <MenuRoot>
+      <MenuTrigger className={sidebarEntryClass(active, "group w-full cursor-pointer text-left")}>
+        <AccountContent
+          nav={nav}
+          trailing={
+            <ChevronDownIcon
+              size={16}
+              className="shrink-0 rotate-180 transition-transform group-data-popup-open:rotate-0"
+            />
+          }
+        />
+      </MenuTrigger>
+      <MenuPopup side="top">
+        <MenuLinkItem render={<Link href="/account" />}>Einstellungen</MenuLinkItem>
+        <MenuLinkItem render={<Link href="/support" />}>Support</MenuLinkItem>
+        {nav.adminUrl ? (
+          <MenuLinkItem href={nav.adminUrl}>
+            <span className="flex-1">Admin-Bereich</span>
+            <ExternalLinkIcon size={15} className="text-muted-foreground" />
+          </MenuLinkItem>
+        ) : null}
+        <MenuSeparator />
+        <MenuItem onClick={logout}>Abmelden</MenuItem>
+      </MenuPopup>
+    </MenuRoot>
   );
 }
 
 /** From 1024 px: Scrims on top, Team and Konto at the bottom (SidebarFrame). */
 export function AppSidebar({ nav }: { nav: AppNavData }) {
   const pathname = usePathname();
-  const { top, bottom } = entries(nav);
+  const { top, team } = entries(nav);
   return (
     <SidebarFrame
       top={
         top.length > 0 ? (
           <nav aria-label="Hauptmenü" className="flex flex-col gap-0.5">
             {top.map((entry) => (
-              <EntryLink key={entry.key} entry={entry} pathname={pathname} />
+              <SidebarLink
+                key={entry.key}
+                href={entry.href}
+                active={inSection(entry.sections, pathname)}
+                leading={entry.leading}
+                label={entry.label}
+                sub={entry.sub}
+              />
             ))}
           </nav>
         ) : null
       }
       bottom={
         <nav aria-label="Team und Konto" className="flex flex-col gap-1">
-          {bottom.map((entry) => (
-            <EntryLink key={entry.key} entry={entry} pathname={pathname} />
-          ))}
+          {team ? (
+            <SidebarLink
+              href={team.href}
+              active={inSection(team.sections, pathname)}
+              leading={team.leading}
+              label={team.label}
+              sub={team.sub}
+            />
+          ) : null}
+          <AccountMenu nav={nav} active={inSection(ACCOUNT_SECTIONS, pathname)} />
         </nav>
       }
     />
@@ -130,8 +179,10 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
   const close = () => setOpenOn(null);
-  const { top, bottom } = entries(nav);
+  const logout = useLogout();
+  const { top, team } = entries(nav);
   const itemClass = "min-h-14 px-3.5 text-[16px]";
+  const subItemClass = "min-h-12 pl-[3.25rem] text-[15px]";
   // Without ADMIN_URL the admin area has its own sidebar and none of the site (§5.15): there the
   // menu button stays on desktops too.
   const desktop = pathname === "/admin" || pathname.startsWith("/admin/") ? "" : "lg:hidden";
@@ -155,7 +206,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
         <div
           id="mobile-menu"
           className={cn(
-            "absolute inset-x-0 top-16 flex flex-col gap-1 border-b border-border bg-background px-5 pt-2 pb-5 shadow-(--shadow-overlay)",
+            "absolute inset-x-0 top-16 flex max-h-[calc(100dvh-4rem)] flex-col gap-1 overflow-y-auto border-b border-border bg-background px-5 pt-2 pb-5 shadow-(--shadow-overlay)",
             desktop,
           )}
         >
@@ -163,10 +214,13 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
             <>
               <nav aria-label="Hauptmenü" className="flex flex-col gap-1">
                 {top.map((entry) => (
-                  <EntryLink
+                  <SidebarLink
                     key={entry.key}
-                    entry={entry}
-                    pathname={pathname}
+                    href={entry.href}
+                    active={inSection(entry.sections, pathname)}
+                    leading={entry.leading}
+                    label={entry.label}
+                    sub={entry.sub}
                     className={itemClass}
                     onClick={close}
                   />
@@ -176,15 +230,58 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
             </>
           ) : null}
           <nav aria-label="Team und Konto" className="flex flex-col gap-1">
-            {bottom.map((entry) => (
-              <EntryLink
-                key={entry.key}
-                entry={entry}
-                pathname={pathname}
+            {team ? (
+              <SidebarLink
+                href={team.href}
+                active={inSection(team.sections, pathname)}
+                leading={team.leading}
+                label={team.label}
+                sub={team.sub}
                 className={itemClass}
                 onClick={close}
               />
-            ))}
+            ) : null}
+            {/* The account as a heading with the items of the account menu below (§5.16). */}
+            <div className={sidebarEntryClass(false, cn(itemClass, "hover:bg-transparent"))}>
+              <AccountContent nav={nav} />
+            </div>
+            <SidebarLink
+              href="/account"
+              active={inSection(["/account", "/verify"], pathname)}
+              label="Einstellungen"
+              className={subItemClass}
+              onClick={close}
+            />
+            <SidebarLink
+              href="/support"
+              active={inSection(["/support"], pathname)}
+              label="Support"
+              className={subItemClass}
+              onClick={close}
+            />
+            {nav.adminUrl ? (
+              <SidebarLink
+                href={nav.adminUrl}
+                active={false}
+                label="Admin-Bereich"
+                trailing={<ExternalLinkIcon size={15} className="text-muted-foreground" />}
+                className={subItemClass}
+                onClick={close}
+              />
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                void logout();
+              }}
+              className={sidebarEntryClass(
+                false,
+                cn(subItemClass, "w-full cursor-pointer text-left"),
+              )}
+            >
+              Abmelden
+            </button>
           </nav>
         </div>
       ) : null}

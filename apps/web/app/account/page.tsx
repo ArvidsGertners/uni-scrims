@@ -9,13 +9,11 @@ import { DetailRows } from "@/components/detail-rows";
 import { DiscordButton } from "@/components/discord-button";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
 import { CheckIcon } from "@/components/icons";
-import { LogoutButton } from "@/components/logout-button";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { adminUrl } from "@/lib/admin-url";
 import { requirePageAccountUser, setupUrl } from "@/lib/session";
 import {
   changeEmailAction,
@@ -87,10 +85,10 @@ export default async function AccountPage({
 
   return (
     <PageMain width="wide" className="gap-7">
-      {/* min-h-11: the same height as on /verify, so the tabs do not jump (SPEC N-11). */}
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <h1 className="type-h1">Konto</h1>
-        <LogoutButton className={buttonVariants({ variant: "outline", size: "sm" })} />
+      {/* min-h-11: the same height as on /verify, so the tabs do not jump (SPEC N-11). Logging out
+          is in the account menu since Phase 17 (SPEC N-13). */}
+      <div className="flex min-h-11 items-center">
+        <h1 className="type-h1">Einstellungen</h1>
       </div>
       {account.banned || account.setupStep ? null : (
         <AccountTabs current="/account" unverified={account.verification.status !== "VERIFIED"} />
@@ -127,7 +125,7 @@ export default async function AccountPage({
           else on the left, in the order of the page as before (§5.15). */}
       <div
         className={cn(
-          "flex flex-col gap-7 lg:grid-rows-[repeat(5,auto)_1fr] lg:gap-6",
+          "flex flex-col gap-7 lg:grid-rows-[repeat(4,auto)_1fr] lg:gap-6",
           DETAIL_COLUMNS,
         )}
       >
@@ -183,8 +181,10 @@ export default async function AccountPage({
             )}
           </div>
         </DetailRows>
-        <section className={`${cardClass} lg:col-start-2 lg:row-span-6 lg:row-start-1`}>
-          <h2 className="type-label text-muted-foreground">Discord</h2>
+        {/* Linked accounts (SPEC N-13): Discord today, others come with their connection. */}
+        <section className={`${cardClass} lg:col-start-2 lg:row-span-5 lg:row-start-1`}>
+          <h2 className="type-label text-muted-foreground">Verknüpfte Konten</h2>
+          <h3 className="-mb-1 text-[14px] font-medium">Discord</h3>
           {account.hasDiscord ? (
             <>
               <div className="flex items-center gap-3.5">
@@ -304,26 +304,6 @@ export default async function AccountPage({
                 </ActionForm>
               </div>
             ) : null}
-          </section>
-        ) : null}
-        {user.staffRole && !account.banned && !account.setupStep ? (
-          // Replaces the former nav tab: the admin area has its own address (§5.13). Like there, only
-          // for active accounts (requireStaffMember).
-          <section className={`${cardClass} lg:col-start-1`}>
-            <h2 className="type-label text-muted-foreground">Admin-Bereich</h2>
-            <p className="text-[14px] text-pretty text-muted-foreground">
-              Prüf-Queue und Verwaltung liegen auf einer eigenen Seite.
-            </p>
-            <a
-              href={adminUrl("/")}
-              className={buttonVariants({
-                variant: "outline",
-                size: "sm",
-                className: "self-start",
-              })}
-            >
-              Admin-Bereich öffnen
-            </a>
           </section>
         ) : null}
         {/* Data export (SPEC N-5): a plain link, the route answers with a file. */}

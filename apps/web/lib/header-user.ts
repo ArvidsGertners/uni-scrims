@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
 import type { AppNavData } from "@/components/app-nav";
-import { isAdminHost } from "./admin-url.ts";
+import { adminUrl, isAdminHost } from "./admin-url.ts";
 import { getSignedInUser } from "./session.ts";
 
 /** The signed-in user for the header, or null; also null if the database is down, so legal pages still render. */
@@ -55,5 +55,7 @@ export async function siteNav(): Promise<AppNavData | null> {
     },
     team,
     teamUnavailable,
+    // Like the former box on the account page: staff with an active account (§5.16).
+    adminUrl: active && user.staffRole ? adminUrl("/") : null,
   };
 }
