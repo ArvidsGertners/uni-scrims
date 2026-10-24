@@ -38,7 +38,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 | Benachrichtigung über neue Anfragen | Bei wenigen Teams reicht das Board. Später möglich (P1). |
 | Turniere, Ligen, Ranglisten | Das macht die Uniliga. Kein Konkurrenzprodukt. |
 | Match-Stats, VOD-Upload, Ergebnistracking | Kein Kernproblem und viel Aufwand. |
-| Chat zwischen Teams | Discord existiert. Wir zeigen nur den Discord-Namen des Captains an. |
+| Chat zwischen Teams | Discord existiert. Wir zeigen nur den Discord-Namen des Captains an (seit Phase 19 auf Wunsch auch einen Link zum Discord-Server des Teams, N-15). |
 | Einzelspieler-Börse (LFT/LFP) | Anderer Use Case, später möglich. |
 | Monetarisierung | Nicht geplant. |
 | Mobile App | Web-App responsive bauen reicht. |
@@ -97,6 +97,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 33. Als Spieler will ich auf einem großen Bildschirm die ganze Breite nutzen: die Leiste ganz links, die Inhalte daneben über den restlichen Platz.
 34. Als Spieler will ich über mein Konto in der Leiste schnell zu Einstellungen, Support und Abmelden kommen, meine Profil-ID nachsehen und hell oder dunkel unabhängig von meinem Gerät wählen.
 35. Als Spieler will ich selbst bestimmen, welche Benachrichtigungen ich per Discord oder per Mail bekomme, und als Mitglied auch Buchungen und Erinnerungen zu unseren Scrims bekommen, nicht nur der Captain.
+36. Als Captain will ich auf der Team-Seite die Teamdaten und unsere Mitglieder getrennt sehen und Links zu unserem Discord-Server, unserer Website und unseren Kanälen angeben, damit andere Teams uns dort finden.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -190,7 +191,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 **P0-3 Teams**
 - [x] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Iron bis Radiant, englische Rangnamen wie im Spiel üblich)
-- [x] Captain kann Name, Kürzel und Team-Rang ändern; seit Phase 10 auch ein Logo hochladen (N-6)
+- [x] Captain kann Name, Kürzel und Team-Rang ändern; seit Phase 10 auch ein Logo hochladen (N-6), seit Phase 19 auch Links zu Discord-Server, Website und Social Media angeben (N-15)
 - [x] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
 - [x] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite
 - [x] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team
@@ -248,7 +249,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 **P0-10 Rechtliches und Datenschutz**
 - [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
 - [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Bis Phase 6 wurden bei einer erneuten Anmeldung nach der Löschung Discord-Name, Avatar und Session an diesem Platzhalter gespeichert; seit Phase 7 speichert eine Anmeldung über Discord dort nichts mehr, und der Platzhalter bleibt abgemeldet (N-3). Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
-- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3); seit Phase 10 ein optionales Team-Logo, nur als vom Server neu erzeugtes Bild ohne Metadaten (N-6)
+- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3); seit Phase 10 ein optionales Team-Logo, nur als vom Server neu erzeugtes Bild ohne Metadaten (N-6); seit Phase 19 optionale Links des Teams, die der Captain angibt (N-15)
 - [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
 ### Nach dem MVP umgesetzt
@@ -371,14 +372,14 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Im Kopf steht neben „Konto“ das eigene Profilbild (die Kopie aus N-8; ohne Kopie die Initialen), auf dem Desktop und im Handy-Menü. Der Warnpunkt bleibt.
 - [x] Der Admin-Bereich hat am Desktop (ab 1024 px) links eine feste Seitenleiste: Übersicht, Prüf-Queue, Streitfälle, Sperren, Nachrichten, Statistik, Rollen (jeweils nur, was die Rolle sieht), mit der Anzahl offener Prüfungen, Streitfälle und fehlgeschlagener Nachrichten und darunter dem Bot-Status. Ganz unten stehen das eigene Profilbild, der Name, darunter die Rolle (Betreiber, Admin, Prüfer), und „Abmelden“. Auf dem Handy werden die Bereiche zu Tabs zum Wischen, Abmelden bleibt dort im Kopf.
 - [x] Startseite des Admin-Bereichs ist eine Übersicht mit Kacheln: offene Prüfungen (und seit wann die älteste wartet), Streitfälle, fehlgeschlagene Nachrichten und der Bot-Status; die Kacheln der drei Bereiche führen dorthin, die Bot-Kachel zeigt nur den Stand der beiden Schleifen. Prüfer sehen nur die Kachel der Prüf-Queue. Die Prüf-Queue liegt unter /queue. Die Warnung zu fehlenden Rechtstexten bleibt für Admins sichtbar.
-- [x] Die Team-Seite zeigt oben Kacheln: Mitglieder (x von 10), verifizierte Spieler (x von 5, spielbereit oder wie viele fehlen), Zuverlässigkeit (gespielt, No-Shows, kurzfristige Absagen, Ø Bewertung; dieselben Werte, die andere Teams auf dem Board sehen) und das nächste anstehende Scrim (verlinkt; ohne Scrim ein Link zum Board). Darunter am Desktop zwei Spalten: links der Kader, rechts Einladen und Team bearbeiten (nur für den Captain). Auf dem Handy bleibt alles untereinander. Funktionen und Rechte der Team-Seite ändern sich nicht.
+- [x] Die Team-Seite zeigt oben Kacheln: Mitglieder (x von 10), verifizierte Spieler (x von 5, spielbereit oder wie viele fehlen), Zuverlässigkeit (gespielt, No-Shows, kurzfristige Absagen, Ø Bewertung; dieselben Werte, die andere Teams auf dem Board sehen) und das nächste anstehende Scrim (verlinkt; ohne Scrim ein Link zum Board). Darunter am Desktop zwei Spalten: links der Kader, rechts Einladen und Team bearbeiten (nur für den Captain). Auf dem Handy bleibt alles untereinander. Funktionen und Rechte der Team-Seite ändern sich nicht. Seit Phase 19 auf die Tabs „Team“ und „Mitglieder“ verteilt (N-15).
 
 
 **N-11 Die ganze Seite im Dashboard-Layout** (Phase 15)
 - [x] Angemeldet hat die Seite am Desktop (ab 1024 px) links eine feste Seitenleiste wie der Admin-Bereich: oben „Scrims“, unten „Team“ mit dem Team-Logo (oder Kürzel) und dem Teamnamen, darunter „Konto“ mit dem Profilbild und dem Discord-Namen. Ohne Team steht dort „Team“ mit dem Hinweis zum Gründen oder Beitreten. Der Eintrag der aktuellen Seite ist markiert, auch auf Detailseiten (Anfrage, Scrim) und der Verifizierung. Der Warnpunkt für eine fehlende Verifizierung steht an „Konto“.
 - [x] Die Kopfzeile mit dem Logo bleibt; die Navigation steht am Desktop nur noch in der Leiste. Unter 1024 px öffnet wie bisher der Menü-Knopf dieselben Einträge in derselben Reihenfolge (Scrims oben, Team und Konto unten).
 - [x] Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“. Abgemeldet (Startseite, Anmeldung, Rechtstexte) bleibt die Seite ohne Leiste. Der Admin-Bereich behält seine eigene Leiste.
-- [x] Unterseiten stehen als Tabs oben im Inhalt: auf „Scrims“ die Tabs aus N-9, auf „Konto“ die Tabs „Konto“ und „Verifizierung“ (statt des Zurück-Links). Die Team-Seite hat keine Unterseiten. Funktionen und Rechte ändern sich nicht.
+- [x] Unterseiten stehen als Tabs oben im Inhalt: auf „Scrims“ die Tabs aus N-9, auf „Konto“ die Tabs „Konto“ und „Verifizierung“ (statt des Zurück-Links). Die Team-Seite hat keine Unterseiten (seit Phase 19 die Tabs „Team“ und „Mitglieder“, N-15). Funktionen und Rechte ändern sich nicht.
 
 **N-12 Volle Breite** (Phase 16)
 - [x] Am Desktop (ab 1024 px) steht die Seitenleiste ganz links am Bildschirmrand, auf der Seite wie im Admin-Bereich. Kopf (das Logo über der Leiste), Discord-Hinweis und Fußzeile gehen über die ganze Breite.
@@ -399,6 +400,16 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Mails gehen an die bestätigte Adresse des Kontos, als reiner Text auf Deutsch von `noreply@uniscrims.com`, mit dem Link zur passenden Seite und dem Hinweis, wo man sie abschaltet. Kommt eine Mail nicht an, versucht der Bot es mehrmals wie bei Discord; der Hinweis auf der Website hängt nur an DMs.
 - [x] Nicht einstellbar sind die Konto-Mails (Bestätigung, Passwort, E-Mail-Wechsel) und die Posts im Team-Channel; die gehören zum Team.
 - [x] Wer Discord für alle Benachrichtigungen abschaltet, sieht den Hinweis zu blockierten DMs nicht mehr. Die Datenauskunft enthält die Einstellungen und die persönlichen Nachrichten (DMs und Mails); die Kontolöschung löscht beides. Die Datenschutzerklärung nennt die Mails für Benachrichtigungen.
+
+**N-15 Team-Tabs und Links** (Phase 19)
+- [ ] Die Team-Seite hat zwei Tabs: „Team“ und „Mitglieder“. Über beiden stehen das Logo (oder Kürzel) und der Teamname. Ohne Team bleibt die Seite wie bisher (Gründen, Beitreten) ohne Tabs, und „Mitglieder“ führt auf die Team-Seite.
+- [ ] Tab „Team“: oben die Kacheln aus N-10. Links die Karte „Team ‹Name›“ mit Name, Kürzel, Team-ID (nicht änderbar, zum Kopieren), Spiel (Valorant, nicht änderbar), Team-Rang und Hochschulen; der Captain ändert dort Name, Kürzel und Rang wie bisher (der Rang bis Phase 20). Darunter für den Captain die Logos (N-7). Rechts „Interne Links“ mit dem Einladungslink (Kopieren, Erneuern; nur für den Captain, wie bisher) und „Externe Links“. Ganz unten Team verlassen bzw. auflösen. Am Desktop zwei Spalten wie bisher (für den Captain ab 768 px, sonst ab 1024 px), darunter alles untereinander.
+- [ ] Externe Links: Discord-Server, Website, X, Instagram, Twitch, YouTube und TikTok, jeder optional. Nur der Captain eines nicht gesperrten Teams setzt, ändert und entfernt sie (auch ohne eigene Verifizierung); ein leeres Feld entfernt den Link. Die anderen Mitglieder sehen die Links im Kasten nur zum Lesen.
+- [ ] Erlaubt sind nur https-Adressen (fehlt „https://“, wird es ergänzt; „http://“ wird abgelehnt), ohne Zugangsdaten und Port, mit höchstens 300 Zeichen. Jede Plattform nimmt nur ihre eigenen Adressen mit einem Pfad zum Profil, jeweils auch mit „www.“: Discord nur Einladungen (discord.gg/… oder discord.com/invite/…), X x.com oder twitter.com, Instagram instagram.com, Twitch twitch.tv, YouTube youtube.com (auch m.youtube.com), TikTok tiktok.com/@…; die Website jede Adresse mit Domain (keine IP-Adresse, nicht localhost). Andere werden mit einem Hinweis abgelehnt, der die Plattform nennt. Was hinter einem Link steht, prüft die Seite nicht.
+- [ ] Sehen dürfen die Links alle eingeloggten, nicht gesperrten Nutzer, wie Teamnamen: als kleine Symbole neben dem Teamnamen auf der Anfrage-Seite, bei jeder Bewerbung und auf der Scrim-Seite neben dem Gegner, nicht auf dem Board. Ein Klick öffnet die Seite in einem neuen Tab, ohne Referrer. Die Symbole liegen auf unserem Server; beim Anzeigen lädt der Browser nichts von den Plattformen.
+- [ ] Tab „Mitglieder“: eine Tabelle mit Mitglied (Profilbild, Discord-Name), Rolle, beigetreten (Datum), Status (Verifiziert, In Prüfung, Nicht verifiziert; bei Coaches, die nicht Captain sind, „Nicht nötig“) und für den Captain die Aktionen wie bisher (Rolle setzen, „Zum Captain“, Entfernen). Auf dem Handy wird jede Zeile ein Block. Darunter eine feste Tabelle „Rollen und Rechte“ (Captain, Spieler, Ersatz, Coach) mit den Rechten aus der Berechtigungstabelle (ARCHITECTURE §7).
+- [ ] Admins sehen die Links eines Teams auf der Seite „Sperren“ als Adressen und entfernen mit „Links entfernen“ alle auf einmal, nur wenn sie den aktuellen Stand gesehen haben (wie bei Logos, N-6), auch bei gesperrten Teams. Beim Auflösen eines Teams werden seine Links gelöscht; bei einer Sperre bleiben sie, bis ein Admin sie entfernt.
+- [ ] Die Datenauskunft nennt beim Team die Links und wann sie zuletzt geändert wurden. Die Datenschutzerklärung nennt die Links. Sonst ändern sich Funktionen und Rechte der Team-Seite nicht.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -481,6 +492,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Eigener VPS | Du betreibst ein System, das kurzzeitig ausweisähnliche Dokumente hält: Updates, Zugangsschutz und Vorfallreaktion liegen bei dir. |
 | Altersbestätigung nur per Checkbox | Wer den Login-Endpunkt direkt aufruft, umgeht sie, und es wird kein Nachweis gespeichert. Im MVP bewusst akzeptiert. |
 | Team-Logos ohne Vorabprüfung | Ein unpassendes Logo ist sofort für alle Eingeloggten sichtbar, bis ein Admin es entfernt. Nach einer Wiederherstellung aus dem Backup kann ein entferntes Logo zurückkommen. |
+| Externe Team-Links ohne Vorabprüfung (seit Phase 19) | Geprüft wird nur, dass ein Link zur richtigen Plattform führt, nicht, was dort steht. Ein unpassender Link ist sofort für alle Eingeloggten sichtbar, bis ein Admin ihn entfernt; wie bei Logos kann er nach einer Wiederherstellung aus dem Backup zurückkommen. |
 | Wiederherstellung aus dem Backup | Sperren und Kontolöschungen nach dem Backup (seit dem letzten gelungenen Backup, normalerweise höchstens ein Tag) werden aus der alten Datenbank nachgezogen. Ist sie verloren, fehlen sie: Gelöschte Konten stehen dann wieder mit den Daten vom Backup-Zeitpunkt in der Datenbank, bis sie erneut gelöscht werden, und Sperren müssen neu gesetzt werden. Steht in der Datenschutzerklärung. |
 
 **Vor dem Launch geklärt** (Texte liegen außerhalb von Git in `LEGAL_DIR`, siehe ARCHITECTURE §8)
@@ -525,6 +537,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 16 | Volle Breite (N-12) | Am Desktop steht die Leiste ganz links, Seite und Admin-Bereich nutzen den Platz daneben (Scrims in Spalten, Detailseiten zweispaltig); Formulare bleiben schmal; unter 1024 px bleibt alles, wie es ist |
 | 17 | Konto-Menü, Einstellungen, Design und Support (N-13) | „Konto“ öffnet ein Menü mit Einstellungen, Support, Admin-Bereich und Abmelden; die Einstellungen zeigen Profil-ID, Design und verknüpfte Konten; Hell und Dunkel lassen sich fest wählen und gelten überall; die Support-Seite nennt Discord und support@uniscrims.com |
 | 18 | Benachrichtigungen einstellen (N-14) | Jede Benachrichtigung lässt sich per Discord und/oder Mail ein- und ausschalten; ohne Einstellung bleibt alles wie bisher; Mitglieder bekommen Scrim-Benachrichtigungen, wenn sie sie einschalten; Mails kommen als reiner Text mit Link und Abmelde-Hinweis |
+| 19 | Team-Tabs und Links (N-15) | Die Team-Seite hat die Tabs „Team“ (Karte mit Team-ID und Spiel, Logos, Einladung, externe Links) und „Mitglieder“ (Tabelle mit Beitrittsdatum, Rollen und Rechte); falsche Links werden abgelehnt; andere Teams sehen die Links auf Anfrage, Bewerbung und Scrim; ein Admin kann sie entfernen |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
