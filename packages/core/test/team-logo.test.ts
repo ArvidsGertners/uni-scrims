@@ -1,3 +1,4 @@
+import { crc32 } from "node:zlib";
 import { prisma } from "@uni-scrims/db";
 import { fileTypeFromBuffer } from "file-type";
 import sharp from "sharp";
@@ -61,6 +62,20 @@ async function inspect(bytes: Uint8Array) {
     height: info.height,
     box: logoContentBox(alpha, info.width, info.height),
   };
+}
+
+/** The PNG with an acTL chunk after IHDR, as animated PNGs have. */
+function withAnimationChunk(png: Uint8Array): Uint8Array {
+  const data = Buffer.alloc(8); // 1 frame, endless
+  data.writeUInt32BE(1, 0);
+  const type = Buffer.from("acTL");
+  const chunk = Buffer.alloc(12 + data.length);
+  chunk.writeUInt32BE(data.length, 0);
+  type.copy(chunk, 4);
+  data.copy(chunk, 8);
+  chunk.writeUInt32BE(crc32(Buffer.concat([type, data])), 8 + data.length);
+  const afterHeader = 8 + 25; // signature, IHDR
+  return Buffer.concat([png.subarray(0, afterHeader), chunk, png.subarray(afterHeader)]);
 }
 
 function touchedEdges(box: Box): number {
@@ -155,6 +170,39 @@ describe("processTeamLogo (SPEC N-6)", () => {
         .toBuffer(),
     );
     await expect(processTeamLogo(animated)).rejects.toThrow("Animierte Logos gehen nicht.");
+    // An animated PNG: file-type sees the acTL chunk and calls it image/apng.
+    await expect(
+      processTeamLogo(
+        withAnimationChunk(await logo(200, 200, [{ left: 0, top: 0, width: 150, height: 150 }])),
+      ),
+    ).rejects.toThrow("Animierte Logos gehen nicht.");
+  });
+
+  it("turns the image upright by its EXIF orientation first", async () => {
+    // Wide content, stored turned: orientation 6 shows it rotated by 90°, so tall.
+    const turned = new Uint8Array(
+      await sharp(await logo(600, 400, [{ left: 100, top: 100, width: 300, height: 100 }]))
+        .withMetadata({ orientation: 6 })
+        .webp({ lossless: true })
+        .toBuffer(),
+    );
+    expect((await sharp(turned).metadata()).orientation).toBe(6);
+    const { box } = await inspect(await processTeamLogo(turned));
+    expect(box).toMatchObject({ top: 0, height: LOGO_SIZE });
+  });
+
+  it("turns uploads away while too many logos are processed", async () => {
+    const file = await logo(1500, 1000, [{ left: 100, top: 100, width: 1200, height: 800 }]);
+    const results = await Promise.allSettled(
+      Array.from({ length: 8 }, () => processTeamLogo(file)),
+    );
+    const rejected = results.filter((result) => result.status === "rejected");
+    expect(rejected.length).toBeGreaterThan(0);
+    for (const result of rejected) {
+      expect(result.reason).toMatchObject({ code: "CONFLICT" });
+    }
+    // Once the queue is empty, the next upload goes through.
+    await expect(processTeamLogo(file)).resolves.toBeInstanceOf(Uint8Array);
   });
 
   it("rejects empty, fully transparent, too small, too large and too many pixels", async () => {
@@ -189,7 +237,8 @@ describe("team logo actions", () => {
     });
     const viewer = await createUser();
     const stored = await getTeamLogo({ userId: viewer.id, teamId: team.id });
-    expect((await inspect(stored)).width).toBe(LOGO_SIZE);
+    expect(stored.version).toBe(NOW.getTime());
+    expect((await inspect(stored.data)).width).toBe(LOGO_SIZE);
 
     const later = new Date(NOW.getTime() + 1000);
     await setTeamLogo({ userId: captain.id, teamId: team.id, file: await upload(), now: later });
@@ -228,16 +277,23 @@ describe("team logo actions", () => {
   it("lets admins remove a logo, also of a banned team; banned users cannot fetch logos", async () => {
     const { team, captain } = await createTeamWithMembers();
     await setTeamLogo({ userId: captain.id, teamId: team.id, file: await upload(), now: NOW });
+    const logoVersion = NOW.getTime();
     await expect(
-      removeTeamLogoAsAdmin({ adminId: captain.id, teamId: team.id }),
+      removeTeamLogoAsAdmin({ adminId: captain.id, teamId: team.id, logoVersion }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     const banned = await createUser({ banned: true });
     await expect(getTeamLogo({ userId: banned.id, teamId: team.id })).rejects.toMatchObject({
       code: "BANNED",
     });
 
+    // A logo the admin did not see (replaced meanwhile) stays.
+    await expect(
+      removeTeamLogoAsAdmin({ adminId: admin.id, teamId: team.id, logoVersion: logoVersion - 1 }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(1);
+
     await prisma.team.update({ where: { id: team.id }, data: { bannedAt: NOW } });
-    await removeTeamLogoAsAdmin({ adminId: admin.id, teamId: team.id });
+    await removeTeamLogoAsAdmin({ adminId: admin.id, teamId: team.id, logoVersion });
     expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(0);
     expect(
       (await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).logoUpdatedAt,
@@ -254,7 +310,7 @@ describe("team logo actions", () => {
       logoUpdatedAt: null,
     });
     await expect(
-      removeTeamLogoAsAdmin({ adminId: admin.id, teamId: team.id }),
+      removeTeamLogoAsAdmin({ adminId: admin.id, teamId: team.id, logoVersion: NOW.getTime() }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 

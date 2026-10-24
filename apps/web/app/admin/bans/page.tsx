@@ -134,6 +134,8 @@ export default async function BansPage({
                     confirmText={`Logo von ${team.name} entfernen?`}
                   >
                     <input type="hidden" name="teamId" value={team.id} />
+                    {/* Only the logo shown here, not one uploaded since (SPEC N-6). */}
+                    <input type="hidden" name="logoVersion" value={team.logoVersion} />
                   </ActionForm>
                 )}
               </div>

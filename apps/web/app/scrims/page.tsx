@@ -179,7 +179,11 @@ function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
             <TeamAvatar
               team={ownTeam}
               own
-              className="relative z-[1] shadow-[0_0_0_3px_var(--card)]"
+              className={cn(
+                "relative z-[1] shadow-[0_0_0_3px_var(--card)]",
+                // A transparent logo would let the opponent show through underneath.
+                ownTeam.logoVersion !== null && "bg-card",
+              )}
             />
             <TeamAvatar team={scrim.opponent} className="-ml-2" />
           </div>

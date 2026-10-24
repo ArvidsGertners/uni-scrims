@@ -483,7 +483,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     createdAt: SHOWN,
     logoUpdatedAt: SHOWN,
   },
-  TeamLogo: { teamId: KEY, data: "Teamdaten, das Bild ist über die Seite abrufbar" },
+  TeamLogo: { teamId: KEY, data: TEAM },
   TeamMember: { teamId: SHOWN, userId: SELF, role: SHOWN, joinedAt: SHOWN },
   ScrimRequest: {
     id: KEY,

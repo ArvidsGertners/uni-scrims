@@ -101,9 +101,10 @@ export async function removeTeamLogoAction(
 ): Promise<ActionState> {
   const adminId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
-  if (!teamId.success) return invalidInput;
+  const logoVersion = z.coerce.number().int().safeParse(formField(formData, "logoVersion"));
+  if (!teamId.success || !logoVersion.success) return invalidInput;
   const state = await runAction(async () => {
-    await removeTeamLogoAsAdmin({ adminId, teamId: teamId.data });
+    await removeTeamLogoAsAdmin({ adminId, teamId: teamId.data, logoVersion: logoVersion.data });
   });
   revalidatePath("/admin/bans");
   return state;

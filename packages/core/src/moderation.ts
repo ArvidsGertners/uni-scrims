@@ -109,16 +109,29 @@ export async function banTeamInTx(
   return true;
 }
 
-/** Moderation of logos (SPEC N-6): also for banned teams; a dissolved team has no logo left. */
-export async function removeTeamLogoAsAdmin(input: { adminId: string; teamId: string }) {
+/**
+ * Moderation of logos (SPEC N-6): also for banned teams; a dissolved team has no logo left. Only
+ * the logo the admin looked at (`logoVersion`), not one the captain uploaded in the meantime.
+ */
+export async function removeTeamLogoAsAdmin(input: {
+  adminId: string;
+  teamId: string;
+  logoVersion: number;
+}) {
   await requireAdmin(input.adminId);
   await prisma.$transaction(async (tx) => {
     await lockTeam(tx, input.teamId);
     const team = await tx.team.findUnique({
       where: { id: input.teamId },
-      select: { dissolvedAt: true },
+      select: { dissolvedAt: true, logoUpdatedAt: true },
     });
     if (!team || team.dissolvedAt) throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
+    if (logoVersion(team) !== input.logoVersion) {
+      throw new DomainError(
+        "CONFLICT",
+        "Das Logo hat sich inzwischen geändert. Sieh es dir erneut an.",
+      );
+    }
     await clearTeamLogo(tx, input.teamId);
   });
 }

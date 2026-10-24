@@ -49,6 +49,38 @@ export function logoContentBox(alpha: Uint8Array, width: number, height: number)
   return right < 0 ? null : { left, top, width: right - left + 1, height: bottom - top + 1 };
 }
 
+/** Logos processed at once and logos waiting; more uploads are turned away for the moment. */
+const LOGO_JOBS_RUNNING = 1;
+const LOGO_JOBS_WAITING = 3;
+let logoJobs = 0;
+const logoQueue: (() => void)[] = [];
+
+/**
+ * Runs one logo job at a time: a large upload briefly needs tens of MB and some time on the main
+ * thread, and any logged-in user can found a team (§5.11).
+ */
+async function inLogoQueue<T>(job: () => Promise<T>): Promise<T> {
+  if (logoJobs < LOGO_JOBS_RUNNING) {
+    logoJobs++;
+  } else {
+    if (logoQueue.length >= LOGO_JOBS_WAITING) {
+      throw new DomainError(
+        "CONFLICT",
+        "Gerade werden viele Logos hochgeladen. Bitte versuch es gleich noch einmal.",
+      );
+    }
+    // The finishing job hands its slot on, so the count stays.
+    await new Promise<void>((resolve) => logoQueue.push(resolve));
+  }
+  try {
+    return await job();
+  } finally {
+    const next = logoQueue.shift();
+    if (next) next();
+    else logoJobs--;
+  }
+}
+
 /**
  * Checks an uploaded logo and returns the image to store: trimmed to its content and fitted into
  * a transparent 256×256 square, so it touches at least two opposite edges. The uploaded bytes
@@ -58,16 +90,26 @@ export async function processTeamLogo(bytes: Uint8Array): Promise<Uint8Array<Arr
   if (bytes.byteLength === 0) throw invalid("Die Datei ist leer.");
   if (bytes.byteLength > MAX_LOGO_BYTES) throw invalid("Die Datei ist größer als 2 MB.");
   const type = await fileTypeFromBuffer(bytes);
+  // file-type names animated PNGs (with an acTL chunk) image/apng.
+  if (type?.mime === "image/apng") throw invalid("Animierte Logos gehen nicht.");
   if (!type || !ALLOWED_LOGO_TYPES.has(type.mime)) {
     throw invalid("Erlaubt sind nur PNG und WebP.");
   }
+  return inLogoQueue(() => renderTeamLogo(bytes));
+}
 
+async function renderTeamLogo(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
   // Loaded on first use, so the bot, which shares core, never loads the native module.
   const { default: sharp } = await import("sharp");
-  const input = { limitInputPixels: MAX_LOGO_PIXELS };
+  // Every read decodes with the pixel limit and turns the image upright by its EXIF orientation
+  // first, as viewers show it; then 8-bit sRGB with alpha, also for 16-bit or grey images.
+  const image = () =>
+    sharp(bytes, { limitInputPixels: MAX_LOGO_PIXELS, autoOrient: true })
+      .toColourspace("srgb")
+      .ensureAlpha();
   let metadata: Awaited<ReturnType<ReturnType<typeof sharp>["metadata"]>>;
   try {
-    metadata = await sharp(bytes, input).metadata();
+    metadata = await sharp(bytes).metadata();
   } catch {
     throw invalid("Das Bild lässt sich nicht lesen.");
   }
@@ -81,26 +123,23 @@ export async function processTeamLogo(bytes: Uint8Array): Promise<Uint8Array<Arr
     );
   }
 
-  let raw: { data: Buffer; info: { width: number; height: number } };
+  // Only the alpha channel comes into JavaScript: one byte per pixel.
+  let alpha: { data: Buffer; info: { width: number; height: number } };
   try {
-    raw = await sharp(bytes, input)
-      .toColourspace("srgb")
-      .ensureAlpha()
+    alpha = await image()
+      .extractChannel(3)
       .raw({ depth: "uchar" })
       .toBuffer({ resolveWithObject: true });
   } catch {
     throw invalid("Das Bild lässt sich nicht lesen.");
   }
-  const { width, height } = raw.info;
-  const alpha = new Uint8Array(width * height);
-  for (let pixel = 0; pixel < alpha.length; pixel++) alpha[pixel] = raw.data[pixel * 4 + 3]!;
-  const box = logoContentBox(alpha, width, height);
+  const box = logoContentBox(alpha.data, alpha.info.width, alpha.info.height);
   if (!box) throw invalid("Das Logo ist komplett durchsichtig.");
   if (Math.max(box.width, box.height) < MIN_LOGO_CONTENT) {
     throw invalid("Das Logo ist zu klein (mindestens 128 Pixel ohne durchsichtigen Rand).");
   }
 
-  const logo = await sharp(raw.data, { raw: { width, height, channels: 4 } })
+  const logo = await image()
     .extract(box)
     .resize(LOGO_SIZE, LOGO_SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .webp({ lossless: true })
@@ -151,16 +190,19 @@ export async function removeTeamLogo(input: { userId: string; teamId: string }):
   });
 }
 
-/** The stored WebP for logged-in users who are not banned, like team cards; dissolved teams have none. */
+/**
+ * The stored WebP and its version for logged-in users who are not banned, like team cards;
+ * dissolved teams have none.
+ */
 export async function getTeamLogo(input: {
   userId: string;
   teamId: string;
-}): Promise<Uint8Array<ArrayBuffer>> {
+}): Promise<{ data: Uint8Array<ArrayBuffer>; version: number }> {
   await requireUser(input.userId);
   const team = await prisma.team.findFirst({
     where: { id: input.teamId, dissolvedAt: null },
-    select: { logo: { select: { data: true } } },
+    select: { logoUpdatedAt: true, logo: { select: { data: true } } },
   });
-  if (!team?.logo) throw new DomainError("NOT_FOUND", "Kein Logo.");
-  return team.logo.data;
+  if (!team?.logo || !team.logoUpdatedAt) throw new DomainError("NOT_FOUND", "Kein Logo.");
+  return { data: team.logo.data, version: team.logoUpdatedAt.getTime() };
 }

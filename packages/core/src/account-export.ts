@@ -284,7 +284,7 @@ export async function exportAccountData(input: {
                 kürzel: team.tag,
                 rang: RANK_LABELS[team.rank],
                 gesperrtAm: team.bannedAt,
-                // The image itself is team data and can be fetched on the site (SPEC N-6).
+                // The image itself is team data without personal reference (SPEC N-6).
                 logoSeit: team.logoUpdatedAt,
                 rolle: MEMBER_ROLE_LABELS[membership.role],
                 captain: isCaptainOf(user, team),

@@ -18,6 +18,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
 import { setFlash } from "@/lib/flash";
+import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
 // Shape check only; the content rules (lengths, rank) live in core's teamInputSchema.
@@ -55,6 +56,7 @@ export async function setTeamLogoAction(_state: ActionState, formData: FormData)
   const file = z.instanceof(File).safeParse(formData.get("logo"));
   if (!teamId.success) return invalidInput;
   if (!file.success || file.data.size === 0) return { error: "Bitte wähle ein Bild aus." };
+  if (!(await allowAttempt("logo"))) return { error: RATE_LIMITED };
   return finish(
     await runAction(async () => {
       await setTeamLogo({

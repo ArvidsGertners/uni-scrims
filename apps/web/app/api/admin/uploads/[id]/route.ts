@@ -1,14 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { getVerificationFile, isDomainError, resolveUploadDir } from "@uni-scrims/core";
+import { statusForDomainError } from "@/lib/route-status";
 import { getSessionUserId } from "@/lib/session";
-
-const STATUS_BY_CODE: Record<string, number> = {
-  UNAUTHENTICATED: 401,
-  BANNED: 403,
-  FORBIDDEN: 403,
-  TWO_FACTOR_REQUIRED: 403,
-  NOT_FOUND: 404,
-};
 
 // Protected file access for the admin queue (ARCHITECTURE §5.2). Excluded from the global
 // frame-ancestors 'none' in next.config.ts so the queue can embed the preview.
@@ -27,7 +20,7 @@ export async function GET(
     bytes = await readFile(file.path);
   } catch (error) {
     if (isDomainError(error)) {
-      return new Response(null, { status: STATUS_BY_CODE[error.code] ?? 400 });
+      return new Response(null, { status: statusForDomainError(error) });
     }
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return new Response(null, { status: 404 });

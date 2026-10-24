@@ -15,8 +15,10 @@ export function TeamLogoForm({ teamId, hasLogo }: { teamId: string; hasLogo: boo
   const [state, action, pending] = useActionState(setTeamLogoAction, initialActionState);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  // A server error belongs to the file it was about; picking another one hides it.
+  const [showServerError, setShowServerError] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
-  const error = fileError ?? state.error;
+  const error = fileError ?? (showServerError ? state.error : null);
 
   return (
     <form
@@ -36,6 +38,7 @@ export function TeamLogoForm({ teamId, hasLogo }: { teamId: string; hasLogo: boo
           return;
         }
         setFileError(null);
+        setShowServerError(true);
         submitKeepingValues(event, action);
       }}
     >
@@ -51,10 +54,17 @@ export function TeamLogoForm({ teamId, hasLogo }: { teamId: string; hasLogo: boo
         onChange={(event) => {
           setFileName(event.currentTarget.files?.[0]?.name ?? null);
           setFileError(null);
+          setShowServerError(false);
         }}
       />
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={() => inputRef.current?.click()}
+        >
           {hasLogo ? "Anderes Bild wählen" : "Bild wählen"}
         </Button>
         <span className="min-w-0 truncate text-[14px] text-muted-foreground">
