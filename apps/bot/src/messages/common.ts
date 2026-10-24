@@ -69,7 +69,7 @@ export function scrimLink(message: ScrimMessage, label = "Scrim ansehen") {
   return { label, path: `/scrims/${message.scrimId}` };
 }
 
-export const BOARD_LINK = { label: "Zum Board", path: "/board" };
+export const BOARD_LINK = { label: "Zum Board", path: "/scrims" };
 
 export function render(message: OutboxMessage, parts: MessageParts, baseUrl: string): MessageBody {
   const embed = new EmbedBuilder()

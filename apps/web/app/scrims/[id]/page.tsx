@@ -37,7 +37,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   if (scrim.canGiveFeedback) {
     return (
       <PageMain className="gap-7">
-        <BackLink href="/scrims">Meine Scrims</BackLink>
+        <BackLink href="/scrims?tab=vergangen">Scrims</BackLink>
         <div className="flex flex-col gap-2.5">
           <span className="type-label text-muted-foreground">Feedback · {when}</span>
           <h1 className="type-h1">Wie war das Scrim gegen {scrim.opponent.name}?</h1>
@@ -66,7 +66,10 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
 
   return (
     <PageMain className="gap-7">
-      <BackLink href="/scrims">Meine Scrims</BackLink>
+      {/* Upcoming scrims are exactly the cancellable ones (getMyScrims). */}
+      <BackLink href={`/scrims?tab=${scrim.cancellable ? "anstehend" : "vergangen"}`}>
+        Scrims
+      </BackLink>
       <div className="flex flex-col gap-2.5">
         <span className="type-label text-muted-foreground">Scrim · {when}</span>
         <h1 className="type-h1">gegen {scrim.opponent.name}</h1>

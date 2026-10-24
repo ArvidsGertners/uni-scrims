@@ -155,7 +155,7 @@ export type BoardInput = {
   now: Date;
 };
 
-/** Open, future requests of active teams (SPEC P0-4). Own requests come separately, unfiltered. */
+/** Open, future requests of other active teams (SPEC P0-4); the own ones are in getMyScrims. */
 export async function getBoard(input: BoardInput) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
@@ -200,19 +200,12 @@ export async function getBoard(input: BoardInput) {
     _count: { select: { applications: { where: { status: AppStatus.PENDING } } } },
   } satisfies Prisma.ScrimRequestInclude;
 
-  const [requests, ownRequests] = await Promise.all([
-    prisma.scrimRequest.findMany({ where: filtered, include, orderBy: { startsAt: "asc" } }),
-    ownTeam
-      ? prisma.scrimRequest.findMany({
-          where: { ...base, teamId: ownTeam.id },
-          include,
-          orderBy: { startsAt: "asc" },
-        })
-      : Promise.resolve([]),
-  ]);
-  const reliabilities = await getReliabilities(
-    [...requests, ...ownRequests].map((request) => request.teamId),
-  );
+  const requests = await prisma.scrimRequest.findMany({
+    where: filtered,
+    include,
+    orderBy: { startsAt: "asc" },
+  });
+  const reliabilities = await getReliabilities(requests.map((request) => request.teamId));
   const ownApplications = ownTeam
     ? await prisma.application.findMany({
         where: { teamId: ownTeam.id, requestId: { in: requests.map((request) => request.id) } },
@@ -239,7 +232,6 @@ export async function getBoard(input: BoardInput) {
       : null,
     filter: { date, ranks },
     requests: requests.map(toCard),
-    ownRequests: ownRequests.map(toCard),
   };
 }
 

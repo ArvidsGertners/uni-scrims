@@ -57,9 +57,9 @@ function linkOf(message: OutboxMessage) {
 const LINKS: Record<NotifType, string> = {
   VERIFICATION_RESULT: "/verify",
   APPLICATION_RECEIVED: "/requests/request-1",
-  APPLICATION_REJECTED: "/board",
-  REQUEST_DELETED: "/board",
-  REQUEST_EXPIRED: "/board",
+  APPLICATION_REJECTED: "/scrims",
+  REQUEST_DELETED: "/scrims",
+  REQUEST_EXPIRED: "/scrims",
   SCRIM_BOOKED: "/scrims/scrim-1",
   SCRIM_CANCELLED: "/scrims/scrim-1",
   REMINDER_24H: "/scrims/scrim-1",

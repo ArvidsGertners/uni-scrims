@@ -63,7 +63,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
 
   return (
     <PageMain className="gap-7">
-      <BackLink href="/board">Zurück zum Board</BackLink>
+      <BackLink href="/scrims">Zurück zum Board</BackLink>
 
       <div className="flex items-center gap-4">
         <TeamAvatar team={team} size="lg" own={ownRequest} />

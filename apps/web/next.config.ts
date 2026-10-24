@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
     // Verification uploads are up to 5 MB (ARCHITECTURE §5.2); the default limit is 1 MB.
     serverActions: { bodySizeLimit: "6mb" },
   },
+  // The board is a tab of /scrims since Phase 13 (§5.13); old links, also in Discord messages,
+  // keep their filters, as redirects pass the query on.
+  async redirects() {
+    return [{ source: "/board", destination: "/scrims", permanent: false }];
+  },
   // Security headers for all pages (ARCHITECTURE §7); HSTS is set in Caddy.
   // The admin upload route sets its own headers, so the queue can embed the preview.
   async headers() {

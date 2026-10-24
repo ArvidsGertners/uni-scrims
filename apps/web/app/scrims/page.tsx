@@ -1,14 +1,33 @@
-import { describeStartShort, getMyScrims } from "@uni-scrims/core";
+import {
+  describeStartShort,
+  formatDayHeading,
+  getBoard,
+  getMyScrims,
+  RANK_LABELS,
+  RANKS,
+  toBerlinDateString,
+} from "@uni-scrims/core";
+import type { Rank } from "@uni-scrims/db";
 import { cn } from "cn";
 import Link from "next/link";
 import { DiscordContact } from "@/components/discord-contact";
 import { EmptyState } from "@/components/empty-state";
-import { CheckIcon, ChevronRightIcon, MessageSquareIcon } from "@/components/icons";
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  MessageSquareIcon,
+  PlusIcon,
+} from "@/components/icons";
+import { ListGroup } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
+import { RequestCard } from "@/components/request-card";
 import { type AvatarTeam, TeamAvatar } from "@/components/team-avatar";
 import { Alert } from "@/components/ui/alert";
 import { Badge, BadgeDot } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Field } from "@/components/ui/field";
 import { requirePageUser } from "@/lib/session";
 import {
   APPLICATION_STATUS_LABELS,
@@ -18,23 +37,32 @@ import {
   formatRankRange,
   formatUniversities,
 } from "@/lib/scrim-format";
+import { RankFilter } from "./rank-filter";
 
+type Board = Awaited<ReturnType<typeof getBoard>>;
 type MyScrims = Awaited<ReturnType<typeof getMyScrims>>;
 
+// Board and Meine Scrims as one page (SPEC N-9); the board is the default tab.
 const TABS = [
+  { key: "board", label: "Board" },
   { key: "anstehend", label: "Anstehend" },
   { key: "anfragen", label: "Anfragen" },
   { key: "bewerbungen", label: "Bewerbungen" },
   { key: "vergangen", label: "Vergangen" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
+type OwnTabKey = Exclude<TabKey, "board">;
 
-const EMPTY: Record<TabKey, { title: string; text: string; cta: string; href: string }> = {
+function tabHref(key: TabKey): string {
+  return key === "board" ? "/scrims" : `/scrims?tab=${key}`;
+}
+
+const EMPTY: Record<OwnTabKey, { title: string; text: string; cta: string; href: string }> = {
   anstehend: {
     title: "Noch keine bestätigten Scrims",
     text: "Bewirb dich auf dem Board oder erstelle eine eigene Anfrage.",
     cta: "Zum Board",
-    href: "/board",
+    href: "/scrims",
   },
   anfragen: {
     title: "Keine offenen Anfragen",
@@ -46,29 +74,66 @@ const EMPTY: Record<TabKey, { title: string; text: string; cta: string; href: st
     title: "Noch keine Bewerbungen",
     text: "Auf dem Board findest du offene Anfragen anderer Teams.",
     cta: "Zum Board",
-    href: "/board",
+    href: "/scrims",
   },
   vergangen: {
     title: "Noch keine gespielten Scrims",
     text: "Nach jedem Match kannst du hier kurz Feedback geben.",
     cta: "Zum Board",
-    href: "/board",
+    href: "/scrims",
   },
 };
+
+function single(value: string | string[] | undefined): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function list(value: string | string[] | undefined): string[] {
+  return value === undefined ? [] : typeof value === "string" ? [value] : value;
+}
+
+function requestCountLabel(count: number): string {
+  return count === 1 ? "1 Anfrage" : `${count} Anfragen`;
+}
+
+/** Requests by Berlin calendar day of their start; the list is sorted by start already. */
+function groupByDay<T extends { startsAt: Date }>(requests: T[]) {
+  const groups: { day: string; title: string; requests: T[] }[] = [];
+  for (const request of requests) {
+    const day = toBerlinDateString(request.startsAt);
+    const last = groups.at(-1);
+    if (last?.day === day) last.requests.push(request);
+    else groups.push({ day, title: formatDayHeading(request.startsAt), requests: [request] });
+  }
+  return groups;
+}
 
 const rowClass =
   "flex items-center gap-3 rounded-lg border border-border bg-card p-4 hover:bg-secondary";
 
-export default async function MyScrimsPage({
+export default async function ScrimsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requirePageUser("/scrims");
-  const { tab: tabParam } = await searchParams;
-  const tab: TabKey = TABS.find((t) => t.key === tabParam)?.key ?? "anstehend";
-  const mine = await getMyScrims({ userId: user.id, now: new Date() });
+  const params = await searchParams;
+  const tab: TabKey = TABS.find((t) => t.key === params.tab)?.key ?? "board";
+  const rankParams = list(params.rang);
+  const now = new Date();
+  const [board, mine] = await Promise.all([
+    getBoard({
+      userId: user.id,
+      date: single(params.datum) ?? null,
+      ranks: rankParams.includes("ALL")
+        ? "ALL"
+        : rankParams.filter((value): value is Rank => RANKS.includes(value as Rank)),
+      now,
+    }),
+    getMyScrims({ userId: user.id, now }),
+  ]);
   const counts: Record<TabKey, number> = {
+    board: board.requests.length,
     anstehend: mine.upcoming.length,
     anfragen: mine.requests.length,
     bewerbungen: mine.applications.length,
@@ -78,8 +143,53 @@ export default async function MyScrimsPage({
 
   return (
     <PageMain className="gap-6">
-      <h1 className="type-h1">Meine Scrims</h1>
-      {!mine.team ? (
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <h1 className="type-h1">Scrims</h1>
+        {board.ownTeam?.isCaptain ? (
+          <Link href="/requests/new" className={buttonVariants({ className: "max-sm:basis-full" })}>
+            <PlusIcon size={18} strokeWidth={2.5} />
+            Anfrage erstellen
+          </Link>
+        ) : null}
+      </div>
+
+      {feedbackDue ? (
+        <Link
+          href={`/scrims/${feedbackDue.id}`}
+          className="flex items-center gap-3 rounded-sm border border-primary bg-accent-soft px-4 py-3.5 hover:bg-accent-soft-hover"
+        >
+          <MessageSquareIcon size={20} />
+          <span className="flex-1 text-[14px]">
+            <span className="font-semibold">Wie war&apos;s gegen {feedbackDue.opponent.name}?</span>{" "}
+            <span className="text-muted-foreground">Kurzes Feedback geben</span>
+          </span>
+          <ChevronRightIcon size={18} strokeWidth={2.5} />
+        </Link>
+      ) : null}
+
+      <nav
+        aria-label="Scrims"
+        className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1"
+      >
+        {TABS.map((t) => (
+          <Link
+            key={t.key}
+            href={tabHref(t.key)}
+            aria-current={t.key === tab ? "page" : undefined}
+            className={cn(
+              "type-btn flex min-h-10 flex-[1_0_auto] items-center justify-center gap-1.5 rounded-sm px-3 text-[14px] font-semibold whitespace-nowrap text-muted-foreground",
+              t.key === tab && "bg-secondary text-foreground",
+            )}
+          >
+            {t.label}
+            <span className="font-label text-[11px] text-faint">{counts[t.key]}</span>
+          </Link>
+        ))}
+      </nav>
+
+      {tab === "board" ? (
+        <BoardTab board={board} hasOwnRequests={mine.requests.length > 0} />
+      ) : !mine.team ? (
         <Alert>
           <span>
             Du bist in keinem Team.{" "}
@@ -88,75 +198,114 @@ export default async function MyScrimsPage({
             </Link>
           </span>
         </Alert>
-      ) : (
-        <>
-          {feedbackDue ? (
+      ) : counts[tab] === 0 ? (
+        <EmptyState
+          compact
+          title={EMPTY[tab].title}
+          action={
             <Link
-              href={`/scrims/${feedbackDue.id}`}
-              className="flex items-center gap-3 rounded-sm border border-primary bg-accent-soft px-4 py-3.5 hover:bg-accent-soft-hover"
+              href={EMPTY[tab].href}
+              className={buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "px-[18px]",
+              })}
             >
-              <MessageSquareIcon size={20} />
-              <span className="flex-1 text-[14px]">
-                <span className="font-semibold">
-                  Wie war&apos;s gegen {feedbackDue.opponent.name}?
-                </span>{" "}
-                <span className="text-muted-foreground">Kurzes Feedback geben</span>
-              </span>
-              <ChevronRightIcon size={18} strokeWidth={2.5} />
+              {EMPTY[tab].cta}
             </Link>
-          ) : null}
-
-          <nav
-            aria-label="Meine Scrims"
-            className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1"
-          >
-            {TABS.map((t) => (
-              <Link
-                key={t.key}
-                href={t.key === "anstehend" ? "/scrims" : `/scrims?tab=${t.key}`}
-                aria-current={t.key === tab ? "page" : undefined}
-                className={cn(
-                  "type-btn flex min-h-10 flex-[1_0_auto] items-center justify-center gap-1.5 rounded-sm px-3 text-[14px] font-semibold whitespace-nowrap text-muted-foreground",
-                  t.key === tab && "bg-secondary text-foreground",
-                )}
-              >
-                {t.label}
-                <span className="font-label text-[11px] text-faint">{counts[t.key]}</span>
-              </Link>
-            ))}
-          </nav>
-
-          {counts[tab] === 0 ? (
-            <EmptyState
-              compact
-              title={EMPTY[tab].title}
-              action={
-                <Link
-                  href={EMPTY[tab].href}
-                  className={buttonVariants({
-                    variant: "outline",
-                    size: "sm",
-                    className: "px-[18px]",
-                  })}
-                >
-                  {EMPTY[tab].cta}
-                </Link>
-              }
-            >
-              {EMPTY[tab].text}
-            </EmptyState>
-          ) : tab === "anstehend" ? (
-            <Upcoming mine={mine} ownTeam={mine.team} />
-          ) : tab === "anfragen" ? (
-            <Requests mine={mine} />
-          ) : tab === "bewerbungen" ? (
-            <Applications mine={mine} />
-          ) : (
-            <Past mine={mine} />
-          )}
-        </>
+          }
+        >
+          {EMPTY[tab].text}
+        </EmptyState>
+      ) : tab === "anstehend" ? (
+        <Upcoming mine={mine} ownTeam={mine.team} />
+      ) : tab === "anfragen" ? (
+        <Requests mine={mine} />
+      ) : tab === "bewerbungen" ? (
+        <Applications mine={mine} />
+      ) : (
+        <Past mine={mine} />
       )}
     </PageMain>
+  );
+}
+
+/** Open requests of other teams with the filters of SPEC P0-4; the own ones are in "Anfragen". */
+function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequests: boolean }) {
+  const filtered = board.filter.date !== null || board.filter.ranks.length > 0;
+  return (
+    <>
+      {/* Keyed by the applied filter: soft navigations would otherwise keep stale select values. */}
+      <form
+        key={`${board.filter.date ?? ""}|${board.filter.ranks.join(",")}`}
+        method="get"
+        action="/scrims"
+        className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"
+      >
+        <Field label="Datum">
+          <DatePicker
+            name="datum"
+            defaultValue={board.filter.date}
+            placeholder="Alle Tage"
+            clearable
+          />
+        </Field>
+        <Field label="Rang im Bereich">
+          <RankFilter
+            defaultValue={board.filter.ranks}
+            options={RANKS.map((value) => ({
+              value,
+              label: RANK_LABELS[value],
+              hint: value === board.ownTeam?.rank ? "euer Rang" : undefined,
+            }))}
+          />
+        </Field>
+        <Button type="submit" variant="outline" className="px-[18px]">
+          Filtern
+        </Button>
+        <Link href="/scrims" className={buttonVariants({ variant: "ghost", className: "px-2.5" })}>
+          Zurücksetzen
+        </Link>
+      </form>
+
+      {board.requests.length === 0 && hasOwnRequests ? (
+        <EmptyState
+          title={
+            filtered ? "Keine passenden Anfragen anderer Teams" : "Noch keine anderen Anfragen"
+          }
+        >
+          Eure eigenen Anfragen stehen unter „Anfragen“. Anfragen anderer Uni-Teams erscheinen hier.
+        </EmptyState>
+      ) : board.requests.length === 0 ? (
+        <EmptyState
+          icon={<CalendarIcon size={26} strokeWidth={1.8} />}
+          title={filtered ? "Keine passenden Anfragen" : "Gerade keine offenen Anfragen"}
+          action={
+            board.ownTeam?.isCaptain ? (
+              <Link href="/requests/new" className={buttonVariants()}>
+                Anfrage erstellen
+              </Link>
+            ) : null
+          }
+        >
+          {filtered
+            ? "Für diese Filter gibt es gerade keine offenen Anfragen anderer Teams."
+            : "Seid das erste Team auf dem Board. Andere Uni-Teams können sich dann bei euch bewerben."}
+        </EmptyState>
+      ) : (
+        groupByDay(board.requests).map((group) => (
+          <ListGroup
+            key={group.day}
+            title={group.title}
+            count={requestCountLabel(group.requests.length)}
+          >
+            {group.requests.map((request) => (
+              <RequestCard key={request.id} request={request} />
+            ))}
+          </ListGroup>
+        ))
+      )}
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 import type { TeamCardData } from "@uni-scrims/core";
-import { describeStart, describeStartTime, RANK_LABELS } from "@uni-scrims/core";
+import { describeStartTime, RANK_LABELS } from "@uni-scrims/core";
 import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
 import { CheckIcon, ChevronRightIcon, ClockIcon, LayersIcon, MapPinIcon } from "@/components/icons";
@@ -26,8 +26,6 @@ type Props = {
     team: TeamCardData;
     ownApplicationStatus: AppStatus | null;
   };
-  /** A request of the user's own team: avatar on accent, and the date, as these are not grouped by day. */
-  own?: boolean;
 };
 
 function applicationCountLabel(count: number): string {
@@ -36,7 +34,7 @@ function applicationCountLabel(count: number): string {
 }
 
 /** Board card (design handoff, card A); the whole card links to the request. */
-export function RequestCard({ request, own = false }: Props) {
+export function RequestCard({ request }: Props) {
   const { team } = request;
   return (
     <Link
@@ -44,7 +42,7 @@ export function RequestCard({ request, own = false }: Props) {
       className="flex flex-col gap-4 rounded-lg border border-border bg-card p-[18px] hover:border-border-strong hover:bg-secondary"
     >
       <div className="flex items-center gap-3">
-        <TeamAvatar team={team} own={own} className={own ? undefined : "border-border"} />
+        <TeamAvatar team={team} className="border-border" />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-[16px] font-semibold">{team.name}</span>
           <span className="truncate text-[13px] text-muted-foreground">
@@ -57,7 +55,7 @@ export function RequestCard({ request, own = false }: Props) {
         <div className="flex flex-wrap gap-x-[18px] gap-y-2 text-[14px] text-muted-foreground">
           <span className="flex items-center gap-1.5 text-foreground">
             <ClockIcon />
-            {own ? describeStart(request.startsAt) : describeStartTime(request.startsAt)}
+            {describeStartTime(request.startsAt)}
           </span>
           <span className="flex items-center gap-1.5">
             <LayersIcon />

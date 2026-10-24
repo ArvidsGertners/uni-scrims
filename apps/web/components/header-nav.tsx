@@ -14,9 +14,9 @@ export type NavItem = {
   dot?: boolean;
 };
 
-// Request detail and create count as Board (design README); the scrim page with the feedback form
-// lives under /scrims already.
-const SECTION_ALIASES: Record<string, string> = { "/requests": "/board" };
+// Request detail and create count as Scrims (design README), like the old board address; the scrim
+// page with the feedback form lives under /scrims already.
+const SECTION_ALIASES: Record<string, string> = { "/requests": "/scrims", "/board": "/scrims" };
 
 function isActive(href: string, pathname: string): boolean {
   const section = `/${pathname.split("/")[1] ?? ""}`;

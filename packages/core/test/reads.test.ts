@@ -171,7 +171,7 @@ describe("getBoard", () => {
     expect((await board("kaputt")).filter.date).toBeNull();
   });
 
-  it("shows card data, the own application and own requests separately", async () => {
+  it("shows card data and the own application, without own requests", async () => {
     const viewer = await createReadyTeam();
     const author = await createReadyTeam();
     const request = await createOpenRequest(author.captain.id);
@@ -206,7 +206,6 @@ describe("getBoard", () => {
       },
     });
     expect(board.requests.map((r) => r.id)).not.toContain(own.id);
-    expect(board.ownRequests.map((r) => r.id)).toEqual([own.id]);
     expect(application.status).toBe(AppStatus.PENDING);
   });
 

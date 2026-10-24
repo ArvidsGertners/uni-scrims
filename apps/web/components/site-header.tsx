@@ -13,8 +13,7 @@ export async function SiteHeader() {
   // finish its setup (ARCHITECTURE §7, §5.8).
   const items: NavItem[] = active
     ? [
-        { href: "/board", label: "Board" },
-        { href: "/scrims", label: "Meine Scrims" },
+        { href: "/scrims", label: "Scrims" },
         { href: "/team", label: "Team" },
         { href: "/verify", label: "Verifizierung", dot: !user.verifiedAt },
         { href: "/account", label: "Konto" },
@@ -27,7 +26,7 @@ export async function SiteHeader() {
       <header className={cn("border-b border-border bg-background", user && "sticky top-0 z-30")}>
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-5 sm:px-8">
           <Link
-            href={active ? "/board" : "/"}
+            href={active ? "/scrims" : "/"}
             className="flex items-center gap-2.5 text-foreground"
           >
             <span aria-hidden className="h-5 w-2.5 -skew-x-14 bg-primary" />

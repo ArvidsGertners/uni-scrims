@@ -29,7 +29,7 @@ const PROBLEM_LINKS: Partial<Record<ProblemKind, { href: string; label: string }
   NOT_CAPTAIN: { href: "/team", label: "Wer ist euer Captain?" },
   CAPTAIN_NOT_VERIFIED: { href: "/verify", label: "Zur Verifizierung" },
   TEAM_NOT_READY: { href: "/team", label: "Zum Team" },
-  REQUEST_LIMIT: { href: "/board", label: "Zum Board (eure Anfragen)" },
+  REQUEST_LIMIT: { href: "/scrims?tab=anfragen", label: "Zu euren Anfragen" },
 };
 
 export default async function NewRequestPage() {
@@ -38,7 +38,7 @@ export default async function NewRequestPage() {
 
   return (
     <PageMain className="gap-7">
-      <BackLink href="/board">Zurück zum Board</BackLink>
+      <BackLink href="/scrims">Zurück zum Board</BackLink>
       <div className="flex flex-col gap-2.5">
         <h1 className="type-h1">Scrim-Anfrage erstellen</h1>
         <p className="text-pretty text-muted-foreground">
@@ -93,7 +93,7 @@ function RequestForm({ defaultRank }: { defaultRank: Rank }) {
       submitClassName="mt-1.5 w-full"
       className="flex flex-col gap-[22px]"
       footer={
-        <Link href="/board" className={buttonVariants({ variant: "ghost", className: "mt-0.5" })}>
+        <Link href="/scrims" className={buttonVariants({ variant: "ghost", className: "mt-0.5" })}>
           Abbrechen
         </Link>
       }

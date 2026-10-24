@@ -50,7 +50,7 @@ export default async function VerifyPage({
             ]}
           />
           <div className="flex flex-wrap gap-2.5">
-            <Link href="/board" className={buttonVariants()}>
+            <Link href="/scrims" className={buttonVariants()}>
               Zum Board
             </Link>
             <Link
@@ -80,7 +80,7 @@ export default async function VerifyPage({
             ]}
           />
           <Link
-            href="/board"
+            href="/scrims"
             className={buttonVariants({ variant: "outline", className: "self-start px-[18px]" })}
           >
             Board schon mal ansehen

@@ -53,7 +53,7 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
   });
   if (!state.done) return state;
   // redirect() throws, so it must stay outside runAction.
-  revalidatePath("/board");
+  revalidatePath("/scrims");
   await setFlash("Anfrage ist jetzt auf dem Board");
   redirect("/scrims?tab=anfragen");
 }
@@ -66,9 +66,9 @@ export async function deleteRequestAction(_state: ActionState, formData: FormDat
     await deleteRequest({ userId, requestId: requestId.data, now: new Date() });
   });
   if (!state.done) return state;
-  revalidatePath("/board");
+  revalidatePath("/scrims");
   await setFlash("Anfrage zurückgezogen");
-  redirect("/board");
+  redirect("/scrims?tab=anfragen");
 }
 
 export async function applyAction(_state: ActionState, formData: FormData) {
@@ -140,7 +140,7 @@ export async function confirmApplicationAction(_state: ActionState, formData: Fo
     revalidatePath(`/requests/${requestId}`);
     return state;
   }
-  revalidatePath("/board");
+  revalidatePath("/scrims");
   await setFlash(`${teamName ?? "Team"} angenommen – beide Teams bekommen eine Discord-Nachricht.`);
   redirect(`/scrims/${scrimId}`);
 }

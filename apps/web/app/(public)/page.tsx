@@ -37,7 +37,7 @@ export default async function LandingPage({
       footer={gesperrt || loggedIn ? null : <LoginNote />}
     >
       {gesperrt ? null : loggedIn ? (
-        <Link href="/board" className={buttonVariants({ size: "xl", className: "max-sm:w-full" })}>
+        <Link href="/scrims" className={buttonVariants({ size: "xl", className: "max-sm:w-full" })}>
           Zum Board
         </Link>
       ) : (
