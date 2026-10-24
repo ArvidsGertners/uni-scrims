@@ -1,9 +1,10 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   FeedbackOutcome,
   MemberRole,
+  Prisma,
   NotifChannel,
   NotifStatus,
   NotifType,
@@ -18,7 +19,7 @@ import { NOW, bookScrim, createSession, createUser, uid } from "./helpers.ts";
 
 const PRIVACY = "https://uniscrims.example/datenschutz";
 const exportOf = (userId: string) =>
-  exportAccountData({ userId, now: NOW, privacyPolicyUrl: PRIVACY });
+  exportAccountData({ userId, now: NOW, privacyPolicyUrl: PRIVACY, uploadDir });
 const HOUR = 60 * 60 * 1000;
 
 let uploadDir: string;
@@ -43,16 +44,17 @@ async function review(
     createdAt: Date;
   }>,
 ) {
+  const status = data.status ?? VerifStatus.PENDING;
   return prisma.verificationRequest.create({
     data: {
       userId,
-      pendingUserId: data.status === VerifStatus.PENDING ? userId : null,
+      pendingUserId: status === VerifStatus.PENDING ? userId : null,
       mimeType: "application/pdf",
       sizeBytes: 1234,
-      status: data.status ?? VerifStatus.PENDING,
-      createdAt: data.createdAt ?? NOW,
-      decidedAt: data.status === VerifStatus.PENDING ? null : NOW,
+      createdAt: NOW,
+      decidedAt: status === VerifStatus.PENDING ? null : NOW,
       ...data,
+      status,
     },
   });
 }
@@ -100,6 +102,7 @@ async function fullAccount() {
       userId: user.id,
       secret: "SECRET-totp-key",
       backupCodes: "SECRET-backup-codes",
+      failedVerificationCount: 2,
     },
   });
   await prisma.verification.create({
@@ -124,9 +127,11 @@ async function fullAccount() {
     universityId: university.id,
     createdAt: new Date(NOW.getTime() - 2 * HOUR),
   });
+  const fileName = `${uid()}.pdf`;
+  await writeFile(path.join(uploadDir, fileName), "%PDF");
   await review(user.id, {
     status: VerifStatus.PENDING,
-    filePath: "pending.pdf",
+    filePath: fileName,
     createdAt: new Date(NOW.getTime() - HOUR),
   });
 
@@ -148,6 +153,8 @@ async function fullAccount() {
       payload: { approved: false, rejectReason: "Unleserlich" },
       scheduledFor: NOW,
       status: NotifStatus.SENT,
+      attempts: 2,
+      lastError: "Discord 50007",
       dedupeKey: `export-test:${uid()}`,
       createdAt: NOW,
       sentAt: NOW,
@@ -192,13 +199,26 @@ describe("exportAccountData", () => {
       gesperrtAm: null,
       rolle: "Admin",
       zweiFaktorEingerichtet: true,
+      zweiFaktorFehlversuche: 2,
+      zweiFaktorGesperrtBis: null,
     });
     expect(data.anmeldung).toMatchObject({
       discordId: user.discordId,
       passwortGespeichert: true,
+      offeneLinks: [
+        {
+          art: "Link zum Zurücksetzen des Passworts",
+          angelegtAm: expect.any(Date),
+          läuftAbAm: new Date(NOW.getTime() + HOUR),
+        },
+      ],
     });
     expect(data.sitzungen).toEqual([
-      expect.objectContaining({ ipAdresse: "203.0.113.7", browser: "Firefox Test" }),
+      expect.objectContaining({
+        ipAdresse: "203.0.113.7",
+        browser: "Firefox Test",
+        zuletztVerlängertAm: expect.any(Date),
+      }),
     ]);
     expect(data.prüfungen).toEqual([
       expect.objectContaining({
@@ -251,6 +271,8 @@ describe("exportAccountData", () => {
         art: "Ergebnis der Verifizierung",
         inhalt: { ergebnis: "Abgelehnt", ablehnungsgrund: "Unleserlich" },
         status: "Gesendet",
+        zustellversuche: 2,
+        letzterFehler: "Discord 50007",
       }),
     ]);
     expect(data.verwaltung).toEqual({ prüfungen: [], streitfälle: [] });
@@ -299,11 +321,23 @@ describe("exportAccountData", () => {
   it("serves banned and incomplete accounts, but not deleted ones", async () => {
     const banned = await createUser({ banned: true });
     await expect(exportOf(banned.id)).resolves.toMatchObject({ konto: { gesperrtAm: NOW } });
+    // Placeholders are not personal data: the internal address of an old account, and the name of
+    // an account without Discord.
     const legacy = await createUser({ legacy: true });
     await expect(exportOf(legacy.id)).resolves.toMatchObject({
-      konto: { vorname: null, eMailBestätigt: false },
+      konto: { vorname: null, eMail: null, eMailBestätigt: false },
       anmeldung: { passwortGespeichert: false },
       team: null,
+    });
+    const withoutDiscord = await createUser();
+    await prisma.account.deleteMany({ where: { userId: withoutDiscord.id } });
+    await prisma.user.update({
+      where: { id: withoutDiscord.id },
+      data: { name: "Neues Konto", email: `${uid()}@example.org` },
+    });
+    await expect(exportOf(withoutDiscord.id)).resolves.toMatchObject({
+      konto: { discordName: null, eMail: expect.stringMatching(/@example\.org$/) },
+      anmeldung: { discordId: null },
     });
 
     const deleted = await createUser();
@@ -311,8 +345,23 @@ describe("exportAccountData", () => {
     await deleteAccount({ userId: deleted.id, uploadDir, now: NOW });
     await expect(exportOf(deleted.id)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
     await expect(
-      exportAccountData({ userId: "", now: NOW, privacyPolicyUrl: PRIVACY }),
+      exportAccountData({ userId: "", now: NOW, privacyPolicyUrl: PRIVACY, uploadDir }),
     ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+
+  it("tells whether a review's file is really still there", async () => {
+    // After a restore the row may still name a file the upload volume no longer has (§8).
+    const user = await createUser();
+    await review(user.id, { filePath: `${uid()}.pdf` });
+    expect((await exportOf(user.id)).prüfungen).toEqual([
+      expect.objectContaining({ status: "In Prüfung", dateiGespeichert: false }),
+    ]);
+  });
+
+  it("shows no team for a membership left in a dissolved team, as findOwnTeam", async () => {
+    const { team, members } = await bookScrim().then(({ host }) => host);
+    await prisma.team.update({ where: { id: team.id }, data: { dissolvedAt: NOW } });
+    expect((await exportOf(members[0]!.id)).team).toBeNull();
   });
 
   it("shows the role as the team page names it", async () => {
@@ -323,5 +372,191 @@ describe("exportAccountData", () => {
       data: { role: MemberRole.COACH },
     });
     expect((await exportOf(member.id)).team).toMatchObject({ rolle: "Coach", captain: false });
+  });
+});
+
+// Every column of every table, sorted into what the export shows and what it leaves out on purpose
+// (§5.10). A new table or column fails the test below until it is sorted in here; otherwise the
+// export, which promises all stored data, would silently miss it.
+const SHOWN = "in der Auskunft";
+const SELF = "die Person selbst";
+const KEY = "technischer Schlüssel";
+const CREDENTIAL = "Zugangsdaten, nur dass es sie gibt";
+const TEAM = "Teamdaten, keine Daten der Person";
+const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
+  User: {
+    id: SHOWN,
+    name: SHOWN,
+    email: SHOWN,
+    emailVerified: SHOWN,
+    image: SHOWN,
+    createdAt: SHOWN,
+    updatedAt: SHOWN,
+    universityId: SHOWN,
+    universityOther: SHOWN,
+    verifiedAt: SHOWN,
+    bannedAt: SHOWN,
+    hubJoinFailedAt: SHOWN,
+    dmFailedAt: SHOWN,
+    deletedAt: "nur bei gelöschten Konten gesetzt, und die bekommen keine Auskunft",
+    firstName: SHOWN,
+    lastName: SHOWN,
+    staffRole: SHOWN,
+    twoFactorEnabled: SHOWN,
+  },
+  Session: {
+    id: KEY,
+    expiresAt: SHOWN,
+    token: CREDENTIAL,
+    createdAt: SHOWN,
+    updatedAt: SHOWN,
+    ipAddress: SHOWN,
+    userAgent: SHOWN,
+    userId: SELF,
+  },
+  Account: {
+    id: KEY,
+    accountId: SHOWN,
+    providerId: SHOWN,
+    userId: SELF,
+    accessToken: CREDENTIAL,
+    refreshToken: CREDENTIAL,
+    idToken: CREDENTIAL,
+    accessTokenExpiresAt: CREDENTIAL,
+    refreshTokenExpiresAt: CREDENTIAL,
+    scope: CREDENTIAL,
+    password: CREDENTIAL,
+    createdAt: SHOWN,
+    updatedAt: SHOWN,
+  },
+  TwoFactor: {
+    id: KEY,
+    secret: CREDENTIAL,
+    backupCodes: CREDENTIAL,
+    userId: SELF,
+    verified: "steckt in zweiFaktorEingerichtet",
+    failedVerificationCount: SHOWN,
+    lockedUntil: SHOWN,
+  },
+  Verification: {
+    id: KEY,
+    identifier: "enthält den Token; nur die Art des Links",
+    value: SELF,
+    expiresAt: SHOWN,
+    createdAt: SHOWN,
+    updatedAt: "Better Auth ändert die Zeile nicht",
+  },
+  University: { id: KEY, name: SHOWN, city: "Stammdaten", slug: "Stammdaten" },
+  VerificationRequest: {
+    id: KEY,
+    userId: SELF,
+    pendingUserId: "steckt im Status",
+    universityId: SHOWN,
+    universityOther: SHOWN,
+    filePath: "nur ob die Datei noch da ist",
+    mimeType: SHOWN,
+    sizeBytes: SHOWN,
+    status: SHOWN,
+    rejectReason: SHOWN,
+    createdAt: SHOWN,
+    decidedAt: SHOWN,
+    decidedById: "nur ob von Hand; wer, wäre eine andere Person",
+  },
+  Team: {
+    id: KEY,
+    name: SHOWN,
+    nameNormalized: "aus dem Namen abgeleitet",
+    tag: SHOWN,
+    rank: SHOWN,
+    game: TEAM,
+    captainId: SHOWN,
+    inviteCode: TEAM,
+    discordGuildId: TEAM,
+    discordChannelId: TEAM,
+    bannedAt: SHOWN,
+    dissolvedAt: SHOWN,
+    createdAt: SHOWN,
+  },
+  TeamMember: { teamId: SHOWN, userId: SELF, role: SHOWN, joinedAt: SHOWN },
+  ScrimRequest: {
+    id: KEY,
+    teamId: SHOWN,
+    createdById: SELF,
+    game: TEAM,
+    startsAt: SHOWN,
+    format: SHOWN,
+    rankMin: SHOWN,
+    rankMax: SHOWN,
+    maps: SHOWN,
+    note: SHOWN,
+    status: SHOWN,
+    createdAt: SHOWN,
+  },
+  Application: {
+    id: KEY,
+    requestId: TEAM,
+    teamId: TEAM,
+    message: "Teamdaten ohne Verfasser",
+    status: TEAM,
+    createdAt: TEAM,
+    decidedAt: TEAM,
+  },
+  Scrim: {
+    id: KEY,
+    requestId: TEAM,
+    hostTeamId: SHOWN,
+    guestTeamId: SHOWN,
+    startsAt: SHOWN,
+    format: TEAM,
+    maps: TEAM,
+    feedbackOpensAt: TEAM,
+    feedbackDeadline: TEAM,
+    status: SHOWN,
+    cancelledByTeamId: TEAM,
+    cancelledAt: TEAM,
+    lateCancel: TEAM,
+    noShowTeamId: TEAM,
+    resolvedById: SELF,
+    resolvedAt: SHOWN,
+    createdAt: TEAM,
+  },
+  ScrimFeedback: {
+    id: KEY,
+    scrimId: SHOWN,
+    teamId: SHOWN,
+    submittedById: SELF,
+    outcome: SHOWN,
+    rating: SHOWN,
+    createdAt: SHOWN,
+  },
+  Notification: {
+    id: KEY,
+    type: SHOWN,
+    channel: "immer die DM an die Person",
+    targetUserId: SELF,
+    targetTeamId: "Nachrichten an Teams hängen an keiner Person",
+    scrimId: "bei DMs an Personen leer",
+    requestId: "bei DMs an Personen leer",
+    payload: SHOWN,
+    scheduledFor: SHOWN,
+    status: SHOWN,
+    attempts: SHOWN,
+    lastError: SHOWN,
+    dedupeKey: KEY,
+    createdAt: SHOWN,
+    sentAt: SHOWN,
+  },
+  SystemStatus: { id: "Bot-Heartbeat, keine Personendaten", heartbeatAt: "Bot-Heartbeat" },
+};
+
+describe("exportAccountData coverage", () => {
+  it("has decided on every table and column of the schema", () => {
+    const enums = Prisma as unknown as Record<string, Record<string, string>>;
+    expect(Object.keys(COLUMNS).sort()).toEqual(Object.values(Prisma.ModelName).sort());
+    for (const [model, columns] of Object.entries(COLUMNS)) {
+      expect(Object.keys(columns).sort(), model).toEqual(
+        Object.values(enums[`${model}ScalarFieldEnum`]!).sort(),
+      );
+    }
   });
 });

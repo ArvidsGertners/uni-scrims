@@ -520,18 +520,18 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 
 ### 5.10 Datenauskunft (ab Phase 9)
 
-**Funktion:** `exportAccountData({ userId, now, privacyPolicyUrl })` in `core` (`account-export.ts`) mit `requireAccountUser`: auch gesperrte und unvollständige Konten, keine gelöschten (SPEC N-5). Nur Lesen über den Prisma-Client, in einer Transaktion mit `RepeatableRead`, damit alle Abschnitte denselben Stand zeigen. Das Ergebnis hat deutsche Schlüssel und Anzeigetexte statt Enum-Werten (`labels.ts`; die Status-Texte von Anfragen, Scrims und Benachrichtigungen liegen dafür jetzt in `core`); Zeitpunkte stehen als ISO 8601 in UTC. Jede Abfrage wählt ihre Spalten aus, und Relationen lädt sie einzeln: Prisma lädt Geschwister-Relationen parallel, was die eine Verbindung einer Transaktion nicht erlaubt.
+**Funktion:** `exportAccountData({ userId, now, privacyPolicyUrl, uploadDir })` in `core` (`account-export.ts`) mit `requireAccountUser`: auch gesperrte und unvollständige Konten, keine gelöschten (SPEC N-5). Nur Lesen über den Prisma-Client, in einer Transaktion mit `RepeatableRead`, damit alle Abschnitte denselben Stand zeigen. Das Ergebnis hat deutsche Schlüssel und Anzeigetexte statt Enum-Werten (`labels.ts`; die Status-Texte von Anfragen, Scrims und Benachrichtigungen liegen dafür jetzt in `core`); Zeitpunkte stehen als ISO 8601 in UTC. Jede Abfrage wählt ihre Spalten aus, und Relationen lädt sie einzeln: Prisma lädt Geschwister-Relationen parallel, was die eine Verbindung einer Transaktion nicht erlaubt. Ein Test ordnet jede Spalte jeder Tabelle ein (in der Auskunft oder bewusst nicht, mit Grund), damit eine neue Spalte oder Tabelle nicht still fehlt.
 
 **Abschnitte:**
 - `hinweis`, `erstelltAm`: was die Datei ist, Verweis auf die Datenschutzerklärung (Zwecke, Empfänger, Speicherdauer, Rechte) und was fehlt
-- `konto`: Konto-ID, Discord-Name, Avatar-URL, E-Mail und ob bestätigt, Vor- und Nachname, Hochschule bzw. Freitext, Zeitpunkte (angelegt, geändert, verifiziert, gesperrt, Hub-Beitritt bzw. DM gescheitert), Rolle und ob 2FA eingerichtet ist (Phase 8)
-- `anmeldung`: Discord-ID und wann verknüpft, ob ein Passwort gespeichert ist und wann es zuletzt geändert wurde
-- `sitzungen`: je Session angelegt, zuletzt genutzt, läuft ab, IP-Adresse, User-Agent
-- `prüfungen`: je `VerificationRequest` hochgeladen, Status, entschieden, „von Hand“ oder „automatisch“ (`decidedById` gesetzt, nicht wer), Ablehnungsgrund, Dateityp und -größe, Hochschule bzw. Freitext, ob die Datei noch gespeichert ist
-- `team`: aktuelles Team (Name, Kürzel, Rang, gesperrt ja/nein), eigene Rolle, Captain ja/nein, beigetreten; `aufgelösteTeams`: aufgelöste Teams mit `captainId` = Person (Name, Kürzel, gegründet, aufgelöst)
+- `konto`: Konto-ID, Discord-Name (ohne Discord-Verknüpfung `null`, statt des Platzhalters „Neues Konto“), Avatar-URL, E-Mail und ob bestätigt (bei Altkonten `null`, statt des internen Platzhalters, wie auf der Konto-Seite), Vor- und Nachname, Hochschule bzw. Freitext, Zeitpunkte (angelegt, geändert, verifiziert, gesperrt, Hub-Beitritt bzw. DM gescheitert), Rolle, ob 2FA eingerichtet ist, Fehlversuche und Sperre der 2FA (Phase 8)
+- `anmeldung`: Discord-ID und wann verknüpft, ob ein Passwort gespeichert ist und wann es zuletzt geändert wurde, offene Links und laufende Anmeldungen aus `verification` (Zeilen mit der User-ID als Wert) nur mit Art und Ablauf
+- `sitzungen`: je Session angelegt, zuletzt verlängert (`updatedAt`; Better Auth schreibt die Zeile nur beim Verlängern, nicht bei jeder Nutzung), läuft ab, IP-Adresse, User-Agent
+- `prüfungen`: je `VerificationRequest` hochgeladen, Status, entschieden, „von Hand“ oder „automatisch“ (`decidedById` gesetzt, nicht wer), Ablehnungsgrund, Dateityp und -größe, Hochschule bzw. Freitext, ob die Datei noch gespeichert ist (geprüft im Upload-Ordner, weil nach einem Restore `filePath` auf eine fehlende Datei zeigen kann, §8)
+- `team`: aktuelles Team wie `findOwnTeam` (eine Mitgliedschaft in einem aufgelösten Team zählt nicht; Name, Kürzel, Rang, gesperrt seit), eigene Rolle, Captain ja/nein (`isCaptainOf`), beigetreten; `aufgelösteTeams`: aufgelöste Teams mit `captainId` = Person (Name, Kürzel, gegründet, aufgelöst)
 - `anfragen`: Anfragen mit `createdById` = Person (Team, erstellt, Start, Format, Rang-Bereich, Maps, Notiz, Status)
 - `feedback`: `ScrimFeedback` mit `submittedById` = Person (eigenes Team, Gegner-Team, Scrim-Start, Antwort, Sterne, abgegeben)
-- `nachrichten`: Notifications mit `targetUserId` = Person (heute nur `VERIFICATION_RESULT`) mit Art, Inhalt, Status und Zeitpunkten
+- `nachrichten`: Notifications mit `targetUserId` = Person (heute nur `VERIFICATION_RESULT`) mit Art, Inhalt, Status, Zeitpunkten (angelegt, geplant, gesendet), Zustellversuchen und letztem Fehler; ein Inhalt, der nicht zu seinem Typ passt, bleibt wie gespeichert
 - `verwaltung`: eigene Prüf-Entscheidungen (`decidedById`) und Streitfall-Entscheidungen (`resolvedById`) nur mit Datum und Ergebnis, ohne die geprüfte Person bzw. die Teams
 
 **Nicht enthalten:**
@@ -542,7 +542,7 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 - Nachrichten an Teams: Der Empfänger wird erst beim Senden bestimmt (§6.1), sie hängen also an keiner Person.
 - Server-Logs, die Zähler des Rate-Limits im Speicher und Backups (Datenschutzerklärung).
 
-**Web:** `GET /api/account/export` (ein Route Handler, weil eine Datei zurückkommt) holt die Session, ruft `exportAccountData` mit `privacyPolicyUrl` = `BETTER_AUTH_URL` + `/datenschutz` (die eigene Adresse des Webs, wie bei den Einladungslinks) und antwortet mit eingerücktem JSON: `Content-Disposition: attachment; filename="uni-scrims-daten-<JJJJ-MM-TT>.json"` (Datum in Europe/Berlin), `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`. Ohne Session oder für ein gelöschtes Konto 401. Die Konto-Seite bekommt den Abschnitt „Deine Daten“ mit dem Link „Meine Daten herunterladen“.
+**Web:** `GET /api/account/export` (ein Route Handler, weil eine Datei zurückkommt) holt die Session, ruft `exportAccountData` mit `privacyPolicyUrl` = `BETTER_AUTH_URL` + `/datenschutz` (die eigene Adresse des Webs, wie bei den Einladungslinks; fehlt sie, die Adresse der Anfrage) und `UPLOAD_DIR` und antwortet mit eingerücktem JSON: `Content-Disposition: attachment; filename="uni-scrims-daten-<JJJJ-MM-TT>.json"` (Datum in Europe/Berlin), `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`. Ohne Session oder für ein gelöschtes Konto 401. Die Konto-Seite bekommt den Abschnitt „Deine Daten“ mit dem Link „Meine Daten herunterladen“.
 
 ---
 

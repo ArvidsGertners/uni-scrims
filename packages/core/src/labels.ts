@@ -76,7 +76,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotifType, string> = {
   CHANNEL_BROKEN: "Team-Channel nicht erreichbar",
 };
 
-/** States of a review (SPEC P0-2), as the account page names them. */
+/** States of a review (SPEC P0-2), for the data export; the account page shows the student status. */
 export const VERIF_STATUS_LABELS: Record<VerifStatus, string> = {
   PENDING: "In Prüfung",
   APPROVED: "Freigegeben",

@@ -399,7 +399,7 @@ export async function resetLegacyVerifications(now: Date, uploadDir: string): Pr
 }
 
 /** Whether the file of a request is still there; after restoring a backup it may be gone (§8). */
-async function uploadExists(uploadDir: string, fileName: string | null): Promise<boolean> {
+export async function uploadExists(uploadDir: string, fileName: string | null): Promise<boolean> {
   if (!fileName) return false;
   try {
     return (await stat(uploadFilePath(uploadDir, fileName))).isFile();
