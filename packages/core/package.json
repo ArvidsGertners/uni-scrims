@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./mail": "./src/mail.ts",
     "./config/*": "./config/*.ts"
   },
   "scripts": {
@@ -15,6 +16,7 @@
     "@uni-scrims/db": "workspace:*",
     "date-fns": "4.4.0",
     "file-type": "22.2.0",
+    "nodemailer": "10.0.16",
     "sharp": "0.35.5",
     "zod": "4.6.7"
   }

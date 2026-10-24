@@ -1,9 +1,8 @@
-// Account mails (ARCHITECTURE §5.8): plain German text over SMTP, sent by the web only. Notifications
-// stay on Discord.
-import { getDevMailRedirect } from "@uni-scrims/core/config/dev";
-import nodemailer, { type Transporter } from "nodemailer";
+// Account mails (ARCHITECTURE §5.8): plain German text, sent over the transport in core, which the
+// bot uses for notification mails too (§5.17).
+import type { Mail } from "@uni-scrims/core/mail";
 
-export type Mail = { to: string; subject: string; text: string };
+export { type Mail, sendMail } from "@uni-scrims/core/mail";
 
 /** Shown when sending fails; Better Auth passes the error on to the server action. */
 export const MAIL_FAILED = "Die Mail konnte nicht gesendet werden. Bitte versuch es später erneut.";
@@ -32,38 +31,4 @@ export function passwordResetMail(to: string, url: string): Mail {
       "nicht angefordert, ignoriere diese Mail; dein Passwort bleibt, wie es ist." +
       SIGNATURE,
   };
-}
-
-let transporter: Transporter | null = null;
-
-function smtpTransport(env: NodeJS.ProcessEnv): Transporter {
-  if (!transporter) {
-    const port = Number(env.SMTP_PORT ?? 587);
-    transporter = nodemailer.createTransport({
-      host: env.SMTP_HOST,
-      port,
-      // 465 speaks TLS from the start, 587 upgrades with STARTTLS, which must not be skipped.
-      secure: port === 465,
-      requireTLS: port !== 465,
-      auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
-    });
-  }
-  return transporter;
-}
-
-/**
- * Sends a mail. Outside production it only goes to the log, or with DEV_MAIL_REDIRECT to that
- * address, prefixed with the real recipient (like DEV_DM_REDIRECT_DISCORD_ID). Throws on failure.
- */
-export async function sendMail(mail: Mail, env: NodeJS.ProcessEnv = process.env): Promise<void> {
-  let message = mail;
-  if (env.NODE_ENV !== "production") {
-    const redirect = getDevMailRedirect(env);
-    if (!redirect) {
-      console.info(`Mail an ${mail.to}: ${mail.subject}\n${mail.text}`);
-      return;
-    }
-    message = { ...mail, to: redirect, subject: `[an: ${mail.to}] ${mail.subject}` };
-  }
-  await smtpTransport(env).sendMail({ from: env.MAIL_FROM, ...message });
 }
