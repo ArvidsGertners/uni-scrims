@@ -146,6 +146,18 @@ dc run --rm --no-deps -T bot node --import tsx src/scripts/backfill-avatars.ts <
 pnpm --filter @uni-scrims/bot backfill-avatars
 ```
 
+## Admin-Bereich auf eigener Adresse (ab Phase 13)
+
+Mit `ADMIN_URL` (z. B. `https://admin.uniscrims.com`, eine Subdomain von `BETTER_AUTH_URL`) liegt der Admin-Bereich unter dieser Adresse; `/admin` auf der Hauptadresse leitet dorthin (ARCHITECTURE §5.13). Die Anmeldung gilt für beide Adressen. Ohne `ADMIN_URL`, etwa lokal, bleibt er unter `/admin`.
+
+Einmalig beim Deploy von Phase 13, als root und vor dem Eintrag in der `.env`:
+
+1. DNS (Cloudflare): A-Record `admin` auf die Server-IP, wie die Hauptadresse „DNS only“.
+2. Zertifikat für beide Namen: `certbot --nginx --expand -d <domain> -d admin.<domain>`; im vHost steht `admin.<domain>` mit in beiden `server_name` (siehe „Variante: Server mit vorhandenem nginx“), dann `nginx -t && systemctl reload nginx`. Mit Caddy reicht der DNS-Eintrag, das Caddyfile bedient beide Namen.
+3. `ADMIN_URL=https://admin.<domain>` in die `.env`, dann `dc up -d --build`.
+
+Die Cookies heißen ab Phase 13 anders (`uni-scrims.*`), damit sie für beide Adressen gelten: Nach dem Deploy sind alle einmal abgemeldet. Das Session-Cookie geht an jede Subdomain der Hauptadresse; lass deshalb keine Subdomain auf einen fremden Dienst zeigen.
+
 ## Dev-Login
 
 Mit `NODE_ENV=development` und `DEV_LOGIN=true` gibt es unter `/dev-login` eine Liste der Seed-Nutzer. Ein Klick loggt dich ohne Discord als dieser Nutzer ein. So kannst du zwei Teams parallel testen (normales und privates Fenster). In Production ist die Seite aus, und der Endpoint `/api/auth/dev/sign-in` antwortet mit 404.
@@ -219,7 +231,7 @@ cp .env.example .env && chmod 600 .env
 
 In der `.env`:
 
-- `DOMAIN=<domain>`, `BETTER_AUTH_URL=https://<domain>`, `PUBLIC_BASE_URL=https://<domain>`
+- `DOMAIN=<domain>`, `BETTER_AUTH_URL=https://<domain>`, `PUBLIC_BASE_URL=https://<domain>`, `ADMIN_URL=https://admin.<domain>` (Admin-Bereich, ab Phase 13; der DNS-Eintrag für `admin.<domain>` muss wie der für `<domain>` auf den Server zeigen)
 - `BETTER_AUTH_SECRET` mit `openssl rand -base64 32`, `POSTGRES_PASSWORD` mit `openssl rand -hex 32` (hex, weil es in `DATABASE_URL` steht)
 - Discord-Werte, `HUB_GUILD_ID`, `HUB_INVITE_URL` (`ADMIN_DISCORD_IDS` gibt es seit Phase 8 nicht mehr; eine alte Zeile stört nicht)
 - `DATABASE_URL` setzt die Compose-Datei selbst, ebenso `UPLOAD_DIR` und `LEGAL_DIR` für `web` (der Bot braucht beide nicht; nur das Skript beim Wiederherstellen bekommt `UPLOAD_DIR` im Aufruf). Die `DEV_*`-Schalter sind in Production ohnehin aus.
@@ -279,7 +291,7 @@ Die Compose-Befehle laufen dann mit beiden Dateien (`backup.sh` und das Einspiel
 alias dc='docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.vps.yml'
 ```
 
-nginx übernimmt, was sonst im Caddyfile steht: TLS, HSTS und das Body-Limit von 6 MB. Die Logs von Uni Scrims schreibt nginx in einen eigenen Ordner, den es vorher geben muss (sonst scheitert `nginx -t`): `mkdir -p /var/log/uni-scrims`. Zuerst nur den Block für Port 80 anlegen, `nginx -t && systemctl reload nginx`, dann das Zertifikat holen (`certbot certonly --nginx -d <domain>`, die Erneuerung übernimmt `certbot.timer`) und den Block für 443 ergänzen:
+nginx übernimmt, was sonst im Caddyfile steht: TLS, HSTS und das Body-Limit von 6 MB. Die Logs von Uni Scrims schreibt nginx in einen eigenen Ordner, den es vorher geben muss (sonst scheitert `nginx -t`): `mkdir -p /var/log/uni-scrims`. Zuerst nur den Block für Port 80 anlegen, `nginx -t && systemctl reload nginx`, dann das Zertifikat holen (`certbot certonly --nginx -d <domain> -d admin.<domain>`, die Erneuerung übernimmt `certbot.timer`) und den Block für 443 ergänzen:
 
 ```nginx
 # Der OAuth-Callback trägt den einmaligen Discord-Code in der URL und wird nicht geloggt.
@@ -291,7 +303,7 @@ map $request_uri $uniscrims_loggable {
 server {
     listen 80;
     listen [::]:80;
-    server_name <domain>;
+    server_name <domain> admin.<domain>;
     access_log /var/log/uni-scrims/nginx-access.log combined if=$uniscrims_loggable;
     error_log /var/log/uni-scrims/nginx-error.log;
     location / {
@@ -302,7 +314,7 @@ server {
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    server_name <domain>;
+    server_name <domain> admin.<domain>;
 
     ssl_certificate /etc/letsencrypt/live/<domain>/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/<domain>/privkey.pem;

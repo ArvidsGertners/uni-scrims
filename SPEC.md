@@ -91,6 +91,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 27. Als Captain will ich ein Logo für unser Team hochladen, damit andere Teams uns auf dem Board und in ihren Scrims sofort erkennen.
 28. Als Nutzer will ich die Seite hell sehen, wenn mein Gerät hell eingestellt ist, und als Captain dafür ein eigenes Logo für hellen Hintergrund hochladen.
 29. Als Spieler will ich mein Discord-Profilbild und das meiner Teamkollegen sehen, ohne dass mein Browser dafür Daten an Discord schickt.
+30. Als Spieler will ich ein kurzes Menü, in dem Board und meine Scrims auf einer Seite liegen, und als Admin den Admin-Bereich unter einer eigenen Adresse, getrennt von der Spieler-Navigation.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -211,7 +212,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Bot-DM an den Ersteller bei jeder neuen Bewerbung; Bot-DM an Bewerber bei Bestätigung oder Absage
 
 **P0-6 Gebuchte Scrims**
-- [x] Übersicht "Meine Scrims" (anstehend und vergangen, dazu die eigenen offenen Anfragen und Bewerbungen als Listen; die Aktionen bleiben auf Anfrage- und Scrim-Seite)
+- [x] Übersicht "Meine Scrims" (anstehend und vergangen, dazu die eigenen offenen Anfragen und Bewerbungen als Listen; die Aktionen bleiben auf Anfrage- und Scrim-Seite); seit Phase 13 Tabs der Seite „Scrims“ neben dem Board (N-9)
 - [x] Nach der Buchung ist der gegnerische Captain sichtbar (Discord-Name, in Bot-Nachrichten als Erwähnung)
 - [x] Absage durch beide Seiten bis zum Start; unter 24 h vor Start wird sie als kurzfristig markiert
 
@@ -352,6 +353,15 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Beim Deploy holt ein einmaliges Skript die Bilder der schon verknüpften Konten nach.
 - [x] Kontolöschung löscht die Kopie. Die Datenauskunft enthält das Bild selbst und den Zeitpunkt der Kopie.
 
+**N-9 Navigation und Admin-Bereich auf eigener Adresse** (Phase 13)
+- [ ] Das Hauptmenü hat nur noch drei Punkte: Scrims, Team, Konto. Der Warnpunkt für eine fehlende Verifizierung steht an „Konto“. Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“.
+- [ ] „Abmelden“ steht nur noch auf der Konto-Seite (oben, neben der Überschrift), nicht mehr im Kopf oder Menü.
+- [ ] Board und Meine Scrims sind eine Seite „Scrims“ mit den Tabs Board, Anstehend, Anfragen, Bewerbungen, Vergangen. Board ist der erste Tab und zeigt die Anfragen anderer Teams mit den Filtern aus P0-4; die eigenen offenen Anfragen stehen nur im Tab Anfragen. Der Feedback-Hinweis steht über den Tabs, „Anfrage erstellen“ (nur für den Captain) oben auf der Seite. Ohne Team ist das Board nutzbar; die anderen Tabs zeigen den Hinweis auf die Team-Seite. Alte Links auf das Board (auch in Discord-Nachrichten) führen auf den Tab Board, mit denselben Filtern.
+- [ ] Die Verifizierung gehört zu „Konto“: Die Konto-Seite zeigt den Studierendenstatus als ersten Kasten, mit einem Knopf zur Verifizierungsseite (je nach Status „Bescheinigung hochladen“, „Status ansehen“ oder „Details“). Die Verifizierungsseite bleibt eine eigene Seite mit Zurück-Link zum Konto; im Menü ist dort „Konto“ markiert.
+- [ ] Der Admin-Bereich (Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Statistik, Rollen, 2FA-Einrichtung) liegt unter einer eigenen Adresse, admin.uniscrims.com, und steht nicht mehr im Menü. Admins, Prüfer und der Betreiber finden auf ihrer Konto-Seite einen Link dorthin. Alte Adressen unter uniscrims.com/admin leiten weiter.
+- [ ] Die Anmeldung gilt für beide Adressen: Wer auf uniscrims.com angemeldet ist, ist es auch im Admin-Bereich; ohne Anmeldung führt der Admin-Bereich zur normalen Anmeldung (für Staff mit Passwort und Code wie in N-4) und danach zurück. Abmelden im Admin-Bereich meldet überall ab. Beim Deploy von Phase 13 werden alle einmal abgemeldet.
+- [ ] Der Admin-Bereich hat einen eigenen Kopf mit „Uni Scrims Admin“, einem Link zurück zur Seite und „Abmelden“. Wer keine Rolle hat, sieht dort nichts (wie bisher: Seite nicht gefunden). Impressum und Datenschutz sind auch dort erreichbar.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -471,6 +481,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 10 | Team-Logo (N-6) | Ein Captain lädt ein PNG mit durchsichtigem Rand hoch; es erscheint zugeschnitten überall statt des Kürzels; JPEG und Bilder ohne Alphakanal werden abgelehnt; ein Admin kann es entfernen, und beim Auflösen verschwindet es |
 | 11 | Hell-Modus und Logo pro Hintergrund (N-7) | Mit hellem System-Design ist die ganze Seite hell und gut lesbar, mit dunklem unverändert; jeder Modus zeigt das passende Logo, fehlt eins, steht das andere auf einem passenden Kästchen |
 | 12 | Discord-Profilbilder (N-8) | Konto-Seite, Team-Seite und Queue zeigen die Kopie des Profilbilds, der Browser lädt nichts von Discord, ohne Bild stehen Initialen, und beim Löschen ist die Kopie weg |
+| 13 | Navigation und Admin-Bereich auf eigener Adresse (N-9) | Das Menü zeigt Scrims, Team, Konto; Board und Meine Scrims sind Tabs einer Seite; Abmelden und Verifizierung liegen unter Konto; der Admin-Bereich läuft unter admin.uniscrims.com mit derselben Anmeldung |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 

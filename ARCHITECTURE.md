@@ -91,20 +91,20 @@ uni-scrims/
 │  ├─ web/                 # Next.js (App Router, Tailwind, shadcn/ui)
 │  │  ├─ app/
 │  │  │  ├─ (public)/      # Landing, Impressum, Datenschutz
-│  │  │  ├─ board/         # Scrim-Board
 │  │  │  ├─ requests/[id]/ # Anfrage + Bewerbungen
-│  │  │  ├─ scrims/        # Meine Scrims
+│  │  │  ├─ scrims/        # Scrims: Board und Meine Scrims als Tabs (ab Phase 13; vorher board/ und scrims/ getrennt)
 │  │  │  ├─ scrims/[id]/   # Scrim-Detail + Feedback-Formular
 │  │  │  ├─ team/          # Team anlegen, verwalten, Einladung
 │  │  │  ├─ join/[code]/   # Einladungslink
 │  │  │  ├─ verify/        # Upload der Immatrikulationsbescheinigung
 │  │  │  ├─ account/       # Konto, Löschen
-│  │  │  ├─ admin/         # Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik, Rollen (ab Phase 8)
+│  │  │  ├─ admin/         # Prüf-Queue, Streitfälle, Sperren, fehlgeschlagene Nachrichten, Bot-Status, Statistik, Rollen (ab Phase 8); ab Phase 13 unter ADMIN_URL (§5.13)
 │  │  │  └─ api/
 │  │  │     ├─ auth/[...all]/           # Better Auth
 │  │  │     ├─ admin/uploads/[id]/      # geschützter Datei-Abruf
 │  │  │     └─ health/
 │  │  ├─ instrumentation.ts # startet den Upload-Janitor
+│  │  ├─ proxy.ts       # ab Phase 13: Admin-Host auf admin/ umschreiben (§5.13)
 │  │  └─ lib/              # auth, Session-Helper, UI-Utils
 │  └─ bot/
 │     └─ src/
@@ -396,7 +396,7 @@ Alle Funktionen in diesem Abschnitt prüfen zuerst die Berechtigung laut §7 (ak
 - `applyToRequest`: Team spielbereit und aktiv, nicht das Ersteller-Team; Anfrage OPEN und zukünftig; `unique(requestId, teamId)`. Liegt der Team-Rang außerhalb des Bereichs, wird die Bewerbung trotzdem angelegt; die UI zeigt einen Hinweis. Notification `APPLICATION_RECEIVED`.
 - `withdrawApplication`: nur PENDING → WITHDRAWN.
 - `deleteRequest`: nur OPEN und vor dem Start → CANCELLED; PENDING-Bewerbungen → REJECTED; `REQUEST_DELETED` an die Bewerber.
-- **Board-Filter nach Rang:** Mehrere Ränge sind wählbar (`?rang=GOLD&rang=PLATINUM`); eine Anfrage passt, wenn ihr Bereich einen davon enthält (`rankMin ≤ r ≤ rankMax` für ein gewähltes `r`, also kein Bereich von kleinstem bis größtem gewählten Rang). Standard ohne `rang` ist der eigene Team-Rang; ohne Auswahl schickt das Formular `rang=ALL` für alle Ränge. Die eigenen Anfragen stehen ungefiltert in einem eigenen Abschnitt.
+- **Board-Filter nach Rang:** Mehrere Ränge sind wählbar (`?rang=GOLD&rang=PLATINUM`); eine Anfrage passt, wenn ihr Bereich einen davon enthält (`rankMin ≤ r ≤ rankMax` für ein gewähltes `r`, also kein Bereich von kleinstem bis größtem gewählten Rang). Standard ohne `rang` ist der eigene Team-Rang; ohne Auswahl schickt das Formular `rang=ALL` für alle Ränge. Die eigenen Anfragen stehen ungefiltert im Tab „Anfragen“ (bis Phase 13 in einem eigenen Abschnitt des Boards, `getBoard().ownRequests`).
 
 ### 5.4 Bestätigen (atomar)
 
@@ -599,6 +599,21 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 **Löschen:** `deletedUserData` setzt `avatarUpdatedAt = null`, `deleteAccount` löscht die `UserAvatar`-Zeile in seiner Transaktion. Sperr-Platzhalter haben nie eine Kopie.
 ---
 
+### 5.13 Navigation und Admin-Subdomain (ab Phase 13)
+
+**Navigation:** Der Kopf zeigt Scrims (`/scrims`), Team und Konto; der Warnpunkt (nicht verifiziert) steht an Konto. Als derselbe Menüpunkt gelten `/requests/*` und `/board` (Scrims) sowie `/verify` (Konto). „Abmelden“ gibt es nur noch auf der Konto-Seite neben der Überschrift.
+
+**Scrims-Seite:** `/scrims` mit `?tab=` `board` (Standard, ohne Parameter), `anstehend`, `anfragen`, `bewerbungen`, `vergangen`. Die Seite lädt `getBoard` (Board-Tab, Zähler, „Anfrage erstellen“ für den Captain) und `getMyScrims` (übrige Tabs, Zähler, Feedback-Hinweis); die Board-Filter bleiben `?datum` und `?rang` (§5.3). `getBoard` liefert die eigenen Anfragen nicht mehr (`ownRequests` entfällt), sie stehen in `getMyScrims().requests`. `/board` leitet per `redirects()` in `next.config.ts` mit Query auf `/scrims` weiter (nicht permanent; alte Discord-Nachrichten verlinken `/board`). Der Bot verlinkt das Board als `/scrims`.
+
+**Konto-Seite:** Der Studierendenstatus steht als erster Kasten, mit Link auf `/verify` (nur für aktive Konten, weil `/verify` `requirePageUser` braucht). Staff sieht einen Kasten mit dem Link in den Admin-Bereich.
+
+**Admin-Subdomain:** `ADMIN_URL` (z. B. `https://admin.uniscrims.com`) muss eine Subdomain des Hosts von `BETTER_AUTH_URL` sein; sonst bricht der Web-Prozess beim Start ab. Ohne `ADMIN_URL` (Entwicklung) bleibt der Admin-Bereich unter `/admin` auf dem Haupt-Host. `apps/web/lib/admin-url.ts` baut die Adressen: `adminHref(path)` für Links und Weiterleitungen im Admin-Bereich (`/bans` bzw. ohne `ADMIN_URL` `/admin/bans`), `adminUrl(path)` absolut (Link von der Konto-Seite, `callbackURL`), `mainUrl(path)` (Links zurück zur Seite), `isAdminHost(host)`. `revalidatePath` nennt weiter die internen Pfade unter `/admin`.
+- `apps/web/proxy.ts` (Next-Proxy, Node-Runtime, liest `ADMIN_URL` zur Laufzeit; nicht für `_next/`, `api/` und Dateien mit Endung): Auf dem Admin-Host werden `/impressum` und `/datenschutz` durchgelassen, `/admin…` auf den Pfad ohne Präfix weitergeleitet und alles andere auf `/admin` + Pfad umgeschrieben, also auch Server-Action-POSTs und RSC-Abrufe. Auf dem Haupt-Host leitet `/admin…` auf `ADMIN_URL` + Pfad ohne Präfix weiter. `/api/admin/uploads/[id]` bleibt ein API-Pfad auf beiden Hosts und prüft die Rolle selbst. Der Proxy ist keine Berechtigungsprüfung; die machen weiter Seiten und Actions (§7).
+- **Gemeinsame Anmeldung:** Mit `ADMIN_URL` setzt Better Auth seine Cookies für die Domain von `BETTER_AUTH_URL` (`advanced.crossSubDomainCookies`, gilt auch für das Cookie der laufenden 2FA-Anmeldung), und `ADMIN_URL` steht in `trustedOrigins` (Abmelden vom Admin-Host). Damit keine alten host-only Cookies gleichen Namens stören, heißen die Cookies ab Phase 13 `uni-scrims.*` (`advanced.cookiePrefix`); beim Deploy sind alle einmal abgemeldet. Das Session-Cookie geht an jede Subdomain von `BETTER_AUTH_URL`: Keine Subdomain darf auf einen fremden Dienst zeigen.
+- **Anmelden:** Ohne Session leiten die Admin-Seiten auf `/login` des Haupt-Hosts mit der absoluten Admin-Adresse als `callbackURL`; `safeCallbackURL` lässt neben Pfaden genau den Origin von `ADMIN_URL` zu. Staff meldet sich wie bisher mit Passwort und Code an (§5.9), danach geht es zurück. Ohne 2FA leiten die Admin-Seiten auf `adminHref("/2fa")`, nach der Einrichtung zur Anmeldung mit Rückweg in den Admin-Bereich. Gesperrte, unvollständige und Konten ohne Rolle bekommen im Admin-Bereich 404 statt der Weiterleitungen von `requirePageUser`, die auf dem Admin-Host im Kreis liefen.
+- **Kopf auf dem Admin-Host:** „Uni Scrims“ + „Admin“ (zur Queue), „Zur Seite“ (`mainUrl("/scrims")`) und Abmelden (danach auf den Haupt-Host); kein Discord-Banner. Die Admin-Navigation mit Bot-Status bleibt in den Seiten (`AdminNav`).
+- **Infrastruktur:** DNS-Eintrag für `admin.<domain>`, Zertifikat für beide Namen; Caddy bedient `{$DOMAIN}` und `admin.{$DOMAIN}`, in der nginx-Variante stehen beide Namen in `server_name` (README).
+
 ## 6. Bot
 
 ### 6.1 Notification-Typen (vollständig)
@@ -712,11 +727,12 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Ab Phase 10: Team-Logo hochladen, ersetzen, entfernen | aktueller Captain eines nicht gesperrten Teams (Verifizierung nicht nötig) |
 | Ab Phase 10: Team-Logo ansehen (`/api/teams/[id]/logo`) | eingeloggt, nicht gesperrt (wie Team-Karten) |
 | Ab Phase 10: Team-Logo entfernen (Moderation, `/admin/bans`) | Admin, Betreiber, mit 2FA |
+| Ab Phase 13: Admin-Bereich | wie oben nach Rolle; mit `ADMIN_URL` nur unter dieser Adresse, `/admin` auf dem Haupt-Host leitet dorthin (§5.13) |
 | Ab Phase 12: Profilbild ansehen (`/api/users/[id]/avatar`) | die Person selbst (auch gesperrt), nicht gesperrte Mitglieder desselben Teams (auch eines gesperrten), Prüfer, Admins, Betreiber mit 2FA (`canSeeAvatar`) |
 
 `leaveTeam` funktioniert für Nicht-Captains auch in gesperrten Teams. Nach Verlassen oder Auflösen sind vergangene Scrims für ehemalige Mitglieder nicht mehr sichtbar (gewollt).
 - **Zeit:** Eingabe im Formular in Europe/Berlin, Umrechnung nach UTC in `core`. Keine Zeitlogik im Browser.
-- **UI:** Tailwind + shadcn/ui, komplett auf Deutsch, mobilfreundlich. Optik nach dem Design-Handoff (Richtung A „Klar“, Tokens in `apps/web/app/globals.css`). Ab Phase 11 gibt es zusätzlich einen Hell-Modus nach Systemeinstellung: `:root` hält die dunklen Werte des Handoffs, `@media (prefers-color-scheme: light)` überschreibt alle Farb-Tokens mit hellen (Text mindestens 4,5:1), `color-scheme: light dark`; Farben stehen nur in Tokens, auch Schatten (`--shadow-popup`, `--shadow-overlay`) und Platzhalter (`--placeholder`), außer dem bewusst weißen Grund des 2FA-QR-Codes. `--primary` bleibt in beiden Modi gleich; wo es als Text dient (Schrittnummern der Startseite), nimmt der helle Modus `--accent-text`. Kein Schalter auf der Seite; Funktionen und Felder bleiben wie in SPEC und hier beschrieben. Abweichung vom Design: Der Header zeigt das Burger-Menü bis 767 px, weil die Desktop-Navigation erst ab 768 px in die Breite passt. Auswahlfelder sind ein eigenes Select auf Base UI (`components/ui/select.tsx`) statt des OS-Menüs, Datumsfelder ein eigener Monatskalender in einem Base-UI-Popover (`components/ui/date-picker.tsx`, Wochen ab Montag, Tage vor `min` gesperrt, Wert wie beim nativen Feld `YYYY-MM-DD`), damit sie überall gleich aussehen und so hoch sind wie die Eingabefelder; ohne JavaScript lässt sich die Auswahl nicht ändern, die Formulare schicken dann den Startwert.
+- **UI:** Tailwind + shadcn/ui, komplett auf Deutsch, mobilfreundlich. Optik nach dem Design-Handoff (Richtung A „Klar“, Tokens in `apps/web/app/globals.css`). Ab Phase 11 gibt es zusätzlich einen Hell-Modus nach Systemeinstellung: `:root` hält die dunklen Werte des Handoffs, `@media (prefers-color-scheme: light)` überschreibt alle Farb-Tokens mit hellen (Text mindestens 4,5:1), `color-scheme: light dark`; Farben stehen nur in Tokens, auch Schatten (`--shadow-popup`, `--shadow-overlay`) und Platzhalter (`--placeholder`), außer dem bewusst weißen Grund des 2FA-QR-Codes. `--primary` bleibt in beiden Modi gleich; wo es als Text dient (Schrittnummern der Startseite), nimmt der helle Modus `--accent-text`. Kein Schalter auf der Seite; Funktionen und Felder bleiben wie in SPEC und hier beschrieben. Navigation ab Phase 13: Scrims, Team, Konto (§5.13). Abweichung vom Design: Der Header zeigt das Burger-Menü bis 767 px, weil die Desktop-Navigation erst ab 768 px in die Breite passt. Auswahlfelder sind ein eigenes Select auf Base UI (`components/ui/select.tsx`) statt des OS-Menüs, Datumsfelder ein eigener Monatskalender in einem Base-UI-Popover (`components/ui/date-picker.tsx`, Wochen ab Montag, Tage vor `min` gesperrt, Wert wie beim nativen Feld `YYYY-MM-DD`), damit sie überall gleich aussehen und so hoch sind wie die Eingabefelder; ohne JavaScript lässt sich die Auswahl nicht ändern, die Formulare schicken dann den Startwert.
 
 ### Entwicklung und Tests
 
@@ -741,7 +757,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 
 | Service | Image / Build | Details |
 |---|---|---|
-| `caddy` | `caddy:2` | Reverse Proxy mit automatischem HTTPS. Ports 80/443. `request_body { max_size 6MB }`. |
+| `caddy` | `caddy:2` | Reverse Proxy mit automatischem HTTPS. Ports 80/443. `request_body { max_size 6MB }`. Ab Phase 13 für `{$DOMAIN}` und `admin.{$DOMAIN}` (§5.13). |
 | `web` | Build `apps/web` (Next.js `output: standalone`, `node:24-slim`) | `ENV HOSTNAME=0.0.0.0` und `ENV PORT=3000` im Web-Target (Docker setzt `HOSTNAME` sonst auf die Container-ID, und der Standalone-Server lauscht nicht auf localhost). Volume `uploads:/data/uploads`; das Image legt `/data/uploads` für den Nutzer `node` an, weil ein neues Volume Besitzer und Rechte dieses Ordners übernimmt. `docker/legal` schreibgeschützt nach `/config/legal`. Healthcheck per Node, weil `node:24-slim` weder `curl` noch `wget` enthält: `node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"` |
 | `bot` | Build `apps/bot` (`node:24-slim`) | Kein offener Port. Kein Zugriff auf das Upload-Volume. Läuft ohne eigenen Build-Schritt per `node --import tsx` (kein Bundler nötig). Den Prisma-Client erzeugt die Stage `bot-build` (die CLI ist eine Dev-Abhängigkeit), das Target `bot` kopiert ihn. |
 | `migrate` | **eigenes Build-Target** `migrate` im Dockerfile, basierend auf `packages/db` mit Prisma-CLI, `prisma.config.ts` und `migrations/`; installiert `openssl` für die Schema-Engine | Einmal-Job: `prisma migrate deploy`. Das Web-Image (standalone) enthält weder CLI noch Migrationen. `web` und `bot` starten erst danach (`depends_on: condition: service_completed_successfully`). Enthält außerdem den generierten Client (aus `bot-build`) und den Seed, damit sich die Hochschul-Liste in Production einmalig einspielen lässt: `seed.ts --universities-only` legt nur die Hochschulen an, ohne Test-Teams (README). |
@@ -792,6 +808,7 @@ HUB_INVITE_URL=
 ADMIN_DISCORD_IDS=123,456                 # bis Phase 7; ab Phase 8 Rollen in der Datenbank (§5.9)
 UPLOAD_DIR=/data/uploads
 PUBLIC_BASE_URL=https://deine-domain.de   # für Links in Bot-Nachrichten
+ADMIN_URL=https://admin.deine-domain.de   # ab Phase 13: Admin-Bereich, Subdomain von BETTER_AUTH_URL; leer = unter /admin (§5.13)
 LEGAL_DIR=                                # absoluter Pfad zu impressum.txt und datenschutz.txt; Production: setzt Compose (/config/legal)
 DOMAIN=deine-domain.de                    # nur Production: Caddy
 POSTGRES_PASSWORD=                        # nur Production: hex, z. B. openssl rand -hex 32
@@ -959,3 +976,15 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Datenschutzerklärung: Kopie des Profilbilds, wer es sieht (Dev-Kopie und Production)
 - *Fertig wenn:* Konto-Seite, Team-Seite und Queue zeigen die Kopie des Profilbilds, ohne dass der Browser etwas von Discord lädt; ohne Bild stehen Initialen; nach dem Löschen ist die Kopie weg; Tests, Lint und Build sind grün.
 - *Stand (24.10.2026):* abgeschlossen. Code, Tests (`pnpm test`, `pnpm lint`, dazu ein `next build`; der Web-Test geht den echten Verknüpfen-Ablauf bis zur gespeicherten Kopie), Bot-Image lokal gebaut (Skript vorhanden, `sharp` verarbeitet dort ein Bild), Review samt Fixes (Backfill überschreibt keine neuere Kopie, keine Kopie bei Sperre während des Downloads, kein erneutes Laden bei gleicher Adresse, Profil parallel zum Hub-Beitritt und Tokens vor dem Bild-Download gelöscht, keine gemeinsame Warteschlange mit Logos, `canSeeAvatar` in `permissions.ts`, Initialen auch wenn das Bild nicht lädt); im Browser gegen eine Wegwerf-DB: Konto-Seite, Team-Seite und Queue mit Kopien, Rechte (Fremder 404, Staff 200), keine Anfrage an Discord aus dem Browser; echter Abruf von Discords CDN mit einem öffentlichen Standardbild. Seit dem 24.10.2026 auch in Production (Migration `user_avatar`; `backfill-avatars` hat das eine vorhandene Profilbild kopiert), mit der ergänzten Datenschutzerklärung.
+
+**Phase 13: Navigation und Admin-Bereich auf eigener Adresse** (SPEC N-9, §5.13)
+- **Prüfpunkte zuerst** (mit Next 16.4.2 und Better Auth 1.7.12 verifizieren, Ergebnis ins README):
+  1. `proxy.ts` liest `ADMIN_URL` zur Laufzeit im Standalone-Build, nicht beim Build.
+  2. Server Actions und `revalidatePath` funktionieren auf umgeschriebenen Admin-Seiten.
+  3. Mit `crossSubDomainCookies` tragen alle Better-Auth-Cookies (Session, laufende 2FA-Anmeldung) die Domain; `signOut` vom Admin-Host besteht die Origin-Prüfung.
+  4. Nach Passwort und Code leitet die Server Action auf die absolute Admin-Adresse zurück.
+- `core`: `getBoard` ohne `ownRequests` (Test anpassen)
+- Web: Seite `/scrims` mit Tabs, `/board` als Weiterleitung, Links auf `/scrims`; Kopf mit Scrims, Team, Konto ohne Abmelden; Konto-Seite mit Abmelden, Studierendenstatus oben, Link in den Admin-Bereich für Staff; `/verify` mit Zurück-Link; `ADMIN_URL`, `lib/admin-url.ts`, `proxy.ts`, Cookie-Domain und -Präfix, `trustedOrigins`, `safeCallbackURL`, Admin-Seiten mit Login auf dem Haupt-Host und 404 statt Weiterleitung, eigener Kopf auf dem Admin-Host. Tests: Proxy (Umschreiben, Weiterleitungen, Durchlass, ohne `ADMIN_URL` nichts), Adress-Helfer, `safeCallbackURL` mit Admin-Origin
+- Bot: Board-Link `/scrims`
+- Infrastruktur: Caddyfile mit `admin.{$DOMAIN}`, `.env.example`, README (DNS, Zertifikat, nginx `server_name`)
+- *Fertig wenn:* Der Kopf zeigt Scrims, Team, Konto (auf dem Handy im Menü) ohne Abmelden; Board und Meine Scrims sind Tabs von `/scrims`, alte Board-Links mit Filtern führen dorthin; Abmelden und Studierendenstatus stehen auf der Konto-Seite, `/verify` gehört im Menü zu Konto; mit `ADMIN_URL` läuft der Admin-Bereich unter der eigenen Adresse mit derselben Anmeldung (auch mit Passwort und Code), `/admin` auf dem Haupt-Host leitet dorthin, Abmelden dort meldet überall ab, Nicht-Staff sieht 404; ohne `ADMIN_URL` bleibt alles unter `/admin`; Tests, Lint und Build sind grün.
