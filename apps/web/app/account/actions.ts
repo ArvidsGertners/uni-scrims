@@ -8,6 +8,7 @@ import {
   passwordSchema,
   requireActiveAccountUser,
   resolveUploadDir,
+  setThemePreference,
   updateRealName,
 } from "@uni-scrims/core";
 import { revalidatePath } from "next/cache";
@@ -33,6 +34,20 @@ export async function deleteAccountAction(
   if (state.error) return state;
   // The sessions are gone, so the user is logged out from here on.
   redirect("/?geloescht=1");
+}
+
+/** System, Hell or Dunkel (SPEC N-13); the whole layout renders anew with it (§5.16). */
+export async function setThemeAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const userId = (await getSessionUserId()) ?? "";
+  const state = await runAction(async () => {
+    await setThemePreference({ userId, theme: String(formField(formData, "theme") ?? "") });
+  });
+  if (state.error) return state;
+  revalidatePath("/", "layout");
+  return state;
 }
 
 /** The real name, until the certificate is uploaded (SPEC N-3). */

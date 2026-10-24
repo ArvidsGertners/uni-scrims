@@ -1,6 +1,9 @@
+"use client";
+
 import type { TeamLogoInfo } from "@uni-scrims/core";
 import type { LogoBackground } from "@uni-scrims/db";
 import { cn } from "cn";
+import { useTheme } from "@/components/theme-provider";
 
 const SIZES = {
   sm: "size-10 rounded-sm text-[11px]",
@@ -17,7 +20,8 @@ export function teamLogoUrl(team: { id: string; logo: TeamLogoInfo }, background
 
 /**
  * The team logo (SPEC N-6, N-7) for the current mode, filling the square; without one the "logo"
- * of the design handoff: the tag in a square, the own team on accent.
+ * of the design handoff: the tag in a square, the own team on accent. The mode is the system setting
+ * or the account's choice (SPEC N-13), which comes from ThemeProvider.
  */
 export function TeamAvatar({
   team,
@@ -31,6 +35,7 @@ export function TeamAvatar({
   className?: string;
 }) {
   const { logo } = team;
+  const theme = useTheme();
   if (logo) {
     const dark = logo.backgrounds.includes("DARK");
     const light = logo.backgrounds.includes("LIGHT");
@@ -42,18 +47,36 @@ export function TeamAvatar({
       !dark && "dark:bg-logo-tile-light dark:p-[12%]",
       className,
     );
-    const src = teamLogoUrl({ id: team.id, logo }, dark ? "DARK" : "LIGHT");
-    return (
-      // The browser picks the logo for the system setting, without JavaScript.
-      <picture className="shrink-0">
-        {dark && light ? (
+    if (dark && light && theme === "SYSTEM") {
+      return (
+        // The browser picks the logo for the system setting, without JavaScript.
+        <picture className="shrink-0">
           <source
             media="(prefers-color-scheme: light)"
             srcSet={teamLogoUrl({ id: team.id, logo }, "LIGHT")}
           />
-        ) : null}
-        <img src={src} alt="" loading="lazy" decoding="async" className={imageClass} />
-      </picture>
+          <img
+            src={teamLogoUrl({ id: team.id, logo }, "DARK")}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className={imageClass}
+          />
+        </picture>
+      );
+    }
+    // One logo, or the account chose a design (§5.16): the logo for that mode, if there is one.
+    const background =
+      dark && light ? (theme === "LIGHT" ? "LIGHT" : "DARK") : dark ? "DARK" : "LIGHT";
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- small session-protected image, no optimisation
+      <img
+        src={teamLogoUrl({ id: team.id, logo }, background)}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={imageClass}
+      />
     );
   }
   return (

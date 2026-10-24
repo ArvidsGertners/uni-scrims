@@ -5,6 +5,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteFrame } from "@/components/site-frame";
 import { SiteHeader } from "@/components/site-header";
+import { ThemeProvider } from "@/components/theme-provider";
+import { siteChrome } from "@/lib/header-user";
+import { themeAttribute, themeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 // Direction A of the design handoff: Geist for display and body, Geist Mono for labels. The same
@@ -25,24 +28,27 @@ export const metadata: Metadata = {
   description: "Scrims für Valorant-Teams deutscher Hochschulen",
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  // The --background of each mode, for the browser's toolbar.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f6f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0c0e" },
-  ],
-};
+export async function generateViewport(): Promise<Viewport> {
+  const { user } = await siteChrome();
+  return { width: "device-width", initialScale: 1, themeColor: themeColor(user?.theme) };
+}
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const { user } = await siteChrome();
   return (
-    // Light or dark by the system setting, through the tokens in globals.css (Phase 11).
-    <html lang="de" className={cn(geist.variable, geistMono.variable)}>
+    // Light or dark by the system setting (Phase 11), or as the account chose (Phase 17, §5.16),
+    // through the tokens in globals.css.
+    <html
+      lang="de"
+      data-theme={themeAttribute(user?.theme)}
+      className={cn(geist.variable, geistMono.variable)}
+    >
       <body className="flex min-h-dvh flex-col">
-        <SiteHeader />
-        <SiteFrame>{children}</SiteFrame>
-        <SiteFooter />
+        <ThemeProvider theme={user?.theme ?? "SYSTEM"}>
+          <SiteHeader />
+          <SiteFrame>{children}</SiteFrame>
+          <SiteFooter />
+        </ThemeProvider>
       </body>
     </html>
   );

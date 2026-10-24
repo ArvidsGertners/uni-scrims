@@ -13,6 +13,7 @@ import {
 import { cn } from "cn";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
+import { CopyValue } from "@/components/copy-value";
 import { PageMain } from "@/components/page-main";
 import { StatTile } from "@/components/stat-tile";
 import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
@@ -32,7 +33,6 @@ import {
   transferCaptainAction,
   updateTeamAction,
 } from "./actions";
-import { CopyLink } from "./copy-link";
 import { JoinLinkForm } from "./join-link-form";
 import { MemberRoleSelect } from "./member-role-select";
 import { TeamLogoForm } from "./team-logo-form";
@@ -184,7 +184,9 @@ export default async function TeamPage() {
               Teile den Link in eurem Team-Discord. Erneuerst du ihn, funktioniert der alte nicht
               mehr.
             </p>
-            {inviteUrl ? <CopyLink url={inviteUrl} /> : null}
+            {inviteUrl ? (
+              <CopyValue value={inviteUrl} display={inviteUrl.replace(/^https?:\/\//, "")} />
+            ) : null}
             <ActionForm
               action={regenerateInviteAction}
               submitLabel="Link erneuern"

@@ -2,9 +2,30 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Light and dark follow the system setting (ARCHITECTURE §11 Phase 11); no class toggles them. */
-@custom-variant dark (@media (prefers-color-scheme: dark));
-@custom-variant light (@media (prefers-color-scheme: light));
+/*
+ * Light and dark follow the system setting (Phase 11), unless the account chose one (Phase 17,
+ * ARCHITECTURE §5.16): then the root layout sets data-theme on <html>, and that wins.
+ */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+}
+@custom-variant light {
+  @media (prefers-color-scheme: light) {
+    &:where(:root:not([data-theme="dark"]), :root:not([data-theme="dark"]) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme="light"], [data-theme="light"] *) {
+    @slot;
+  }
+}
 
 /* Tailwind names for the design tokens below. */
 @theme inline {
@@ -125,10 +146,11 @@
 
 /*
  * Light mode (Phase 11): the same tokens with light colours; text at least 4.5:1 on background,
- * card and secondary. The dark values above stay those of the design handoff.
+ * card and secondary. The dark values above stay those of the design handoff. By the system
+ * setting or the account's choice, like the light variant.
  */
-@media (prefers-color-scheme: light) {
-  :root {
+:root {
+  @variant light {
     --background: #f5f6f8;
     --foreground: #111318;
     --card: #ffffff;
@@ -210,6 +232,12 @@
   }
   html {
     color-scheme: light dark;
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
+  }
+  html[data-theme="dark"] {
+    color-scheme: dark;
   }
   body {
     background: var(--background);

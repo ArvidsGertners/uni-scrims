@@ -1,8 +1,10 @@
-import { getAccount } from "@uni-scrims/core";
+import { THEME_LABELS, getAccount } from "@uni-scrims/core";
+import { ThemePreference } from "@uni-scrims/db";
 import { cn } from "cn";
 import Link from "next/link";
 import { EmailField, PasswordField, RealNameFields } from "@/components/account-fields";
 import { ActionForm } from "@/components/action-form";
+import { CopyValue } from "@/components/copy-value";
 import { DetailRows } from "@/components/detail-rows";
 import { DiscordButton } from "@/components/discord-button";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
@@ -23,8 +25,14 @@ import {
 } from "./actions";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountDialog } from "./delete-account-dialog";
+import { ThemeForm } from "./theme-form";
 
 const cardClass = "flex flex-col gap-4 rounded-lg border border-border bg-card p-5";
+
+const THEME_OPTIONS = Object.values(ThemePreference).map((value) => ({
+  value,
+  label: THEME_LABELS[value],
+}));
 
 // The verification belongs to Konto (SPEC N-9): status here, the upload on /verify.
 const VERIFICATION_LABELS = {
@@ -119,10 +127,28 @@ export default async function AccountPage({
           else on the left, in the order of the page as before (§5.15). */}
       <div
         className={cn(
-          "flex flex-col gap-7 lg:grid-rows-[repeat(4,auto)_1fr] lg:gap-6",
+          "flex flex-col gap-7 lg:grid-rows-[repeat(5,auto)_1fr] lg:gap-6",
           DETAIL_COLUMNS,
         )}
       >
+        {/* SPEC N-13: for every signed-in account, banned and incomplete ones included. */}
+        <section className={`${cardClass} lg:col-start-1`}>
+          <h2 className="type-label text-muted-foreground">Grundeinstellungen</h2>
+          <div className="flex max-w-xl flex-col gap-2">
+            <span className="text-[14px] font-medium">Profil-ID</span>
+            <CopyValue value={user.id} />
+            <p className="text-[13px] text-muted-foreground">
+              Nenn sie uns, wenn du dich beim Support meldest. Ändern lässt sie sich nicht.
+            </p>
+          </div>
+          <div className="flex max-w-xl flex-col gap-2 border-t border-border pt-4">
+            <span className="text-[14px] font-medium">Design</span>
+            <ThemeForm current={user.theme} options={THEME_OPTIONS} />
+            <p className="text-[13px] text-muted-foreground">
+              „System“ folgt der Einstellung deines Geräts. Deine Wahl gilt auf allen Geräten.
+            </p>
+          </div>
+        </section>
         <DetailRows
           className="px-5 pt-4 pb-1 lg:col-start-1"
           rows={[
@@ -157,7 +183,7 @@ export default async function AccountPage({
             )}
           </div>
         </DetailRows>
-        <section className={`${cardClass} lg:col-start-2 lg:row-span-5 lg:row-start-1`}>
+        <section className={`${cardClass} lg:col-start-2 lg:row-span-6 lg:row-start-1`}>
           <h2 className="type-label text-muted-foreground">Discord</h2>
           {account.hasDiscord ? (
             <>
