@@ -27,12 +27,17 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // The --background of each mode, for the browser's toolbar.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f6f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0c0e" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    // The app is dark only; "dark" keeps the dark: variants of shadcn components active.
-    <html lang="de" className={cn("dark", geist.variable, geistMono.variable)}>
+    // Light or dark by the system setting, through the tokens in globals.css (Phase 11).
+    <html lang="de" className={cn(geist.variable, geistMono.variable)}>
       <body className="flex min-h-dvh flex-col">
         <SiteHeader />
         <div className="flex-1">{children}</div>

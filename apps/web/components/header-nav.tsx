@@ -70,7 +70,7 @@ export function HeaderNav({ items }: { items: NavItem[] }) {
       {open ? (
         <div
           id="mobile-menu"
-          className="absolute inset-x-0 top-16 flex flex-col border-b border-border bg-background px-5 pt-2 pb-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)] md:hidden"
+          className="absolute inset-x-0 top-16 flex flex-col border-b border-border bg-background px-5 pt-2 pb-5 shadow-(--shadow-overlay) md:hidden"
         >
           {items.map((item) => {
             const active = isActive(item.href, pathname);

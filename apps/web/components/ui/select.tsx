@@ -66,7 +66,7 @@ function Select<Multiple extends boolean | undefined = false>({
             sideOffset={6}
             className="z-50 outline-none"
           >
-            <SelectPrimitive.Popup className="max-h-[min(var(--available-height),26rem)] max-w-[min(var(--available-width),max(var(--anchor-width),16rem))] min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto overscroll-contain rounded-sm border border-border-strong bg-popover p-1 text-popover-foreground shadow-[0_16px_40px_rgba(0,0,0,0.55)] outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0">
+            <SelectPrimitive.Popup className="max-h-[min(var(--available-height),26rem)] max-w-[min(var(--available-width),max(var(--anchor-width),16rem))] min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto overscroll-contain rounded-sm border border-border-strong bg-popover p-1 text-popover-foreground shadow-(--shadow-popup) outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0">
               {options.map((option) => (
                 <SelectPrimitive.Item
                   key={option.value}

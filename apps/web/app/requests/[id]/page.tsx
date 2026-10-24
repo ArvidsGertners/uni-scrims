@@ -150,7 +150,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
         <section
           className={
             ownApplication.status === "PENDING" || ownApplication.status === "ACCEPTED"
-              ? "flex flex-col gap-3.5 rounded-lg border border-[rgba(61,214,140,0.3)] bg-success-soft p-[18px]"
+              ? "flex flex-col gap-3.5 rounded-lg border border-success-line bg-success-soft p-[18px]"
               : "flex flex-col gap-3.5 rounded-lg border border-border bg-card p-[18px]"
           }
         >

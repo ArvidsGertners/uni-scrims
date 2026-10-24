@@ -93,7 +93,7 @@ export default async function MyScrimsPage({
           {feedbackDue ? (
             <Link
               href={`/scrims/${feedbackDue.id}`}
-              className="flex items-center gap-3 rounded-sm border border-primary bg-accent-soft px-4 py-3.5 hover:bg-[rgba(255,90,79,0.2)]"
+              className="flex items-center gap-3 rounded-sm border border-primary bg-accent-soft px-4 py-3.5 hover:bg-accent-soft-hover"
             >
               <MessageSquareIcon size={20} />
               <span className="flex-1 text-[14px]">

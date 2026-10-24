@@ -198,7 +198,7 @@ function DatePicker({
           >
             <Popover.Popup
               initialFocus={focusedRef}
-              className="origin-(--transform-origin) rounded-sm border border-border-strong bg-popover p-3 text-popover-foreground shadow-[0_16px_40px_rgba(0,0,0,0.55)] outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0"
+              className="origin-(--transform-origin) rounded-sm border border-border-strong bg-popover p-3 text-popover-foreground shadow-(--shadow-popup) outline-none transition-[opacity,scale] duration-100 data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0"
             >
               {month ? (
                 <>

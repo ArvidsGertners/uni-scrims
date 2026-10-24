@@ -2,7 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Light and dark follow the system setting (ARCHITECTURE §11 Phase 11); no class toggles them. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 /* Tailwind names for the design tokens below. */
 @theme inline {
@@ -38,6 +39,9 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-warning-line: var(--warning-line);
+  --color-success-line: var(--success-line);
+  --color-accent-soft-hover: var(--accent-soft-hover);
+  --color-placeholder: var(--placeholder);
   --radius-sm: var(--radius-sm);
   --radius-lg: var(--radius);
   --radius-pill: var(--radius-pill);
@@ -84,6 +88,13 @@
   --warning: #f5b84b;
   --warning-soft: rgba(245, 184, 75, 0.1);
   --warning-line: rgba(245, 184, 75, 0.32);
+  --success-line: rgba(61, 214, 140, 0.3);
+  --accent-soft-hover: rgba(255, 90, 79, 0.2);
+  /* Chrome's default placeholder, readable on both backgrounds. */
+  --placeholder: #757575;
+  --shadow-popup: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-overlay: 0 24px 48px rgba(0, 0, 0, 0.6);
+  --backdrop: rgb(0 0 0 / 0.6);
   --clip: none;
   --clip-btn: none;
   --card-border: 1px solid #262a31;
@@ -104,6 +115,43 @@
   --h2: 20px;
   --hero: 42px;
   --body-size: 15px;
+}
+
+/*
+ * Light mode (Phase 11): the same tokens with light colours; text at least 4.5:1 on background,
+ * card and secondary. The dark values above stay those of the design handoff.
+ */
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #f5f6f8;
+    --foreground: #111318;
+    --card: #ffffff;
+    --card-foreground: #111318;
+    --popover: #ffffff;
+    --popover-foreground: #111318;
+    --secondary: #eef0f3;
+    --secondary-foreground: #111318;
+    --muted: #eef0f3;
+    --muted-foreground: #5c6370;
+    --accent: #eef0f3;
+    --accent-foreground: #111318;
+    --border: #e1e4e8;
+    --input: #ffffff;
+    --border-strong: #c9ced6;
+    --faint: #666c77;
+    --accent-soft: rgba(255, 90, 79, 0.12);
+    --accent-text: #c2332a;
+    --success: #0e7543;
+    --success-soft: rgba(14, 117, 67, 0.1);
+    --success-line: rgba(14, 117, 67, 0.3);
+    --warning: #8f5b00;
+    --warning-soft: rgba(245, 184, 75, 0.18);
+    --warning-line: rgba(143, 91, 0, 0.35);
+    --card-border: 1px solid #e1e4e8;
+    --shadow-popup: 0 12px 32px rgba(17, 19, 24, 0.14);
+    --shadow-overlay: 0 20px 44px rgba(17, 19, 24, 0.16);
+    --backdrop: rgb(17 19 24 / 0.35);
+  }
 }
 
 /* Recurring text styles from the design README ("Wiederkehrende Elemente"). */
@@ -155,7 +203,7 @@
     @apply border-border outline-ring/50;
   }
   html {
-    color-scheme: dark;
+    color-scheme: light dark;
   }
   body {
     background: var(--background);
