@@ -1,9 +1,4 @@
-import {
-  LOGO_BACKGROUNDS,
-  MIN_SEARCH_LENGTH,
-  searchModerationTargets,
-  getAdminOverview,
-} from "@uni-scrims/core";
+import { LOGO_BACKGROUNDS, MIN_SEARCH_LENGTH, searchModerationTargets } from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { TeamAvatar, TeamLogoPreview } from "@/components/team-avatar";
@@ -11,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requireStaffPage } from "@/lib/session";
+import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { banTeamAction, banUserAction, removeTeamLogoAction } from "../actions";
 import { adminHref } from "@/lib/admin-url";
@@ -25,8 +20,7 @@ export default async function BansPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const admin = await requireStaffPage("/bans", "admin");
-  const overview = await getAdminOverview({ staffId: admin.id, now: new Date() });
+  const { staff: admin, overview } = await requireAdminShellPage("/bans", "admin");
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
   const result = await searchModerationTargets({ adminId: admin.id, query });

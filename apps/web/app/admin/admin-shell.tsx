@@ -118,8 +118,10 @@ export async function AdminShell({
 
   return (
     <div className="mx-auto flex w-full max-w-6xl gap-10 px-5 pt-7 pb-16 sm:px-8">
+      {/* data-admin-sidebar: the admin header hides its logout from 1024 px while this exists. */}
       <aside data-admin-sidebar className="hidden w-56 shrink-0 lg:block">
-        <div className="sticky top-7 flex h-[calc(100dvh-8rem)] min-h-[420px] flex-col gap-6">
+        {/* Below the sticky header (64 px) with the page's top padding. */}
+        <div className="sticky top-[5.75rem] flex h-[calc(100dvh-7.5rem)] min-h-[420px] flex-col gap-6">
           <nav aria-label="Admin-Bereich" className="flex flex-col gap-0.5">
             {areas.map(({ path, label, icon: Icon, count }) => {
               const active = path === current;

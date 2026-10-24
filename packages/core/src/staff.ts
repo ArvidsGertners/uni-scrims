@@ -240,22 +240,20 @@ export async function finishTwoFactorSetup(userId: string): Promise<boolean> {
  */
 export async function getAdminOverview(input: { staffId: string; now: Date }) {
   const staff = await requireStaff(input.staffId, STAFF_AREAS.queue);
-  const pending = { status: VerifStatus.PENDING };
-  const [pendingCount, oldest] = await Promise.all([
-    prisma.verificationRequest.count({ where: pending }),
-    prisma.verificationRequest.findFirst({
-      where: pending,
-      orderBy: { createdAt: "asc" },
-      select: { createdAt: true },
+  const [queue, admin] = await Promise.all([
+    prisma.verificationRequest.aggregate({
+      where: { status: VerifStatus.PENDING },
+      _count: true,
+      _min: { createdAt: true },
     }),
+    staffArea(staff.staffRole, "admin")
+      ? Promise.all([
+          prisma.scrim.count({ where: { status: ScrimStatus.DISPUTED } }),
+          prisma.notification.count({ where: { status: NotifStatus.FAILED } }),
+          getBotStatus(staff.id, input.now),
+        ])
+      : null,
   ]);
-  const admin = staffArea(staff.staffRole, "admin")
-    ? await Promise.all([
-        prisma.scrim.count({ where: { status: ScrimStatus.DISPUTED } }),
-        prisma.notification.count({ where: { status: NotifStatus.FAILED } }),
-        getBotStatus(staff.id, input.now),
-      ])
-    : null;
   return {
     viewer: {
       id: staff.id,
@@ -263,7 +261,7 @@ export async function getAdminOverview(input: { staffId: string; now: Date }) {
       staffRole: staff.staffRole,
       avatarVersion: avatarVersion(staff),
     },
-    queue: { pending: pendingCount, oldestAt: oldest?.createdAt ?? null },
+    queue: { pending: queue._count, oldestAt: queue._min.createdAt },
     disputes: admin ? admin[0] : null,
     failedNotifications: admin ? admin[1] : null,
     bot: admin ? admin[2] : null,

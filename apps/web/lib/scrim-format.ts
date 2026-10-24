@@ -22,7 +22,6 @@ export function formatMaps(maps: string[]): string {
   return maps.length > 0 ? maps.join(" · ") : "Freie Wahl";
 }
 
-/** "3 gespielt · 1 No-Show · 0 kurzfristige Absagen · Ø 4,2 ★" */
 /** Everything after "gespielt", for the team page tile that shows the played count large. */
 export function formatReliabilityDetails(reliability: Reliability): string {
   const parts = [
@@ -37,6 +36,7 @@ export function formatReliabilityDetails(reliability: Reliability): string {
   return parts.join(" · ");
 }
 
+/** "3 gespielt · 1 No-Show · 0 kurzfristige Absagen · Ø 4,2 ★" */
 export function formatReliability(reliability: Reliability): string {
   return `${reliability.played} gespielt · ${formatReliabilityDetails(reliability)}`;
 }

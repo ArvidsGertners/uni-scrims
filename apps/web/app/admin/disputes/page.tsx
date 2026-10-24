@@ -1,12 +1,7 @@
-import {
-  FEEDBACK_OUTCOME_LABELS,
-  describeStart,
-  listDisputes,
-  getAdminOverview,
-} from "@uni-scrims/core";
+import { FEEDBACK_OUTCOME_LABELS, describeStart, listDisputes } from "@uni-scrims/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFormat } from "@/lib/scrim-format";
-import { requireStaffPage } from "@/lib/session";
+import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { DisputeForm } from "./dispute-form";
 
@@ -27,8 +22,7 @@ function Answer({ side }: { side: Side }) {
 }
 
 export default async function DisputesPage() {
-  const admin = await requireStaffPage("/disputes", "admin");
-  const overview = await getAdminOverview({ staffId: admin.id, now: new Date() });
+  const { staff: admin, overview } = await requireAdminShellPage("/disputes", "admin");
   const disputes = await listDisputes(admin.id);
 
   return (

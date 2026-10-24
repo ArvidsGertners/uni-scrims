@@ -1,13 +1,8 @@
-import {
-  listPendingVerifications,
-  listUniversities,
-  resolveUploadDir,
-  getAdminOverview,
-} from "@uni-scrims/core";
+import { listPendingVerifications, listUniversities, resolveUploadDir } from "@uni-scrims/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
 import { formatDateTime } from "@/lib/format";
-import { requireStaffPage } from "@/lib/session";
+import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { DecisionForm } from "../decision-form";
 
@@ -22,8 +17,7 @@ const CHECKLIST = [
 
 export default async function AdminPage() {
   // Layout and page render in parallel, so the page checks too.
-  const admin = await requireStaffPage("/queue", "queue");
-  const overview = await getAdminOverview({ staffId: admin.id, now: new Date() });
+  const { staff: admin, overview } = await requireAdminShellPage("/queue", "queue");
   const queue = await listPendingVerifications(admin.id, resolveUploadDir());
   const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
 

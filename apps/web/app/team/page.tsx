@@ -127,7 +127,7 @@ export default async function TeamPage() {
           </StatTile>
           <StatTile
             label="Verifiziert"
-            value={team.verifiedPlayerCount}
+            value={`${team.verifiedPlayerCount} / ${READY_MEMBER_COUNT}`}
             tone={team.ready ? "text-success" : "text-warning"}
           >
             {team.ready

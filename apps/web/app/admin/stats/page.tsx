@@ -3,11 +3,10 @@ import {
   STATS_WINDOW_DAYS,
   type SuccessMetric,
   getSuccessMetrics,
-  getAdminOverview,
 } from "@uni-scrims/core";
 import { Badge } from "@/components/ui/badge";
 import { formatCases, formatMetricValue, formatThreshold } from "@/lib/metric-format";
-import { requireStaffPage } from "@/lib/session";
+import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 
 const GROUPS = [
@@ -76,8 +75,7 @@ function MetricCard({ metric }: { metric: SuccessMetric }) {
 
 /** Success metrics of SPEC §8 (SPEC N-2); only sums, no personal data. */
 export default async function StatsPage() {
-  const admin = await requireStaffPage("/stats", "admin");
-  const overview = await getAdminOverview({ staffId: admin.id, now: new Date() });
+  const { staff: admin, overview } = await requireAdminShellPage("/stats", "admin");
   const metrics = await getSuccessMetrics({ adminId: admin.id, now: new Date() });
 
   return (

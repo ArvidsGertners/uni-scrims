@@ -33,7 +33,8 @@ function Logo({ href, admin = false }: { href: string; admin?: boolean }) {
  */
 function AdminHeader({ signedIn }: { signedIn: boolean }) {
   return (
-    <header className="border-b border-border bg-background">
+    // Sticky like the header of the site, so the sidebar sits below it either way (§5.14).
+    <header className="sticky top-0 z-30 border-b border-border bg-background">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
         <Logo href="/" admin />
         <div className="flex items-center gap-1 max-[359px]:gap-0">

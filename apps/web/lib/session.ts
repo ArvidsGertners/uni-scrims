@@ -1,6 +1,7 @@
 import {
   STAFF_AREAS,
   type StaffArea,
+  getAdminOverview,
   getCurrentUser,
   isDomainError,
   requireAccountUser,
@@ -92,6 +93,19 @@ export async function requireStaffPage(path: `/${string}`, area: StaffArea) {
   if (!userId) redirect(adminLoginUrl(path));
   try {
     return await requireStaff(userId, STAFF_AREAS[area]);
+  } catch (error) {
+    adminPageProblem(error, path);
+  }
+}
+
+/**
+ * Admin pages with their frame (§5.14): requireStaffPage and the data of sidebar and overview,
+ * under the same handling, so a role removed meanwhile still ends in a 404, not an error page.
+ */
+export async function requireAdminShellPage(path: `/${string}`, area: StaffArea) {
+  const staff = await requireStaffPage(path, area);
+  try {
+    return { staff, overview: await getAdminOverview({ staffId: staff.id, now: new Date() }) };
   } catch (error) {
     adminPageProblem(error, path);
   }

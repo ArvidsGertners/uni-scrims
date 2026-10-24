@@ -1,12 +1,11 @@
-import { MAX_FAILED_SHOWN, listFailedNotifications, getAdminOverview } from "@uni-scrims/core";
+import { MAX_FAILED_SHOWN, listFailedNotifications } from "@uni-scrims/core";
 import { formatDateTime } from "@/lib/format";
 import { NOTIFICATION_CHANNEL_LABELS, NOTIFICATION_TYPE_LABELS } from "@/lib/scrim-format";
-import { requireStaffPage } from "@/lib/session";
+import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 
 export default async function FailedNotificationsPage() {
-  const admin = await requireStaffPage("/notifications", "admin");
-  const overview = await getAdminOverview({ staffId: admin.id, now: new Date() });
+  const { staff: admin, overview } = await requireAdminShellPage("/notifications", "admin");
   const { entries: failed, total } = await listFailedNotifications(admin.id);
 
   return (

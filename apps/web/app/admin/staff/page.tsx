@@ -4,7 +4,6 @@ import {
   STAFF_ROLE_LABELS,
   findStaffCandidates,
   listStaff,
-  getAdminOverview,
 } from "@uni-scrims/core";
 import type { StaffRole } from "@uni-scrims/db";
 import Link from "next/link";
@@ -15,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { adminHref } from "@/lib/admin-url";
-import { requireStaffPage } from "@/lib/session";
+import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { resetStaffTwoFactorAction, setStaffRoleAction } from "./actions";
 
@@ -89,8 +88,7 @@ export default async function StaffPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const operator = await requireStaffPage("/staff", "staff");
-  const overview = await getAdminOverview({ staffId: operator.id, now: new Date() });
+  const { staff: operator, overview } = await requireAdminShellPage("/staff", "staff");
   const { q } = await searchParams;
   const query = typeof q === "string" ? q.trim() : "";
   const [staff, candidates] = await Promise.all([

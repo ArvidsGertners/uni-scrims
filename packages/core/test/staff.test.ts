@@ -358,8 +358,18 @@ describe("getAdminOverview (§5.14)", () => {
         createdAt: LONG_AGO,
       },
     });
+    // Other test files count stale verifications, disputes and failed notifications too.
+    onTestFinished(async () => {
+      await prisma.verificationRequest.delete({ where: { id: request.id } });
+    });
     const { scrim } = await bookScrim();
     await prisma.scrim.update({ where: { id: scrim.id }, data: { status: ScrimStatus.DISPUTED } });
+    onTestFinished(async () => {
+      await prisma.scrim.update({
+        where: { id: scrim.id },
+        data: { status: ScrimStatus.SCHEDULED },
+      });
+    });
     const notification = await prisma.notification.create({
       data: {
         type: NotifType.VERIFICATION_RESULT,
@@ -372,18 +382,11 @@ describe("getAdminOverview (§5.14)", () => {
         createdAt: NOW,
       },
     });
+    onTestFinished(async () => {
+      await prisma.notification.delete({ where: { id: notification.id } });
+    });
     await heartbeat(NOW);
     const admin = await createUser({ staffRole: StaffRole.ADMIN });
-
-    // Other test files count stale verifications, disputes and failed notifications too.
-    onTestFinished(async () => {
-      await prisma.verificationRequest.delete({ where: { id: request.id } });
-      await prisma.notification.delete({ where: { id: notification.id } });
-      await prisma.scrim.update({
-        where: { id: scrim.id },
-        data: { status: ScrimStatus.SCHEDULED },
-      });
-    });
 
     for (const staff of [admin, operator]) {
       const overview = await getAdminOverview({ staffId: staff.id, now: NOW });
