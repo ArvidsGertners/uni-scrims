@@ -4,19 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { MenuIcon, XIcon } from "@/components/icons";
-import { LogoutButton } from "@/components/logout-button";
 import { cn } from "@/lib/utils";
 
 export type NavItem = {
   href: string;
   label: string;
-  /** Warning dot, e.g. on "Verifizierung" while the user is not verified. */
+  /** Warning dot, e.g. on "Konto" while the user is not verified. */
   dot?: boolean;
 };
 
 // Request detail and create count as Scrims (design README), like the old board address; the scrim
-// page with the feedback form lives under /scrims already.
-const SECTION_ALIASES: Record<string, string> = { "/requests": "/scrims", "/board": "/scrims" };
+// page with the feedback form lives under /scrims already. The verification belongs to Konto (§5.13).
+const SECTION_ALIASES: Record<string, string> = {
+  "/requests": "/scrims",
+  "/board": "/scrims",
+  "/verify": "/account",
+};
 
 function isActive(href: string, pathname: string): boolean {
   const section = `/${pathname.split("/")[1] ?? ""}`;
@@ -54,7 +57,6 @@ export function HeaderNav({ items }: { items: NavItem[] }) {
             </Link>
           );
         })}
-        <LogoutButton className="type-btn ml-2 h-9 cursor-pointer rounded-sm border border-border-strong px-3 text-[13px] font-semibold whitespace-nowrap text-muted-foreground hover:border-muted-foreground hover:text-foreground" />
       </nav>
 
       <button
@@ -93,8 +95,6 @@ export function HeaderNav({ items }: { items: NavItem[] }) {
               </Link>
             );
           })}
-          <div className="my-2 h-px bg-border" />
-          <LogoutButton className="flex h-[52px] cursor-pointer items-center px-3.5 text-left text-[16px] text-muted-foreground" />
         </div>
       ) : null}
     </>

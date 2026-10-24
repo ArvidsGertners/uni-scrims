@@ -1,6 +1,7 @@
 import { getVerificationStatus, listUniversities, semesterLabel } from "@uni-scrims/core";
 import { VerifStatus } from "@uni-scrims/db";
 import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { DetailRows, IconTile, StatusDot } from "@/components/detail-rows";
 import { AlertTriangleIcon, ClockIcon, ShieldCheckIcon, UploadIcon } from "@/components/icons";
 import { PageMain } from "@/components/page-main";
@@ -30,6 +31,7 @@ export default async function VerifyPage({
 
   return (
     <PageMain className="gap-7">
+      <BackLink href="/account">Konto</BackLink>
       <span className="-mb-4 type-label text-muted-foreground">Verifizierung</span>
       {verifiedAt ? (
         <div className="flex flex-col gap-6">

@@ -10,14 +10,13 @@ export async function SiteHeader() {
   const active = user !== null && !user.bannedAt && !user.setupStep;
 
   // Banned users and incomplete accounts only get Konto: there they may delete their account or
-  // finish its setup (ARCHITECTURE §7, §5.8).
+  // finish its setup (ARCHITECTURE §7, §5.8). Verification and logout live under Konto, the admin
+  // area on its own address (§5.13).
   const items: NavItem[] = active
     ? [
         { href: "/scrims", label: "Scrims" },
         { href: "/team", label: "Team" },
-        { href: "/verify", label: "Verifizierung", dot: !user.verifiedAt },
-        { href: "/account", label: "Konto" },
-        ...(user.staffRole ? [{ href: "/admin", label: "Admin" }] : []),
+        { href: "/account", label: "Konto", dot: !user.verifiedAt },
       ]
     : [{ href: "/account", label: "Konto" }];
 

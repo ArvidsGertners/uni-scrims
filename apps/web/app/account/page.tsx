@@ -23,11 +23,27 @@ import { DeleteAccountDialog } from "./delete-account-dialog";
 
 const cardClass = "flex flex-col gap-4 rounded-lg border border-border bg-card p-5";
 
+// The verification belongs to Konto (SPEC N-9): status here, the upload on /verify.
 const VERIFICATION_LABELS = {
-  VERIFIED: { label: "Verifiziert", className: "text-success" },
-  PENDING: { label: "In Prüfung", className: "text-warning" },
-  REJECTED: { label: "Abgelehnt", className: "text-accent-text" },
-  NONE: { label: "Nicht verifiziert", className: "text-warning" },
+  VERIFIED: { label: "Verifiziert", className: "text-success", action: "Details", primary: false },
+  PENDING: {
+    label: "In Prüfung",
+    className: "text-warning",
+    action: "Status ansehen",
+    primary: false,
+  },
+  REJECTED: {
+    label: "Abgelehnt",
+    className: "text-accent-text",
+    action: "Bescheinigung hochladen",
+    primary: true,
+  },
+  NONE: {
+    label: "Nicht verifiziert",
+    className: "text-warning",
+    action: "Bescheinigung hochladen",
+    primary: true,
+  },
 } as const;
 
 export default async function AccountPage({
@@ -60,7 +76,10 @@ export default async function AccountPage({
 
   return (
     <PageMain className="gap-7">
-      <h1 className="type-h1">Konto</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="type-h1">Konto</h1>
+        <LogoutButton className={buttonVariants({ variant: "outline", size: "sm" })} />
+      </div>
       {account.banned ? (
         <Alert>
           <span>Dein Konto ist gesperrt. Löschen kannst du es trotzdem.</span>
@@ -88,6 +107,41 @@ export default async function AccountPage({
           <span>Deine E-Mail-Adresse ist bestätigt.</span>
         </Alert>
       ) : null}
+
+      <DetailRows
+        className="px-5 pt-4 pb-1"
+        rows={[
+          {
+            label: "Status",
+            value: (
+              <span className={`font-semibold ${verification.className}`}>
+                {verification.label}
+              </span>
+            ),
+          },
+          { label: "Hochschule", value: account.verification.university ?? "–" },
+          {
+            label: "Team",
+            value: team ? `${team.name}${team.isCaptain ? " · Captain" : ""}` : "Kein Team",
+          },
+        ]}
+      >
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <h2 className="type-label text-muted-foreground">Studierendenstatus</h2>
+          {/* /verify needs an active account (requirePageUser). */}
+          {account.banned || account.setupStep ? null : (
+            <Link
+              href="/verify"
+              className={buttonVariants({
+                variant: verification.primary ? "default" : "outline",
+                size: "sm",
+              })}
+            >
+              {verification.action}
+            </Link>
+          )}
+        </div>
+      </DetailRows>
 
       <section className={cardClass}>
         <h2 className="type-label text-muted-foreground">Discord</h2>
@@ -211,26 +265,21 @@ export default async function AccountPage({
         </section>
       ) : null}
 
-      <DetailRows
-        className="px-5 pt-4 pb-1"
-        rows={[
-          {
-            label: "Status",
-            value: (
-              <span className={`font-semibold ${verification.className}`}>
-                {verification.label}
-              </span>
-            ),
-          },
-          { label: "Hochschule", value: account.verification.university ?? "–" },
-          {
-            label: "Team",
-            value: team ? `${team.name}${team.isCaptain ? " · Captain" : ""}` : "Kein Team",
-          },
-        ]}
-      >
-        <h2 className="mb-1 type-label text-muted-foreground">Studierendenstatus</h2>
-      </DetailRows>
+      {user.staffRole ? (
+        // Replaces the former nav tab: the admin area has its own address (§5.13).
+        <section className={cardClass}>
+          <h2 className="type-label text-muted-foreground">Admin-Bereich</h2>
+          <p className="text-[14px] text-pretty text-muted-foreground">
+            Prüf-Queue und Verwaltung liegen auf einer eigenen Seite.
+          </p>
+          <a
+            href="/admin"
+            className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}
+          >
+            Admin-Bereich öffnen
+          </a>
+        </section>
+      ) : null}
 
       {/* Data export (SPEC N-5): a plain link, the route answers with a file. */}
       <section className={cardClass}>
@@ -293,10 +342,11 @@ export default async function AccountPage({
             />
           </ActionForm>
         ) : null}
-        <div className="mt-1.5 flex flex-wrap gap-2.5">
-          {account.deletionProblem ? null : <DeleteAccountDialog consequences={consequences} />}
-          <LogoutButton className={buttonVariants({ variant: "outline", size: "sm" })} />
-        </div>
+        {account.deletionProblem ? null : (
+          <div className="mt-1.5 flex flex-wrap gap-2.5">
+            <DeleteAccountDialog consequences={consequences} />
+          </div>
+        )}
       </section>
     </PageMain>
   );
