@@ -2,9 +2,9 @@ import { RANK_LABELS, RANKS, TEAM_NAME_MAX, TEAM_TAG_MAX, TEAM_TAG_MIN } from "@
 import type { Rank } from "@uni-scrims/db";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 
-/** Name, tag and rank inputs, shared by create and edit (server component, no client code). */
+/** Name, tag and rank inputs, shared by create and edit (server component). */
 export function TeamFields({ defaults }: { defaults?: { name: string; tag: string; rank: Rank } }) {
   return (
     <>
@@ -29,16 +29,13 @@ export function TeamFields({ defaults }: { defaults?: { name: string; tag: strin
         />
       </Field>
       <Field label="Team-Rang">
-        <NativeSelect name="rank" required defaultValue={defaults?.rank ?? ""}>
-          <option value="" disabled>
-            Bitte wählen …
-          </option>
-          {RANKS.map((rank) => (
-            <option key={rank} value={rank}>
-              {RANK_LABELS[rank]}
-            </option>
-          ))}
-        </NativeSelect>
+        <Select
+          name="rank"
+          required
+          defaultValue={defaults?.rank ?? null}
+          placeholder="Bitte wählen …"
+          options={RANKS.map((rank) => ({ value: rank, label: RANK_LABELS[rank] }))}
+        />
       </Field>
     </>
   );

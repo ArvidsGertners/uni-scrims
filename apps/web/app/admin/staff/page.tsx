@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { requireStaffPage } from "@/lib/session";
 import { AdminNav } from "../admin-nav";
 import { resetStaffTwoFactorAction, setStaffRoleAction } from "./actions";
@@ -65,19 +65,19 @@ function RoleForm({ person }: { person: Person }) {
       confirmText={`Rolle von ${person.name} ändern? Die Person wird dabei überall abgemeldet.`}
     >
       <input type="hidden" name="userId" value={person.id} />
-      <NativeSelect
+      <Select
         name="role"
         defaultValue={person.staffRole ?? ASSIGNABLE_STAFF_ROLES[1]}
         aria-label={`Rolle von ${person.name}`}
         className="min-h-10 w-auto py-1.5"
-      >
-        {ASSIGNABLE_STAFF_ROLES.map((role) => (
-          <option key={role} value={role}>
-            {STAFF_ROLE_LABELS[role]}
-          </option>
-        ))}
-        {person.staffRole ? <option value="none">Keine Rolle</option> : null}
-      </NativeSelect>
+        options={[
+          ...ASSIGNABLE_STAFF_ROLES.map((role) => ({
+            value: role,
+            label: STAFF_ROLE_LABELS[role],
+          })),
+          ...(person.staffRole ? [{ value: "none", label: "Keine Rolle" }] : []),
+        ]}
+      />
     </ActionForm>
   );
 }

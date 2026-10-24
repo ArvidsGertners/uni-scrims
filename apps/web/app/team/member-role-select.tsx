@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { type ActionState, initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
 
@@ -40,19 +40,14 @@ export function MemberRoleSelect({ action, teamId, memberId, memberName, role, o
       <input type="hidden" name="teamId" value={teamId} />
       <input type="hidden" name="memberId" value={memberId} />
       <div className="flex items-center gap-1">
-        <NativeSelect
+        <Select
           name="role"
           value={selected}
-          onChange={(event) => setSelected(event.currentTarget.value)}
+          onValueChange={(value) => setSelected(value ?? role)}
           aria-label={`Rolle von ${memberName}`}
           className="min-h-10 w-auto py-1.5"
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </NativeSelect>
+          options={options}
+        />
         {!hydrated || selected !== role ? (
           <Button
             type="submit"

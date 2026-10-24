@@ -63,6 +63,7 @@ export const MapPinIcon = createIcon(
 );
 export const ChevronRightIcon = createIcon(<path d="m9 18 6-6-6-6" />);
 export const ChevronLeftIcon = createIcon(<path d="m15 18-6-6 6-6" />);
+export const ChevronDownIcon = createIcon(<path d="m6 9 6 6 6-6" />);
 export const MessageSquareIcon = createIcon(
   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
 );

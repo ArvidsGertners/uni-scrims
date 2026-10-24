@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { initialActionState } from "@/lib/action-state";
 import { decideVerificationAction } from "./actions";
@@ -26,14 +26,15 @@ export function DecisionForm({
       {universities ? (
         <div className="flex flex-col gap-2">
           <Label htmlFor={`university-${requestId}`}>Hochschule zuordnen (optional)</Label>
-          <NativeSelect id={`university-${requestId}`} name="universityId" defaultValue="">
-            <option value="">Keine Zuordnung</option>
-            {universities.map((uni) => (
-              <option key={uni.id} value={uni.id}>
-                {uni.name} ({uni.city})
-              </option>
-            ))}
-          </NativeSelect>
+          <Select
+            id={`university-${requestId}`}
+            name="universityId"
+            defaultValue=""
+            options={[
+              { value: "", label: "Keine Zuordnung" },
+              ...universities.map((uni) => ({ value: uni.id, label: `${uni.name} (${uni.city})` })),
+            ]}
+          />
         </div>
       ) : null}
       <div className="flex flex-col gap-2">

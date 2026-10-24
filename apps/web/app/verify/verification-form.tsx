@@ -7,7 +7,7 @@ import { CheckIcon, FileIcon, ShieldCheckIcon, UploadIcon } from "@/components/i
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
 import { submitVerificationAction } from "./actions";
@@ -31,7 +31,7 @@ export function VerificationForm({
   checks: string[];
 }) {
   const [state, action, pending] = useActionState(submitVerificationAction, initialActionState);
-  const [university, setUniversity] = useState("");
+  const [university, setUniversity] = useState<string | null>(null);
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [sizeError, setSizeError] = useState<string | null>(null);
@@ -63,22 +63,17 @@ export function VerificationForm({
     >
       <div className="flex flex-col gap-4">
         <Field label="Hochschule">
-          <NativeSelect
+          <Select
             name="university"
             required
             value={university}
-            onChange={(event) => setUniversity(event.target.value)}
-          >
-            <option value="" disabled>
-              Bitte wählen …
-            </option>
-            {universities.map((uni) => (
-              <option key={uni.id} value={uni.id}>
-                {uni.name} ({uni.city})
-              </option>
-            ))}
-            <option value={OTHER_UNIVERSITY}>Andere Hochschule …</option>
-          </NativeSelect>
+            onValueChange={setUniversity}
+            placeholder="Bitte wählen …"
+            options={[
+              ...universities.map((uni) => ({ value: uni.id, label: `${uni.name} (${uni.city})` })),
+              { value: OTHER_UNIVERSITY, label: "Andere Hochschule …" },
+            ]}
+          />
         </Field>
         {university === OTHER_UNIVERSITY ? (
           <Field label="Name und Ort deiner Hochschule">

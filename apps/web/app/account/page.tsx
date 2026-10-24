@@ -10,9 +10,9 @@ import { LogoutButton } from "@/components/logout-button";
 import { PageMain } from "@/components/page-main";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { initials } from "@/lib/format";
 import { requirePageAccountUser, setupUrl } from "@/lib/session";
-import { NativeSelect } from "@/components/ui/native-select";
 import {
   changeEmailAction,
   changePasswordAction,
@@ -279,16 +279,17 @@ export default async function AccountPage({
             className="flex flex-col gap-3"
             confirmText="Captain-Rolle wirklich übertragen?"
           >
-            <NativeSelect name="memberId" required defaultValue="" aria-label="Neuer Captain">
-              <option value="" disabled>
-                Neuen Captain wählen …
-              </option>
-              {account.captainCandidates.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
-            </NativeSelect>
+            <Select
+              name="memberId"
+              required
+              defaultValue={null}
+              placeholder="Neuen Captain wählen …"
+              aria-label="Neuer Captain"
+              options={account.captainCandidates.map((member) => ({
+                value: member.id,
+                label: member.name,
+              }))}
+            />
           </ActionForm>
         ) : null}
         <div className="mt-1.5 flex flex-wrap gap-2.5">

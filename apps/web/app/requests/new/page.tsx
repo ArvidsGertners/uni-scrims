@@ -20,7 +20,7 @@ import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { requirePageUser } from "@/lib/session";
 import { createRequestAction } from "../actions";
 
@@ -84,6 +84,7 @@ export default async function NewRequestPage() {
 }
 
 function RequestForm({ defaultRank }: { defaultRank: Rank }) {
+  const rankOptions = RANKS.map((rank) => ({ value: rank, label: RANK_LABELS[rank] }));
   return (
     <ActionForm
       action={createRequestAction}
@@ -103,13 +104,12 @@ function RequestForm({ defaultRank }: { defaultRank: Rank }) {
             <Input name="date" type="date" required min={toBerlinDateString(new Date())} />
           </Field>
           <Field label="Uhrzeit">
-            <NativeSelect name="time" required defaultValue="20:00">
-              {START_TIME_SLOTS.map((slot) => (
-                <option key={slot} value={slot}>
-                  {slot} Uhr
-                </option>
-              ))}
-            </NativeSelect>
+            <Select
+              name="time"
+              required
+              defaultValue="20:00"
+              options={START_TIME_SLOTS.map((slot) => ({ value: slot, label: `${slot} Uhr` }))}
+            />
           </Field>
         </div>
         <p className="text-[13px] text-pretty text-muted-foreground">
@@ -118,16 +118,16 @@ function RequestForm({ defaultRank }: { defaultRank: Rank }) {
         </p>
       </div>
       <Field label="Format">
-        <NativeSelect name="format" required defaultValue="">
-          <option value="" disabled>
-            Bitte wählen …
-          </option>
-          {(Object.keys(SCRIM_FORMAT_LABELS) as ScrimFormat[]).map((format) => (
-            <option key={format} value={format}>
-              {SCRIM_FORMAT_LABELS[format]}
-            </option>
-          ))}
-        </NativeSelect>
+        <Select
+          name="format"
+          required
+          defaultValue={null}
+          placeholder="Bitte wählen …"
+          options={(Object.keys(SCRIM_FORMAT_LABELS) as ScrimFormat[]).map((format) => ({
+            value: format,
+            label: SCRIM_FORMAT_LABELS[format],
+          }))}
+        />
       </Field>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 flex w-full justify-between text-[14px] font-medium">
@@ -149,21 +149,21 @@ function RequestForm({ defaultRank }: { defaultRank: Rank }) {
       <div className="flex flex-col gap-2">
         <span className="text-[14px] font-medium">Rangbereich</span>
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5">
-          <NativeSelect name="rankMin" aria-label="Rang von" required defaultValue={defaultRank}>
-            {RANKS.map((rank) => (
-              <option key={rank} value={rank}>
-                {RANK_LABELS[rank]}
-              </option>
-            ))}
-          </NativeSelect>
+          <Select
+            name="rankMin"
+            aria-label="Rang von"
+            required
+            defaultValue={defaultRank}
+            options={rankOptions}
+          />
           <span className="text-faint">bis</span>
-          <NativeSelect name="rankMax" aria-label="Rang bis" required defaultValue={defaultRank}>
-            {RANKS.map((rank) => (
-              <option key={rank} value={rank}>
-                {RANK_LABELS[rank]}
-              </option>
-            ))}
-          </NativeSelect>
+          <Select
+            name="rankMax"
+            aria-label="Rang bis"
+            required
+            defaultValue={defaultRank}
+            options={rankOptions}
+          />
         </div>
       </div>
       <CountedTextarea
