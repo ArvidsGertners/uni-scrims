@@ -88,6 +88,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 24. Als Spieler will ich mein Passwort per E-Mail zurücksetzen können, wenn ich es vergessen habe.
 25. Als Prüfer will ich den Namen der Person neben ihrer Bescheinigung sehen, damit ich prüfen kann, ob beide übereinstimmen.
 26. Als Nutzer will ich alle Daten, die Uni Scrims zu meinem Konto speichert, selbst herunterladen können, ohne erst eine Mail zu schreiben.
+27. Als Captain will ich ein Logo für unser Team hochladen, damit andere Teams uns auf dem Board und in ihren Scrims sofort erkennen.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -181,7 +182,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 **P0-3 Teams**
 - [x] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Iron bis Radiant, englische Rangnamen wie im Spiel üblich)
-- [x] Captain kann Name, Kürzel und Team-Rang ändern
+- [x] Captain kann Name, Kürzel und Team-Rang ändern; seit Phase 10 auch ein Logo hochladen (N-6)
 - [x] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
 - [x] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite
 - [x] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team
@@ -239,7 +240,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 **P0-10 Rechtliches und Datenschutz**
 - [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
 - [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Bis Phase 6 wurden bei einer erneuten Anmeldung nach der Löschung Discord-Name, Avatar und Session an diesem Platzhalter gespeichert; seit Phase 7 speichert eine Anmeldung über Discord dort nichts mehr, und der Platzhalter bleibt abgemeldet (N-3). Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
-- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3)
+- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3); seit Phase 10 ein optionales Team-Logo, nur als vom Server neu erzeugtes Bild ohne Metadaten (N-6)
 - [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
 ### Nach dem MVP umgesetzt
@@ -325,6 +326,15 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Datei nennt den Zeitpunkt der Auskunft und verweist für Zwecke, Empfänger, Speicherdauer und Rechte auf die Datenschutzerklärung; sie sagt auch, was fehlt (Server-Logs, Backups, Nachrichten an Teams).
 - [x] Wie bisher geht die Auskunft auch formlos per Mail an die Adresse aus dem Impressum.
 
+**N-6 Team-Logo** (Phase 10)
+- [ ] Der Captain kann auf der Team-Seite ein Logo hochladen, ersetzen und entfernen (auch ohne eigene Verifizierung, wie die übrigen Teamdaten). Nicht in einem gesperrten Team.
+- [ ] Erlaubt sind PNG und WebP mit Alphakanal (durchsichtiger Hintergrund möglich), höchstens 2 MB und 4096 × 4096 Pixel, nicht animiert. Andere Formate und Bilder ohne Alphakanal werden mit einem Hinweis abgelehnt. Ob die Fläche wirklich durchsichtig ist, wird nicht geprüft.
+- [ ] Der Server schneidet durchsichtige Ränder ab (Pixel mit Deckkraft bis 8 von 255 zählen als durchsichtig) und setzt das Logo mittig in ein Quadrat von 256 × 256 Pixeln, vergrößert oder verkleinert. Die längere Seite füllt das Quadrat, also berührt das Logo immer mindestens zwei gegenüberliegende Ränder. Ein komplett durchsichtiges Bild und ein Inhalt, dessen längere Seite kürzer als 128 Pixel ist, werden abgelehnt.
+- [ ] Gespeichert wird nur das neu erzeugte Bild (WebP, verlustfrei, ohne Metadaten), nicht die hochgeladene Datei.
+- [ ] Das Logo erscheint überall, wo bisher das Kürzel-Quadrat steht (Board, Anfrage mit Bewerbungen, Meine Scrims, Team-Seite, Einladungsseite); ohne Logo bleibt das Kürzel. Sehen können es alle eingeloggten, nicht gesperrten Nutzer, wie Teamnamen.
+- [ ] Admins können ein Logo auf der Seite „Sperren“ entfernen. Beim Auflösen eines Teams wird sein Logo gelöscht; bei einer Sperre bleibt es, bis ein Admin es entfernt.
+- [ ] Die Datenauskunft nennt beim Team, seit wann es ein Logo hat; das Bild selbst ist Teamdaten und über die Seite abrufbar.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -378,6 +388,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Gemischte Teams | Erlaubt. Spieler verschiedener Hochschulen dürfen in einem Team sein. |
 | Buchung | Bewerben + Bestätigung durch den Ersteller. |
 | Uploads | Löschen direkt nach der Prüfung, spätestens nach 14 Tagen. |
+| Team-Logo | Seit Phase 10 optional (N-6). Es liegt als kleines, vom Server erzeugtes Bild in der Datenbank, nicht im Upload-Ordner: So ist es in den Backups und wird nicht wie verwaiste Uploads gelöscht. |
 | Mail-Dienst | Bis Phase 6 keiner. Seit Phase 7 nur Konto-Mails (Bestätigung, Passwort, E-Mail-Wechsel) über das Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting, SMTP). Benachrichtigungen bleiben bei Discord. |
 | Konto | Seit Phase 7 E-Mail, Passwort und Klarname; Discord wird verknüpft und bleibt Pflicht (Benachrichtigungen, Hub-Beitritt, Kontakt zum gegnerischen Captain). Der Klarname ist nur für die Person selbst und für Prüfer und Admins sichtbar. |
 | Hosting | Eigener VPS mit Docker. |
@@ -404,6 +415,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Nur Discord als Kanal | Blockierte DMs sind ein stiller Ausfall. Fallback: Team-Channel und Hinweis auf der Website. |
 | Eigener VPS | Du betreibst ein System, das kurzzeitig ausweisähnliche Dokumente hält: Updates, Zugangsschutz und Vorfallreaktion liegen bei dir. |
 | Altersbestätigung nur per Checkbox | Wer den Login-Endpunkt direkt aufruft, umgeht sie, und es wird kein Nachweis gespeichert. Im MVP bewusst akzeptiert. |
+| Team-Logos ohne Vorabprüfung | Ein unpassendes Logo ist sofort für alle Eingeloggten sichtbar, bis ein Admin es entfernt. Nach einer Wiederherstellung aus dem Backup kann ein entferntes Logo zurückkommen. |
 | Wiederherstellung aus dem Backup | Sperren und Kontolöschungen nach dem Backup (seit dem letzten gelungenen Backup, normalerweise höchstens ein Tag) werden aus der alten Datenbank nachgezogen. Ist sie verloren, fehlen sie: Gelöschte Konten stehen dann wieder mit den Daten vom Backup-Zeitpunkt in der Datenbank, bis sie erneut gelöscht werden, und Sperren müssen neu gesetzt werden. Steht in der Datenschutzerklärung. |
 
 **Vor dem Launch geklärt** (Texte liegen außerhalb von Git in `LEGAL_DIR`, siehe ARCHITECTURE §8)
@@ -439,6 +451,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 7 | Konto mit E-Mail, Passwort und Klarname (N-3) | Registrierung, Bestätigung, Anmeldung, Passwort vergessen und Discord verknüpfen laufen durch; ein Altkonto wird zum Vervollständigen geführt, und die Prüf-Queue zeigt den Klarnamen |
 | 8 | Admins und Prüfer über die Oberfläche, mit 2FA (N-4) | Der Betreiber macht ein Konto zum Prüfer; es richtet 2FA ein, sieht nur die Prüf-Queue und entscheidet; nach dem Entzug ist der Zugang sofort weg |
 | 9 | Datenauskunft per Knopfdruck (N-5) | Ein Nutzer lädt auf der Konto-Seite seine Daten herunter; die Datei enthält alle Abschnitte, aber keine Zugangsdaten und keine Daten anderer Personen |
+| 10 | Team-Logo (N-6) | Ein Captain lädt ein PNG mit durchsichtigem Rand hoch; es erscheint zugeschnitten überall statt des Kürzels; JPEG und Bilder ohne Alphakanal werden abgelehnt; ein Admin kann es entfernen, und beim Auflösen verschwindet es |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
