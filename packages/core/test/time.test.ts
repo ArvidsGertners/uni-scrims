@@ -7,6 +7,7 @@ import {
   describeStartDay,
   describeStartShort,
   describeStartTime,
+  formatBerlinDate,
   formatDayHeading,
   formatWeekdayDate,
   isStartSlot,
@@ -102,6 +103,14 @@ describe("formatDayHeading", () => {
 describe("formatWeekdayDate", () => {
   it("names weekday and date in Berlin", () => {
     expect(formatWeekdayDate(new Date("2026-10-29T23:30:00Z"))).toBe("Freitag, 30.10.");
+  });
+});
+
+describe("formatBerlinDate", () => {
+  it("is the Berlin calendar date with the year", () => {
+    expect(formatBerlinDate(new Date("2026-10-22T18:00:00Z"))).toBe("22.10.2026");
+    // 00:30 Berlin time on New Year's Day.
+    expect(formatBerlinDate(new Date("2026-12-31T23:30:00Z"))).toBe("01.01.2027");
   });
 });
 

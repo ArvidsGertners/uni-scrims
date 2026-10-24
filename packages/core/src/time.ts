@@ -79,6 +79,11 @@ export function toBerlinDateString(date: Date): string {
   return format(date, "yyyy-MM-dd", berlin);
 }
 
+/** German display of a Berlin calendar date, e.g. "22.10.2026" (joined, team members). */
+export function formatBerlinDate(date: Date): string {
+  return format(date, "dd.MM.yyyy", berlin);
+}
+
 /** " (Nacht auf Do, 22.10.)" for starts after midnight, so nobody shows up a day late (SPEC P0-4). */
 function nightSuffix(startsAt: Date): string {
   const hour = Number(format(startsAt, "H", berlin));

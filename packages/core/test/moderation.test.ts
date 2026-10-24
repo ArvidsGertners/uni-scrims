@@ -308,6 +308,8 @@ describe("searchModerationTargets", () => {
         name: `Aktiv ${marker}`,
         tag: "TST",
         logo: null,
+        links: [],
+        linksVersion: null,
         banned: false,
         captainName: active.captain.name,
         memberCount: 5,

@@ -313,6 +313,16 @@ model Team {
   createdAt        DateTime  @db.Timestamptz(3)
   // Last change to a logo; null = no logo. Versions both logo URLs (Phase 10, both logos since 11).
   logoUpdatedAt    DateTime? @db.Timestamptz(3)
+  // External links set by the captain, https only, host checked per platform (Phase 19).
+  discordUrl       String?
+  websiteUrl       String?
+  xUrl             String?
+  instagramUrl     String?
+  twitchUrl        String?
+  youtubeUrl       String?
+  tiktokUrl        String?
+  // Last change to the links; null = no links. The version an admin removes (Phase 19).
+  linksUpdatedAt   DateTime? @db.Timestamptz(3)
 
   logos         TeamLogo[]
   members       TeamMember[]

@@ -15,6 +15,7 @@ import {
   summarizeUniversities,
   transferCaptain,
   updateTeam,
+  updateTeamLinks,
 } from "../src/index.ts";
 import { lockTeam } from "../src/locks.ts";
 import { NOW, createTeamWithMembers, createUser, uid } from "./helpers.ts";
@@ -214,6 +215,9 @@ describe("team row lock", () => {
         await expect(removeMember(target)).rejects.toMatchObject({ code: "FORBIDDEN" });
         await expect(
           transferCaptain({ userId, teamId: team.id, newCaptainId: userId }),
+        ).rejects.toMatchObject({ code: "FORBIDDEN" });
+        await expect(
+          updateTeamLinks({ userId, teamId: team.id, links: { x: "x.com/team" }, now: NOW }),
         ).rejects.toMatchObject({ code: "FORBIDDEN" });
       }
     } finally {

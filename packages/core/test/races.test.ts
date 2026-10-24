@@ -37,6 +37,7 @@ import {
   submitFeedback,
   submitVerification,
   updateTeam,
+  updateTeamLinks,
   setTeamLogo,
 } from "../src/index.ts";
 import { queueNotifications } from "../src/notifications.ts";
@@ -248,6 +249,29 @@ describe("team logo while the team is dissolved", () => {
       expect(
         (await prisma.team.findUniqueOrThrow({ where: { id: target.id } })).logoUpdatedAt,
       ).toBeNull();
+    }
+  });
+});
+
+describe("team links while the team is dissolved", () => {
+  it("never leaves links on a dissolved team", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team: target, captain } = await createTeamWithMembers();
+      const results = await Promise.allSettled([
+        updateTeamLinks({
+          userId: captain.id,
+          teamId: target.id,
+          links: { website: "eure-seite.de" },
+          now: NOW,
+        }),
+        leaveTeam({ userId: captain.id, now: NOW }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(await prisma.team.findUniqueOrThrow({ where: { id: target.id } })).toMatchObject({
+        websiteUrl: null,
+        linksUpdatedAt: null,
+      });
     }
   });
 });

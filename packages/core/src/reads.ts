@@ -19,6 +19,7 @@ import {
   requestPostingProblems,
 } from "./requests.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
+import { teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
 import { getMyTeam, teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
@@ -262,6 +263,14 @@ export async function getRequestForm(input: { userId: string; now: Date }) {
  */
 export type ActionOffer = { problem: string | null } | null;
 
+/** Teams on the request page: the card, their state and the external links (SPEC N-15). */
+const detailTeamSelect = {
+  ...teamCardSelect,
+  ...teamLinksSelect,
+  bannedAt: true,
+  dissolvedAt: true,
+} satisfies Prisma.TeamSelect;
+
 /**
  * Request for logged-in users; applications only for members of the creating team (§7).
  * null for unknown requests and those of banned or dissolved teams.
@@ -271,7 +280,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const request = await prisma.scrimRequest.findUnique({
     where: { id: input.requestId },
     include: {
-      team: { select: { ...teamCardSelect, bannedAt: true, dissolvedAt: true } },
+      team: { select: detailTeamSelect },
       scrim: { select: { id: true, hostTeamId: true, guestTeamId: true } },
     },
   });
@@ -285,7 +294,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     ? await prisma.application.findMany({
         where: { requestId: request.id },
         orderBy: { createdAt: "asc" },
-        include: { team: { select: { ...teamCardSelect, bannedAt: true, dissolvedAt: true } } },
+        include: { team: { select: detailTeamSelect } },
       })
     : [];
   const ownApplication =
@@ -342,7 +351,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     rankMax: request.rankMax,
     maps: request.maps,
     note: request.note,
-    team: toTeamCard(request.team, reliabilities),
+    team: { ...toTeamCard(request.team, reliabilities), links: toTeamLinks(request.team) },
     apply,
     /** The team that would apply, for "Du bewirbst dich als …"; only while applying is offered. */
     applyAs:
@@ -363,7 +372,10 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
           message: application.message,
           createdAt: application.createdAt,
           outOfRange: !isRankInRange(application.team.rank, request.rankMin, request.rankMax),
-          team: toTeamCard(application.team, reliabilities),
+          team: {
+            ...toTeamCard(application.team, reliabilities),
+            links: toTeamLinks(application.team),
+          },
           ...confirmOffer(application),
         }))
       : null,
@@ -377,6 +389,7 @@ const scrimTeamSelect = {
   id: true,
   name: true,
   tag: true,
+  ...teamLinksSelect,
   captain: { select: { id: true, name: true } },
 } satisfies Prisma.TeamSelect;
 
@@ -420,6 +433,7 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
       captainName: opponent.captain.name,
       /** For the "write on Discord" link. */
       captainDiscordId: opponentCaptainDiscordId,
+      links: toTeamLinks(opponent),
     },
     /** null if the user may cancel and give feedback for the own team, otherwise why not. */
     actionProblem,

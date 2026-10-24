@@ -20,6 +20,7 @@ import {
 import { parseNotificationPayload } from "./notifications.ts";
 import { isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { RANK_LABELS } from "./ranks.ts";
+import { TEAM_LINK_PLATFORMS, teamLinksSelect } from "./team-links.ts";
 import { DISCORD_PROVIDER } from "./users.ts";
 import { uploadExists } from "./verification.ts";
 
@@ -150,6 +151,8 @@ export async function exportAccountData(input: {
               dissolvedAt: true,
               logoUpdatedAt: true,
               logos: { select: { background: true }, orderBy: { background: "asc" } },
+              ...teamLinksSelect,
+              linksUpdatedAt: true,
             },
           },
         },
@@ -313,6 +316,11 @@ export async function exportAccountData(input: {
                 // The last change to either logo (SPEC N-6, N-7).
                 logosGeändertAm: team.logoUpdatedAt,
                 logos: team.logos.map((logo) => LOGO_BACKGROUND_LABELS[logo.background]),
+                // Per platform the address or null (SPEC N-15).
+                externeLinks: Object.fromEntries(
+                  TEAM_LINK_PLATFORMS.map((platform) => [platform.key, team[platform.field]]),
+                ),
+                linksGeändertAm: team.linksUpdatedAt,
                 rolle: MEMBER_ROLE_LABELS[membership.role],
                 captain: isCaptainOf(user, team),
                 beigetretenAm: membership.joinedAt,

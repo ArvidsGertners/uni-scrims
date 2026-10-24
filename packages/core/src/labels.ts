@@ -13,6 +13,11 @@ import {
   type VerifStatus,
 } from "@uni-scrims/db";
 
+/** Display names of Team.game; only Valorant for now (SPEC P2), unknown values show as stored. */
+export const GAME_LABELS: Record<string, string> = {
+  valorant: "Valorant",
+};
+
 /** Display names of the formats (SPEC P0-4). */
 export const SCRIM_FORMAT_LABELS: Record<ScrimFormat, string> = {
   ONE_MAP: "1 Map",

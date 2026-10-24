@@ -3,8 +3,9 @@ import { type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeam, isCaptainOf, requireAdmin } from "./permissions.ts";
+import { linksVersion, teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { clearTeamLogo, logoVersion, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
-import { retireTeamActivity } from "./teams.ts";
+import { clearTeamLinks, retireTeamActivity } from "./teams.ts";
 import { DISCORD_PROVIDER, getDiscordId } from "./users.ts";
 import { BAN_REJECT_REASON, removeFilesAfterCommit } from "./verification.ts";
 
@@ -56,6 +57,8 @@ export async function searchModerationTargets(input: { adminId: string; query: s
         tag: true,
         bannedAt: true,
         ...teamLogoSelect,
+        ...teamLinksSelect,
+        linksUpdatedAt: true,
         captain: { select: { name: true } },
         _count: { select: { members: true } },
       },
@@ -82,6 +85,8 @@ export async function searchModerationTargets(input: { adminId: string; query: s
       name: team.name,
       tag: team.tag,
       logo: teamLogoInfo(team),
+      links: toTeamLinks(team),
+      linksVersion: linksVersion(team),
       banned: team.bannedAt !== null,
       captainName: team.captain.name,
       memberCount: team._count.members,
@@ -134,6 +139,33 @@ export async function removeTeamLogoAsAdmin(input: {
       );
     }
     await clearTeamLogo(tx, input.teamId);
+  });
+}
+
+/**
+ * Moderation of external links (SPEC N-15): removes all links of a team, also of a banned one; a
+ * dissolved team has none left. Only the state the admin looked at (`linksVersion`).
+ */
+export async function removeTeamLinksAsAdmin(input: {
+  adminId: string;
+  teamId: string;
+  linksVersion: number;
+}) {
+  await requireAdmin(input.adminId);
+  await prisma.$transaction(async (tx) => {
+    await lockTeam(tx, input.teamId);
+    const team = await tx.team.findUnique({
+      where: { id: input.teamId },
+      select: { dissolvedAt: true, linksUpdatedAt: true },
+    });
+    if (!team || team.dissolvedAt) throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
+    if (linksVersion(team) !== input.linksVersion) {
+      throw new DomainError(
+        "CONFLICT",
+        "Die Links haben sich inzwischen geändert. Sieh sie dir erneut an.",
+      );
+    }
+    await clearTeamLinks(tx, input.teamId);
   });
 }
 

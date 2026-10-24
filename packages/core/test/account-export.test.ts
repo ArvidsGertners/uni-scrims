@@ -68,7 +68,13 @@ async function fullAccount() {
   const user = host.captain;
   await prisma.team.update({
     where: { id: host.team.id },
-    data: { logoUpdatedAt: NOW, logos: { create: { data: new Uint8Array([1, 2, 3]) } } },
+    data: {
+      logoUpdatedAt: NOW,
+      logos: { create: { data: new Uint8Array([1, 2, 3]) } },
+      websiteUrl: "https://eure-seite.de/",
+      xUrl: "https://x.com/team",
+      linksUpdatedAt: NOW,
+    },
   });
   await prisma.user.update({
     where: { id: user.id },
@@ -259,6 +265,16 @@ describe("exportAccountData", () => {
       gesperrtAm: null,
       logosGeändertAm: NOW,
       logos: ["Logo für dunklen Hintergrund"],
+      externeLinks: {
+        discord: null,
+        website: "https://eure-seite.de/",
+        x: "https://x.com/team",
+        instagram: null,
+        twitch: null,
+        youtube: null,
+        tiktok: null,
+      },
+      linksGeändertAm: NOW,
       rolle: "Spieler",
       captain: true,
       beigetretenAm: NOW,
@@ -501,6 +517,14 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     dissolvedAt: SHOWN,
     createdAt: SHOWN,
     logoUpdatedAt: SHOWN,
+    discordUrl: SHOWN,
+    websiteUrl: SHOWN,
+    xUrl: SHOWN,
+    instagramUrl: SHOWN,
+    twitchUrl: SHOWN,
+    youtubeUrl: SHOWN,
+    tiktokUrl: SHOWN,
+    linksUpdatedAt: SHOWN,
   },
   TeamLogo: { teamId: KEY, background: SHOWN, data: TEAM },
   TeamMember: { teamId: SHOWN, userId: SELF, role: SHOWN, joinedAt: SHOWN },

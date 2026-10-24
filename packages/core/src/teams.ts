@@ -15,8 +15,16 @@ import {
 } from "./permissions.ts";
 import { countReadyMembers, isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
 import { closeOpenRequest, openRequestWhere } from "./requests.ts";
-import { type TeamInput, memberRoleSchema, parseInput, teamInputSchema } from "./schemas.ts";
+import {
+  type TeamInput,
+  type TeamLinksInput,
+  memberRoleSchema,
+  parseInput,
+  teamInputSchema,
+  teamLinksSchema,
+} from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
+import { NO_TEAM_LINKS, TEAM_LINK_PLATFORMS, teamLinkColumns, toTeamLinks } from "./team-links.ts";
 import { clearTeamLogo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
 import { avatarVersion, findUserByDiscordId } from "./users.ts";
 
@@ -109,6 +117,43 @@ export async function updateTeam(input: TeamInput & { userId: string; teamId: st
     if (isUniqueViolation(error)) throw nameTaken();
     throw error;
   }
+}
+
+/**
+ * External links of the team (SPEC N-15, §5.18): captain of a team that is not banned, verification
+ * is not needed. An empty field removes its link. Only a change writes, so the version an admin saw
+ * stays valid while the captain saves the same links again.
+ */
+export async function updateTeamLinks(input: {
+  userId: string;
+  teamId: string;
+  links: TeamLinksInput;
+  now: Date;
+}) {
+  await requireCaptain(input.userId, input.teamId);
+  const links = parseInput(teamLinksSchema, input.links);
+  await prisma.$transaction(async (tx) => {
+    // Checked again under the team lock, like updateTeam: a dissolved team keeps no links.
+    await lockTeam(tx, input.teamId);
+    const { team } = await requireCaptain(input.userId, input.teamId, tx);
+    const data = teamLinkColumns(links);
+    const changed = TEAM_LINK_PLATFORMS.some(
+      (platform) => team[platform.field] !== data[platform.field],
+    );
+    if (!changed) return;
+    await tx.team.update({
+      where: { id: input.teamId },
+      data: { ...data, linksUpdatedAt: toTeamLinks(data).length > 0 ? input.now : null },
+    });
+  });
+}
+
+/** Removes all external links (dissolution, admins); internal, without permission check. */
+export async function clearTeamLinks(db: Db, teamId: string): Promise<void> {
+  await db.team.update({
+    where: { id: teamId },
+    data: { ...NO_TEAM_LINKS, linksUpdatedAt: null },
+  });
 }
 
 /** New invite code; the old link stops working. */
@@ -327,13 +372,15 @@ export async function leaveTeam(input: { userId: string; now: Date }) {
 
 /**
  * Internal building block without permission check (callers: leaveTeam, deleteAccount).
- * No hard delete: scrims keep the team ID. Name and invite link become free/invalid, the logo goes.
+ * No hard delete: scrims keep the team ID. Name and invite link become free/invalid, the logo and
+ * the external links go.
  */
 export async function dissolveTeam(teamId: string, now: Date, db: Db = prisma): Promise<void> {
   await inTransaction(db, async (tx) => {
     await retireTeamActivity(teamId, now, tx);
     await tx.teamMember.deleteMany({ where: { teamId } });
     await clearTeamLogo(tx, teamId);
+    await clearTeamLinks(tx, teamId);
     await tx.team.update({
       where: { id: teamId },
       data: { dissolvedAt: now, nameNormalized: null, inviteCode: null },
@@ -488,7 +535,9 @@ export async function getMyTeam(userId: string) {
     name: team.name,
     tag: team.tag,
     rank: team.rank,
+    game: team.game,
     logo,
+    links: toTeamLinks(team),
     banned: team.bannedAt !== null,
     isCaptain,
     // Only the captain manages the invite link.

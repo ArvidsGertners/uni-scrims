@@ -17,6 +17,7 @@ import {
   listFailedNotifications,
   listPendingVerifications,
   listStaff,
+  removeTeamLinksAsAdmin,
   requireAccountUser,
   requireActingCaptain,
   requireActiveAccountUser,
@@ -257,6 +258,8 @@ describe("staff checks (§5.9)", () => {
         resolveDispute({ decision: "UNCLEAR", adminId: id, scrimId: missing, now: NOW }),
       searchModerationTargets: (id) => searchModerationTargets({ adminId: id, query: "niemand" }),
       banTeam: (id) => banTeam({ adminId: id, teamId: missing, now: NOW }),
+      removeTeamLinksAsAdmin: (id) =>
+        removeTeamLinksAsAdmin({ adminId: id, teamId: missing, linksVersion: 0 }),
       banUser: (id) => banUser({ adminId: id, userId: missing, uploadDir, now: NOW }),
       listFailedNotifications: (id) => listFailedNotifications(id),
       getBotStatus: (id) => getBotStatus(id, NOW),

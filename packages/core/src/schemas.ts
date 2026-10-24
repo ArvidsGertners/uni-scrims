@@ -12,6 +12,7 @@ import { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../config/account.ts"
 import { mapSchema } from "../config/maps.ts";
 import { DomainError } from "./errors.ts";
 import { rankValue } from "./ranks.ts";
+import { type TeamLinkPlatform, parseTeamLink } from "./team-links.ts";
 import { isStartSlot, isValidDateString } from "./time.ts";
 
 export const TEAM_NAME_MIN = 2;
@@ -34,6 +35,33 @@ export const teamInputSchema = z.object({
 });
 
 export type TeamInput = z.infer<typeof teamInputSchema>;
+
+/** One field of the external links form; empty removes the link (SPEC N-15). */
+function teamLinkField(platform: TeamLinkPlatform) {
+  return z
+    .string("Ungültiger Link.")
+    .optional()
+    .transform((raw, ctx) => {
+      const result = parseTeamLink(platform, raw ?? "");
+      if ("error" in result) {
+        ctx.addIssue({ code: "custom", message: result.error });
+        return z.NEVER;
+      }
+      return result.url;
+    });
+}
+
+export const teamLinksSchema = z.object({
+  discord: teamLinkField("discord"),
+  website: teamLinkField("website"),
+  x: teamLinkField("x"),
+  instagram: teamLinkField("instagram"),
+  twitch: teamLinkField("twitch"),
+  youtube: teamLinkField("youtube"),
+  tiktok: teamLinkField("tiktok"),
+});
+
+export type TeamLinksInput = z.input<typeof teamLinksSchema>;
 
 export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
 
