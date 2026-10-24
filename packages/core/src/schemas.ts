@@ -1,5 +1,12 @@
 // Zod schemas for user input, shared by core and the web forms.
-import { FeedbackOutcome, MemberRole, Rank, ScrimFormat, ThemePreference } from "@uni-scrims/db";
+import {
+  FeedbackOutcome,
+  MemberRole,
+  NotifType,
+  Rank,
+  ScrimFormat,
+  ThemePreference,
+} from "@uni-scrims/db";
 import { z } from "zod";
 import { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../config/account.ts";
 import { mapSchema } from "../config/maps.ts";
@@ -32,6 +39,13 @@ export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
 
 /** The design of the own account (Phase 17, §5.16). */
 export const themePreferenceSchema = z.enum(ThemePreference, "Bitte wähle ein Design.");
+
+/** The notifications form (Phase 18, §5.17): Discord and mail for every type, none left out. */
+export const notificationPreferencesSchema = z.record(
+  z.enum(NotifType),
+  z.object({ discord: z.boolean(), email: z.boolean() }),
+  "Die Einstellungen sind unvollständig. Bitte lade die Seite neu.",
+);
 
 // ─── Accounts (Phase 7, §5.8) ─────────────────────────────────────────────────
 

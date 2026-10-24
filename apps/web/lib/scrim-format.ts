@@ -1,8 +1,10 @@
 import { RANK_LABELS, type Reliability, SCRIM_FORMAT_LABELS } from "@uni-scrims/core";
-import type { AppStatus, NotifChannel, Rank, ScrimFormat } from "@uni-scrims/db";
+import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 
-// Moved to core for the data export (Phase 9); the pages keep importing them from here.
+// Moved to core for the data export (Phase 9, the channels in Phase 18); the pages keep importing
+// them from here.
 export {
+  NOTIFICATION_CHANNEL_LABELS,
   NOTIFICATION_TYPE_LABELS,
   REQUEST_STATUS_LABELS,
   SCRIM_STATUS_LABELS,
@@ -52,10 +54,4 @@ export const APPLICATION_STATUS_LABELS: Record<AppStatus, string> = {
   ACCEPTED: "Bestätigt",
   REJECTED: "Abgelehnt",
   WITHDRAWN: "Zurückgezogen",
-};
-
-export const NOTIFICATION_CHANNEL_LABELS: Record<NotifChannel, string> = {
-  USER_DM: "DM an Nutzer",
-  CAPTAIN_DM: "DM an Captain",
-  TEAM_CHANNEL: "Team-Channel",
 };

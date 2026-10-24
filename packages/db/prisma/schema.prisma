@@ -101,8 +101,13 @@ enum NotifType {
 
 enum NotifChannel {
   USER_DM
+  // Only in entries from before Phase 18; the sender fans them out like PERSONAL (§5.17).
   CAPTAIN_DM
   TEAM_CHANNEL
+  // Phase 18: a mail to targetUser.
+  USER_EMAIL
+  // Phase 18: a personal notification, fanned out by the sender into USER_DM and USER_EMAIL.
+  PERSONAL
 }
 
 enum NotifStatus {
@@ -159,10 +164,11 @@ model User {
   // Phase 17 (§5.16): light or dark for this account on every device.
   theme            ThemePreference @default(SYSTEM)
 
-  avatar     UserAvatar?
-  sessions   Session[]
-  accounts   Account[]
-  twoFactors TwoFactor[]
+  avatar                  UserAvatar?
+  notificationPreferences NotificationPreference[]
+  sessions                Session[]
+  accounts                Account[]
+  twoFactors              TwoFactor[]
 
   verificationRequests VerificationRequest[] @relation("VerificationRequestUser")
   pendingVerification  VerificationRequest?  @relation("VerificationRequestPendingUser")
@@ -458,10 +464,10 @@ model Notification {
   id           String        @id @default(cuid())
   type         NotifType
   channel      NotifChannel
-  // Only for USER_DM.
+  // USER_DM, USER_EMAIL and PERSONAL to a person.
   targetUserId String?
   targetUser   User?         @relation(fields: [targetUserId], references: [id])
-  // For CAPTAIN_DM and TEAM_CHANNEL.
+  // CAPTAIN_DM, TEAM_CHANNEL and PERSONAL to a team; fanned-out children have both (§5.17).
   targetTeamId String?
   targetTeam   Team?         @relation(fields: [targetTeamId], references: [id])
   scrimId      String?
@@ -475,7 +481,7 @@ model Notification {
   status       NotifStatus
   attempts     Int           @default(0)
   lastError    String?
-  // <type>:<triggering entity per §6.1>:<teamId|userId>:<channel>
+  // <type>:<triggering entity per §6.1>:<userId|teamId>:<channel>; children: entity = parent id
   dedupeKey    String        @unique
   createdAt    DateTime      @db.Timestamptz(3)
   sentAt       DateTime?     @db.Timestamptz(3)
@@ -484,6 +490,18 @@ model Notification {
   @@index([scrimId])
   @@index([requestId])
   @@index([targetUserId])
+}
+
+// Phase 18 (§5.17): a person's choice per notification type; null = the default (mail off,
+// Discord on, for scrim types only for the team's captain). No row = defaults only.
+model NotificationPreference {
+  userId  String
+  user    User      @relation(fields: [userId], references: [id])
+  type    NotifType
+  discord Boolean?
+  email   Boolean?
+
+  @@id([userId, type])
 }
 
 model SystemStatus {

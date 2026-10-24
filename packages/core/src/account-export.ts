@@ -50,6 +50,11 @@ function notificationContent(type: NotifType, payload: Prisma.JsonValue) {
   return payload;
 }
 
+/** A stored notification setting (§5.17): null means the default of the role. */
+function settingLabel(value: boolean | null): string {
+  return value === null ? "Standard" : value ? "an" : "aus";
+}
+
 /** Better Auth's rows in `verification` that carry the user ID: open reset links, a pending login. */
 function openLinkKind(identifier: string): string {
   return identifier.startsWith("reset-password:")
@@ -207,6 +212,10 @@ export async function exportAccountData(input: {
           sentAt: true,
         },
       });
+      const preferences = await tx.notificationPreference.findMany({
+        where: { userId: user.id },
+        orderBy: { type: "asc" },
+      });
       // Own decisions as staff: date and result only, nothing about the person or the teams.
       const decidedReviews = await tx.verificationRequest.findMany({
         where: { decidedById: user.id },
@@ -344,6 +353,11 @@ export async function exportAccountData(input: {
           zustellversuche: notification.attempts,
           letzterFehler: notification.lastError,
           gesendetAm: notification.sentAt,
+        })),
+        benachrichtigungen: preferences.map((preference) => ({
+          art: NOTIFICATION_TYPE_LABELS[preference.type],
+          discord: settingLabel(preference.discord),
+          eMail: settingLabel(preference.email),
         })),
         verwaltung: {
           prüfungen: decidedReviews.map((review) => ({

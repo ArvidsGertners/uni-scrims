@@ -274,6 +274,7 @@ export async function deleteAccount(input: {
     // The copy of the Discord avatar goes with the account (SPEC N-8).
     await tx.userAvatar.deleteMany({ where: { userId: user.id } });
     await tx.notification.deleteMany({ where: { targetUserId: user.id } });
+    await tx.notificationPreference.deleteMany({ where: { userId: user.id } });
     await tx.session.deleteMany({ where: { userId: user.id } });
     // Better Auth keeps password reset tokens with the user ID as value; an open link would
     // otherwise set a new password on the anonymized account (§5.8).

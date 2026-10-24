@@ -2,6 +2,7 @@ import {
   type FeedbackOutcome,
   type LogoBackground,
   MemberRole,
+  type NotifChannel,
   type NotifStatus,
   type NotifType,
   type RequestStatus,
@@ -76,6 +77,15 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotifType, string> = {
   REMINDER_1H: "Reminder 1 h",
   FEEDBACK_PROMPT: "Feedback-Hinweis",
   CHANNEL_BROKEN: "Team-Channel nicht erreichbar",
+};
+
+/** The channels of the outbox (§5.17), for the admin list and the data export. */
+export const NOTIFICATION_CHANNEL_LABELS: Record<NotifChannel, string> = {
+  USER_DM: "Discord-DM",
+  CAPTAIN_DM: "DM an Captain (alt)",
+  TEAM_CHANNEL: "Team-Channel",
+  USER_EMAIL: "E-Mail",
+  PERSONAL: "Verteilung nach den Einstellungen",
 };
 
 /** States of a review (SPEC P0-2), for the data export; the account page shows the student status. */

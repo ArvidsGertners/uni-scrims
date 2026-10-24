@@ -76,6 +76,7 @@ async function fullAccount() {
       avatarUpdatedAt: NOW,
       avatar: { create: { data: new Uint8Array([4, 5, 6]) } },
       theme: "DARK",
+      notificationPreferences: { create: { type: "SCRIM_BOOKED", email: true } },
     },
   });
   const university = await prisma.university.create({
@@ -291,6 +292,9 @@ describe("exportAccountData", () => {
         zustellversuche: 2,
         letzterFehler: "Discord 50007",
       }),
+    ]);
+    expect(data.benachrichtigungen).toEqual([
+      { art: "Scrim gebucht", discord: "Standard", eMail: "an" },
     ]);
     expect(data.verwaltung).toEqual({ prüfungen: [], streitfälle: [] });
   });
@@ -568,6 +572,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     createdAt: SHOWN,
     sentAt: SHOWN,
   },
+  NotificationPreference: { userId: SELF, type: SHOWN, discord: SHOWN, email: SHOWN },
   SystemStatus: { id: "Bot-Heartbeat, keine Personendaten", heartbeatAt: "Bot-Heartbeat" },
 };
 
