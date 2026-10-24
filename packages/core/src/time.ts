@@ -101,6 +101,11 @@ export function describeStartShort(startsAt: Date): string {
   return format(startsAt, "EEEEEE dd.MM. '·' HH:mm", berlin) + nightSuffix(startsAt);
 }
 
+/** Day of the start only, e.g. "Do 22.10."; the time with describeStartTime (team page tile). */
+export function describeStartDay(startsAt: Date): string {
+  return format(startsAt, "EEEEEE dd.MM.", berlin);
+}
+
 /** Weekday and date in Berlin, e.g. "Donnerstag, 22.10.". */
 export function formatWeekdayDate(date: Date): string {
   return format(date, "EEEE, dd.MM.", berlin);

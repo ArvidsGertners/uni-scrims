@@ -23,9 +23,9 @@ export function formatMaps(maps: string[]): string {
 }
 
 /** "3 gespielt · 1 No-Show · 0 kurzfristige Absagen · Ø 4,2 ★" */
-export function formatReliability(reliability: Reliability): string {
+/** Everything after "gespielt", for the team page tile that shows the played count large. */
+export function formatReliabilityDetails(reliability: Reliability): string {
   const parts = [
-    `${reliability.played} gespielt`,
     `${reliability.noShows} ${reliability.noShows === 1 ? "No-Show" : "No-Shows"}`,
     `${reliability.lateCancels} kurzfristige ${reliability.lateCancels === 1 ? "Absage" : "Absagen"}`,
   ];
@@ -35,6 +35,10 @@ export function formatReliability(reliability: Reliability): string {
     );
   }
   return parts.join(" · ");
+}
+
+export function formatReliability(reliability: Reliability): string {
+  return `${reliability.played} gespielt · ${formatReliabilityDetails(reliability)}`;
 }
 
 export function formatUniversities(universities: { shown: string[]; more: number }): string {

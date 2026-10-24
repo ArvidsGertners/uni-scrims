@@ -11,6 +11,7 @@ import {
   getRequestForm,
   getReliability,
   getScrimDetail,
+  getTeamDashboard,
   retireTeamActivity,
   submitFeedback,
   transferCaptain,
@@ -576,5 +577,60 @@ describe("getScrimDetail and getMyScrims", () => {
     expect((await due(team.captain.id)).past).toMatchObject([
       { feedbackGiven: true, canGiveFeedback: false },
     ]);
+  });
+});
+
+describe("getTeamDashboard (§5.14)", () => {
+  it("is null without a team", async () => {
+    expect(await getTeamDashboard({ userId: (await createUser()).id, now: NOW })).toBeNull();
+  });
+
+  it("adds the board's reliability and no scrim to the team page", async () => {
+    const team = await createReadyTeam();
+    const dashboard = await getTeamDashboard({ userId: team.members[0]!.id, now: NOW });
+    expect(dashboard).toMatchObject({ id: team.team.id, nextScrim: null });
+    expect(dashboard?.reliability).toEqual(await getReliability(team.team.id));
+  });
+
+  it("shows the earliest upcoming scheduled scrim, for both sides", async () => {
+    const first = await bookScrim();
+    const second = await bookScrim();
+    // The same host team earlier: it comes first.
+    const earlier = new Date(first.scrim.startsAt.getTime() - HOUR);
+    await prisma.scrim.update({
+      where: { id: second.scrim.id },
+      data: { hostTeamId: first.host.team.id, startsAt: earlier },
+    });
+
+    const host = await getTeamDashboard({ userId: first.host.captain.id, now: NOW });
+    expect(host?.nextScrim).toEqual({
+      id: second.scrim.id,
+      startsAt: earlier,
+      format: second.scrim.format,
+      opponent: {
+        id: second.guest.team.id,
+        name: second.guest.team.name,
+        tag: second.guest.team.tag,
+        logo: null,
+      },
+    });
+    const guest = await getTeamDashboard({ userId: first.guest.members[0]!.id, now: NOW });
+    expect(guest?.nextScrim).toMatchObject({
+      id: first.scrim.id,
+      opponent: { id: first.host.team.id },
+    });
+  });
+
+  it("skips past, cancelled and disputed scrims", async () => {
+    const { host, scrim } = await bookScrim();
+    const after = new Date(scrim.startsAt.getTime() + HOUR);
+    expect((await getTeamDashboard({ userId: host.captain.id, now: after }))?.nextScrim).toBeNull();
+    for (const status of [ScrimStatus.CANCELLED, ScrimStatus.DISPUTED]) {
+      await prisma.scrim.update({ where: { id: scrim.id }, data: { status } });
+      expect(
+        (await getTeamDashboard({ userId: host.captain.id, now: NOW }))?.nextScrim,
+        status,
+      ).toBeNull();
+    }
   });
 });

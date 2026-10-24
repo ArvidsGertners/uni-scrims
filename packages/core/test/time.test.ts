@@ -4,6 +4,7 @@ import {
   berlinDayRange,
   berlinToUtc,
   describeStart,
+  describeStartDay,
   describeStartShort,
   describeStartTime,
   formatDayHeading,
@@ -101,6 +102,14 @@ describe("formatDayHeading", () => {
 describe("formatWeekdayDate", () => {
   it("names weekday and date in Berlin", () => {
     expect(formatWeekdayDate(new Date("2026-10-29T23:30:00Z"))).toBe("Freitag, 30.10.");
+  });
+});
+
+describe("describeStartDay", () => {
+  it("is the Berlin calendar day of the start, also after midnight", () => {
+    expect(describeStartDay(new Date("2026-10-22T18:00:00Z"))).toBe("Do 22.10.");
+    // 00:30 Berlin time on Friday.
+    expect(describeStartDay(new Date("2026-10-22T22:30:00Z"))).toBe("Fr 23.10.");
   });
 });
 

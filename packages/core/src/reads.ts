@@ -20,7 +20,7 @@ import {
 } from "./requests.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
-import { teamUniversities } from "./teams.ts";
+import { getMyTeam, teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
 import { getDiscordId } from "./users.ts";
 
@@ -562,5 +562,63 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
         logo: teamLogoInfo(application.request.team),
       },
     })),
+  };
+}
+
+// ─── Team dashboard ───────────────────────────────────────────────────────────
+
+const dashboardOpponentSelect = {
+  id: true,
+  name: true,
+  tag: true,
+  ...teamLogoSelect,
+} satisfies Prisma.TeamSelect;
+
+/**
+ * The team page as a dashboard (SPEC N-10, §5.14): getMyTeam plus the reliability other teams see
+ * on the board and the next upcoming scrim (the rule of "Anstehend": isCancellable). null without
+ * a team.
+ */
+export async function getTeamDashboard(input: { userId: string; now: Date }) {
+  const team = await getMyTeam(input.userId);
+  if (!team) return null;
+  const [reliability, scrim] = await Promise.all([
+    getReliability(team.id),
+    prisma.scrim.findFirst({
+      where: {
+        status: ScrimStatus.SCHEDULED,
+        startsAt: { gt: input.now },
+        OR: [{ hostTeamId: team.id }, { guestTeamId: team.id }],
+      },
+      orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        status: true,
+        startsAt: true,
+        format: true,
+        hostTeamId: true,
+        hostTeam: { select: dashboardOpponentSelect },
+        guestTeam: { select: dashboardOpponentSelect },
+      },
+    }),
+  ]);
+  const opponent = scrim ? (scrim.hostTeamId === team.id ? scrim.guestTeam : scrim.hostTeam) : null;
+  return {
+    ...team,
+    reliability,
+    nextScrim:
+      scrim && opponent && isCancellable(scrim, input.now)
+        ? {
+            id: scrim.id,
+            startsAt: scrim.startsAt,
+            format: scrim.format,
+            opponent: {
+              id: opponent.id,
+              name: opponent.name,
+              tag: opponent.tag,
+              logo: teamLogoInfo(opponent),
+            },
+          }
+        : null,
   };
 }
