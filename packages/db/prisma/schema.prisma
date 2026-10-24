@@ -147,7 +147,10 @@ model User {
   // Phase 8 (§5.9): null = no role. twoFactorEnabled belongs to Better Auth's twoFactor plugin.
   staffRole        StaffRole?
   twoFactorEnabled Boolean     @default(false)
+  // Phase 12 (§5.12): when the copy of the Discord avatar was made; null = none. Versions its URL.
+  avatarUpdatedAt  DateTime?   @db.Timestamptz(3)
 
+  avatar     UserAvatar?
   sessions   Session[]
   accounts   Account[]
   twoFactors TwoFactor[]
@@ -308,6 +311,15 @@ model Team {
   notifications Notification[]
 
   @@index([captainId])
+}
+
+// Copy of the Discord avatar (Phase 12, §5.12), in its own table so requireUser, which loads the
+// whole user row, never loads image bytes. A row exists exactly when User.avatarUpdatedAt is set.
+model UserAvatar {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id])
+  // 128×128 WebP made by the server.
+  data   Bytes
 }
 
 // Own table so the many reads of whole Team rows never load image bytes (Phase 10, §5.11).
