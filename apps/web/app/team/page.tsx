@@ -269,12 +269,7 @@ export default async function TeamPage() {
                     <span className="text-[14px] font-medium">
                       {LOGO_BACKGROUND_LABELS[background]}
                     </span>
-                    <TeamLogoForm
-                      key={team.logo?.version ?? "none"}
-                      teamId={team.id}
-                      background={background}
-                      hasLogo={hasLogo}
-                    />
+                    <TeamLogoForm teamId={team.id} background={background} hasLogo={hasLogo} />
                     {hasLogo ? (
                       <ActionForm
                         action={removeTeamLogoAction}

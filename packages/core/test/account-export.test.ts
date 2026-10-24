@@ -245,7 +245,7 @@ describe("exportAccountData", () => {
       kürzel: host.team.tag,
       rang: "Gold",
       gesperrtAm: null,
-      logoSeit: NOW,
+      logosGeändertAm: NOW,
       logos: ["Logo für dunklen Hintergrund"],
       rolle: "Spieler",
       captain: true,
@@ -484,7 +484,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     createdAt: SHOWN,
     logoUpdatedAt: SHOWN,
   },
-  TeamLogo: { teamId: KEY, background: TEAM, data: TEAM },
+  TeamLogo: { teamId: KEY, background: SHOWN, data: TEAM },
   TeamMember: { teamId: SHOWN, userId: SELF, role: SHOWN, joinedAt: SHOWN },
   ScrimRequest: {
     id: KEY,

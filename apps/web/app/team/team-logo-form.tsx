@@ -4,13 +4,13 @@ import { MAX_LOGO_BYTES } from "@uni-scrims/core/config/uploads";
 import type { LogoBackground } from "@uni-scrims/db";
 import { useActionState, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { initialActionState } from "@/lib/action-state";
+import { type ActionState, initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
 import { setTeamLogoAction } from "./actions";
 
 /**
- * Upload of one of the captain's two logos (SPEC N-6, N-7). The page keys it by the logo version,
- * so it starts over once a new logo is saved.
+ * Upload of one of the captain's two logos (SPEC N-6, N-7). After a saved upload the chosen file
+ * is cleared; the other logo's form keeps its state.
  */
 export function TeamLogoForm({
   teamId,
@@ -21,12 +21,22 @@ export function TeamLogoForm({
   background: LogoBackground;
   hasLogo: boolean;
 }) {
-  const [state, action, pending] = useActionState(setTeamLogoAction, initialActionState);
   const [fileName, setFileName] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [state, action, pending] = useActionState(
+    async (previous: ActionState, formData: FormData) => {
+      const result = await setTeamLogoAction(previous, formData);
+      if (result.done) {
+        if (inputRef.current) inputRef.current.value = "";
+        setFileName(null);
+      }
+      return result;
+    },
+    initialActionState,
+  );
   const [fileError, setFileError] = useState<string | null>(null);
   // A server error belongs to the file it was about; picking another one hides it.
   const [showServerError, setShowServerError] = useState(true);
-  const inputRef = useRef<HTMLInputElement>(null);
   const error = fileError ?? (showServerError ? state.error : null);
 
   return (

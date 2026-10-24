@@ -51,7 +51,7 @@ export function LoginHero({
         <span className="type-label text-muted-foreground">So funktioniert&apos;s</span>
         {STEPS.map((step, index) => (
           <div key={step.title} className="flex items-start gap-5">
-            <span className="w-11 shrink-0 font-display text-[28px] leading-none [font-weight:var(--display-weight)] text-primary">
+            <span className="w-11 shrink-0 font-display text-[28px] leading-none [font-weight:var(--display-weight)] text-primary light:text-accent-text">
               {String(index + 1).padStart(2, "0")}
             </span>
             <div className="flex flex-col gap-1">

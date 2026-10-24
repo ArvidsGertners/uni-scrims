@@ -334,7 +334,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Gespeichert wird nur das neu erzeugte Bild (WebP, verlustfrei, ohne Metadaten), nicht die hochgeladene Datei.
 - [x] Das Logo erscheint überall, wo bisher das Kürzel-Quadrat steht (Board, Anfrage mit Bewerbungen, Meine Scrims, Team-Seite, Einladungsseite); ohne Logo bleibt das Kürzel. Sehen können es alle eingeloggten, nicht gesperrten Nutzer, wie Teamnamen.
 - [x] Admins können ein Logo auf der Seite „Sperren“ entfernen, und zwar nur das, das sie dort gesehen haben (hat der Captain inzwischen ein neues hochgeladen, kommt ein Hinweis). Beim Auflösen eines Teams wird sein Logo gelöscht; bei einer Sperre bleibt es, bis ein Admin es entfernt.
-- [x] Die Datenauskunft nennt beim Team, seit wann es ein Logo hat; das Bild selbst ist Teamdaten ohne Personenbezug und steht nicht in der Datei.
+- [x] Die Datenauskunft nennt beim Team, wann sich sein Logo zuletzt geändert hat; das Bild selbst ist Teamdaten ohne Personenbezug und steht nicht in der Datei.
 
 **N-7 Hell-Modus und Logo pro Hintergrund** (Phase 11)
 - [ ] Die Seite folgt der Systemeinstellung des Geräts: hell oder dunkel. Einen Schalter auf der Seite gibt es nicht. Das dunkle Design bleibt, wie es ist; das helle nutzt dieselben Bausteine mit hellen Farben, Text mit ausreichendem Kontrast (mindestens 4,5:1).

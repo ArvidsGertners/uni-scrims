@@ -3,7 +3,10 @@ import type { LogoBackground } from "@uni-scrims/db";
 import { statusForDomainError } from "@/lib/route-status";
 import { getSessionUserId } from "@/lib/session";
 
-const BACKGROUNDS: Record<string, LogoBackground> = { dark: "DARK", light: "LIGHT" };
+const BACKGROUNDS = new Map<string | null, LogoBackground>([
+  ["dark", "DARK"],
+  ["light", "LIGHT"],
+]);
 
 // Team logo for one background (`bg`) for logged-in users (SPEC N-6, N-7, ARCHITECTURE §5.11). A URL with the current version may
 // stay in the browser cache for good, as a new logo gets a new URL; any other version is served
@@ -16,7 +19,7 @@ export async function GET(
   const userId = await getSessionUserId();
   if (!userId) return new Response(null, { status: 401 });
   const search = new URL(request.url).searchParams;
-  const background = BACKGROUNDS[search.get("bg") ?? ""];
+  const background = BACKGROUNDS.get(search.get("bg"));
   if (!background) return new Response(null, { status: 404 });
 
   let logo: Awaited<ReturnType<typeof getTeamLogo>>;

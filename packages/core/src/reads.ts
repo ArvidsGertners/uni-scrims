@@ -464,7 +464,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
     ...teamCardSelect,
     captain: { select: { id: true, name: true } },
   } satisfies Prisma.TeamSelect;
-  const [scrims, requests, applications] = await Promise.all([
+  const [scrims, requests, applications, ownLogo] = await Promise.all([
     prisma.scrim.findMany({
       where: { OR: [{ hostTeamId: ownTeam.id }, { guestTeamId: ownTeam.id }] },
       orderBy: { startsAt: "asc" },
@@ -500,6 +500,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
         },
       },
     }),
+    loadTeamLogoInfo(ownTeam),
   ]);
   // Feedback is given by the acting captain only (SPEC P0-8), like on the scrim page.
   const mayGiveFeedback = actingCaptainProblem(user, ownTeam) === null;
@@ -540,7 +541,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       id: ownTeam.id,
       name: ownTeam.name,
       tag: ownTeam.tag,
-      logo: await loadTeamLogoInfo(ownTeam),
+      logo: ownLogo,
     },
     upcoming: upcoming.map((item, index) => ({
       ...item,

@@ -142,9 +142,13 @@ export default async function BansPage({
                   // Logos are not checked before they show (SPEC §9); admins take bad ones down.
                   <ActionForm
                     action={removeTeamLogoAction}
-                    submitLabel="Logos entfernen"
+                    submitLabel="Logo entfernen"
                     variant="outline"
-                    confirmText={`Beide Logos von ${team.name} entfernen?`}
+                    confirmText={
+                      team.logo.backgrounds.length > 1
+                        ? `Beide Logos von ${team.name} entfernen?`
+                        : `Logo von ${team.name} entfernen?`
+                    }
                   >
                     <input type="hidden" name="teamId" value={team.id} />
                     {/* Only the logos shown here, not one uploaded since (SPEC N-6). */}

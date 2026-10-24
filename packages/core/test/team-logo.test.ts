@@ -261,6 +261,9 @@ describe("team logo actions", () => {
     // One logo is left, so the version moves on instead of ending.
     expect((await teamRow(team.id)).logoUpdatedAt).toEqual(evenLater);
     await expect(fetch(DARK)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    // Removing a logo that is already gone (a stale page) keeps the version.
+    await removeTeamLogo({ userId: captain.id, teamId: team.id, background: DARK, now: NOW });
+    expect((await teamRow(team.id)).logoUpdatedAt).toEqual(evenLater);
     expect((await fetch(LIGHT)).version).toBe(evenLater.getTime());
     await removeTeamLogo({
       userId: captain.id,
@@ -278,7 +281,11 @@ describe("team logo actions", () => {
     }
     await expect(set(captain.id, team.id, "BLUE" as LogoBackground)).rejects.toMatchObject({
       code: "INVALID",
+      message: "Unbekannter Hintergrund für das Logo.",
     });
+    await expect(
+      getTeamLogo({ userId: captain.id, teamId: team.id, background: "BLUE" as LogoBackground }),
+    ).rejects.toMatchObject({ code: "INVALID" });
     await prisma.team.update({ where: { id: team.id }, data: { bannedAt: NOW } });
     await expect(set(captain.id, team.id, LIGHT)).rejects.toMatchObject({
       code: "FORBIDDEN",

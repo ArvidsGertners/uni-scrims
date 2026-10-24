@@ -287,7 +287,8 @@ export async function exportAccountData(input: {
                 rang: RANK_LABELS[team.rank],
                 gesperrtAm: team.bannedAt,
                 // The image itself is team data without personal reference (SPEC N-6).
-                logoSeit: team.logoUpdatedAt,
+                // The last change to either logo (SPEC N-6, N-7).
+                logosGeändertAm: team.logoUpdatedAt,
                 logos: team.logos.map((logo) => LOGO_BACKGROUND_LABELS[logo.background]),
                 rolle: MEMBER_ROLE_LABELS[membership.role],
                 captain: isCaptainOf(user, team),

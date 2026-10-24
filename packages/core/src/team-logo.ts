@@ -151,7 +151,7 @@ async function renderTeamLogo(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer
 }
 
 /** Form values of the background, as the web sends them. */
-export const logoBackgroundSchema = z.enum(LogoBackground);
+export const logoBackgroundSchema = z.enum(LogoBackground, "Unbekannter Hintergrund für das Logo.");
 
 /** The two logos in display order: for dark backgrounds, then for light ones (SPEC N-7). */
 export const LOGO_BACKGROUNDS: readonly LogoBackground[] = [
@@ -241,7 +241,9 @@ export async function removeTeamLogo(input: {
   await prisma.$transaction(async (tx) => {
     await lockTeam(tx, input.teamId);
     await requireCaptain(input.userId, input.teamId, tx);
-    await tx.teamLogo.deleteMany({ where: { teamId: input.teamId, background } });
+    const removed = await tx.teamLogo.deleteMany({ where: { teamId: input.teamId, background } });
+    // Nothing removed (a stale page): the version stays, so URLs and the admin's view stay valid.
+    if (removed.count === 0) return;
     const left = await tx.teamLogo.count({ where: { teamId: input.teamId } });
     await tx.team.update({
       where: { id: input.teamId },
@@ -260,11 +262,12 @@ export async function getTeamLogo(input: {
   background: LogoBackground;
 }): Promise<{ data: Uint8Array<ArrayBuffer>; version: number }> {
   await requireUser(input.userId);
+  const background = parseInput(logoBackgroundSchema, input.background);
   const team = await prisma.team.findFirst({
     where: { id: input.teamId, dissolvedAt: null },
     select: {
       logoUpdatedAt: true,
-      logos: { where: { background: input.background }, select: { data: true } },
+      logos: { where: { background }, select: { data: true } },
     },
   });
   const logo = team?.logos[0];

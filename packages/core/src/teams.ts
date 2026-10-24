@@ -458,11 +458,14 @@ export async function getMyTeam(userId: string) {
   const user = await requireUser(userId);
   const team = await findOwnTeam(user.id);
   if (!team) return null;
-  const memberRows = await prisma.teamMember.findMany({
-    where: { teamId: team.id },
-    select: memberSelect,
-    orderBy: { joinedAt: "asc" },
-  });
+  const [memberRows, logo] = await Promise.all([
+    prisma.teamMember.findMany({
+      where: { teamId: team.id },
+      select: memberSelect,
+      orderBy: { joinedAt: "asc" },
+    }),
+    loadTeamLogoInfo(team),
+  ]);
 
   const isCaptain = isCaptainOf(user, team);
   const members = memberRows.map(({ user: member, joinedAt, role }) => ({
@@ -485,7 +488,7 @@ export async function getMyTeam(userId: string) {
     name: team.name,
     tag: team.tag,
     rank: team.rank,
-    logo: await loadTeamLogoInfo(team),
+    logo,
     banned: team.bannedAt !== null,
     isCaptain,
     // Only the captain manages the invite link.

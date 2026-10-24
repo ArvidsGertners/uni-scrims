@@ -97,6 +97,8 @@ export function TeamLogoPreview({
         <img
           src={teamLogoUrl({ id: team.id, logo }, background)}
           alt=""
+          loading="lazy"
+          decoding="async"
           className="size-full object-contain"
         />
       ) : (
