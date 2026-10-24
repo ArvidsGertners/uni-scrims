@@ -252,8 +252,8 @@ describe("exportAccountData", () => {
       expect.objectContaining({
         team: host.team.name,
         format: "1 Map",
-        rangVon: "Silber",
-        rangBis: "Platin",
+        rangVon: "Silver",
+        rangBis: "Platinum",
         notiz: "Lobby über Discord: kontakt#1234",
         status: "Gebucht",
       }),

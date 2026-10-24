@@ -180,7 +180,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Bewusst akzeptiertes Restrisiko: Ob die Bescheinigung wirklich dem Uploader gehört, ist nicht prüfbar. Seit Phase 7 vergleicht der Prüfer den Namen, aber wer eine fremde Bescheinigung hochlädt, kann auch deren Namen angeben. Missbrauch wird über Sperren behandelt.
 
 **P0-3 Teams**
-- [x] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Eisen bis Radiant)
+- [x] Team anlegen: Name (eindeutig, Groß-/Kleinschreibung egal), Kürzel (2–5 Zeichen, nicht eindeutig), Team-Rang (Iron bis Radiant, englische Rangnamen wie im Spiel üblich)
 - [x] Captain kann Name, Kürzel und Team-Rang ändern
 - [x] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
 - [x] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite

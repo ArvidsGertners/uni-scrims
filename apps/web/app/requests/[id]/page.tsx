@@ -137,7 +137,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                 name="message"
                 maxLength={APPLICATION_MESSAGE_MAX}
                 rows={3}
-                placeholder="z. B. Wir sind Gold 3 bis Platin 2 und können ab 18:30."
+                placeholder="z. B. Wir sind Gold 3 bis Platinum 2 und können ab 18:30."
               />
             </ActionForm>
           ) : (
