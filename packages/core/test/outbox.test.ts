@@ -192,6 +192,7 @@ describe("deliverNotification: recipients", () => {
         scrimId: scrim.id,
         opponentCaptain: { name: guest.captain.name, discordId: guest.captain.discordId },
         feedbackDeadline: scrim.feedbackDeadline,
+        locale: "de",
       },
     ]);
     expect(await prisma.notification.findUnique({ where: { id: notification.id } })).toMatchObject({
@@ -248,6 +249,45 @@ describe("deliverNotification: recipients", () => {
       { kind: "CHANNEL", channelId: "111", redirectedFrom: null },
     ]);
     expect(await status(guestPost.id)).toBe(NotifStatus.CANCELLED);
+  });
+
+  it("writes in the recipient's language, a team post in its captain's (§5.22)", async () => {
+    const { host, scrim } = await bookScrim();
+    await prisma.team.update({ where: { id: host.team.id }, data: { discordChannelId: "111" } });
+    await prisma.user.update({ where: { id: host.captain.id }, data: { locale: "EN" } });
+    const dm = await scrimNotification(scrim.id, NotifType.SCRIM_BOOKED, host.team.id);
+    const post = await scrimNotification(
+      scrim.id,
+      NotifType.SCRIM_BOOKED,
+      host.team.id,
+      NotifChannel.TEAM_CHANNEL,
+    );
+    const { sent, deliver } = recorder();
+    await send(dm.id, NOW, deliver);
+    await send(post.id, NOW, deliver);
+    expect(sent.map(({ recipient, locale }) => [recipient.kind, locale])).toEqual([
+      ["DM", "en"],
+      ["CHANNEL", "en"],
+    ]);
+
+    // The captain at sending decides: a new captain without a language means German.
+    const reminder = await scrimNotification(
+      scrim.id,
+      NotifType.REMINDER_24H,
+      host.team.id,
+      NotifChannel.TEAM_CHANNEL,
+    );
+    await prisma.team.update({
+      where: { id: host.team.id },
+      data: { captainId: host.members[0]!.id },
+    });
+    await send(reminder.id, reminder.scheduledFor, deliver);
+    expect(sent.at(-1)).toMatchObject({ recipient: { kind: "CHANNEL" }, locale: "de" });
+
+    const user = await userWithMail();
+    await prisma.user.update({ where: { id: user.id }, data: { locale: "EN" } });
+    await send((await queueMail(user.id)).id, NOW, deliver);
+    expect(sent.at(-1)).toMatchObject({ recipient: { kind: "EMAIL" }, locale: "en" });
   });
 
   it("shows a deleted captain of a banned team without a Discord mention", async () => {

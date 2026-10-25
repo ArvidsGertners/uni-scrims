@@ -30,6 +30,7 @@ import {
   registrationSchema,
   requireAccountUser,
   requireUser,
+  adoptLocale,
   setLocalePreference,
   setThemePreference,
   updateRealName,
@@ -731,6 +732,23 @@ describe("setLocalePreference", () => {
     const user = await createUser();
     await setLocalePreference({ userId: user.id, locale: "en" });
     await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).locale).toBeNull();
+  });
+});
+
+describe("adoptLocale", () => {
+  it("stores the language of the sign-in only for accounts without one (§5.22)", async () => {
+    const user = await createUser();
+    await adoptLocale({ userId: user.id, locale: "en" });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).locale).toBe("EN");
+    await adoptLocale({ userId: user.id, locale: "de" });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).locale).toBe("EN");
+  });
+
+  it("leaves deleted accounts as they are", async () => {
+    const user = await createUser();
+    await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
+    await adoptLocale({ userId: user.id, locale: "en" });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).locale).toBeNull();
   });
 });

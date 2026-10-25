@@ -26,6 +26,8 @@ import { isTeamActive } from "./readiness.ts";
 import { isRequestOpen } from "./requests.ts";
 import { feedbackClosedReason } from "./scrims.ts";
 import { deliverableEmail, getDiscordId, notDeletedUserWhere } from "./users.ts";
+import { DEFAULT_LOCALE, type Locale } from "../config/locale.ts";
+import { fromDbLocale } from "./i18n/locale.ts";
 
 const MINUTE = 60 * 1000;
 
@@ -85,6 +87,8 @@ export type OutboxMessage = {
     /** Scrim notifications: the other team's current captain (SPEC P0-6, §6.1). */
     opponentCaptain: { name: string; discordId: string | null } | null;
     feedbackDeadline: Date | null;
+    /** The recipient's language, for a team channel its captain's, at sending (§5.22). */
+    locale: Locale;
   };
 }[NotifType];
 
@@ -158,7 +162,7 @@ const teamWithCaptain = {
     bannedAt: true,
     dissolvedAt: true,
     discordChannelId: true,
-    captain: { select: { id: true, name: true } },
+    captain: { select: { id: true, name: true, locale: true } },
   },
 } as const;
 
@@ -166,7 +170,9 @@ async function loadNotification(id: string) {
   return prisma.notification.findUnique({
     where: { id },
     include: {
-      targetUser: { select: { id: true, name: true, email: true, emailVerified: true } },
+      targetUser: {
+        select: { id: true, name: true, email: true, emailVerified: true, locale: true },
+      },
       targetTeam: teamWithCaptain,
       request: { select: { status: true, startsAt: true } },
       scrim: {
@@ -220,6 +226,18 @@ async function resolveRecipient(
   return devDiscordId
     ? { kind: "DM", userId: user.id, discordId: devDiscordId, redirectedFrom: user.name }
     : { kind: "DM", userId: user.id, discordId, redirectedFrom: null };
+}
+
+/**
+ * The language of a message (§5.22): the person's own, a team channel post in its captain's; German
+ * without a stored one. Read at sending, like the recipients.
+ */
+function messageLocale(notification: LoadedNotification): Locale {
+  const stored =
+    notification.channel === NotifChannel.TEAM_CHANNEL
+      ? notification.targetTeam?.captain.locale
+      : notification.targetUser?.locale;
+  return fromDbLocale(stored ?? null) ?? DEFAULT_LOCALE;
 }
 
 async function opponentCaptain(notification: LoadedNotification) {
@@ -479,6 +497,7 @@ export async function deliverNotification(
     scrimId: notification.scrimId,
     opponentCaptain: await opponentCaptain(notification),
     feedbackDeadline: notification.scrim?.feedbackDeadline ?? null,
+    locale: messageLocale(notification),
   } as OutboxMessage;
   const result = await deliver(message);
   if (!result.ok) return recordFailure(notification, recipient, result, now);

@@ -12,6 +12,7 @@ const MESSAGE = {
   scrimId: null,
   opponentCaptain: null,
   feedbackDeadline: null,
+  locale: "de",
 } satisfies OutboxMessage;
 
 /** A REST stand-in that records posts and answers with `answer`. */

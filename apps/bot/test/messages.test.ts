@@ -39,6 +39,7 @@ function sample<T extends NotifType>(
     scrimId: "scrim-1",
     opponentCaptain: { name: "captain_b", discordId: "222" },
     feedbackDeadline: new Date("2026-10-25T21:00:00.000Z"),
+    locale: "de",
     ...overrides,
   } as OutboxMessage;
 }

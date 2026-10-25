@@ -39,6 +39,7 @@ import {
   getDiscordId,
   notDeletedUserWhere,
 } from "./users.ts";
+import type { Locale } from "../config/locale.ts";
 
 /** Better Auth's provider ID for the email and password login (§5.8). */
 export const CREDENTIAL_PROVIDER = "credential";
@@ -243,6 +244,18 @@ export async function setLocalePreference(input: {
   const locale = toDbLocale(parseInput(localeSchema, input.locale));
   // updateMany: a deletion that commits meanwhile has reset the row, which then stays as it is.
   await prisma.user.updateMany({ where: notDeletedUserWhere(user.id), data: { locale } });
+}
+
+/**
+ * The language of an account that has none yet, from the page it signs in on (SPEC N-19, §5.22).
+ * Never overwrites a stored language, which only the choice in the menu changes. No permission
+ * check: called by the sign-in itself, like the other login steps.
+ */
+export async function adoptLocale(input: { userId: string; locale: Locale }): Promise<void> {
+  await prisma.user.updateMany({
+    where: { ...notDeletedUserWhere(input.userId), locale: null },
+    data: { locale: toDbLocale(input.locale) },
+  });
 }
 
 /**
