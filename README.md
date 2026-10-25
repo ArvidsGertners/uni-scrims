@@ -252,7 +252,8 @@ Rechtstexte anlegen (Format siehe ARCHITECTURE §8):
 
 ```sh
 mkdir docker/legal && cp docker/legal.example/*.txt docker/legal/
-# docker/legal/impressum.txt und docker/legal/datenschutz.txt mit den echten Texten füllen
+# docker/legal/impressum.txt und docker/legal/datenschutz.txt mit den echten Texten füllen,
+# die englischen Fassungen *.en.txt ebenso (sonst zeigt die englische Seite den deutschen Text)
 ```
 
 Fehlt `docker/legal`, bricht `dc up` ab (der Ordner wird bewusst nicht automatisch leer angelegt). Fehlt eine der Dateien oder ist sie leer, zeigt die Seite „Inhalt folgt.“; das steht dann beim Start im Log von `web` und als Warnung im Admin-Bereich, ebenso, solange ein Text noch „TODO“ enthält (das Gerüst ist nicht fertig ausgefüllt).
@@ -278,7 +279,7 @@ Prüfen: `https://<domain>/api/health` antwortet, `/impressum` und `/datenschutz
 Production wurde nach Phase 4 einmal deployt und wieder gestoppt (ARCHITECTURE §11). Vor dem Start mit echten Nutzern auf dem Server:
 
 1. Code auf den aktuellen Stand bringen (`git pull` bzw. `git push` wie unten) und `dc up -d --build`.
-2. `docker/legal/impressum.txt` und `docker/legal/datenschutz.txt` auf den aktuellen Stand bringen; der Admin-Bereich darf keine Warnung zu Rechtstexten zeigen.
+2. `docker/legal/impressum.txt` und `docker/legal/datenschutz.txt` auf den aktuellen Stand bringen, ebenso die englischen Fassungen `*.en.txt`; der Admin-Bereich darf keine Warnung zu Rechtstexten zeigen.
 3. Mit vorhandenem nginx: Server-Blöcke mit den Logs in `/var/log/uni-scrims/` und `/etc/logrotate.d/uni-scrims` wie unten anlegen, dann `nginx -t && systemctl reload nginx` und `logrotate -d /etc/logrotate.d/uni-scrims`.
 4. Backups einrichten (Schlüssel, Cron mit `MAILTO`, siehe Backups), `docker/backup.sh` einmal von Hand laufen lassen, prüfen, dass das Backup extern liegt, und es auf deinem Rechner probeweise entschlüsseln: `gpg --decrypt uniscrims-<zeit>.dump.gpg | head -c 5` zeigt `PGDMP`.
 5. Prüfen wie oben (Health über HTTPS, Rechtstexte, Login, „Bot läuft“), dazu: Der Login fügt dich dem Hub-Server hinzu, eine DM des Bots kommt an (z. B. das Prüfergebnis), und eine Bescheinigung knapp unter 5 MB lässt sich hochladen (Body-Limit von Caddy bzw. nginx).
