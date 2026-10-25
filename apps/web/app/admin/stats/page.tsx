@@ -10,18 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { formatCases, formatMetricValue, formatThreshold } from "@/lib/metric-format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
-import { getLocale } from "@/lib/locale";
+import { getLocale, getMessages } from "@/lib/locale";
+import { adminStatsMessages } from "@/i18n/admin";
 
-const GROUPS = [
-  { group: "early", title: "Frühindikatoren", hint: "für die ersten 4 Wochen" },
-  { group: "late", title: "Spätindikatoren", hint: "nach 2–3 Monaten" },
-] as const;
+const GROUPS = ["early", "late"] as const;
 
-function Status({ result }: { result: MetricResult }) {
+async function Status({ result }: { result: MetricResult }) {
   if (result.reached === null) return null;
-  if (result.stretchReached) return <Badge variant="success">Stretch erreicht</Badge>;
-  if (result.reached) return <Badge variant="success">Ziel erreicht</Badge>;
-  return <Badge variant="warning">Ziel verfehlt</Badge>;
+  const t = await getMessages(adminStatsMessages);
+  if (result.stretchReached) return <Badge variant="success">{t.stretchReached}</Badge>;
+  if (result.reached) return <Badge variant="success">{t.targetReached}</Badge>;
+  return <Badge variant="warning">{t.targetMissed}</Badge>;
 }
 
 async function ResultRow({
@@ -52,6 +51,7 @@ async function ResultRow({
 
 async function MetricCard({ metric }: { metric: SuccessMetric }) {
   const locale = await getLocale();
+  const t = await getMessages(adminStatsMessages);
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-[14px]">
       <div className="flex flex-col gap-1">
@@ -60,22 +60,22 @@ async function MetricCard({ metric }: { metric: SuccessMetric }) {
           {METRIC_TEXTS[locale][metric.key].description}
         </p>
         <p className="text-[13px]">
-          Ziel {formatThreshold(metric.unit, metric.goal, metric.target, locale)}
+          {t.target(formatThreshold(metric.unit, metric.goal, metric.target, locale))}
           {metric.stretch === null
             ? null
-            : ` · Stretch ${formatThreshold(metric.unit, metric.goal, metric.stretch, locale)}`}
+            : ` · ${t.stretch(formatThreshold(metric.unit, metric.goal, metric.stretch, locale))}`}
         </p>
       </div>
       {metric.snapshot ? (
-        <ResultRow label="Aktuell" metric={metric} result={metric.now} />
+        <ResultRow label={t.current} metric={metric} result={metric.now} />
       ) : (
         <>
           <ResultRow
-            label={`Letzte ${STATS_WINDOW_DAYS} Tage`}
+            label={t.lastDays(STATS_WINDOW_DAYS)}
             metric={metric}
             result={metric.last28Days}
           />
-          <ResultRow label="Gesamt" metric={metric} result={metric.total} />
+          <ResultRow label={t.total} metric={metric} result={metric.total} />
         </>
       )}
     </li>
@@ -86,18 +86,19 @@ async function MetricCard({ metric }: { metric: SuccessMetric }) {
 export default async function StatsPage() {
   const { staff: admin, overview } = await requireAdminShellPage("/stats", "admin");
   const metrics = await getSuccessMetrics({ adminId: admin.id, now: new Date() });
+  const t = await getMessages(adminStatsMessages);
 
   return (
     <AdminShell overview={overview} current="/stats">
-      <h1 className="type-h1">Statistik</h1>
-      <p className="max-w-3xl text-[14px] text-pretty text-muted-foreground">
-        Die Erfolgskriterien aus der Spezifikation, jeweils bis jetzt. Prüfungen gelöschter Konten
-        fehlen, weil sie mit dem Konto gelöscht werden.
-      </p>
-      {GROUPS.map(({ group, title, hint }) => (
+      <h1 className="type-h1">{t.title}</h1>
+      <p className="max-w-3xl text-[14px] text-pretty text-muted-foreground">{t.intro}</p>
+      {GROUPS.map((group) => (
         <section key={group} className="flex flex-col gap-3">
           <h2 className="type-h2">
-            {title} <span className="text-[14px] font-normal text-muted-foreground">{hint}</span>
+            {t.groups[group].title}{" "}
+            <span className="text-[14px] font-normal text-muted-foreground">
+              {t.groups[group].hint}
+            </span>
           </h2>
           <ul className={`${LIST_COLUMNS} gap-3`}>
             {metrics

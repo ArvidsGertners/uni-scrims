@@ -9,6 +9,8 @@ import {
 import { revalidatePath } from "next/cache";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
 import { setFlash } from "@/lib/flash";
+import { getMessages } from "@/lib/locale";
+import { adminStaffMessages } from "@/i18n/admin";
 import { getSessionUserId } from "@/lib/session";
 
 /** Gives, changes or removes ("none") a role; core checks the operator (§5.9). */
@@ -27,7 +29,8 @@ export async function setStaffRoleAction(
     await setStaffRole({ operatorId, userId: userId.data, role });
   });
   if (state.error) return state;
-  await setFlash(role ? "Rolle gespeichert" : "Rolle entzogen");
+  const t = await getMessages(adminStaffMessages);
+  await setFlash(role ? t.roleSaved : t.roleRemoved);
   revalidatePath("/admin/staff");
   return state;
 }
@@ -43,7 +46,8 @@ export async function resetStaffTwoFactorAction(
     await resetStaffTwoFactor({ operatorId, userId: userId.data });
   });
   if (state.error) return state;
-  await setFlash("2FA zurückgesetzt");
+  const t = await getMessages(adminStaffMessages);
+  await setFlash(t.twoFactorReset);
   revalidatePath("/admin/staff");
   return state;
 }

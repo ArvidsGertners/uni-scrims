@@ -3,6 +3,7 @@ import {
   type StaffArea,
   type getAdminOverview,
   staffArea,
+  userDisplayName,
 } from "@uni-scrims/core";
 import { cn } from "cn";
 import type { ComponentType, ReactNode } from "react";
@@ -27,50 +28,51 @@ import { buttonVariants } from "@/components/ui/button";
 import { adminHref, mainUrl, sharedCookieDomain } from "@/lib/admin-url";
 import { readFlash } from "@/lib/flash";
 import { missingLegalPages } from "@/lib/legal";
-import { getLocale } from "@/lib/locale";
+import { getLocale, getMessages } from "@/lib/locale";
+import { adminShellMessages } from "@/i18n/admin";
 
 export type AdminOverview = Awaited<ReturnType<typeof getAdminOverview>>;
 export type AdminPath = `/${string}`;
 
 const AREAS: {
   path: AdminPath;
-  label: string;
+  labelKey: keyof (typeof adminShellMessages)["de"]["areas"];
   area: StaffArea;
   icon: ComponentType<{ size?: number }>;
   count?: (overview: AdminOverview) => number | null;
 }[] = [
-  { path: "/", label: "Übersicht", area: "queue", icon: LayoutGridIcon },
+  { path: "/", labelKey: "overview", area: "queue", icon: LayoutGridIcon },
   {
     path: "/queue",
-    label: "Prüf-Queue",
+    labelKey: "queue",
     area: "queue",
     icon: ShieldCheckIcon,
     count: (o) => o.queue.pending,
   },
   {
     path: "/disputes",
-    label: "Streitfälle",
+    labelKey: "disputes",
     area: "admin",
     icon: AlertTriangleIcon,
     count: (o) => o.disputes,
   },
   {
     path: "/team-limits",
-    label: "Anträge",
+    labelKey: "teamLimits",
     area: "admin",
     icon: FileIcon,
     count: (o) => o.teamLimitRequests,
   },
-  { path: "/bans", label: "Sperren", area: "admin", icon: BanIcon },
+  { path: "/bans", labelKey: "bans", area: "admin", icon: BanIcon },
   {
     path: "/notifications",
-    label: "Nachrichten",
+    labelKey: "notifications",
     area: "admin",
     icon: MessageSquareIcon,
     count: (o) => o.failedNotifications,
   },
-  { path: "/stats", label: "Statistik", area: "admin", icon: BarChartIcon },
-  { path: "/staff", label: "Rollen", area: "staff", icon: UsersIcon },
+  { path: "/stats", labelKey: "stats", area: "admin", icon: BarChartIcon },
+  { path: "/staff", labelKey: "staff", area: "staff", icon: UsersIcon },
 ];
 
 function CountBadge({
@@ -93,7 +95,8 @@ function CountBadge({
   );
 }
 
-function BotDot({ online }: { online: boolean }) {
+async function BotDot({ online }: { online: boolean }) {
+  const t = await getMessages(adminShellMessages);
   return (
     <span
       className={cn(
@@ -102,7 +105,7 @@ function BotDot({ online }: { online: boolean }) {
       )}
     >
       <span aria-hidden className="size-2 rounded-full bg-current" />
-      {online ? "Bot läuft" : "Bot offline"}
+      {online ? t.botRunning : t.botOffline}
     </span>
   );
 }
@@ -124,9 +127,12 @@ export async function AdminShell({
   const { viewer } = overview;
   const areas = AREAS.filter((area) => staffArea(viewer.staffRole, area.area));
   // The legal texts concern admins; reviewers only see their queue (as before Phase 14).
-  const missingLegal = staffArea(viewer.staffRole, "admin") ? await missingLegalPages() : [];
+  const legalConcernsViewer = staffArea(viewer.staffRole, "admin");
+  const missingLegal = legalConcernsViewer ? await missingLegalPages() : [];
+  const missingEnglishLegal = legalConcernsViewer ? await missingLegalPages(process.env, "en") : [];
   const flash = await readFlash();
   const locale = await getLocale();
+  const t = await getMessages(adminShellMessages);
 
   return (
     // Like the site (§5.15): the sidebar at the left edge, the content filling the rest.
@@ -136,14 +142,14 @@ export async function AdminShell({
         data-admin-sidebar
         top={
           <>
-            <nav aria-label="Admin-Bereich" className="flex flex-col gap-0.5">
-              {areas.map(({ path, label, icon: Icon, count }) => (
+            <nav aria-label={t.adminArea} className="flex flex-col gap-0.5">
+              {areas.map(({ path, labelKey, icon: Icon, count }) => (
                 <SidebarLink
                   key={path}
                   href={adminHref(path)}
                   active={path === current}
                   leading={<Icon size={17} />}
-                  label={label}
+                  label={t.areas[labelKey]}
                   trailing={<CountBadge count={count?.(overview)} />}
                 />
               ))}
@@ -160,7 +166,9 @@ export async function AdminShell({
             <div className="flex items-center gap-3">
               <UserAvatar user={viewer} className="size-10 text-[12px]" />
               <div className="flex min-w-0 flex-col">
-                <span className="truncate font-label text-[14px] font-semibold">{viewer.name}</span>
+                <span className="truncate font-label text-[14px] font-semibold">
+                  {userDisplayName(viewer.name, locale)}
+                </span>
                 <span className="text-[13px] text-muted-foreground">
                   {STAFF_ROLE_LABELS[locale][viewer.staffRole]}
                 </span>
@@ -177,10 +185,10 @@ export async function AdminShell({
       <div className="flex min-w-0 flex-1 flex-col gap-6 px-5 pt-7 pb-16 sm:px-8 xl:px-10">
         <div className="flex flex-col gap-3 lg:hidden">
           <TabNav
-            label="Admin-Bereich"
-            items={areas.map(({ path, label, count }) => ({
+            label={t.adminArea}
+            items={areas.map(({ path, labelKey, count }) => ({
               href: adminHref(path),
-              label,
+              label: t.areas[labelKey],
               active: path === current,
               trailing: <CountBadge count={count?.(overview)} className="px-1.5" />,
             }))}
@@ -197,10 +205,15 @@ export async function AdminShell({
         ) : null}
         {missingLegal.length > 0 ? (
           <Alert>
+            <span>{t.missingLegal(missingLegal.map((page) => `${page}.txt`).join(", "))}</span>
+          </Alert>
+        ) : null}
+        {missingEnglishLegal.length > 0 ? (
+          <Alert>
             <span>
-              Rechtstexte fehlen in LEGAL_DIR oder enthalten noch „TODO“ (
-              {missingLegal.map((page) => `${page}.txt`).join(", ")}): Bitte vor dem Go-Live
-              ausfüllen.
+              {t.missingEnglishLegal(
+                missingEnglishLegal.map((page) => `${page}.en.txt`).join(", "),
+              )}
             </span>
           </Alert>
         ) : null}

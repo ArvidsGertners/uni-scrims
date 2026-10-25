@@ -7,6 +7,8 @@ import { renderSVG } from "uqr";
 import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { setFlash } from "@/lib/flash";
+import { getMessages } from "@/lib/locale";
+import { adminTwoFactorMessages } from "@/i18n/admin";
 import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { adminLoginUrl, getSessionUserId } from "@/lib/session";
 
@@ -60,9 +62,9 @@ export async function confirmTwoFactorAction(
     enabled = await finishTwoFactorSetup(userId);
   });
   if (state.error) return state;
+  const t = await getMessages(adminTwoFactorMessages);
   // The role was removed or the 2FA reset while the code was checked.
-  if (!enabled)
-    return { error: "Die Zwei-Faktor-Anmeldung wurde zurückgesetzt. Lade die Seite neu." };
-  await setFlash("Zwei-Faktor-Anmeldung eingerichtet. Melde dich jetzt mit Passwort und Code an");
+  if (!enabled) return { error: t.resetMeanwhile };
+  await setFlash(t.enabled);
   redirect(adminLoginUrl("/"));
 }

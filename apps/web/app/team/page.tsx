@@ -209,7 +209,7 @@ export default async function TeamPage() {
                 const hasLogo = team.logo?.backgrounds.includes(background) ?? false;
                 return (
                   <div key={background} className="flex items-start gap-4">
-                    <TeamLogoPreview team={team} background={background} />
+                    <TeamLogoPreview team={team} background={background} emptyLabel={t.noLogo} />
                     <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                       <span className="text-[14px] font-medium">
                         {LOGO_BACKGROUND_LABELS[locale][background]}

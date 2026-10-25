@@ -1,9 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
+import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { teamLimitFormMessages } from "@/i18n/admin-client";
 import { initialActionState } from "@/lib/action-state";
 import { decideTeamLimitAction } from "../actions";
 
@@ -20,17 +22,18 @@ export function TeamLimitForm({
   maxLimit: number;
 }) {
   const [state, action, pending] = useActionState(decideTeamLimitAction, initialActionState);
+  const t = useMessages(teamLimitFormMessages);
   return (
     <form
       action={action}
       className="flex flex-col gap-3"
       onSubmit={(event) => {
         const label = (event.nativeEvent as SubmitEvent).submitter?.textContent;
-        if (!window.confirm(`Antrag „${label}“? Das ist endgültig.`)) event.preventDefault();
+        if (!window.confirm(t.confirm(label))) event.preventDefault();
       }}
     >
       <input type="hidden" name="requestId" value={requestId} />
-      <Field label="Neues Limit">
+      <Field label={t.newLimit}>
         <Input
           name="newLimit"
           type="number"
@@ -43,7 +46,7 @@ export function TeamLimitForm({
       </Field>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" name="decision" value="APPROVED" disabled={pending}>
-          Annehmen
+          {t.accept}
         </Button>
         {/* No limit is needed to reject. */}
         <Button
@@ -54,7 +57,7 @@ export function TeamLimitForm({
           disabled={pending}
           formNoValidate
         >
-          Ablehnen
+          {t.reject}
         </Button>
       </div>
       {state.error ? <p className="text-[14px] text-destructive-text">{state.error}</p> : null}

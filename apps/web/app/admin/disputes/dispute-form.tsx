@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { disputeFormMessages } from "@/i18n/admin-client";
 import { initialActionState } from "@/lib/action-state";
 import { resolveDisputeAction } from "../actions";
 
@@ -18,11 +20,12 @@ export function DisputeForm({
   guest: Team;
 }) {
   const [state, action, pending] = useActionState(resolveDisputeAction, initialActionState);
+  const t = useMessages(disputeFormMessages);
   const decisions = [
-    { value: "PLAYED", label: "Gespielt" },
-    { value: `NO_SHOW:${host.id}`, label: `No-Show von ${host.name}` },
-    { value: `NO_SHOW:${guest.id}`, label: `No-Show von ${guest.name}` },
-    { value: "UNCLEAR", label: "Unklar" },
+    { value: "PLAYED", label: t.played },
+    { value: `NO_SHOW:${host.id}`, label: t.noShowBy(host.name) },
+    { value: `NO_SHOW:${guest.id}`, label: t.noShowBy(guest.name) },
+    { value: "UNCLEAR", label: t.unclear },
   ];
 
   return (
@@ -31,7 +34,7 @@ export function DisputeForm({
       className="flex flex-col gap-2"
       onSubmit={(event) => {
         const label = (event.nativeEvent as SubmitEvent).submitter?.textContent;
-        if (!window.confirm(`Entscheidung „${label}“ speichern? Sie ist endgültig.`)) {
+        if (!window.confirm(t.confirm(label))) {
           event.preventDefault();
         }
       }}

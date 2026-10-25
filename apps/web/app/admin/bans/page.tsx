@@ -3,6 +3,7 @@ import {
   MIN_SEARCH_LENGTH,
   TEAM_LINK_TEXTS,
   searchModerationTargets,
+  userDisplayName,
 } from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
@@ -22,11 +23,10 @@ import {
   removeTeamLogoAction,
 } from "../actions";
 import { adminHref } from "@/lib/admin-url";
-import { getMessages } from "@/lib/locale";
+import { getLocale, getMessages } from "@/lib/locale";
+import { adminBansMessages, adminSearchMessages } from "@/i18n/admin";
 
-// Consequences from SPEC P0-9 and the edge cases.
-const TEAM_BAN_CONSEQUENCES =
-  "Offene Anfragen werden gelöscht, offene Bewerbungen zurückgezogen und künftige Scrims abgesagt; die Absagen zählen für niemanden als kurzfristig. Die Mitglieder bleiben im Team und können es verlassen.";
+type BansMessages = (typeof adminBansMessages)["de"];
 
 export default async function BansPage({
   searchParams,
@@ -40,71 +40,72 @@ export default async function BansPage({
   const tooShort = query.length > 0 && query.length < MIN_SEARCH_LENGTH;
   const searched = query.length >= MIN_SEARCH_LENGTH;
   const platforms = await getMessages(TEAM_LINK_TEXTS);
+  const locale = await getLocale();
+  const t = await getMessages(adminBansMessages);
+  const search = await getMessages(adminSearchMessages);
 
   return (
     <AdminShell overview={overview} current="/bans">
-      <h1 className="type-h1">Sperren</h1>
+      <h1 className="type-h1">{t.title}</h1>
       <div className="flex max-w-3xl flex-col gap-1 text-[14px] text-muted-foreground">
-        <p>
-          Nutzer sperren: Die Person wird sofort abgemeldet. Mitglieder werden aus ihrem Team
-          entfernt. Ein Captain bleibt im Team, und das Team wird mitgesperrt.
-        </p>
-        <p>Team sperren: {TEAM_BAN_CONSEQUENCES}</p>
-        <p>Entsperren geht nur per Datenbank (siehe README).</p>
+        <p>{t.banUserHint}</p>
+        <p>{t.banTeamHint}</p>
+        <p>{t.unbanHint}</p>
       </div>
 
       <form key={query} method="get" className="flex max-w-3xl flex-wrap items-end gap-3">
         <div className="flex min-w-60 flex-1 flex-col gap-1.5">
-          <Label htmlFor="q">Discord-Name, Discord-ID oder Teamname</Label>
+          <Label htmlFor="q">{t.searchLabel}</Label>
           <Input id="q" name="q" defaultValue={query} />
         </div>
         <Button type="submit" variant="outline">
-          Suchen
+          {search.search}
         </Button>
         <Link href={adminHref("/bans")} className="text-[14px] underline underline-offset-2">
-          Zurücksetzen
+          {search.reset}
         </Link>
       </form>
-      {tooShort ? (
-        <p className="text-[14px]">Bitte mindestens {MIN_SEARCH_LENGTH} Zeichen eingeben.</p>
-      ) : null}
+      {tooShort ? <p className="text-[14px]">{search.tooShort(MIN_SEARCH_LENGTH)}</p> : null}
 
       {searched ? (
         <section className="flex flex-col gap-3">
-          <h2 className="type-h2">Nutzer</h2>
-          {result.users.length === 0 ? <p className="text-[14px]">Keine Treffer.</p> : null}
+          <h2 className="type-h2">{t.users}</h2>
+          {result.users.length === 0 ? <p className="text-[14px]">{t.noResults}</p> : null}
           <div className={`${LIST_COLUMNS} gap-3`}>
-            {result.users.map((user) => (
-              <div
-                key={user.id}
-                className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-[14px]"
-              >
-                <p className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{user.name}</span>
-                  <span className="text-muted-foreground">Discord-ID {user.discordId}</span>
-                  {user.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
-                </p>
-                {user.teams.map((team) => (
-                  <p key={team.id}>
-                    {team.isCaptain ? "Captain" : "Mitglied"} von {team.name}
+            {result.users.map((user) => {
+              const name = userDisplayName(user.name, locale);
+              return (
+                <div
+                  key={user.id}
+                  className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-[14px]"
+                >
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{name}</span>
+                    <span className="text-muted-foreground">{t.discordId(user.discordId)}</span>
+                    {user.banned ? <Badge variant="accent">{t.banned}</Badge> : null}
                   </p>
-                ))}
-                {user.banned ? null : (
-                  <ActionForm
-                    action={banUserAction}
-                    submitLabel="Nutzer sperren"
-                    variant="destructive"
-                    confirmText={banUserConfirmText(user)}
-                  >
-                    <input type="hidden" name="userId" value={user.id} />
-                  </ActionForm>
-                )}
-              </div>
-            ))}
+                  {user.teams.map((team) => (
+                    <p key={team.id}>
+                      {team.isCaptain ? t.captainOf(team.name) : t.memberOf(team.name)}
+                    </p>
+                  ))}
+                  {user.banned ? null : (
+                    <ActionForm
+                      action={banUserAction}
+                      submitLabel={t.banUser}
+                      variant="destructive"
+                      confirmText={banUserConfirmText(t, name, user.teams)}
+                    >
+                      <input type="hidden" name="userId" value={user.id} />
+                    </ActionForm>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          <h2 className="type-h2">Teams</h2>
-          {result.teams.length === 0 ? <p className="text-[14px]">Keine Treffer.</p> : null}
+          <h2 className="type-h2">{t.teams}</h2>
+          {result.teams.length === 0 ? <p className="text-[14px]">{t.noResults}</p> : null}
           <div className={`${LIST_COLUMNS} gap-3`}>
             {result.teams.map((team) => (
               <div
@@ -117,10 +118,11 @@ export default async function BansPage({
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{team.name}</span>
                       <span className="text-muted-foreground">[{team.tag}]</span>
-                      {team.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
+                      {team.banned ? <Badge variant="accent">{t.banned}</Badge> : null}
                     </p>
                     <p>
-                      Captain: {team.captainName} · {team.memberCount} Mitglieder
+                      {t.captain(userDisplayName(team.captainName, locale))} ·{" "}
+                      {t.members(team.memberCount)}
                     </p>
                   </div>
                 </div>
@@ -132,6 +134,7 @@ export default async function BansPage({
                         key={background}
                         team={team}
                         background={background}
+                        emptyLabel={t.noLogo}
                         className="size-12"
                       />
                     ))}
@@ -159,9 +162,9 @@ export default async function BansPage({
                   {team.banned ? null : (
                     <ActionForm
                       action={banTeamAction}
-                      submitLabel="Team sperren"
+                      submitLabel={t.banTeam}
                       variant="destructive"
-                      confirmText={`${team.name} sperren? ${TEAM_BAN_CONSEQUENCES}`}
+                      confirmText={t.banTeamConfirm(team.name)}
                     >
                       <input type="hidden" name="teamId" value={team.id} />
                     </ActionForm>
@@ -170,12 +173,12 @@ export default async function BansPage({
                     // Logos are not checked before they show (SPEC §9); admins take bad ones down.
                     <ActionForm
                       action={removeTeamLogoAction}
-                      submitLabel="Logo entfernen"
+                      submitLabel={t.removeLogo}
                       variant="outline"
                       confirmText={
                         team.logo.backgrounds.length > 1
-                          ? `Beide Logos von ${team.name} entfernen?`
-                          : `Logo von ${team.name} entfernen?`
+                          ? t.removeBothLogosConfirm(team.name)
+                          : t.removeLogoConfirm(team.name)
                       }
                     >
                       <input type="hidden" name="teamId" value={team.id} />
@@ -187,9 +190,9 @@ export default async function BansPage({
                     // Links are not checked beyond their platform (SPEC §9); admins take bad ones down.
                     <ActionForm
                       action={removeTeamLinksAction}
-                      submitLabel="Links entfernen"
+                      submitLabel={t.removeLinks}
                       variant="outline"
-                      confirmText={`Alle Links von ${team.name} entfernen?`}
+                      confirmText={t.removeLinksConfirm(team.name)}
                     >
                       <input type="hidden" name="teamId" value={team.id} />
                       {/* Only the links shown here, not ones saved since. */}
@@ -207,19 +210,16 @@ export default async function BansPage({
 }
 
 /** What a user ban does to each of the user's teams (SPEC N-17). */
-function banUserConfirmText(user: {
-  name: string;
-  teams: { name: string; isCaptain: boolean }[];
-}): string {
-  const names = (teams: { name: string }[]) => teams.map((team) => team.name).join(", ");
-  const captainOf = user.teams.filter((team) => team.isCaptain);
-  const memberOf = user.teams.filter((team) => !team.isCaptain);
-  const parts = [`${user.name} sperren? Die Person wird abgemeldet.`];
-  if (memberOf.length > 0) parts.push(`Sie wird aus ${names(memberOf)} entfernt.`);
-  if (captainOf.length > 0) {
-    parts.push(
-      `Als Captain ${captainOf.length === 1 ? "wird auch das Team" : "werden auch die Teams"} ${names(captainOf)} gesperrt: ${TEAM_BAN_CONSEQUENCES}`,
-    );
-  }
+function banUserConfirmText(
+  t: BansMessages,
+  name: string,
+  teams: { name: string; isCaptain: boolean }[],
+): string {
+  const names = (list: { name: string }[]) => list.map((team) => team.name).join(", ");
+  const captainOf = teams.filter((team) => team.isCaptain);
+  const memberOf = teams.filter((team) => !team.isCaptain);
+  const parts = [t.banUserConfirm(name)];
+  if (memberOf.length > 0) parts.push(t.banUserRemoved(names(memberOf)));
+  if (captainOf.length > 0) parts.push(t.banUserCaptain(captainOf.length, names(captainOf)));
   return parts.join(" ");
 }

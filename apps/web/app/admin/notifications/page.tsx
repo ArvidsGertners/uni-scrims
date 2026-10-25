@@ -4,25 +4,22 @@ import { formatDateTime } from "@/lib/format";
 import { NOTIFICATION_CHANNEL_LABELS, NOTIFICATION_TYPE_LABELS } from "@/lib/scrim-format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
-import { getLocale } from "@/lib/locale";
+import { getLocale, getMessages } from "@/lib/locale";
+import { adminNotificationsMessages } from "@/i18n/admin";
 
 export default async function FailedNotificationsPage() {
   const { staff: admin, overview } = await requireAdminShellPage("/notifications", "admin");
   const { entries: failed, total } = await listFailedNotifications(admin.id);
   const locale = await getLocale();
+  const t = await getMessages(adminNotificationsMessages);
 
   return (
     <AdminShell overview={overview} current="/notifications">
-      <h1 className="type-h1">Fehlgeschlagene Nachrichten</h1>
-      <p className="max-w-3xl text-[14px] text-muted-foreground">
-        Nachrichten, die dauerhaft nicht zugestellt werden konnten, zuletzt fehlgeschlagene zuerst
-        (höchstens {MAX_FAILED_SHOWN}). 30 Tage nach dem letzten Versuch werden sie gelöscht.
-      </p>
-      {failed.length === 0 ? <p>Keine fehlgeschlagenen Nachrichten.</p> : null}
+      <h1 className="type-h1">{t.title}</h1>
+      <p className="max-w-3xl text-[14px] text-muted-foreground">{t.intro(MAX_FAILED_SHOWN)}</p>
+      {failed.length === 0 ? <p>{t.empty}</p> : null}
       {total > failed.length ? (
-        <p className="text-[14px]">
-          {total - failed.length} ältere fehlgeschlagene Nachrichten werden nicht angezeigt.
-        </p>
+        <p className="text-[14px]">{t.hidden(total - failed.length)}</p>
       ) : null}
       <ul className={`${LIST_COLUMNS} gap-3`}>
         {failed.map((entry) => (
@@ -35,9 +32,12 @@ export default async function FailedNotificationsPage() {
               {NOTIFICATION_CHANNEL_LABELS[locale][entry.channel]}
             </p>
             <p>
-              An: {entry.targetName ?? "unbekannt"} · erstellt{" "}
-              {formatDateTime(entry.createdAt, locale)} · letzter Versuch{" "}
-              {formatDateTime(entry.scheduledFor, locale)} · {entry.attempts} Fehlversuche
+              {t.details(
+                entry.targetName ?? t.unknownTarget,
+                formatDateTime(entry.createdAt, locale),
+                formatDateTime(entry.scheduledFor, locale),
+                entry.attempts,
+              )}
             </p>
             {entry.lastError ? (
               <p className="font-mono text-[13px] break-all text-muted-foreground">

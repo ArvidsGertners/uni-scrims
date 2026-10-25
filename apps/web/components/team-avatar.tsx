@@ -54,14 +54,19 @@ export function TeamAvatar({
   );
 }
 
-/** One logo on the background it is made for, whatever the mode (team page, admin). */
+/**
+ * One logo on the background it is made for, whatever the mode (team page, admin). `emptyLabel`
+ * comes from the page's dictionary: this file is also imported by the client navigation (§5.21).
+ */
 export function TeamLogoPreview({
   team,
   background,
+  emptyLabel,
   className,
 }: {
   team: { id: string; logo: TeamLogoInfo | null };
   background: LogoBackground;
+  emptyLabel: string;
   className?: string;
 }) {
   const { logo } = team;
@@ -90,7 +95,7 @@ export function TeamLogoPreview({
             background === "DARK" ? "text-logo-tile-light/60" : "text-logo-tile-dark/60",
           )}
         >
-          Keins
+          {emptyLabel}
         </span>
       )}
     </span>

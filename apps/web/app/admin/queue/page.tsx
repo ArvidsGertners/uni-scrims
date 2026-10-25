@@ -1,4 +1,9 @@
-import { listPendingVerifications, listUniversities, resolveUploadDir } from "@uni-scrims/core";
+import {
+  listPendingVerifications,
+  listUniversities,
+  resolveUploadDir,
+  userDisplayName,
+} from "@uni-scrims/core";
 import { LIST_COLUMNS } from "@/components/list-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
@@ -6,28 +11,21 @@ import { formatDateTime } from "@/lib/format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { DecisionForm } from "../decision-form";
-import { getLocale } from "@/lib/locale";
-
-// Fixed checklist from SPEC P0-2, with the name check of N-3.
-const CHECKLIST = [
-  "Bescheinigung gilt für das aktuelle Semester",
-  "Name stimmt mit dem Namen des Kontos überein",
-  "Hochschule stimmt mit der Auswahl überein",
-  "Dokument ist vollständig und lesbar",
-  "Keine offensichtliche Bearbeitung",
-];
+import { getLocale, getMessages } from "@/lib/locale";
+import { adminQueueMessages } from "@/i18n/admin";
 
 export default async function AdminPage() {
   // Layout and page render in parallel, so the page checks too.
   const { staff: admin, overview } = await requireAdminShellPage("/queue", "queue");
   const queue = await listPendingVerifications(admin.id, resolveUploadDir());
   const locale = await getLocale();
+  const t = await getMessages(adminQueueMessages);
   const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
 
   return (
     <AdminShell overview={overview} current="/queue">
-      <h1 className="type-h1">Prüf-Queue</h1>
-      {queue.length === 0 ? <p>Keine offenen Prüfungen.</p> : null}
+      <h1 className="type-h1">{t.title}</h1>
+      {queue.length === 0 ? <p>{t.empty}</p> : null}
       {/* Full width (§5.15): from 1280 px two requests side by side. */}
       <div className={`${LIST_COLUMNS} gap-6`}>
         {queue.map((request) => {
@@ -43,41 +41,38 @@ export default async function AdminPage() {
                     <CardTitle>
                       {request.user.firstName
                         ? `${request.user.firstName} ${request.user.lastName ?? ""}`
-                        : "Kein Name (Konto von vor Phase 7)"}
+                        : t.noRealName}
                     </CardTitle>
                     <p className="text-[14px] text-muted-foreground">
-                      Discord: {request.user.name}
+                      {t.discordName(userDisplayName(request.user.name, locale))}
                     </p>
                   </div>
                 </div>
                 <p className="text-[14px] text-muted-foreground">
-                  Hochgeladen am {formatDateTime(request.createdAt, locale)} ·{" "}
+                  {t.uploaded(formatDateTime(request.createdAt, locale))} ·{" "}
                   {request.university
                     ? `${request.university.name} (${request.university.city})`
-                    : `Andere: ${request.universityOther}`}{" "}
-                  · {request.mimeType} · {(request.sizeBytes / 1024 / 1024).toFixed(1)} MB
+                    : t.otherUniversity(request.universityOther ?? "")}{" "}
+                  · {request.mimeType} · {t.megabytes((request.sizeBytes / 1024 / 1024).toFixed(1))}
                 </p>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {!request.fileAvailable ? (
                   // Uploads are not in the backups (ARCHITECTURE §8): after a restore the file can be gone.
-                  <p className="text-[14px] text-destructive-text">
-                    Die Datei fehlt (z. B. nach dem Einspielen eines Backups). Bitte ablehnen, etwa
-                    mit „Bitte erneut hochladen“; freigeben geht ohne Datei nicht.
-                  </p>
+                  <p className="text-[14px] text-destructive-text">{t.fileMissing}</p>
                 ) : (
                   <>
                     {isImage ? (
                       // eslint-disable-next-line @next/next/no-img-element -- protected route, no optimisation
                       <img
                         src={fileUrl}
-                        alt="Immatrikulationsbescheinigung"
+                        alt={t.certificate}
                         className="max-h-[70vh] w-full object-contain"
                       />
                     ) : (
                       <iframe
                         src={fileUrl}
-                        title="Immatrikulationsbescheinigung"
+                        title={t.certificate}
                         className="h-[70vh] w-full rounded-lg border"
                       />
                     )}
@@ -87,12 +82,12 @@ export default async function AdminPage() {
                       rel="noreferrer"
                       className="text-[14px] underline underline-offset-2"
                     >
-                      In neuem Tab öffnen
+                      {t.openInNewTab}
                     </a>
                   </>
                 )}
                 <ul className="list-disc pl-5 text-[14px]">
-                  {CHECKLIST.map((item) => (
+                  {t.checklist.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
