@@ -1,16 +1,40 @@
 import { RANK_LABELS } from "@uni-scrims/core";
 import type { Rank } from "@uni-scrims/db";
 import { cn } from "cn";
+import type { StaticImageData } from "next/image";
+import ascendant from "@/assets/ranks/ascendant.png";
+import bronze from "@/assets/ranks/bronze.png";
+import diamond from "@/assets/ranks/diamond.png";
+import gold from "@/assets/ranks/gold.png";
+import immortal from "@/assets/ranks/immortal.png";
+import iron from "@/assets/ranks/iron.png";
+import platinum from "@/assets/ranks/platinum.png";
+import radiant from "@/assets/ranks/radiant.png";
+import silver from "@/assets/ranks/silver.png";
+import unrated from "@/assets/ranks/unrated.png";
+
+// Imported, so the build serves them under a hashed /_next/static/media URL, cached for a year.
+const RANK_ICONS: Record<Rank, StaticImageData> = {
+  IRON: iron,
+  BRONZE: bronze,
+  SILVER: silver,
+  GOLD: gold,
+  PLATINUM: platinum,
+  DIAMOND: diamond,
+  ASCENDANT: ascendant,
+  IMMORTAL: immortal,
+  RADIANT: radiant,
+};
 
 /**
- * Riot's icon of a rank (public/ranks, 64 px high), sized to the text around it (ARCHITECTURE
- * §5.19). Decorative: the rank's name always stands next to it.
+ * Riot's icon of a rank, sized to the text around it (ARCHITECTURE §5.19); without a rank Riot's
+ * "Unrated" icon. Decorative: the rank's name always stands next to it.
  */
-export function RankIcon({ rank, className }: { rank: Rank; className?: string }) {
+export function RankIcon({ rank, className }: { rank: Rank | null; className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- small static icon, already sized
     <img
-      src={`/ranks/${rank.toLowerCase()}.png`}
+      src={(rank ? RANK_ICONS[rank] : unrated).src}
       alt=""
       decoding="async"
       className={cn("inline-block size-[1.2em] object-contain align-[-0.25em]", className)}
@@ -18,19 +42,14 @@ export function RankIcon({ rank, className }: { rank: Rank; className?: string }
   );
 }
 
-/** Icon and name, kept on one line. */
-export function RankLabel({ rank }: { rank: Rank }) {
+/** Icon and name, kept on one line; without a rank "Ohne Rang". */
+export function RankLabel({ rank }: { rank: Rank | null }) {
   return (
     <span className="whitespace-nowrap">
       <RankIcon rank={rank} className="mr-[0.3em]" />
-      {RANK_LABELS[rank]}
+      {rank ? RANK_LABELS[rank] : "Ohne Rang"}
     </span>
   );
-}
-
-/** The computed team rank (SPEC N-16); a team without ranks is "Ohne Rang", without an icon. */
-export function TeamRankLabel({ rank }: { rank: Rank | null }) {
-  return rank ? <RankLabel rank={rank} /> : "Ohne Rang";
 }
 
 /** The rank range of a request, one rank when both ends are the same. */

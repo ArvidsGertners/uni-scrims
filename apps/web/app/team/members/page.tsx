@@ -112,7 +112,7 @@ export default async function TeamMembersPage() {
                   {/* Only the own team sees each member's rank (SPEC N-16). */}
                   <td className={cn(cellClass, "col-span-3")}>
                     <span className={cellLabel}>Rang</span>
-                    <span>{member.rank ? <RankLabel rank={member.rank} /> : "–"}</span>
+                    <RankLabel rank={member.rank} />
                   </td>
                   <td className={cn(cellClass, "col-span-3")}>
                     <span className={cellLabel}>Beigetreten</span>

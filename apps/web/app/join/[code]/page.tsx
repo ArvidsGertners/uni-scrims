@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { PageMain } from "@/components/page-main";
-import { TeamRankLabel } from "@/components/rank-icon";
+import { RankLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Alert } from "@/components/ui/alert";
 import { formatUniversities } from "@/lib/scrim-format";
@@ -42,7 +42,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="type-h1">{team.name}</h1>
           <span className="text-[14px] text-muted-foreground">
-            {formatUniversities(team.universities)} · Teamrang <TeamRankLabel rank={team.rank} /> ·{" "}
+            {formatUniversities(team.universities)} · Teamrang <RankLabel rank={team.rank} /> ·{" "}
             {team.memberCount} Mitglieder
           </span>
         </div>

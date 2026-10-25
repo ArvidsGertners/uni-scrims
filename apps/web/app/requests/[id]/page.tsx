@@ -12,7 +12,7 @@ import { BackLink } from "@/components/back-link";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { CheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
-import { RankRangeLabel, TeamRankLabel } from "@/components/rank-icon";
+import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
 import { TeamLinks } from "@/components/team-links";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +61,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
       label: "Rang",
       value: <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} />,
     },
-    { label: "Teamrang", value: <TeamRankLabel rank={team.rank} /> },
+    { label: "Teamrang", value: <RankLabel rank={team.rank} /> },
   ];
   const ownApplication = request.ownApplication;
   const hasActions = Boolean(request.apply || ownApplication || request.applications);
@@ -300,7 +300,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       ) : null}
                     </div>
                     <p className="text-[13px] text-muted-foreground">
-                      Teamrang <TeamRankLabel rank={application.team.rank} /> ·{" "}
+                      Teamrang <RankLabel rank={application.team.rank} /> ·{" "}
                       {formatReliability(application.team.reliability)}
                     </p>
                     {application.outOfRange ? (

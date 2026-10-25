@@ -38,7 +38,7 @@ const THEME_OPTIONS = Object.values(ThemePreference).map((value) => ({
 /** The select needs a value for "none"; the action sends it to core as empty. */
 const NO_RANK = "NONE";
 const RANK_OPTIONS = [
-  { value: NO_RANK, label: "Kein Rang" },
+  { value: NO_RANK, label: "Kein Rang", icon: <RankIcon rank={null} /> },
   ...RANKS.map((rank) => ({
     value: rank,
     label: RANK_LABELS[rank],

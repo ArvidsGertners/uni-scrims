@@ -16,7 +16,7 @@ import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { CopyValue } from "@/components/copy-value";
 import { PageMain } from "@/components/page-main";
-import { TeamRankLabel } from "@/components/rank-icon";
+import { RankLabel } from "@/components/rank-icon";
 import { StatTile } from "@/components/stat-tile";
 import { TeamLogoPreview } from "@/components/team-avatar";
 import { TeamFields } from "@/components/team-fields";
@@ -186,7 +186,7 @@ export default async function TeamPage() {
                   value: (
                     <span className="flex flex-col items-end gap-0.5">
                       <span>
-                        <TeamRankLabel rank={team.rank} />
+                        <RankLabel rank={team.rank} />
                         {team.rankedCount > 0 ? (
                           <span className="text-muted-foreground">
                             {" "}

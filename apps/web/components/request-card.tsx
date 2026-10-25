@@ -3,7 +3,7 @@ import { describeStartTime } from "@uni-scrims/core";
 import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
 import { CheckIcon, ChevronRightIcon, ClockIcon, MapPinIcon } from "@/components/icons";
-import { RankRangeLabel, TeamRankLabel } from "@/components/rank-icon";
+import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -67,7 +67,7 @@ export function RequestCard({ request }: Props) {
           </span>
         </div>
         <p className="text-[13px] text-muted-foreground">
-          Teamrang <TeamRankLabel rank={team.rank} /> · {formatReliability(team.reliability)}
+          Teamrang <RankLabel rank={team.rank} /> · {formatReliability(team.reliability)}
         </p>
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3.5">
