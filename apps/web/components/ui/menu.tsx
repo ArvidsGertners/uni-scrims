@@ -49,8 +49,33 @@ function MenuItem({ className, ...props }: ComponentProps<typeof MenuPrimitive.I
   return <MenuPrimitive.Item className={cn(ITEM_CLASS, className)} {...props} />;
 }
 
+/** One of several choices, like the language (§5.21); `value` is the current one. */
+function MenuRadioGroup(props: ComponentProps<typeof MenuPrimitive.RadioGroup>) {
+  return <MenuPrimitive.RadioGroup {...props} />;
+}
+
+/** A choice of a MenuRadioGroup; closes the menu when picked (Base UI keeps it open by default). */
+function MenuRadioItem({ className, ...props }: ComponentProps<typeof MenuPrimitive.RadioItem>) {
+  return <MenuPrimitive.RadioItem closeOnClick className={cn(ITEM_CLASS, className)} {...props} />;
+}
+
+/** Shows its children only on the picked MenuRadioItem, e.g. a check mark. */
+function MenuRadioItemIndicator(props: ComponentProps<typeof MenuPrimitive.RadioItemIndicator>) {
+  return <MenuPrimitive.RadioItemIndicator {...props} />;
+}
+
 function MenuSeparator() {
   return <MenuPrimitive.Separator className="my-1 h-px bg-border" />;
 }
 
-export { MenuItem, MenuLinkItem, MenuPopup, MenuRoot, MenuSeparator, MenuTrigger };
+export {
+  MenuItem,
+  MenuLinkItem,
+  MenuPopup,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuRadioItemIndicator,
+  MenuRoot,
+  MenuSeparator,
+  MenuTrigger,
+};

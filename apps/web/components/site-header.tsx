@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { DiscordBanner } from "@/components/discord-banner";
 import { MobileMenu } from "@/components/app-nav";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
 import { mainUrl } from "@/lib/admin-url";
 import { siteChrome, siteNav } from "@/lib/header-user";
@@ -21,10 +22,10 @@ function Logo({
     // gap-3: the clear space of BRAND.md, one chevron arm of the 28 px logo.
     <Link href={href} className="flex items-center gap-3 text-foreground">
       {admin ? (
-        // Two more controls on the right: on small phones only the icon (BRAND.md).
+        // Three more controls on the right (language, §5.21): on phones only the icon (BRAND.md).
         <>
-          <BrandLogo theme={theme} className="max-[400px]:hidden" />
-          <BrandLogo variant="icon" theme={theme} className="min-[400px]:hidden" />
+          <BrandLogo theme={theme} className="max-[480px]:hidden" />
+          <BrandLogo variant="icon" theme={theme} className="min-[480px]:hidden" />
           <span className="type-label leading-none text-muted-foreground">Admin</span>
         </>
       ) : (
@@ -45,6 +46,7 @@ function AdminHeader({ signedIn, theme }: { signedIn: boolean; theme: ThemePrefe
       <div className="flex h-16 items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
         <Logo href="/" theme={theme} admin />
         <div className="flex items-center gap-1 max-[359px]:gap-0">
+          <LocaleSwitcher compact className="mr-1 h-9 max-[359px]:mr-0.5" />
           <a
             href={mainUrl("/scrims")}
             className="type-btn flex h-9 items-center px-2.5 text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-foreground max-[359px]:px-1.5"
@@ -82,7 +84,11 @@ export async function SiteHeader() {
           )}
         >
           <Logo href={active ? "/scrims" : "/"} theme={theme} />
-          {nav ? <MobileMenu nav={nav} /> : null}
+          {/* The language at the top right (§5.21); signed in, left of the menu button below 1024 px. */}
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher className="h-11" />
+            {nav ? <MobileMenu nav={nav} /> : null}
+          </div>
         </div>
       </header>
       {showBanner ? <DiscordBanner /> : null}
