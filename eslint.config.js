@@ -10,6 +10,7 @@ export default tseslint.config(
       ".agents/**",
       ".claude/**",
       "docs/design_handoff_uni_scrims/**",
+      "docs/design_handoff_landing_page/**",
       "**/node_modules/**",
       "**/.next/**",
       "**/dist/**",
