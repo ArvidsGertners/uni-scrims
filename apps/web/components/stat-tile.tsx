@@ -18,13 +18,14 @@ export function StatTile({
   children,
 }: {
   href?: string;
-  label: string;
+  label: ReactNode;
   value: ReactNode;
   /** Colour of the value, e.g. text-warning while something waits. */
   tone?: string;
   valueClassName?: string;
   className?: string;
-  children: ReactNode;
+  /** The line below the value, if any. */
+  children?: ReactNode;
 }) {
   const content = (
     <>
@@ -38,7 +39,9 @@ export function StatTile({
       >
         {value}
       </span>
-      <span className="text-[13px] text-pretty text-muted-foreground">{children}</span>
+      {children ? (
+        <span className="text-[13px] text-pretty text-muted-foreground">{children}</span>
+      ) : null}
     </>
   );
   return href ? (

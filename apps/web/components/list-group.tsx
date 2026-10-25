@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import type { ReactNode } from "react";
 
 /** Columns of card lists on wide pages (§5.15): one below 1280 px, up to four from 1920 px. */
@@ -11,10 +12,13 @@ export const CARD_COLUMNS =
 export function ListGroup({
   title,
   count,
+  className,
   children,
 }: {
   title: string;
   count: string;
+  /** Columns of the cards instead of CARD_COLUMNS, e.g. for the board preview. */
+  className?: string;
   children: ReactNode;
 }) {
   return (
@@ -24,7 +28,7 @@ export function ListGroup({
         <span aria-hidden className="h-px flex-1 bg-border" />
         <span className="type-label font-normal text-faint">{count}</span>
       </div>
-      <div className={`${CARD_COLUMNS} gap-3`}>{children}</div>
+      <div className={cn(className ?? CARD_COLUMNS, "gap-3")}>{children}</div>
     </section>
   );
 }

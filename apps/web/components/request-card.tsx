@@ -16,31 +16,32 @@ import { getLocale, getMessages } from "@/lib/locale";
 import { formatMessages } from "@/i18n/format";
 import { requestCardMessages, scrimSharedMessages } from "@/i18n/scrims";
 
-type Props = {
-  request: {
-    id: string;
-    startsAt: Date;
-    format: ScrimFormat;
-    rankMin: Rank;
-    rankMax: Rank;
-    maps: string[];
-    applicationCount: number;
-    team: TeamCardData;
-    ownApplicationStatus: AppStatus | null;
-  };
+type CardRequest = {
+  startsAt: Date;
+  format: ScrimFormat;
+  rankMin: Rank;
+  rankMax: Rank;
+  maps: string[];
+  applicationCount: number;
+  team: TeamCardData;
+  ownApplicationStatus: AppStatus | null;
 };
 
+type Props =
+  | { request: CardRequest & { id: string }; preview?: false }
+  /** Static sample on the landing page: no link, no hover. */
+  | { request: CardRequest; preview: true };
+
+const cardClass = "flex flex-col gap-4 rounded-lg border border-border bg-card p-[18px]";
+
 /** Board card (design handoff, card A); the whole card links to the request. */
-export async function RequestCard({ request }: Props) {
+export async function RequestCard({ request, preview }: Props) {
   const { team } = request;
   const locale = await getLocale();
   const t = await getMessages(requestCardMessages);
   const shared = await getMessages(scrimSharedMessages);
-  return (
-    <Link
-      href={`/requests/${request.id}`}
-      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-[18px] hover:border-border-strong hover:bg-secondary"
-    >
+  const content = (
+    <>
       <div className="flex items-center gap-3">
         <TeamAvatar team={team} className="border-border" />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -91,6 +92,16 @@ export async function RequestCard({ request }: Props) {
           <ChevronRightIcon strokeWidth={2.5} />
         </span>
       </div>
+    </>
+  );
+  return preview ? (
+    <div className={cardClass}>{content}</div>
+  ) : (
+    <Link
+      href={`/requests/${request.id}`}
+      className={`${cardClass} hover:border-border-strong hover:bg-secondary`}
+    >
+      {content}
     </Link>
   );
 }
