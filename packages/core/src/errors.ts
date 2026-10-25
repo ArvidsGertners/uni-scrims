@@ -1,4 +1,7 @@
-// Domain errors carry a German message that the UI shows as is.
+// Domain errors carry a message key (ARCHITECTURE §5.21): the UI renders it in the request's language,
+// `message` is the German text for logs, the bot (until Phase 23) and tests.
+import { DEFAULT_LOCALE } from "../config/locale.ts";
+import { type Message, type PlainMessageKey, renderMessage } from "./i18n/render.ts";
 import type { AccountSetupStep } from "./users.ts";
 
 export type DomainErrorCode =
@@ -13,11 +16,16 @@ export type DomainErrorCode =
   | "TWO_FACTOR_REQUIRED";
 
 export class DomainError extends Error {
+  /** What the UI shows, in its language. */
+  readonly text: Message;
+
   constructor(
     readonly code: DomainErrorCode,
-    message: string,
+    text: Message | PlainMessageKey,
   ) {
-    super(message);
+    const message: Message = typeof text === "string" ? ({ key: text } as Message) : text;
+    super(renderMessage(message, DEFAULT_LOCALE));
+    this.text = message;
     this.name = "DomainError";
   }
 }
@@ -26,9 +34,9 @@ export class DomainError extends Error {
 export class AccountIncompleteError extends DomainError {
   constructor(
     readonly step: AccountSetupStep,
-    message: string,
+    text: PlainMessageKey,
   ) {
-    super("ACCOUNT_INCOMPLETE", message);
+    super("ACCOUNT_INCOMPLETE", text);
     this.name = "AccountIncompleteError";
   }
 }
@@ -36,7 +44,7 @@ export class AccountIncompleteError extends DomainError {
 /** A staff check for an account with a role but without 2FA yet (§5.9); pages lead to the setup. */
 export class TwoFactorRequiredError extends DomainError {
   constructor() {
-    super("TWO_FACTOR_REQUIRED", "Richte zuerst die Zwei-Faktor-Anmeldung ein.");
+    super("TWO_FACTOR_REQUIRED", "twoFactorRequired");
     this.name = "TwoFactorRequiredError";
   }
 }
@@ -53,8 +61,8 @@ export type ProblemKind =
  * Why an action is not possible: mutations throw it, pages show the same message. Readonly, since
  * the shared constants are handed out by reference.
  */
-export type Problem = Readonly<{ kind: ProblemKind; code: DomainErrorCode; message: string }>;
+export type Problem = Readonly<{ kind: ProblemKind; code: DomainErrorCode; text: Message }>;
 
 export function problemError(problem: Problem): DomainError {
-  return new DomainError(problem.code, problem.message);
+  return new DomainError(problem.code, problem.text);
 }

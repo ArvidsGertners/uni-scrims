@@ -18,10 +18,10 @@ describe("/setup", () => {
 
   it("sends users without an account to the website and shows core's other reasons", () => {
     const base = "https://scrims.example";
-    expect(setupErrorText(new DomainError("UNAUTHENTICATED", "Bitte melde dich an."), base)).toBe(
+    expect(setupErrorText(new DomainError("UNAUTHENTICATED", "signInFirst"), base)).toBe(
       "Zu deinem Discord-Konto gibt es kein Uni-Scrims-Konto. Registriere dich unter https://scrims.example/register und verknüpfe dort Discord.",
     );
-    expect(setupErrorText(new DomainError("FORBIDDEN", "Das kann nur euer Captain."), base)).toBe(
+    expect(setupErrorText(new DomainError("FORBIDDEN", "notCaptain"), base)).toBe(
       "Das kann nur euer Captain.",
     );
   });

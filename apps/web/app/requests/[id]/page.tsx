@@ -33,6 +33,7 @@ import {
   deleteRequestAction,
   withdrawApplicationAction,
 } from "../actions";
+import { getText } from "@/lib/locale";
 
 const NEXT_STEPS = [
   "Das Team sieht eure Bewerbung und nimmt ein Team an.",
@@ -44,6 +45,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requirePageUser(`/requests/${id}`);
   const request = await getRequestDetail({ userId: user.id, requestId: id, now: new Date() });
+  const text = await getText();
   if (!request) notFound();
 
   const { team } = request;
@@ -185,7 +187,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                   </ActionForm>
                 ) : (
                   <p className="text-[14px] text-pretty text-muted-foreground">
-                    {request.apply.problem}
+                    {text(request.apply.problem)}
                   </p>
                 )}
               </section>
@@ -241,7 +243,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     <input type="hidden" name="applicationId" value={ownApplication.id} />
                   </ActionForm>
                 ) : request.withdraw ? (
-                  <p className="text-[14px] text-muted-foreground">{request.withdraw.problem}</p>
+                  <p className="text-[14px] text-muted-foreground">
+                    {text(request.withdraw.problem)}
+                  </p>
                 ) : null}
               </section>
             ) : null}
@@ -275,7 +279,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                 ) : null}
                 {request.confirm?.problem ? (
                   <p className="text-[14px] text-pretty text-muted-foreground">
-                    Annehmen geht gerade nicht: {request.confirm.problem}
+                    Annehmen geht gerade nicht: {text(request.confirm.problem)}
                   </p>
                 ) : null}
                 {request.applications.map((application) => (
@@ -321,7 +325,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       </p>
                     ) : null}
                     {application.teamProblem ? (
-                      <p className="text-[14px] text-muted-foreground">{application.teamProblem}</p>
+                      <p className="text-[14px] text-muted-foreground">
+                        {text(application.teamProblem)}
+                      </p>
                     ) : null}
                     {application.canConfirm ? (
                       <ActionForm
@@ -350,7 +356,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       <input type="hidden" name="requestId" value={request.id} />
                     </ActionForm>
                   ) : (
-                    <p className="text-[14px] text-muted-foreground">{request.remove.problem}</p>
+                    <p className="text-[14px] text-muted-foreground">
+                      {text(request.remove.problem)}
+                    </p>
                   )
                 ) : null}
               </section>

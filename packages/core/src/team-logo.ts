@@ -7,6 +7,7 @@ import { z } from "zod";
 import { MAX_LOGO_SIDE, MIN_LOGO_CONTENT } from "../config/limits.ts";
 import { MAX_LOGO_BYTES } from "../config/uploads.ts";
 import { DomainError } from "./errors.ts";
+import { type PlainMessageKey, key } from "./i18n/render.ts";
 import { lockTeam } from "./locks.ts";
 import { requireCaptain, requireUser } from "./permissions.ts";
 import { parseInput } from "./schemas.ts";
@@ -22,8 +23,8 @@ export const LOGO_ALPHA_THRESHOLD = 8;
 
 const ALLOWED_LOGO_TYPES = new Set(["image/png", "image/webp"]);
 
-function invalid(message: string): DomainError {
-  return new DomainError("INVALID", message);
+function invalid(text: PlainMessageKey): DomainError {
+  return new DomainError("INVALID", text);
 }
 
 export type LogoBox = { left: number; top: number; width: number; height: number };
@@ -65,10 +66,7 @@ async function inLogoQueue<T>(job: () => Promise<T>): Promise<T> {
     logoJobs++;
   } else {
     if (logoQueue.length >= LOGO_JOBS_WAITING) {
-      throw new DomainError(
-        "CONFLICT",
-        "Gerade werden viele Logos hochgeladen. Bitte versuch es gleich noch einmal.",
-      );
+      throw new DomainError("CONFLICT", "logoBusy");
     }
     // The finishing job hands its slot on, so the count stays.
     await new Promise<void>((resolve) => logoQueue.push(resolve));
@@ -88,13 +86,13 @@ async function inLogoQueue<T>(job: () => Promise<T>): Promise<T> {
  * themselves are never stored, which also drops all metadata.
  */
 export async function processTeamLogo(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
-  if (bytes.byteLength === 0) throw invalid("Die Datei ist leer.");
-  if (bytes.byteLength > MAX_LOGO_BYTES) throw invalid("Die Datei ist größer als 2 MB.");
+  if (bytes.byteLength === 0) throw invalid("fileEmpty");
+  if (bytes.byteLength > MAX_LOGO_BYTES) throw invalid("logoTooLarge");
   const type = await fileTypeFromBuffer(bytes);
   // file-type names animated PNGs (with an acTL chunk) image/apng.
-  if (type?.mime === "image/apng") throw invalid("Animierte Logos gehen nicht.");
+  if (type?.mime === "image/apng") throw invalid("logoAnimated");
   if (!type || !ALLOWED_LOGO_TYPES.has(type.mime)) {
-    throw invalid("Erlaubt sind nur PNG und WebP.");
+    throw invalid("logoType");
   }
   return inLogoQueue(() => renderTeamLogo(bytes));
 }
@@ -112,16 +110,14 @@ async function renderTeamLogo(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer
   try {
     metadata = await sharp(bytes).metadata();
   } catch {
-    throw invalid("Das Bild lässt sich nicht lesen.");
+    throw invalid("imageUnreadable");
   }
   if (metadata.width > MAX_LOGO_SIDE || metadata.height > MAX_LOGO_SIDE) {
-    throw invalid("Das Bild ist zu groß (höchstens 4096 × 4096 Pixel).");
+    throw invalid("logoTooBig");
   }
-  if ((metadata.pages ?? 1) > 1) throw invalid("Animierte Logos gehen nicht.");
+  if ((metadata.pages ?? 1) > 1) throw invalid("logoAnimated");
   if (!metadata.hasAlpha) {
-    throw invalid(
-      "Das Logo braucht einen durchsichtigen Hintergrund (PNG oder WebP mit Transparenz).",
-    );
+    throw invalid("logoNotTransparent");
   }
 
   // Only the alpha channel comes into JavaScript: one byte per pixel.
@@ -132,12 +128,12 @@ async function renderTeamLogo(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer
       .raw({ depth: "uchar" })
       .toBuffer({ resolveWithObject: true });
   } catch {
-    throw invalid("Das Bild lässt sich nicht lesen.");
+    throw invalid("imageUnreadable");
   }
   const box = logoContentBox(alpha.data, alpha.info.width, alpha.info.height);
-  if (!box) throw invalid("Das Logo ist komplett durchsichtig.");
+  if (!box) throw invalid("logoFullyTransparent");
   if (Math.max(box.width, box.height) < MIN_LOGO_CONTENT) {
-    throw invalid("Das Logo ist zu klein (mindestens 128 Pixel ohne durchsichtigen Rand).");
+    throw invalid("logoTooSmall");
   }
 
   const logo = await image()
@@ -149,7 +145,7 @@ async function renderTeamLogo(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer
 }
 
 /** Form values of the background, as the web sends them. */
-export const logoBackgroundSchema = z.enum(LogoBackground, "Unbekannter Hintergrund für das Logo.");
+export const logoBackgroundSchema = z.enum(LogoBackground, key("unknownLogoBackground"));
 
 /** The two logos in display order: for dark backgrounds, then for light ones (SPEC N-7). */
 export const LOGO_BACKGROUNDS: readonly LogoBackground[] = [
@@ -269,6 +265,6 @@ export async function getTeamLogo(input: {
     },
   });
   const logo = team?.logos[0];
-  if (!logo || !team.logoUpdatedAt) throw new DomainError("NOT_FOUND", "Kein Logo.");
+  if (!logo || !team.logoUpdatedAt) throw new DomainError("NOT_FOUND", "noLogo");
   return { data: logo.data, version: team.logoUpdatedAt.getTime() };
 }

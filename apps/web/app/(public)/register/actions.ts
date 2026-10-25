@@ -6,7 +6,7 @@ import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { safeCallbackURL } from "@/lib/callback-url";
 import { getLocale } from "@/lib/locale";
-import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
+import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { setupUrl } from "@/lib/session";
 
 /**
@@ -17,7 +17,7 @@ export async function registerAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  if (!(await allowAttempt("register"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("register"))) return rateLimited();
   const callbackURL = safeCallbackURL(formField(formData, "callbackURL")?.toString());
   const state = await runAction(async () => {
     const input = parseInput(registrationSchema, {

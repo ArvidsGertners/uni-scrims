@@ -22,7 +22,7 @@ export async function cancelScrimAction(_state: ActionState, formData: FormData)
     scrimId: formField(formData, "scrimId"),
     teamId: formField(formData, "teamId"),
   });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   const { scrimId, teamId } = parsed.data;
   return finish(
     scrimId,
@@ -48,7 +48,7 @@ export async function submitFeedbackAction(_state: ActionState, formData: FormDa
       outcome: formField(formData, "outcome"),
       rating: formField(formData, "rating"),
     });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   const { scrimId, teamId, outcome, rating } = parsed.data;
   const state = await finish(
     scrimId,

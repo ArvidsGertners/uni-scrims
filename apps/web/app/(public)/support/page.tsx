@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { siteChrome } from "@/lib/header-user";
 import { submitTeamLimitRequestAction } from "./actions";
+import { getText } from "@/lib/locale";
 
 const cardClass = "flex flex-col gap-3 rounded-lg border border-border bg-card p-5";
 
@@ -84,7 +85,12 @@ export default async function SupportPage() {
 }
 
 /** „Mehr Teams beantragen“ (SPEC N-17): the count, the state of the latest request, the form. */
-function TeamLimitCard({ status }: { status: Awaited<ReturnType<typeof getTeamLimitStatus>> }) {
+async function TeamLimitCard({
+  status,
+}: {
+  status: Awaited<ReturnType<typeof getTeamLimitStatus>>;
+}) {
+  const text = await getText();
   const { latest } = status;
   return (
     <section id="mehr-teams" className={`${cardClass} scroll-mt-24`}>
@@ -116,7 +122,7 @@ function TeamLimitCard({ status }: { status: Awaited<ReturnType<typeof getTeamLi
             </Alert>
           ) : null}
           {status.requestProblem ? (
-            <p className="text-[14px] text-muted-foreground">{status.requestProblem}</p>
+            <p className="text-[14px] text-muted-foreground">{text(status.requestProblem)}</p>
           ) : (
             <ActionForm
               action={submitTeamLimitRequestAction}

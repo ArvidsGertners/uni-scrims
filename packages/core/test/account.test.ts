@@ -346,9 +346,7 @@ describe("deleteAccount", () => {
 
   it("needs a captain with members to hand over the role first", async () => {
     const { team, captain } = await createTeamWithMembers({ extraMembers: 1 });
-    expect((await getAccount(captain.id)).deletionProblem).toBe(
-      "Übertrage zuerst die Captain-Rolle.",
-    );
+    expect((await getAccount(captain.id)).deletionProblem).toEqual({ key: "transferCaptainFirst" });
     await expect(remove(captain.id)).rejects.toMatchObject({ code: "CONFLICT" });
     expect(await prisma.user.findUnique({ where: { id: captain.id } })).toMatchObject({
       name: captain.name,
@@ -802,7 +800,7 @@ describe("handOverCaptain", () => {
     });
     expect(await getAccount(captain.id)).toMatchObject({
       setupStep: "COMPLETE_ACCOUNT",
-      deletionProblem: expect.any(String),
+      deletionProblem: { key: "transferCaptainFirst" },
       captainHandovers: [
         {
           teamId: team.id,

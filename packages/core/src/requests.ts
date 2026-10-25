@@ -14,6 +14,7 @@ import { MAX_OPEN_REQUESTS } from "../config/limits.ts";
 import { TIMING } from "../config/timing.ts";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, type Problem, problemError } from "./errors.ts";
+import { type Message, msg } from "./i18n/render.ts";
 import { lockRequest, lockTeam } from "./locks.ts";
 import {
   BOTH_TEAM_CHANNELS,
@@ -36,17 +37,17 @@ import {
   parseInput,
   requestInputSchema,
 } from "./schemas.ts";
-import { READY_MEMBER_COUNT, isTeamActive, isTeamReady } from "./readiness.ts";
+import { isTeamActive, isTeamReady } from "./readiness.ts";
 import { berlinToUtc } from "./time.ts";
 
 export { MAX_OPEN_REQUESTS };
 
 function notOpen(): DomainError {
-  return new DomainError("CONFLICT", "Die Anfrage ist nicht mehr offen.");
+  return new DomainError("CONFLICT", "requestNotOpen");
 }
 
 function requestNotFound(): DomainError {
-  return new DomainError("NOT_FOUND", "Anfrage nicht gefunden.");
+  return new DomainError("NOT_FOUND", "requestNotFound");
 }
 
 /** Open = OPEN and not started yet: only open requests take applications and count to the limit. */
@@ -68,7 +69,7 @@ export function openRequestWhere(now: Date) {
 const REQUEST_LIMIT: Problem = {
   kind: "REQUEST_LIMIT",
   code: "CONFLICT",
-  message: `Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Löscht erst eine.`,
+  text: msg("requestLimit"),
 };
 
 /**
@@ -116,11 +117,9 @@ export async function requestPostingProblems(
 export function applicantTeamProblem(
   team: { name: string; bannedAt: Date | null; dissolvedAt: Date | null },
   ready: boolean,
-): string | null {
-  if (!isTeamActive(team)) return `Das Team „${team.name}“ ist nicht mehr aktiv.`;
-  if (!ready) {
-    return `Das Team „${team.name}“ ist nicht mehr spielbereit (weniger als ${READY_MEMBER_COUNT} verifizierte Spieler).`;
-  }
+): Message | null {
+  if (!isTeamActive(team)) return msg("applicantTeamInactive", { team: team.name });
+  if (!ready) return msg("applicantTeamNotReady", { team: team.name });
   return null;
 }
 
@@ -128,7 +127,7 @@ export function applicantTeamProblem(
 export async function findApplicantTeamProblem(
   team: { id: string; name: string; bannedAt: Date | null; dissolvedAt: Date | null },
   db: Db,
-): Promise<string | null> {
+): Promise<Message | null> {
   return applicantTeamProblem(team, isTeamActive(team) && (await isTeamReady(team.id, db)));
 }
 
@@ -142,10 +141,7 @@ export async function createRequest(
     const startsAt = berlinToUtc(data.date, data.time);
     if (startsAt.getTime() < input.now.getTime() + TIMING.MIN_REQUEST_LEAD) {
       const minutes = Math.round(TIMING.MIN_REQUEST_LEAD / 60_000);
-      throw new DomainError(
-        "INVALID",
-        `Die Startzeit muss mindestens ${minutes} Minuten in der Zukunft liegen.`,
-      );
+      throw new DomainError("INVALID", msg("startTooSoon", { minutes }));
     }
     // Team lock: parallel creates must not exceed the limit. User and team are re-read under the
     // lock (the role, the ban or the members may have changed while we waited); from here on
@@ -275,7 +271,7 @@ export async function applyToRequest(input: {
       const { team } = await requireActingCaptain(input.userId, ownTeam.id, tx);
       const message = parseInput(applicationMessageSchema, input.message);
       if (team.id === request.teamId) {
-        throw new DomainError("INVALID", "Ihr könnt euch nicht auf eure eigene Anfrage bewerben.");
+        throw new DomainError("INVALID", "ownRequest");
       }
       if (!isRequestOpen(request, input.now)) throw notOpen();
       await requireTeamReady(team.id, tx);
@@ -315,7 +311,7 @@ export async function applyToRequest(input: {
 }
 
 function alreadyApplied(): DomainError {
-  return new DomainError("CONFLICT", "Ihr habt euch auf diese Anfrage schon beworben.");
+  return new DomainError("CONFLICT", "alreadyApplied");
 }
 
 /** PENDING → WITHDRAWN. The team cannot apply to the same request again. */
@@ -326,7 +322,7 @@ export async function withdrawApplication(input: {
 }): Promise<void> {
   const application = await prisma.application.findUnique({ where: { id: input.applicationId } });
   if (!application) {
-    throw new DomainError("NOT_FOUND", "Bewerbung nicht gefunden.");
+    throw new DomainError("NOT_FOUND", "applicationNotFound");
   }
   await requireActingCaptain(input.userId, application.teamId);
   const updated = await prisma.application.updateMany({
@@ -334,7 +330,7 @@ export async function withdrawApplication(input: {
     data: { status: AppStatus.WITHDRAWN, decidedAt: input.now },
   });
   if (updated.count === 0) {
-    throw new DomainError("CONFLICT", "Die Bewerbung ist nicht mehr offen.");
+    throw new DomainError("CONFLICT", "applicationNotOpen");
   }
 }
 
@@ -378,11 +374,11 @@ export async function confirmApplication(input: {
       include: { team: true },
     });
     if (!application || application.requestId !== request.id) {
-      throw new DomainError("NOT_FOUND", "Bewerbung nicht gefunden.");
+      throw new DomainError("NOT_FOUND", "applicationNotFound");
     }
     if (!isRequestOpen(request, now)) throw notOpen();
     if (application.status !== AppStatus.PENDING) {
-      throw new DomainError("CONFLICT", "Die Bewerbung ist nicht mehr offen.");
+      throw new DomainError("CONFLICT", "applicationNotOpen");
     }
     await requireTeamReady(host.id, tx);
     const guest = application.team;
@@ -399,7 +395,7 @@ export async function confirmApplication(input: {
       data: { status: AppStatus.ACCEPTED, decidedAt: now },
     });
     if (accepted.count === 0) {
-      throw new DomainError("CONFLICT", "Die Bewerbung ist nicht mehr offen.");
+      throw new DomainError("CONFLICT", "applicationNotOpen");
     }
     // Only the rows actually rejected here: an application withdrawn meanwhile gets no notice.
     const rejected = await tx.application.updateManyAndReturn({

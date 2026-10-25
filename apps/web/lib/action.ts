@@ -1,31 +1,10 @@
-import { isDomainError } from "@uni-scrims/core";
+import { isDomainError, renderMessage } from "@uni-scrims/core";
 import { z } from "zod";
+import { actionMessages } from "../i18n/common.ts";
 import type { ActionState } from "./action-state.ts";
-import { MAIL_FAILED } from "./mail.ts";
+import { getLocale } from "./locale.ts";
 
 export type { ActionState } from "./action-state.ts";
-
-/** German texts for the Better Auth errors the account actions can hit (§5.8). */
-const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  INVALID_EMAIL_OR_PASSWORD: "E-Mail-Adresse oder Passwort stimmen nicht.",
-  EMAIL_NOT_VERIFIED:
-    "Bitte bestätige zuerst deine E-Mail-Adresse. Wir haben dir den Link noch einmal geschickt.",
-  INVALID_TOKEN: "Der Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.",
-  TOKEN_EXPIRED: "Der Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.",
-  INVALID_PASSWORD: "Das aktuelle Passwort stimmt nicht.",
-  CREDENTIAL_ACCOUNT_NOT_FOUND: "Für dein Konto ist noch kein Passwort gesetzt.",
-  PASSWORD_TOO_SHORT: "Das Passwort ist zu kurz.",
-  PASSWORD_TOO_LONG: "Das Passwort ist zu lang.",
-  MAIL_FAILED,
-  // Staff 2FA (§5.9).
-  INVALID_CODE: "Der Code stimmt nicht. Nimm den aktuellen aus deiner Authenticator-App.",
-  INVALID_BACKUP_CODE: "Dieser Backup-Code stimmt nicht oder wurde schon benutzt.",
-  INVALID_TWO_FACTOR_COOKIE: "Die Anmeldung ist abgelaufen. Bitte melde dich neu an.",
-  TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: "Zu viele falsche Codes. Bitte melde dich neu an.",
-  ACCOUNT_TEMPORARILY_LOCKED:
-    "Zu viele falsche Codes. Die Anmeldung ist kurz gesperrt, bitte versuch es später erneut.",
-  TOTP_ALREADY_ENABLED: "Die Zwei-Faktor-Anmeldung ist schon eingerichtet.",
-};
 
 /** An APIError of Better Auth, matched by shape: the class lives in more than one package. */
 function authErrorCode(error: unknown): string | null {
@@ -34,17 +13,22 @@ function authErrorCode(error: unknown): string | null {
   return typeof body?.code === "string" ? body.code : null;
 }
 
-/** Runs a server action body and turns domain and Better Auth errors into a message for the form. */
+/**
+ * Runs a server action body and turns domain and Better Auth errors into a message for the form, in
+ * the language of the request (§5.21).
+ */
 export async function runAction(body: () => Promise<void>): Promise<ActionState> {
   try {
     await body();
     return { error: null, done: true };
   } catch (error) {
-    if (isDomainError(error)) return { error: error.message };
+    const locale = await getLocale();
+    if (isDomainError(error)) return { error: renderMessage(error.text, locale) };
+    const t = actionMessages[locale];
     const code = authErrorCode(error);
-    if (code && AUTH_ERROR_MESSAGES[code]) return { error: AUTH_ERROR_MESSAGES[code] };
+    if (code && t.authErrors[code]) return { error: t.authErrors[code] };
     console.error("Server action failed", error);
-    return { error: "Etwas ist schiefgelaufen. Bitte versuch es erneut." };
+    return { error: t.somethingWentWrong };
   }
 }
 
@@ -52,7 +36,10 @@ export async function runAction(body: () => Promise<void>): Promise<ActionState>
 
 export const idSchema = z.string().min(1);
 
-export const invalidInput: ActionState = { error: "Ungültige Eingabe." };
+/** A form that does not fit the action's shape, in the language of the request. */
+export async function invalidInput(): Promise<ActionState> {
+  return { error: actionMessages[await getLocale()].invalidInput };
+}
 
 export function formField(formData: FormData, name: string): FormDataEntryValue | undefined {
   return formData.get(name) ?? undefined;

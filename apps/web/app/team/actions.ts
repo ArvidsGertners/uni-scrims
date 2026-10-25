@@ -22,7 +22,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
 import { setFlash } from "@/lib/flash";
-import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
+import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
 // Shape check only; the content rules (lengths) live in core's teamInputSchema.
@@ -46,7 +46,7 @@ async function finish(state: ActionState): Promise<ActionState> {
 export async function createTeamAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
   const input = teamInput(formData);
-  if (!input) return invalidInput;
+  if (!input) return invalidInput();
   let teamName = "";
   const state = await runAction(async () => {
     teamName = (await createTeam({ ...input, userId, now: new Date() })).name;
@@ -79,9 +79,9 @@ export async function setTeamLogoAction(_state: ActionState, formData: FormData)
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
   const background = logoBackgroundSchema.safeParse(formField(formData, "background"));
   const file = z.instanceof(File).safeParse(formData.get("logo"));
-  if (!teamId.success || !background.success) return invalidInput;
+  if (!teamId.success || !background.success) return invalidInput();
   if (!file.success || file.data.size === 0) return { error: "Bitte wähle ein Bild aus." };
-  if (!(await allowAttempt("logo"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("logo"))) return rateLimited();
   return finish(
     await runAction(async () => {
       await setTeamLogo({
@@ -99,7 +99,7 @@ export async function removeTeamLogoAction(_state: ActionState, formData: FormDa
   const userId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
   const background = logoBackgroundSchema.safeParse(formField(formData, "background"));
-  if (!teamId.success || !background.success) return invalidInput;
+  if (!teamId.success || !background.success) return invalidInput();
   return finish(
     await runAction(async () => {
       await removeTeamLogo({
@@ -116,7 +116,7 @@ export async function updateTeamAction(_state: ActionState, formData: FormData) 
   const userId = (await getSessionUserId()) ?? "";
   const input = teamInput(formData);
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
-  if (!input || !teamId.success) return invalidInput;
+  if (!input || !teamId.success) return invalidInput();
   return finish(
     await runAction(async () => {
       await updateTeam({ ...input, userId, teamId: teamId.data });
@@ -135,7 +135,7 @@ export async function updateTeamLinksAction(_state: ActionState, formData: FormD
         TEAM_LINK_PLATFORMS.map((platform) => [platform.key, formField(formData, platform.key)]),
       ),
     );
-  if (!teamId.success || !links.success) return invalidInput;
+  if (!teamId.success || !links.success) return invalidInput();
   const state = await runAction(async () => {
     await updateTeamLinks({ userId, teamId: teamId.data, links: links.data, now: new Date() });
   });
@@ -146,7 +146,7 @@ export async function updateTeamLinksAction(_state: ActionState, formData: FormD
 export async function regenerateInviteAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
-  if (!teamId.success) return invalidInput;
+  if (!teamId.success) return invalidInput();
   return finish(
     await runAction(async () => {
       await regenerateInvite({ userId, teamId: teamId.data });
@@ -160,7 +160,7 @@ export async function transferCaptainAction(_state: ActionState, formData: FormD
     teamId: formField(formData, "teamId"),
     memberId: formField(formData, "memberId"),
   });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   return finish(
     await runAction(async () => {
       await transferCaptain({
@@ -178,7 +178,7 @@ export async function removeMemberAction(_state: ActionState, formData: FormData
     teamId: formField(formData, "teamId"),
     memberId: formField(formData, "memberId"),
   });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   return finish(
     await runAction(async () => {
       await removeMember({ userId, ...parsed.data });
@@ -194,7 +194,7 @@ export async function setMemberRoleAction(_state: ActionState, formData: FormDat
     memberId: formField(formData, "memberId"),
     role: formField(formData, "role"),
   });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   return finish(
     await runAction(async () => {
       await setMemberRole({ userId, ...parsed.data, role: parsed.data.role as MemberRole });
@@ -205,7 +205,7 @@ export async function setMemberRoleAction(_state: ActionState, formData: FormDat
 export async function leaveTeamAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
-  if (!teamId.success) return invalidInput;
+  if (!teamId.success) return invalidInput();
   let dissolved = false;
   const state = await runAction(async () => {
     ({ dissolved } = await leaveTeam({ userId, teamId: teamId.data, now: new Date() }));
@@ -219,7 +219,7 @@ export async function leaveTeamAction(_state: ActionState, formData: FormData) {
 export async function joinTeamAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
   const code = idSchema.safeParse(formField(formData, "code"));
-  if (!code.success) return invalidInput;
+  if (!code.success) return invalidInput();
   let teamName = "";
   const state = await runAction(async () => {
     teamName = (await joinTeam({ userId, inviteCode: code.data, now: new Date() })).name;

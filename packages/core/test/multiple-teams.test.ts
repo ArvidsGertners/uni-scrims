@@ -268,13 +268,13 @@ describe("bans and deletion across teams", () => {
     await submitTeamLimitRequest({ userId: user.id, reason: "Ich betreue drei Teams.", now: NOW });
 
     const account = await getAccount(user.id);
-    expect(account.deletionProblem).toBe(TRANSFER_CAPTAIN_FIRST);
+    expect(account.deletionProblem).toEqual(TRANSFER_CAPTAIN_FIRST);
     expect(account.teams.filter((team) => team.blocksDeletion).map((team) => team.id)).toEqual([
       blocking.team.id,
     ]);
-    await expect(deleteAccount({ userId: user.id, uploadDir, now: NOW })).rejects.toThrow(
-      TRANSFER_CAPTAIN_FIRST,
-    );
+    await expect(deleteAccount({ userId: user.id, uploadDir, now: NOW })).rejects.toMatchObject({
+      text: TRANSFER_CAPTAIN_FIRST,
+    });
 
     await transferCaptain({
       userId: user.id,
@@ -391,7 +391,7 @@ describe("requests for more teams", () => {
       submitTeamLimitRequest({ userId: user.id, reason: "Noch mehr Teams bitte.", now: LATER }),
     ).rejects.toThrow("Mehr als 50 Teams");
     expect(await getTeamLimitStatus(user.id)).toMatchObject({
-      requestProblem: "Mehr als 50 Teams gehen nicht.",
+      requestProblem: { key: "teamLimitAtMax" },
     });
   });
 

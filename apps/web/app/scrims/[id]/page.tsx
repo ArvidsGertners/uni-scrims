@@ -22,6 +22,7 @@ import { SCRIM_STATUS_LABELS, formatFormat, formatMaps } from "@/lib/scrim-forma
 import { requirePageUser } from "@/lib/session";
 import { cancelScrimAction } from "../actions";
 import { FeedbackForm } from "./feedback-form";
+import { getText } from "@/lib/locale";
 
 const OUTCOMES = (Object.keys(FEEDBACK_OUTCOME_LABELS) as FeedbackOutcome[]).map((value) => ({
   value,
@@ -33,6 +34,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requirePageUser(`/scrims/${id}`);
   const scrim = await getScrimDetail({ userId: user.id, scrimId: id, now: new Date() });
+  const text = await getText();
   if (!scrim) {
     // Played by another own team (SPEC N-17): offer to switch instead of "not found".
     const otherTeam = await getOtherOwnScrimTeam({ userId: user.id, scrimId: id });
@@ -142,7 +144,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
               </Alert>
             ) : (
               <p className="text-[14px] text-pretty text-muted-foreground">
-                {scrim.feedbackClosed ?? scrim.actionProblem}
+                {text(scrim.feedbackClosed ?? scrim.actionProblem)}
               </p>
             )}
           </section>
@@ -175,7 +177,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
                   </ActionForm>
                 </>
               ) : (
-                <p className="text-[14px] text-muted-foreground">{scrim.actionProblem}</p>
+                <p className="text-[14px] text-muted-foreground">{text(scrim.actionProblem)}</p>
               )}
             </section>
           ) : null}

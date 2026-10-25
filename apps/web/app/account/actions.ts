@@ -21,7 +21,7 @@ import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { setFlash } from "@/lib/flash";
 import { parseNotificationForm } from "@/lib/notification-form";
-import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
+import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
 export async function deleteAccountAction(
@@ -116,7 +116,7 @@ export async function changeEmailAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  if (!(await allowAttempt("mail"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("mail"))) return rateLimited();
   const userId = (await getSessionUserId()) ?? "";
   const state = await runAction(async () => {
     // Better Auth checks only the session; banned users may only delete (§7).
@@ -138,7 +138,7 @@ export async function changePasswordAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  if (!(await allowAttempt("login"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("login"))) return rateLimited();
   const userId = (await getSessionUserId()) ?? "";
   const state = await runAction(async () => {
     // Better Auth checks only the session; banned users may only delete (§7).

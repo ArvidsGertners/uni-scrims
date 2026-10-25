@@ -8,7 +8,6 @@ import {
   AUTO_REJECT_REASON,
   LEGACY_REJECT_REASON,
   MAX_UPLOAD_BYTES,
-  MISSING_FILE_MESSAGE,
   autoRejectStaleVerifications,
   cleanupDecidedFiles,
   cleanupOrphanFiles,
@@ -342,7 +341,7 @@ describe("admin queue", () => {
       });
     await expect(decide("APPROVED")).rejects.toMatchObject({
       code: "CONFLICT",
-      message: MISSING_FILE_MESSAGE,
+      text: { key: "verificationFileMissing" },
     });
     await expect(decide("REJECTED")).resolves.toBeUndefined();
     expect(

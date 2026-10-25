@@ -5,6 +5,7 @@ import { TeamLimitStatus, prisma } from "@uni-scrims/db";
 import { z } from "zod";
 import { MAX_TEAM_LIMIT, TEAM_LIMIT_REASON_MAX, TEAM_LIMIT_REASON_MIN } from "../config/limits.ts";
 import { DomainError } from "./errors.ts";
+import { key, msg } from "./i18n/render.ts";
 import { lockUser } from "./locks.ts";
 import { requireAdmin, requireUser } from "./permissions.ts";
 import { parseInput } from "./schemas.ts";
@@ -13,23 +14,17 @@ import { countOwnTeams } from "./teams.ts";
 export { MAX_TEAM_LIMIT, TEAM_LIMIT_REASON_MAX, TEAM_LIMIT_REASON_MIN };
 
 export const teamLimitReasonSchema = z
-  .string("Bitte begründe deinen Antrag.")
+  .string(key("teamLimitReasonMissing"))
   .trim()
-  .min(
-    TEAM_LIMIT_REASON_MIN,
-    `Bitte begründe deinen Antrag mit mindestens ${TEAM_LIMIT_REASON_MIN} Zeichen.`,
-  )
-  .max(
-    TEAM_LIMIT_REASON_MAX,
-    `Die Begründung darf höchstens ${TEAM_LIMIT_REASON_MAX} Zeichen haben.`,
-  );
+  .min(TEAM_LIMIT_REASON_MIN, key("teamLimitReasonTooShort"))
+  .max(TEAM_LIMIT_REASON_MAX, key("teamLimitReasonTooLong"));
 
 function pendingConflict(): DomainError {
-  return new DomainError("CONFLICT", "Du hast schon einen offenen Antrag.");
+  return new DomainError("CONFLICT", "teamLimitPending");
 }
 
 /** No admin could approve more (decideTeamLimitRequest), so no request is taken. */
-const AT_MAX = `Mehr als ${MAX_TEAM_LIMIT} Teams gehen nicht.`;
+const AT_MAX = msg("teamLimitAtMax");
 
 /** Asks for more teams; one open request per user (pendingUserId). */
 export async function submitTeamLimitRequest(input: { userId: string; reason: string; now: Date }) {
@@ -112,7 +107,7 @@ export async function decideTeamLimitRequest(input: {
   const approved = input.decision === "APPROVED";
   await prisma.$transaction(async (tx) => {
     const request = await tx.teamLimitRequest.findUnique({ where: { id: input.requestId } });
-    if (!request) throw new DomainError("NOT_FOUND", "Antrag nicht gefunden.");
+    if (!request) throw new DomainError("NOT_FOUND", "teamLimitRequestNotFound");
     // Both user rows by id, as in decideVerification: an admin who deletes the account meanwhile
     // is not stored as decidedById, and the user's limit is read under the lock.
     for (const id of [...new Set([request.userId, input.adminId])].sort()) await lockUser(tx, id);
@@ -133,7 +128,7 @@ export async function decideTeamLimitRequest(input: {
       },
     });
     if (updated.count === 0) {
-      throw new DomainError("CONFLICT", "Dieser Antrag ist bereits entschieden.");
+      throw new DomainError("CONFLICT", "teamLimitRequestDecided");
     }
     if (newLimit !== null) {
       await tx.user.update({ where: { id: request.userId }, data: { teamLimit: newLimit } });
@@ -142,11 +137,15 @@ export async function decideTeamLimitRequest(input: {
 }
 
 function parseNewLimit(value: number | null | undefined, current: number): number {
-  const message = `Bitte gib ein neues Limit zwischen ${current + 1} und ${MAX_TEAM_LIMIT} an.`;
-  const schema = z
-    .number(message)
-    .int(message)
-    .min(current + 1, message)
-    .max(MAX_TEAM_LIMIT, message);
-  return parseInput(schema, value);
+  // The lower bound depends on the user, so the message gets it as a parameter.
+  const parsed = z
+    .number()
+    .int()
+    .min(current + 1)
+    .max(MAX_TEAM_LIMIT)
+    .safeParse(value);
+  if (!parsed.success) {
+    throw new DomainError("INVALID", msg("newLimitRange", { min: current + 1 }));
+  }
+  return parsed.data;
 }

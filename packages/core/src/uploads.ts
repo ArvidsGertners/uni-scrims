@@ -20,21 +20,18 @@ export type UploadType = { mimeType: string; ext: string };
 /** Checks the real size and the type via magic bytes; the client-provided name and MIME are ignored. */
 export async function detectUploadType(bytes: Uint8Array): Promise<UploadType> {
   if (bytes.byteLength === 0) {
-    throw new DomainError("INVALID", "Die Datei ist leer.");
+    throw new DomainError("INVALID", "fileEmpty");
   }
   if (bytes.byteLength > MAX_UPLOAD_BYTES) {
-    throw new DomainError("INVALID", "Die Datei ist größer als 5 MB.");
+    throw new DomainError("INVALID", "uploadTooLarge");
   }
   const detected = await fileTypeFromBuffer(bytes);
   if (detected?.ext === "heic") {
-    throw new DomainError(
-      "INVALID",
-      "HEIC wird nicht unterstützt. Foto bitte als JPG/PNG hochladen.",
-    );
+    throw new DomainError("INVALID", "heicUnsupported");
   }
   const ext = detected ? ALLOWED_TYPES[detected.mime] : undefined;
   if (!detected || !ext) {
-    throw new DomainError("INVALID", "Erlaubt sind nur PDF, JPG und PNG.");
+    throw new DomainError("INVALID", "uploadType");
   }
   return { mimeType: detected.mime, ext };
 }

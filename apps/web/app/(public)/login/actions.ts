@@ -5,10 +5,10 @@ import { redirect } from "next/navigation";
 import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { safeCallbackURL } from "@/lib/callback-url";
-import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
+import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 
 export async function loginAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  if (!(await allowAttempt("login"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("login"))) return rateLimited();
   const email = String(formField(formData, "email") ?? "");
   const password = String(formField(formData, "password") ?? "");
   let needsCode = false;

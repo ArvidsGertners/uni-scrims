@@ -7,7 +7,7 @@ import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { safeCallbackURL } from "@/lib/callback-url";
 import { setFlash } from "@/lib/flash";
-import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
+import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId, setupUrl } from "@/lib/session";
 
 /**
@@ -18,7 +18,7 @@ export async function completeAccountAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  if (!(await allowAttempt("mail"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("mail"))) return rateLimited();
   const userId = (await getSessionUserId()) ?? "";
   const callbackURL = safeCallbackURL(formField(formData, "callbackURL")?.toString());
   const state = await runAction(async () => {
@@ -48,7 +48,7 @@ export async function resendVerificationAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  if (!(await allowAttempt("mail"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("mail"))) return rateLimited();
   const callbackURL = safeCallbackURL(formField(formData, "callbackURL")?.toString());
   const state = await runAction(async () => {
     const session = await auth.api.getSession({ headers: await headers() });

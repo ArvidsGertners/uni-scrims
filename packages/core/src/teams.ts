@@ -11,6 +11,7 @@ import {
 import { MAX_TEAM_MEMBERS } from "../config/limits.ts";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, problemError } from "./errors.ts";
+import { type Message, msg } from "./i18n/render.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
 import {
   captainProblem,
@@ -59,10 +60,10 @@ export function generateInviteCode(): string {
 }
 
 /** A captain can only leave or delete the account as the last member (SPEC P0-3, P0-10). */
-export const TRANSFER_CAPTAIN_FIRST = "Übertrage zuerst die Captain-Rolle.";
+export const TRANSFER_CAPTAIN_FIRST = msg("transferCaptainFirst");
 
 function nameTaken(): DomainError {
-  return new DomainError("CONFLICT", "Der Teamname ist schon vergeben.");
+  return new DomainError("CONFLICT", "teamNameTaken");
 }
 
 /** The teams that count for User.teamLimit: all that are not dissolved, banned ones included. */
@@ -71,10 +72,8 @@ export async function countOwnTeams(userId: string, db: Db = prisma): Promise<nu
 }
 
 /** Why the user cannot found or join another team (SPEC N-17), or null; also shown by the pages. */
-export function teamLimitProblem(teamCount: number, teamLimit: number): string | null {
-  return teamCount < teamLimit
-    ? null
-    : `Du bist schon in ${teamCount} Teams, mehr geht für dein Konto gerade nicht. Mehr Teams kannst du beim Support beantragen.`;
+export function teamLimitProblem(teamCount: number, teamLimit: number): Message | null {
+  return teamCount < teamLimit ? null : msg("teamLimitReached", { count: teamCount });
 }
 
 /** Throws the limit problem; called under the user lock, so parallel joins cannot exceed it. */
@@ -219,10 +218,7 @@ export async function linkTeamChannel(
   env: Record<string, string | undefined> = process.env,
 ) {
   if (input.guildId === env.HUB_GUILD_ID) {
-    throw new DomainError(
-      "INVALID",
-      "Auf dem Uni-Scrims-Server geht das nicht. Nutze /setup auf eurem Team-Server.",
-    );
+    throw new DomainError("INVALID", "setupOnHub");
   }
   const user = await findUserByDiscordId(input.discordUserId);
   const teamId = await chosenTeamId(user?.id, input.team?.trim() || null);
@@ -267,13 +263,10 @@ async function chosenTeamId(
     return team?.id ?? choice;
   }
   if (linkable.length > 1) {
-    throw new DomainError(
-      "INVALID",
-      "Du bist Captain mehrerer Teams. Wähle mit der Option „team“, welches Team du verknüpfst.",
-    );
+    throw new DomainError("INVALID", "setupPickTeam");
   }
   const team = linkable[0] ?? teams.find((own) => isCaptainOf(user, own)) ?? teams[0];
-  if (!team) throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
+  if (!team) throw new DomainError("FORBIDDEN", "notInAnyTeam");
   return team.id;
 }
 
@@ -331,7 +324,7 @@ async function requireAccountCaptain(userId: string | null | undefined, teamId: 
   });
   const team = membership?.team;
   if (!team || team.dissolvedAt) {
-    throw new DomainError("FORBIDDEN", "Du bist nicht in diesem Team.");
+    throw new DomainError("FORBIDDEN", "notInTeam");
   }
   const problem = captainProblem(user, team);
   if (problem) throw problemError(problem);
@@ -348,13 +341,13 @@ async function transferCaptainWith(
     await lockTeam(tx, input.teamId);
     const { user } = await check(input.userId, input.teamId, tx);
     if (input.newCaptainId === user.id) {
-      throw new DomainError("INVALID", "Du bist schon Captain.");
+      throw new DomainError("INVALID", "alreadyCaptain");
     }
     const member = await tx.teamMember.findUnique({
       where: { teamId_userId: { teamId: input.teamId, userId: input.newCaptainId } },
     });
     if (!member) {
-      throw new DomainError("INVALID", "Nur Mitglieder können Captain werden.");
+      throw new DomainError("INVALID", "onlyMembersCaptain");
     }
     await tx.team.update({ where: { id: input.teamId }, data: { captainId: input.newCaptainId } });
   });
@@ -371,13 +364,13 @@ export async function removeMember(input: {
     await lockTeam(tx, input.teamId);
     const { user } = await requireCaptain(input.userId, input.teamId, tx);
     if (input.memberId === user.id) {
-      throw new DomainError("INVALID", "Du kannst dich nicht selbst entfernen.");
+      throw new DomainError("INVALID", "cannotRemoveSelf");
     }
     const removed = await tx.teamMember.deleteMany({
       where: { teamId: input.teamId, userId: input.memberId },
     });
     if (removed.count === 0) {
-      throw new DomainError("NOT_FOUND", "Mitglied nicht gefunden.");
+      throw new DomainError("NOT_FOUND", "memberNotFound");
     }
   });
 }
@@ -403,7 +396,7 @@ export async function setMemberRole(input: {
       data: { role },
     });
     if (updated.count === 0) {
-      throw new DomainError("NOT_FOUND", "Mitglied nicht gefunden.");
+      throw new DomainError("NOT_FOUND", "memberNotFound");
     }
   });
 }
@@ -431,10 +424,10 @@ export async function joinTeam(input: { userId: string; inviteCode: string; now:
     const membership = await tx.teamMember.findUnique({
       where: { teamId_userId: { teamId: team.id, userId: user.id } },
     });
-    if (membership) throw new DomainError("CONFLICT", "Du bist schon in diesem Team.");
+    if (membership) throw new DomainError("CONFLICT", "alreadyInTeam");
     await requireBelowTeamLimit(locked, tx);
     if ((await tx.teamMember.count({ where: { teamId: team.id } })) >= MAX_TEAM_MEMBERS) {
-      throw new DomainError("CONFLICT", `Das Team ist voll (max. ${MAX_TEAM_MEMBERS} Mitglieder).`);
+      throw new DomainError("CONFLICT", "teamFull");
     }
     await tx.teamMember.create({
       data: { teamId: team.id, userId: user.id, joinedAt: input.now },
@@ -445,7 +438,7 @@ export async function joinTeam(input: { userId: string; inviteCode: string; now:
 }
 
 function invalidInvite(): DomainError {
-  return new DomainError("NOT_FOUND", "Dieser Einladungslink ist ungültig.");
+  return new DomainError("NOT_FOUND", "inviteInvalid");
 }
 
 /**

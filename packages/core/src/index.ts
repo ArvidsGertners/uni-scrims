@@ -1,6 +1,8 @@
 export * from "../config/locale.ts";
 export * from "./errors.ts";
 export * from "./i18n/locale.ts";
+export * from "./i18n/render.ts";
+export * from "./i18n/team-links.ts";
 export * from "./login.ts";
 export type { Db } from "./db.ts";
 export * from "./permissions.ts";

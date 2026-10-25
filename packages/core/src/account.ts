@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { VerifStatus, prisma } from "@uni-scrims/db";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
+import { type Message } from "./i18n/render.ts";
 import { toDbLocale } from "./i18n/locale.ts";
 import { lockTeam, lockUser } from "./locks.ts";
 import {
@@ -42,11 +43,10 @@ import {
 /** Better Auth's provider ID for the email and password login (§5.8). */
 export const CREDENTIAL_PROVIDER = "credential";
 
-const NAME_LOCKED =
-  "Nach dem Hochladen der Bescheinigung kannst du deinen Namen nicht mehr selbst ändern. Schreib uns dafür eine Mail (Adresse im Impressum).";
+const NAME_LOCKED = "nameLocked";
 
 function emailTaken(): DomainError {
-  return new DomainError("CONFLICT", "Diese E-Mail-Adresse wird schon verwendet.");
+  return new DomainError("CONFLICT", "emailTaken");
 }
 
 /**
@@ -58,7 +58,7 @@ export function accountDeletionProblem(
   user: { id: string },
   team: { captainId: string; bannedAt: Date | null } | null,
   memberCount: number,
-): string | null {
+): Message | null {
   if (!team || !isCaptainOf(user, team) || team.bannedAt || memberCount <= 1) return null;
   return TRANSFER_CAPTAIN_FIRST;
 }
@@ -174,7 +174,7 @@ export async function completeAccount(input: {
       await lockUser(tx, user.id);
       const current = await requireActiveAccountUser(user.id, tx);
       if (current.firstName) {
-        throw new DomainError("CONFLICT", "Dein Konto ist bereits vollständig.");
+        throw new DomainError("CONFLICT", "accountAlreadyComplete");
       }
       await tx.user.update({
         where: { id: user.id },
@@ -212,7 +212,7 @@ export async function updateRealName(input: {
     await lockUser(tx, user.id);
     const current = await requireActiveAccountUser(user.id, tx);
     if (!current.firstName) {
-      throw new DomainError("CONFLICT", "Bitte vervollständige zuerst dein Konto.");
+      throw new DomainError("CONFLICT", "completeAccountFirst");
     }
     const pending = await tx.verificationRequest.findUnique({ where: { pendingUserId: user.id } });
     if (realNameLocked(current, pending !== null)) throw new DomainError("CONFLICT", NAME_LOCKED);
@@ -294,7 +294,7 @@ export async function deleteAccount(input: {
     const teams = await findOwnTeams(user.id, tx);
     if (teams.some((team) => !lockedIds.includes(team.id))) {
       // Joined another team in between; that one is not locked.
-      throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
+      throw new DomainError("CONFLICT", "tryAgain");
     }
     // Teams the user captains are dissolved, the others are left (SPEC N-17).
     const dissolved: string[] = [];

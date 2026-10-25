@@ -1,4 +1,4 @@
-import { TEAM_LINK_LABELS, type TeamLink, type TeamLinkPlatform } from "@uni-scrims/core";
+import { TEAM_LINK_TEXTS, type TeamLink, type TeamLinkPlatform } from "@uni-scrims/core";
 import { cn } from "cn";
 import {
   DiscordIcon,
@@ -9,6 +9,7 @@ import {
   YouTubeIcon,
 } from "@/components/brand-icons";
 import { GlobeIcon } from "@/components/icons";
+import { getMessages } from "@/lib/locale";
 
 const ICONS: Record<TeamLinkPlatform, (props: { size?: number }) => React.ReactNode> = {
   discord: DiscordIcon,
@@ -41,7 +42,7 @@ export const EXTERNAL_LINK_PROPS = {
  * The external links of a team as a row of small icons next to its name (SPEC N-15); nothing
  * without links. The icons are part of the bundle, so showing them loads nothing from elsewhere.
  */
-export function TeamLinks({
+export async function TeamLinks({
   teamName,
   links,
   className,
@@ -51,10 +52,11 @@ export function TeamLinks({
   className?: string;
 }) {
   if (links.length === 0) return null;
+  const platforms = await getMessages(TEAM_LINK_TEXTS);
   return (
     <ul className={cn("flex flex-wrap items-center", className)}>
       {links.map((link) => {
-        const label = `${TEAM_LINK_LABELS[link.platform]} von ${teamName}`;
+        const label = `${platforms[link.platform].label} von ${teamName}`;
         return (
           <li key={link.platform}>
             <a

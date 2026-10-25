@@ -1,7 +1,7 @@
 import {
   LOGO_BACKGROUNDS,
   MIN_SEARCH_LENGTH,
-  TEAM_LINK_LABELS,
+  TEAM_LINK_TEXTS,
   searchModerationTargets,
 } from "@uni-scrims/core";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import {
   removeTeamLogoAction,
 } from "../actions";
 import { adminHref } from "@/lib/admin-url";
+import { getMessages } from "@/lib/locale";
 
 // Consequences from SPEC P0-9 and the edge cases.
 const TEAM_BAN_CONSEQUENCES =
@@ -38,6 +39,7 @@ export default async function BansPage({
   const result = await searchModerationTargets({ adminId: admin.id, query });
   const tooShort = query.length > 0 && query.length < MIN_SEARCH_LENGTH;
   const searched = query.length >= MIN_SEARCH_LENGTH;
+  const platforms = await getMessages(TEAM_LINK_TEXTS);
 
   return (
     <AdminShell overview={overview} current="/bans">
@@ -141,7 +143,7 @@ export default async function BansPage({
                     {team.links.map((link) => (
                       <li key={link.platform} className="flex min-w-0 items-center gap-2">
                         <TeamLinkIcon platform={link.platform} />
-                        <span className="sr-only">{TEAM_LINK_LABELS[link.platform]}:</span>
+                        <span className="sr-only">{platforms[link.platform].label}:</span>
                         <a
                           href={link.url}
                           {...EXTERNAL_LINK_PROPS}

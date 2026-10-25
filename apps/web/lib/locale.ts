@@ -1,3 +1,4 @@
+import { type Message, renderMessage } from "@uni-scrims/core";
 import type { Locale, Localized } from "@uni-scrims/core/config/locale";
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
@@ -20,4 +21,16 @@ export const getLocale = cache(async (): Promise<Locale> => {
 /** The part of a dictionary for the language of this request. */
 export async function getMessages<T>(dictionary: Localized<T>): Promise<T> {
   return dictionary[await getLocale()];
+}
+
+type RenderText = {
+  (message: Message): string;
+  (message: Message | null): string | null;
+};
+
+/** Renders messages of core (errors, problems) in the language of this request (§5.21). */
+export async function getText(): Promise<RenderText> {
+  const locale = await getLocale();
+  return ((message: Message | null) =>
+    message ? renderMessage(message, locale) : null) as RenderText;
 }

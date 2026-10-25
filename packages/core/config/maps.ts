@@ -18,4 +18,5 @@ export const MAP_POOL = [
 
 export type ValorantMap = (typeof MAP_POOL)[number];
 
-export const mapSchema = z.enum(MAP_POOL, "Unbekannte Map.");
+// The message is a key of the catalog (src/i18n/messages.ts), which parseInput renders.
+export const mapSchema = z.enum(MAP_POOL, "unknownMap");

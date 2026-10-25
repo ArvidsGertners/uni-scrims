@@ -10,6 +10,7 @@ import {
 import { TIMING } from "../config/timing.ts";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
+import { type Message, msg } from "./i18n/render.ts";
 import { lockScrim, lockUser } from "./locks.ts";
 import {
   BOTH_TEAM_CHANNELS,
@@ -21,7 +22,7 @@ import { requireAdmin, requireScrimActingCaptain } from "./permissions.ts";
 import { type FeedbackInput, feedbackInputSchema, parseInput } from "./schemas.ts";
 
 function scrimNotFound(): DomainError {
-  return new DomainError("NOT_FOUND", "Scrim nicht gefunden.");
+  return new DomainError("NOT_FOUND", "scrimNotFound");
 }
 
 // Rules shared by the actions and the scrim page, so the page offers exactly what core allows.
@@ -40,13 +41,13 @@ export function isLateCancel(startsAt: Date, now: Date): boolean {
 export function feedbackClosedReason(
   scrim: { status: ScrimStatus; startsAt: Date; feedbackDeadline: Date },
   now: Date,
-): string | null {
-  if (scrim.status === ScrimStatus.CANCELLED) return "Der Scrim wurde abgesagt.";
+): Message | null {
+  if (scrim.status === ScrimStatus.CANCELLED) return msg("feedbackScrimCancelled");
   if (scrim.status !== ScrimStatus.SCHEDULED && scrim.status !== ScrimStatus.AWAITING_FEEDBACK) {
-    return "Feedback bereits abgeschlossen.";
+    return msg("feedbackClosed");
   }
-  if (now < scrim.startsAt) return "Feedback ist erst ab der Startzeit möglich.";
-  if (now >= scrim.feedbackDeadline) return "Die Feedback-Frist ist abgelaufen.";
+  if (now < scrim.startsAt) return msg("feedbackNotYet");
+  if (now >= scrim.feedbackDeadline) return msg("feedbackExpired");
   return null;
 }
 
@@ -118,7 +119,7 @@ export async function cancelScrim(input: {
     const { team } = await requireScrimActingCaptain(input.userId, input.teamId, scrim, tx);
     const lateCancel = isLateCancel(scrim.startsAt, input.now);
     if (!(await cancelScheduledScrim(tx, scrim, team.id, lateCancel, input.now))) {
-      throw new DomainError("CONFLICT", "Der Scrim kann nicht mehr abgesagt werden.");
+      throw new DomainError("CONFLICT", "scrimNotCancellable");
     }
     return { lateCancel };
   });
@@ -260,7 +261,7 @@ export async function submitFeedback(
 }
 
 function alreadyAnswered(): DomainError {
-  return new DomainError("CONFLICT", "Ihr habt schon geantwortet.");
+  return new DomainError("CONFLICT", "alreadyAnswered");
 }
 
 /** Sweeper: feedback opens at feedbackOpensAt, independent of the prompt being delivered. */
@@ -351,7 +352,7 @@ export async function resolveDispute(
     const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId } });
     if (!scrim) throw scrimNotFound();
     if (scrim.status !== ScrimStatus.DISPUTED) {
-      throw new DomainError("CONFLICT", "Dieser Scrim ist kein offener Streitfall.");
+      throw new DomainError("CONFLICT", "notADispute");
     }
     let result: ScrimOutcome;
     if (input.decision === "PLAYED") {
@@ -360,7 +361,7 @@ export async function resolveDispute(
       result = outcome(ScrimStatus.UNCONFIRMED);
     } else {
       if (input.noShowTeamId !== scrim.hostTeamId && input.noShowTeamId !== scrim.guestTeamId) {
-        throw new DomainError("INVALID", "Das Team ist an diesem Scrim nicht beteiligt.");
+        throw new DomainError("INVALID", "teamNotInScrim");
       }
       result = outcome(ScrimStatus.NO_SHOW, input.noShowTeamId);
     }

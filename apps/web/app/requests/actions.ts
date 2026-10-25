@@ -41,7 +41,7 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
     note: formField(formData, "note"),
     teamId: formField(formData, "teamId"),
   });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   const state = await runAction(async () => {
     await createRequest({
       ...parsed.data,
@@ -64,7 +64,7 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
 export async function deleteRequestAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
   const requestId = idSchema.safeParse(formField(formData, "requestId"));
-  if (!requestId.success) return invalidInput;
+  if (!requestId.success) return invalidInput();
   const state = await runAction(async () => {
     await deleteRequest({ userId, requestId: requestId.data, now: new Date() });
   });
@@ -91,7 +91,7 @@ export async function applyAction(_state: ActionState, formData: FormData) {
       message: formField(formData, "message"),
       teamName: formField(formData, "teamName"),
     });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   const { requestId, teamId, message, teamName } = parsed.data;
   const state = await runAction(async () => {
     await applyToRequest({ userId, teamId, requestId, message, now: new Date() });
@@ -109,7 +109,7 @@ export async function withdrawApplicationAction(_state: ActionState, formData: F
     requestId: formField(formData, "requestId"),
     applicationId: formField(formData, "applicationId"),
   });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   const state = await runAction(async () => {
     await withdrawApplication({
       userId,
@@ -135,7 +135,7 @@ export async function confirmApplicationAction(_state: ActionState, formData: Fo
       applicationId: formField(formData, "applicationId"),
       teamName: formField(formData, "teamName"),
     });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   const { requestId, applicationId, teamName } = parsed.data;
   let scrimId = "";
   const state = await runAction(async () => {

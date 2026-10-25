@@ -35,7 +35,7 @@ export async function decideVerificationAction(
     rejectReason: formData.get("rejectReason") ?? undefined,
     universityId: formData.get("universityId") ?? undefined,
   });
-  if (!parsed.success) return { error: "Ungültige Eingabe." };
+  if (!parsed.success) return invalidInput();
   const state = await runAction(async () => {
     await decideVerification({
       ...parsed.data,
@@ -69,7 +69,7 @@ export async function resolveDisputeAction(
   const scrimId = idSchema.safeParse(formField(formData, "scrimId"));
   const decision = z.string().safeParse(formField(formData, "decision"));
   const parsed = decision.success ? parseDisputeDecision(decision.data) : null;
-  if (!scrimId.success || !parsed) return invalidInput;
+  if (!scrimId.success || !parsed) return invalidInput();
   const state = await runAction(async () => {
     await resolveDispute({ ...parsed, adminId, scrimId: scrimId.data, now: new Date() });
   });
@@ -94,7 +94,7 @@ export async function decideTeamLimitAction(
       decision: formField(formData, "decision"),
       newLimit: formField(formData, "newLimit"),
     });
-  if (!parsed.success) return invalidInput;
+  if (!parsed.success) return invalidInput();
   const { requestId, decision, newLimit } = parsed.data;
   const state = await runAction(async () => {
     await decideTeamLimitRequest({
@@ -113,7 +113,7 @@ export async function decideTeamLimitAction(
 export async function banUserAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   const adminId = (await getSessionUserId()) ?? "";
   const userId = idSchema.safeParse(formField(formData, "userId"));
-  if (!userId.success) return invalidInput;
+  if (!userId.success) return invalidInput();
   const state = await runAction(async () => {
     await banUser({ adminId, userId: userId.data, uploadDir: resolveUploadDir(), now: new Date() });
   });
@@ -124,7 +124,7 @@ export async function banUserAction(_state: ActionState, formData: FormData): Pr
 export async function banTeamAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   const adminId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
-  if (!teamId.success) return invalidInput;
+  if (!teamId.success) return invalidInput();
   const state = await runAction(async () => {
     await banTeam({ adminId, teamId: teamId.data, now: new Date() });
   });
@@ -139,7 +139,7 @@ export async function removeTeamLogoAction(
   const adminId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
   const logoVersion = z.coerce.number().int().safeParse(formField(formData, "logoVersion"));
-  if (!teamId.success || !logoVersion.success) return invalidInput;
+  if (!teamId.success || !logoVersion.success) return invalidInput();
   const state = await runAction(async () => {
     await removeTeamLogoAsAdmin({ adminId, teamId: teamId.data, logoVersion: logoVersion.data });
   });
@@ -154,7 +154,7 @@ export async function removeTeamLinksAction(
   const adminId = (await getSessionUserId()) ?? "";
   const teamId = idSchema.safeParse(formField(formData, "teamId"));
   const linksVersion = z.coerce.number().int().safeParse(formField(formData, "linksVersion"));
-  if (!teamId.success || !linksVersion.success) return invalidInput;
+  if (!teamId.success || !linksVersion.success) return invalidInput();
   const state = await runAction(async () => {
     await removeTeamLinksAsAdmin({
       adminId,

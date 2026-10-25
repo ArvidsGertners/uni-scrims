@@ -2,6 +2,9 @@
 // server, where its own rate limiter does not run, so they count here. One web instance (§6.2), so
 // memory is enough; a restart starts over.
 import { headers } from "next/headers";
+import { actionMessages } from "../i18n/common.ts";
+import type { ActionState } from "./action-state.ts";
+import { getLocale } from "./locale.ts";
 
 type Rule = { max: number; windowMs: number };
 
@@ -18,7 +21,10 @@ export const RATE_LIMITS = {
   logo: { max: 5, windowMs: 60_000 },
 } satisfies Record<string, Rule>;
 
-export const RATE_LIMITED = "Zu viele Versuche. Bitte warte eine Minute.";
+/** The answer of an action over its limit, in the language of the request (§5.21). */
+export async function rateLimited(): Promise<ActionState> {
+  return { error: actionMessages[await getLocale()].rateLimited };
+}
 
 const hits = new Map<string, number[]>();
 /** The longest window; keys with nothing newer are dropped now and then, so the map stays small. */

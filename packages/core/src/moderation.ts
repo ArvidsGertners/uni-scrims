@@ -105,7 +105,7 @@ export async function banTeamInTx(
   await lockTeam(tx, teamId);
   const team = await tx.team.findUnique({ where: { id: teamId } });
   if (!team || team.dissolvedAt) {
-    throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
+    throw new DomainError("NOT_FOUND", "teamNotFound");
   }
   if (team.bannedAt) return false;
   await tx.team.update({ where: { id: teamId }, data: { bannedAt: now } });
@@ -130,12 +130,9 @@ export async function removeTeamLogoAsAdmin(input: {
       where: { id: input.teamId },
       select: { dissolvedAt: true, logoUpdatedAt: true },
     });
-    if (!team || team.dissolvedAt) throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
+    if (!team || team.dissolvedAt) throw new DomainError("NOT_FOUND", "teamNotFound");
     if (logoVersion(team) !== input.logoVersion) {
-      throw new DomainError(
-        "CONFLICT",
-        "Das Logo hat sich inzwischen geändert. Sieh es dir erneut an.",
-      );
+      throw new DomainError("CONFLICT", "logoChanged");
     }
     await clearTeamLogo(tx, input.teamId);
   });
@@ -157,12 +154,9 @@ export async function removeTeamLinksAsAdmin(input: {
       where: { id: input.teamId },
       select: { dissolvedAt: true, linksUpdatedAt: true },
     });
-    if (!team || team.dissolvedAt) throw new DomainError("NOT_FOUND", "Team nicht gefunden.");
+    if (!team || team.dissolvedAt) throw new DomainError("NOT_FOUND", "teamNotFound");
     if (linksVersion(team) !== input.linksVersion) {
-      throw new DomainError(
-        "CONFLICT",
-        "Die Links haben sich inzwischen geändert. Sieh sie dir erneut an.",
-      );
+      throw new DomainError("CONFLICT", "linksChanged");
     }
     await clearTeamLinks(tx, input.teamId);
   });
@@ -172,7 +166,7 @@ export async function banTeam(input: { adminId: string; teamId: string; now: Dat
   await requireAdmin(input.adminId);
   await prisma.$transaction(async (tx) => {
     if (!(await banTeamInTx(tx, input.teamId, input.now))) {
-      throw new DomainError("CONFLICT", "Das Team ist schon gesperrt.");
+      throw new DomainError("CONFLICT", "teamAlreadyBanned");
     }
   });
 }
@@ -190,7 +184,7 @@ export async function banUser(input: {
 }) {
   const admin = await requireAdmin(input.adminId);
   if (input.userId === admin.id) {
-    throw new DomainError("INVALID", "Du kannst dich nicht selbst sperren.");
+    throw new DomainError("INVALID", "cannotBanSelf");
   }
   const { teamBanned, closedVerifications } = await prisma.$transaction((tx) =>
     banUserInTx(tx, input.userId, input.now),
@@ -218,17 +212,14 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
   });
   if (banned.count === 0) {
     const current = await tx.user.findUnique({ where: { id: user.id } });
-    if (!current) throw new DomainError("NOT_FOUND", "Nutzer nicht gefunden.");
+    if (!current) throw new DomainError("NOT_FOUND", "userNotFound");
     throw current.bannedAt
-      ? new DomainError("CONFLICT", "Der Nutzer ist schon gesperrt.")
-      : new DomainError(
-          "CONFLICT",
-          "Der Nutzer hat eine Admin- oder Prüfer-Rolle. Entziehe sie zuerst.",
-        );
+      ? new DomainError("CONFLICT", "userAlreadyBanned")
+      : new DomainError("CONFLICT", "userHasStaffRole");
   }
   // A deleted account has no Discord link left: a new login would create a new, unbanned user.
   if (!(await getDiscordId(user.id, tx))) {
-    throw new DomainError("CONFLICT", "Das Konto wurde gelöscht, eine Sperre würde nicht greifen.");
+    throw new DomainError("CONFLICT", "banDeletedAccount");
   }
 
   // Read again under the lock: the user may have left or joined teams meanwhile.
@@ -237,7 +228,7 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
   if (teams.some((team) => !locked.has(team.id))) {
     // Joined another team in between; that one is not locked, and locking it now would invert
     // the order.
-    throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
+    throw new DomainError("CONFLICT", "tryAgain");
   }
   // Every team the user captains is banned with them, the others lose the member (SPEC N-17). The
   // teams' requests and scrims before the verification rows (§4), all of them in id order.

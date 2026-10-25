@@ -12,6 +12,7 @@ import {
 } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
+import type { PlainMessageKey } from "./i18n/render.ts";
 import { lockUser } from "./locks.ts";
 import { STAFF_AREAS, requireOperator, requireStaff, staffArea } from "./permissions.ts";
 import { emailSchema } from "./schemas.ts";
@@ -37,7 +38,7 @@ const staffSelect = {
 } satisfies Prisma.UserSelect;
 
 /** What keeps an account from a role: it must be complete, unbanned and have a password. */
-async function staffCandidateProblem(userId: string, db: Db): Promise<string | null> {
+async function staffCandidateProblem(userId: string, db: Db): Promise<PlainMessageKey | null> {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: {
@@ -50,13 +51,13 @@ async function staffCandidateProblem(userId: string, db: Db): Promise<string | n
       accounts: { select: { providerId: true } },
     },
   });
-  if (!user || user.deletedAt || isDeletedUser(user)) return "Konto nicht gefunden.";
-  if (user.bannedAt) return "Das Konto ist gesperrt.";
+  if (!user || user.deletedAt || isDeletedUser(user)) return "accountNotFound";
+  if (user.bannedAt) return "candidateBanned";
   const providers = user.accounts.map((account) => account.providerId);
   if (accountSetupStep(user, providers.includes(DISCORD_PROVIDER))) {
-    return "Das Konto ist noch nicht vollständig eingerichtet.";
+    return "candidateIncomplete";
   }
-  if (!providers.includes(CREDENTIAL_PROVIDER)) return "Das Konto hat noch kein Passwort.";
+  if (!providers.includes(CREDENTIAL_PROVIDER)) return "candidateNoPassword";
   return null;
 }
 
@@ -130,10 +131,10 @@ export async function setStaffRole(input: {
 }): Promise<void> {
   const operator = await requireOperator(input.operatorId);
   if (input.role !== null && !ASSIGNABLE_STAFF_ROLES.includes(input.role)) {
-    throw new DomainError("INVALID", "Unbekannte Rolle.");
+    throw new DomainError("INVALID", "unknownRole");
   }
   if (input.userId === operator.id) {
-    throw new DomainError("INVALID", "Deine eigene Rolle änderst du hier nicht.");
+    throw new DomainError("INVALID", "ownRole");
   }
   await prisma.$transaction(async (tx) => {
     // Both user rows in id order (§4); the operator is checked again under its lock.
@@ -144,13 +145,13 @@ export async function setStaffRole(input: {
       select: { staffRole: true },
     });
     if (target?.staffRole === StaffRole.OPERATOR) {
-      throw new DomainError("CONFLICT", "Den Betreiber änderst du hier nicht.");
+      throw new DomainError("CONFLICT", "operatorRole");
     }
     if (input.role !== null) {
       const problem = await staffCandidateProblem(input.userId, tx);
       if (problem) throw new DomainError("CONFLICT", problem);
     } else if (!target?.staffRole) {
-      throw new DomainError("NOT_FOUND", "Das Konto hat keine Rolle.");
+      throw new DomainError("NOT_FOUND", "noRole");
     }
     if (target?.staffRole === input.role) return;
     await tx.user.update({ where: { id: input.userId }, data: { staffRole: input.role } });
@@ -162,7 +163,7 @@ export async function setStaffRole(input: {
 export async function resetStaffTwoFactor(input: { operatorId: string; userId: string }) {
   const operator = await requireOperator(input.operatorId);
   if (input.userId === operator.id) {
-    throw new DomainError("INVALID", "Deine eigene 2FA setzt du per README zurück.");
+    throw new DomainError("INVALID", "ownTwoFactor");
   }
   await prisma.$transaction(async (tx) => {
     for (const id of [operator.id, input.userId].sort()) await lockUser(tx, id);
@@ -172,7 +173,7 @@ export async function resetStaffTwoFactor(input: { operatorId: string; userId: s
       select: { staffRole: true },
     });
     if (!target?.staffRole || target.staffRole === StaffRole.OPERATOR) {
-      throw new DomainError("NOT_FOUND", "Das Konto hat keine Rolle, die du ändern kannst.");
+      throw new DomainError("NOT_FOUND", "noChangeableRole");
     }
     await endStaffSessions(tx, input.userId, true);
   });
@@ -187,7 +188,7 @@ export async function setOperator(email: string) {
   const user = address.success
     ? await prisma.user.findFirst({ where: { email: address.data }, select: { id: true } })
     : null;
-  if (!user) throw new DomainError("NOT_FOUND", "Kein Konto mit dieser E-Mail-Adresse.");
+  if (!user) throw new DomainError("NOT_FOUND", "noAccountWithEmail");
   return prisma.$transaction(async (tx) => {
     await lockUser(tx, user.id);
     const problem = await staffCandidateProblem(user.id, tx);

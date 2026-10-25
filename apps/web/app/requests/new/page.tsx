@@ -24,6 +24,7 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { requirePageUser } from "@/lib/session";
 import { createRequestAction } from "../actions";
+import { getText } from "@/lib/locale";
 
 /** Where each reason can be fixed; a ban is final, so it gets no link. */
 const PROBLEM_LINKS: Partial<Record<ProblemKind, { href: string; label: string }>> = {
@@ -36,6 +37,7 @@ const PROBLEM_LINKS: Partial<Record<ProblemKind, { href: string; label: string }
 export default async function NewRequestPage() {
   const user = await requirePageUser("/requests/new");
   const form = await getRequestForm({ userId: user.id, now: new Date() });
+  const text = await getText();
 
   return (
     <PageMain className="gap-7">
@@ -59,12 +61,12 @@ export default async function NewRequestPage() {
       ) : form.problems.length > 0 ? (
         // The reasons core's createRequest would reject with (§7), shown before the form.
         <div className="flex flex-col gap-2.5">
-          {form.problems.map(({ kind, message }) => {
+          {form.problems.map(({ kind, text: problem }) => {
             const link = PROBLEM_LINKS[kind];
             return (
               <Alert key={kind}>
                 <span>
-                  {message}
+                  {text(problem)}
                   {link ? (
                     <>
                       {" "}

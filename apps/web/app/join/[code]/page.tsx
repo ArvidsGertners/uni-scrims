@@ -10,6 +10,7 @@ import { formatUniversities } from "@/lib/scrim-format";
 import { getSessionUserId, loginUrl, requirePageUser } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { joinTeamAction, switchTeamAction } from "../../team/actions";
+import { getText } from "@/lib/locale";
 
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -35,6 +36,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
 
   // All own teams since Phase 21 (SPEC N-17): joining works up to the team limit.
   const own = await getNavTeam(user.id);
+  const text = await getText();
   const member = own.teams.find((ownTeam) => ownTeam.id === team.id);
   const linkClass = "font-semibold underline underline-offset-2";
   return (
@@ -78,7 +80,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
       ) : own.limitProblem ? (
         <Alert>
           <span>
-            {own.limitProblem}{" "}
+            {text(own.limitProblem)}{" "}
             <Link href="/support#mehr-teams" className={linkClass}>
               Mehr Teams beantragen
             </Link>

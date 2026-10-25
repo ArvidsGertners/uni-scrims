@@ -5,11 +5,13 @@ import { PageMain } from "@/components/page-main";
 import { Alert } from "@/components/ui/alert";
 import { requirePageUser } from "@/lib/session";
 import { NewTeamForms } from "../new-team-forms";
+import { getText } from "@/lib/locale";
 
 /** Another team next to the own ones (SPEC N-17), up to the team limit. */
 export default async function NewTeamPage() {
   const user = await requirePageUser("/team/new");
   const { teamCount, teamLimit, limitProblem } = await getNavTeam(user.id);
+  const text = await getText();
   return (
     <PageMain width="wide" className="gap-7">
       {teamCount > 0 ? <BackLink href="/team">Zurück zum Team</BackLink> : null}
@@ -24,7 +26,7 @@ export default async function NewTeamPage() {
       {limitProblem ? (
         <Alert>
           <span>
-            {limitProblem}{" "}
+            {text(limitProblem)}{" "}
             <Link href="/support#mehr-teams" className="font-semibold underline underline-offset-2">
               Mehr Teams beantragen
             </Link>

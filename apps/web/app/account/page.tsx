@@ -28,6 +28,7 @@ import { switchTeamAction } from "../team/actions";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 import { ThemeForm } from "./theme-form";
+import { getText } from "@/lib/locale";
 
 const cardClass = "flex flex-col gap-4 rounded-lg border border-border bg-card p-5";
 
@@ -79,6 +80,7 @@ export default async function AccountPage({
   const { email: emailConfirmed, error } = await searchParams;
   const user = await requirePageAccountUser("/account");
   const account = await getAccount(user.id);
+  const text = await getText();
   const verification = VERIFICATION_LABELS[account.verification.status];
 
   const consequences = [
@@ -390,7 +392,7 @@ export default async function AccountPage({
               <div className="flex flex-col gap-3">
                 {/* Which teams, as there may be several since Phase 21 (SPEC N-17). */}
                 <span>
-                  {account.deletionProblem} Betrifft:{" "}
+                  {text(account.deletionProblem)} Betrifft:{" "}
                   {account.teams
                     .filter((team) => team.blocksDeletion)
                     .map((team) => team.name)

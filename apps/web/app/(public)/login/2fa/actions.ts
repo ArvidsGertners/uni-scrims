@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { safeCallbackURL } from "@/lib/callback-url";
-import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
+import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
 /**
@@ -19,7 +19,7 @@ export async function verifyLoginCodeAction(
 ): Promise<ActionState> {
   const callbackURL = safeCallbackURL(formField(formData, "callbackURL")?.toString());
   if (await getSessionUserId()) redirect(callbackURL);
-  if (!(await allowAttempt("code"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("code"))) return rateLimited();
   const code = String(formField(formData, "code") ?? "").replaceAll(/\s/g, "");
   const backup = formField(formData, "backup") === "on";
   const state = await runAction(async () => {

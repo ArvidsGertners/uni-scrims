@@ -2,6 +2,7 @@
 // checked per platform. What a link leads to is not checked; admins remove bad ones.
 
 import { TEAM_LINK_MAX } from "../config/limits.ts";
+import { type Message, msg } from "./i18n/render.ts";
 
 export { TEAM_LINK_MAX };
 
@@ -14,12 +15,8 @@ type TeamLinkField =
 type PlatformRule = {
   key: TeamLinkPlatform;
   field: TeamLinkField;
-  label: string;
-  placeholder: string;
-  /** Whether host (without "www.") and path fit the platform. */
+  /** Whether host (without "www.") and path fit the platform. Names and hints: i18n/team-links.ts. */
   accepts: (host: string, path: string) => boolean;
-  /** Completes "Bitte …" when they do not. */
-  hint: string;
 };
 
 /** A profile path: something after the slash. */
@@ -36,72 +33,47 @@ export const TEAM_LINK_PLATFORMS: readonly PlatformRule[] = [
   {
     key: "discord",
     field: "discordUrl",
-    label: "Discord-Server",
-    placeholder: "discord.gg/…",
     // Server invites only, not profiles or channels.
     accepts: (host, path) =>
       (host === "discord.gg" && /^\/[\w-]+\/?$/.test(path)) ||
       (host === "discord.com" && /^\/invite\/[\w-]+\/?$/.test(path)),
-    hint: "einen Einladungslink zu eurem Server angeben (discord.gg/… oder discord.com/invite/…)",
   },
   {
     key: "website",
     field: "websiteUrl",
-    label: "Website",
-    placeholder: "eure-seite.de",
     // Any domain, but no IP address and no local name.
     accepts: (host) =>
       /^[^.]+(\.[^.]+)+$/.test(host) &&
       !IPV4.test(host) &&
       !host.startsWith("[") &&
       !host.endsWith(".localhost"),
-    hint: "eine Adresse mit Domain angeben, z. B. eure-seite.de",
   },
   {
     key: "x",
     field: "xUrl",
-    label: "X",
-    placeholder: "x.com/…",
     accepts: profileOn("x.com", "twitter.com"),
-    hint: "einen Link zu eurem Profil auf x.com oder twitter.com angeben",
   },
   {
     key: "instagram",
     field: "instagramUrl",
-    label: "Instagram",
-    placeholder: "instagram.com/…",
     accepts: profileOn("instagram.com"),
-    hint: "einen Link zu eurem Profil auf instagram.com angeben",
   },
   {
     key: "twitch",
     field: "twitchUrl",
-    label: "Twitch",
-    placeholder: "twitch.tv/…",
     accepts: profileOn("twitch.tv"),
-    hint: "einen Link zu eurem Kanal auf twitch.tv angeben",
   },
   {
     key: "youtube",
     field: "youtubeUrl",
-    label: "YouTube",
-    placeholder: "youtube.com/@…",
     accepts: profileOn("youtube.com", "m.youtube.com"),
-    hint: "einen Link zu eurem Kanal auf youtube.com angeben",
   },
   {
     key: "tiktok",
     field: "tiktokUrl",
-    label: "TikTok",
-    placeholder: "tiktok.com/@…",
     accepts: (host, path) => host === "tiktok.com" && /^\/@[^/]/.test(path),
-    hint: "einen Link zu eurem Profil auf tiktok.com angeben (tiktok.com/@…)",
   },
 ];
-
-export const TEAM_LINK_LABELS = Object.fromEntries(
-  TEAM_LINK_PLATFORMS.map((platform) => [platform.key, platform.label]),
-) as Record<TeamLinkPlatform, string>;
 
 function platformRule(key: TeamLinkPlatform): PlatformRule {
   const rule = TEAM_LINK_PLATFORMS.find((platform) => platform.key === key);
@@ -116,31 +88,32 @@ function platformRule(key: TeamLinkPlatform): PlatformRule {
 export function parseTeamLink(
   key: TeamLinkPlatform,
   raw: string,
-): { url: string | null } | { error: string } {
+): { url: string | null } | { error: Message } {
   const rule = platformRule(key);
-  const fail = (message: string) => ({ error: `${rule.label}: ${message}` });
+  const fail = (
+    messageKey:
+      | "teamLinkTooLong"
+      | "teamLinkInvalid"
+      | "teamLinkNotHttps"
+      | "teamLinkCredentials"
+      | "teamLinkWrongHost",
+  ) => ({ error: msg(messageKey, { platform: rule.key }) });
   const value = raw.trim();
   if (value === "") return { url: null };
-  if (value.length > TEAM_LINK_MAX) {
-    return fail(`Der Link darf höchstens ${TEAM_LINK_MAX} Zeichen haben.`);
-  }
+  if (value.length > TEAM_LINK_MAX) return fail("teamLinkTooLong");
   let url: URL;
   try {
     // A scheme only at the start: "://" later in the address (e.g. in a query) is not one.
     url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(value) ? value : `https://${value}`);
   } catch {
-    return fail("Das ist kein gültiger Link.");
+    return fail("teamLinkInvalid");
   }
-  if (url.protocol !== "https:") return fail("Bitte einen https-Link angeben.");
-  if (url.username || url.password || url.port) {
-    return fail("Der Link darf keine Zugangsdaten und keinen Port enthalten.");
-  }
+  if (url.protocol !== "https:") return fail("teamLinkNotHttps");
+  if (url.username || url.password || url.port) return fail("teamLinkCredentials");
   if (!rule.accepts(url.hostname.replace(/^www\./, ""), url.pathname)) {
-    return fail(`Bitte ${rule.hint}.`);
+    return fail("teamLinkWrongHost");
   }
-  if (url.href.length > TEAM_LINK_MAX) {
-    return fail(`Der Link darf höchstens ${TEAM_LINK_MAX} Zeichen haben.`);
-  }
+  if (url.href.length > TEAM_LINK_MAX) return fail("teamLinkTooLong");
   return { url: url.href };
 }
 

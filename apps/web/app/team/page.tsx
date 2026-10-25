@@ -1,6 +1,6 @@
 import {
   GAME_LABELS,
-  TEAM_LINK_LABELS,
+  TEAM_LINK_TEXTS,
   TEAM_LINK_MAX,
   TEAM_LINK_PLATFORMS,
   LOGO_BACKGROUNDS,
@@ -36,6 +36,7 @@ import {
 import { NewTeamForms } from "./new-team-forms";
 import { TeamLogoForm } from "./team-logo-form";
 import { TeamHeader } from "./team-tabs";
+import { getMessages } from "@/lib/locale";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 
@@ -43,6 +44,7 @@ export default async function TeamPage() {
   const user = await requirePageUser("/team");
   const team = await getTeamDashboard({ userId: user.id, now: new Date() });
   const baseUrl = process.env.BETTER_AUTH_URL ?? "";
+  const platforms = await getMessages(TEAM_LINK_TEXTS);
 
   if (!team) {
     return (
@@ -293,7 +295,7 @@ export default async function TeamPage() {
                     label={
                       <span className="flex items-center gap-2">
                         <TeamLinkIcon platform={platform.key} />
-                        {platform.label}
+                        {platforms[platform.key].label}
                       </span>
                     }
                   >
@@ -302,7 +304,7 @@ export default async function TeamPage() {
                       defaultValue={
                         team.links.find((link) => link.platform === platform.key)?.url ?? ""
                       }
-                      placeholder={platform.placeholder}
+                      placeholder={platforms[platform.key].placeholder}
                       maxLength={TEAM_LINK_MAX}
                       inputMode="url"
                       autoComplete="off"
@@ -323,7 +325,7 @@ export default async function TeamPage() {
                       className="flex min-h-11 items-center gap-3 py-2 text-[14px] hover:text-foreground"
                     >
                       <TeamLinkIcon platform={link.platform} />
-                      <span className="font-medium">{TEAM_LINK_LABELS[link.platform]}</span>
+                      <span className="font-medium">{platforms[link.platform].label}</span>
                       <span className="ml-auto min-w-0 truncate text-muted-foreground">
                         {link.url.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, "")}
                       </span>

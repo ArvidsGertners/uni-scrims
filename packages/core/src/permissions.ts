@@ -12,38 +12,39 @@ import {
   isDomainError,
   problemError,
 } from "./errors.ts";
-import { READY_MEMBER_COUNT, isTeamReady } from "./readiness.ts";
+import { type PlainMessageKey, msg } from "./i18n/render.ts";
+import { isTeamReady } from "./readiness.ts";
 import { type AccountSetupStep, accountSetupStep, getDiscordId, isLoggedOutUser } from "./users.ts";
 
 /** Shown when an action needs a complete account; pages redirect to the step instead (§5.8). */
-const SETUP_STEP_MESSAGES: Record<AccountSetupStep, string> = {
-  COMPLETE_ACCOUNT: "Bitte vervollständige zuerst dein Konto.",
-  VERIFY_EMAIL: "Bitte bestätige zuerst deine E-Mail-Adresse.",
-  LINK_DISCORD: "Bitte verknüpfe zuerst dein Discord-Konto.",
+const SETUP_STEP_MESSAGES: Record<AccountSetupStep, PlainMessageKey> = {
+  COMPLETE_ACCOUNT: "completeAccountFirst",
+  VERIFY_EMAIL: "verifyEmailFirst",
+  LINK_DISCORD: "linkDiscordFirst",
 };
 
 // Thrown by the require* checks and shown by the pages with the same text.
 const TEAM_BANNED: Problem = {
   kind: "TEAM_BANNED",
   code: "FORBIDDEN",
-  message: "Das Team ist gesperrt.",
+  text: msg("teamBanned"),
 };
 // Only ever about the user's own team: requireCaptain answers non-members before it gets here.
 const NOT_CAPTAIN: Problem = {
   kind: "NOT_CAPTAIN",
   code: "FORBIDDEN",
-  message: "Das kann nur euer Captain.",
+  text: msg("notCaptain"),
 };
 const CAPTAIN_NOT_VERIFIED: Problem = {
   kind: "CAPTAIN_NOT_VERIFIED",
   code: "NOT_VERIFIED",
-  message: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
+  text: msg("captainNotVerified"),
 };
 // Always about the user's own team: posting, applying and confirming as host.
 const TEAM_NOT_READY: Problem = {
   kind: "TEAM_NOT_READY",
   code: "FORBIDDEN",
-  message: `Euer Team hat noch keine ${READY_MEMBER_COUNT} verifizierten Spieler.`,
+  text: msg("teamNotReady"),
 };
 
 type ActingUser = { id: string; verifiedAt: Date | null };
@@ -80,12 +81,12 @@ export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Proble
 /** The user and the Discord ID, unless the account counts as logged out (isLoggedOutUser). */
 async function loadAccountUser(userId: string | null | undefined, db: Db) {
   if (!userId) {
-    throw new DomainError("UNAUTHENTICATED", "Bitte melde dich an.");
+    throw new DomainError("UNAUTHENTICATED", "signInFirst");
   }
   const user = await db.user.findUnique({ where: { id: userId } });
   const discordId = user ? await getDiscordId(user.id, db) : null;
   if (!user || isLoggedOutUser(user, discordId)) {
-    throw new DomainError("UNAUTHENTICATED", "Bitte melde dich an.");
+    throw new DomainError("UNAUTHENTICATED", "signInFirst");
   }
   return { user, discordId };
 }
@@ -106,7 +107,7 @@ export async function requireAccountUser(userId: string | null | undefined, db: 
 export async function requireActiveAccountUser(userId: string | null | undefined, db: Db = prisma) {
   const { user } = await loadAccountUser(userId, db);
   if (user.bannedAt) {
-    throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+    throw new DomainError("BANNED", "accountBanned");
   }
   return user;
 }
@@ -115,7 +116,7 @@ export async function requireActiveAccountUser(userId: string | null | undefined
 export async function requireUser(userId: string | null | undefined, db: Db = prisma) {
   const { user, discordId } = await loadAccountUser(userId, db);
   if (user.bannedAt) {
-    throw new DomainError("BANNED", "Dein Konto ist gesperrt.");
+    throw new DomainError("BANNED", "accountBanned");
   }
   const step = accountSetupStep(user, discordId !== null);
   if (step) throw new AccountIncompleteError(step, SETUP_STEP_MESSAGES[step]);
@@ -125,7 +126,7 @@ export async function requireUser(userId: string | null | undefined, db: Db = pr
 export async function requireVerified(userId: string | null | undefined, db: Db = prisma) {
   const user = await requireUser(userId, db);
   if (!user.verifiedAt) {
-    throw new DomainError("NOT_VERIFIED", "Dafür musst du verifiziert sein.");
+    throw new DomainError("NOT_VERIFIED", "verificationRequired");
   }
   return user;
 }
@@ -204,7 +205,7 @@ export async function requireTeamMember(
     select: { team: true },
   });
   if (!membership || membership.team.dissolvedAt) {
-    throw new DomainError("FORBIDDEN", "Du bist nicht in diesem Team.");
+    throw new DomainError("FORBIDDEN", "notInTeam");
   }
   return { user, team: membership.team };
 }
@@ -242,7 +243,7 @@ export async function requireStaff(
 ) {
   const user = await requireStaffMember(userId, db);
   if (!roles.includes(user.staffRole)) {
-    throw new DomainError("FORBIDDEN", "Nur für Admins.");
+    throw new DomainError("FORBIDDEN", "adminsOnly");
   }
   if (!user.twoFactorEnabled) throw new TwoFactorRequiredError();
   return user;
@@ -252,7 +253,7 @@ export async function requireStaff(
 export async function requireStaffMember(userId: string | null | undefined, db: Db = prisma) {
   const user = await requireUser(userId, db);
   if (!user.staffRole) {
-    throw new DomainError("FORBIDDEN", "Nur für Admins.");
+    throw new DomainError("FORBIDDEN", "adminsOnly");
   }
   return { ...user, staffRole: user.staffRole };
 }
@@ -332,7 +333,7 @@ export async function requireScrimActingCaptain(
 ) {
   const { user, team } = await requireTeamMember(userId, teamId, db);
   if (!isScrimTeam(team.id, scrim)) {
-    throw new DomainError("NOT_FOUND", "Scrim nicht gefunden.");
+    throw new DomainError("NOT_FOUND", "scrimNotFound");
   }
   const problem = actingCaptainProblem(user, team);
   if (problem) throw problemError(problem);

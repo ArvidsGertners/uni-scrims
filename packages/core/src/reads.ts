@@ -1,6 +1,7 @@
 // Reads for the board, request and scrim pages (ARCHITECTURE §3 "Lesen", §5.7, §7).
 import { AppStatus, type Prisma, type Rank, ScrimStatus, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
+import type { Message } from "./i18n/render.ts";
 import {
   actingCaptainProblem,
   canSeeApplications,
@@ -276,7 +277,7 @@ export async function getRequestForm(input: { userId: string; now: Date }) {
     rankRange: rank
       ? { rankMin: rank, rankMax: rank }
       : { rankMin: RANKS[0]!, rankMax: RANKS[RANKS.length - 1]! },
-    problems: problems.map(({ kind, message }) => ({ kind, message })),
+    problems: problems.map(({ kind, text }) => ({ kind, text })),
   };
 }
 
@@ -286,7 +287,7 @@ export async function getRequestForm(input: { userId: string; now: Date }) {
  * An action a page may offer (§7): null if it does not apply (nothing to show), otherwise
  * problem is null when core allows it, or the reason to show instead.
  */
-export type ActionOffer = { problem: string | null } | null;
+export type ActionOffer = { problem: Message | null } | null;
 
 /** Teams on the request page: the card, their state and the external links (SPEC N-15). */
 const detailTeamSelect = {
@@ -344,7 +345,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const offersApply = open && ownTeam !== null && !isOwner && !ownApplication;
   const pending = applications.filter((application) => application.status === AppStatus.PENDING);
   const offersConfirm = isOwner && open && pending.length > 0;
-  const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.message ?? null) : null;
+  const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.text ?? null) : null;
   // Applying and confirming need a ready team, withdrawing and deleting do not (SPEC P0-3).
   // Readiness is only counted when it decides: one of the two is offered and nothing else blocks
   // it. Then it runs alongside the reliabilities; null means not counted.
@@ -356,7 +357,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     offersApply ? prisma.teamMember.count({ where: { teamId: ownTeam.id } }) : null,
   ]);
   const readyProblem = ownTeamReady === null ? null : teamReadyProblem(ownTeamReady);
-  const bookingProblem = actionProblem ?? readyProblem?.message ?? null;
+  const bookingProblem = actionProblem ?? readyProblem?.text ?? null;
 
   const apply: ActionOffer = offersApply ? { problem: bookingProblem } : null;
   const withdraw: ActionOffer =
@@ -471,7 +472,7 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
 
   const isHost = scrim.hostTeamId === ownTeam.id;
   const opponent = isHost ? scrim.guestTeam : scrim.hostTeam;
-  const actionProblem = actingCaptainProblem(user, ownTeam)?.message ?? null;
+  const actionProblem = actingCaptainProblem(user, ownTeam)?.text ?? null;
   const ownFeedback = scrim.feedback.find((feedback) => feedback.teamId === ownTeam.id) ?? null;
   const feedbackClosed = feedbackClosedReason(scrim, input.now);
   const opponentCaptainDiscordId = await getDiscordId(opponent.captain.id);

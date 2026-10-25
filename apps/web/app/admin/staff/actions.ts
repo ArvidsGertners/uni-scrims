@@ -21,7 +21,7 @@ export async function setStaffRoleAction(
   const value = String(formField(formData, "role") ?? "");
   const role = value === "none" ? null : (value as AssignableStaffRole);
   if (!userId.success || (role !== null && !ASSIGNABLE_STAFF_ROLES.includes(role))) {
-    return invalidInput;
+    return invalidInput();
   }
   const state = await runAction(async () => {
     await setStaffRole({ operatorId, userId: userId.data, role });
@@ -38,7 +38,7 @@ export async function resetStaffTwoFactorAction(
 ): Promise<ActionState> {
   const operatorId = (await getSessionUserId()) ?? "";
   const userId = idSchema.safeParse(formField(formData, "userId"));
-  if (!userId.success) return invalidInput;
+  if (!userId.success) return invalidInput();
   const state = await runAction(async () => {
     await resetStaffTwoFactor({ operatorId, userId: userId.data });
   });

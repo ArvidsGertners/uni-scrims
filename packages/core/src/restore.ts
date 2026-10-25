@@ -168,7 +168,7 @@ export async function reapplyModeration(input: {
     try {
       await deleteAccount({ userId: id, uploadDir, now });
     } catch (error) {
-      if (!isDomainError(error) || error.message !== TRANSFER_CAPTAIN_FIRST) throw error;
+      if (!isDomainError(error) || error.text.key !== TRANSFER_CAPTAIN_FIRST.key) throw error;
       // Captain with members here, but deleted in the old database: the role had been handed over
       // after the backup. The longest-standing member takes it in each such team, then the
       // deletion goes through.

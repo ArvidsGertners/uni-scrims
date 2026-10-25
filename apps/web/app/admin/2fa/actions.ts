@@ -7,7 +7,7 @@ import { renderSVG } from "uqr";
 import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { setFlash } from "@/lib/flash";
-import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
+import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { adminLoginUrl, getSessionUserId } from "@/lib/session";
 
 /** Step 1 hands the page what the authenticator app needs (§5.9). */
@@ -20,7 +20,7 @@ export async function startTwoFactorAction(
   _state: TwoFactorSetupState,
   formData: FormData,
 ): Promise<TwoFactorSetupState> {
-  if (!(await allowAttempt("code"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("code"))) return rateLimited();
   const userId = (await getSessionUserId()) ?? "";
   let setup: TwoFactorSetupState["setup"];
   const state = await runAction(async () => {
@@ -49,7 +49,7 @@ export async function confirmTwoFactorAction(
   _state: TwoFactorSetupState,
   formData: FormData,
 ): Promise<TwoFactorSetupState> {
-  if (!(await allowAttempt("code"))) return { error: RATE_LIMITED };
+  if (!(await allowAttempt("code"))) return rateLimited();
   // Read before the code: Better Auth replaces the session when it switches the 2FA on.
   const userId = (await getSessionUserId()) ?? "";
   let enabled = false;

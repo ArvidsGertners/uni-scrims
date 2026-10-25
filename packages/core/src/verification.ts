@@ -11,9 +11,6 @@ import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./u
 import { avatarVersion } from "./users.ts";
 
 export const AUTO_REJECT_REASON = "Prüfung nicht rechtzeitig erfolgt";
-/** Approving needs the file; after restoring a backup it may be missing (§8). */
-export const MISSING_FILE_MESSAGE =
-  "Die Datei fehlt. Bitte lehne die Prüfung ab, damit der Nutzer neu hochladen kann.";
 /** banUser closes a pending request with this reason and without a message. */
 export const BAN_REJECT_REASON = "Konto gesperrt";
 /** Accounts from before Phase 7 verify again with their real name (SPEC N-3). */
@@ -92,24 +89,21 @@ export type SubmitVerificationInput = {
 export async function submitVerification(input: SubmitVerificationInput) {
   const user = await requireUser(input.userId);
   if (!input.consent) {
-    throw new DomainError("INVALID", "Bitte bestätige den Datenschutzhinweis.");
+    throw new DomainError("INVALID", "privacyNoticeRequired");
   }
   if (user.verifiedAt) {
-    throw new DomainError("CONFLICT", "Du bist bereits verifiziert.");
+    throw new DomainError("CONFLICT", "alreadyVerified");
   }
   const universityId = input.universityId || null;
   const universityOther = input.universityOther?.trim() || null;
   if ((universityId === null) === (universityOther === null)) {
-    throw new DomainError(
-      "INVALID",
-      "Bitte wähle deine Hochschule aus oder gib sie unter „Andere“ an.",
-    );
+    throw new DomainError("INVALID", "universityRequired");
   }
   if (universityOther && universityOther.length > MAX_UNIVERSITY_OTHER_LENGTH) {
-    throw new DomainError("INVALID", "Der Name der Hochschule ist zu lang.");
+    throw new DomainError("INVALID", "universityNameTooLong");
   }
   if (universityId && !(await prisma.university.findUnique({ where: { id: universityId } }))) {
-    throw new DomainError("INVALID", "Unbekannte Hochschule.");
+    throw new DomainError("INVALID", "unknownUniversity");
   }
   if (await prisma.verificationRequest.findUnique({ where: { pendingUserId: user.id } })) {
     throw pendingConflict();
@@ -124,7 +118,7 @@ export async function submitVerification(input: SubmitVerificationInput) {
       await lockUser(tx, user.id);
       const current = await requireUser(user.id, tx);
       if (current.verifiedAt) {
-        throw new DomainError("CONFLICT", "Du bist bereits verifiziert.");
+        throw new DomainError("CONFLICT", "alreadyVerified");
       }
       if (await tx.verificationRequest.findUnique({ where: { pendingUserId: user.id } })) {
         throw pendingConflict();
@@ -153,7 +147,7 @@ export async function submitVerification(input: SubmitVerificationInput) {
 }
 
 function pendingConflict(): DomainError {
-  return new DomainError("CONFLICT", "Du hast bereits eine offene Prüfung.");
+  return new DomainError("CONFLICT", "verificationPending");
 }
 
 export type DecideVerificationInput = {
@@ -171,22 +165,22 @@ export async function decideVerification(input: DecideVerificationInput): Promis
   await requireReviewer(input.adminId);
   const rejectReason = input.rejectReason?.trim() || null;
   if (input.decision === "REJECTED" && !rejectReason) {
-    throw new DomainError("INVALID", "Bitte gib einen Grund für die Ablehnung an.");
+    throw new DomainError("INVALID", "rejectReasonRequired");
   }
   if (rejectReason && rejectReason.length > MAX_REJECT_REASON_LENGTH) {
-    throw new DomainError("INVALID", "Der Grund ist zu lang.");
+    throw new DomainError("INVALID", "rejectReasonTooLong");
   }
   if (
     input.universityId &&
     !(await prisma.university.findUnique({ where: { id: input.universityId } }))
   ) {
-    throw new DomainError("INVALID", "Unbekannte Hochschule.");
+    throw new DomainError("INVALID", "unknownUniversity");
   }
 
   const request = await prisma.$transaction(async (tx) => {
     const request = await tx.verificationRequest.findUnique({ where: { id: input.requestId } });
     if (!request) {
-      throw new DomainError("NOT_FOUND", "Prüfung nicht gefunden.");
+      throw new DomainError("NOT_FOUND", "verificationNotFound");
     }
     // User before VerificationRequest (§4), as in deleteAccount: the other order deadlocked with it.
     // The admin's row too (both by id), so an admin who deletes the account meanwhile is not stored
@@ -200,7 +194,8 @@ export async function decideVerification(input: DecideVerificationInput): Promis
       request.status === VerifStatus.PENDING &&
       !(await uploadExists(input.uploadDir, request.filePath))
     ) {
-      throw new DomainError("CONFLICT", MISSING_FILE_MESSAGE);
+      // Approving needs the file; after restoring a backup it may be missing (§8).
+      throw new DomainError("CONFLICT", "verificationFileMissing");
     }
     const universityId = request.universityId ?? (approved ? input.universityId || null : null);
     const updated = await tx.verificationRequest.updateMany({
@@ -217,8 +212,8 @@ export async function decideVerification(input: DecideVerificationInput): Promis
     if (updated.count === 0) {
       // Decided meanwhile, or deleted with the account.
       throw (await tx.verificationRequest.findUnique({ where: { id: request.id } }))
-        ? new DomainError("CONFLICT", "Diese Prüfung ist bereits entschieden.")
-        : new DomainError("NOT_FOUND", "Prüfung nicht gefunden.");
+        ? new DomainError("CONFLICT", "verificationDecided")
+        : new DomainError("NOT_FOUND", "verificationNotFound");
     }
     if (approved) {
       await tx.user.update({
@@ -522,7 +517,7 @@ export async function getVerificationFile(requestId: string, adminId: string, up
     select: { filePath: true, mimeType: true },
   });
   if (!request?.filePath) {
-    throw new DomainError("NOT_FOUND", "Datei nicht gefunden.");
+    throw new DomainError("NOT_FOUND", "fileNotFound");
   }
   return { path: uploadFilePath(uploadDir, request.filePath), mimeType: request.mimeType };
 }

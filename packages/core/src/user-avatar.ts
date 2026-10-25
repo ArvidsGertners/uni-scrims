@@ -170,7 +170,7 @@ export async function getUserAvatar(input: {
   userId: string;
 }): Promise<{ data: Uint8Array<ArrayBuffer>; version: number }> {
   const viewer = await requireAccountUser(input.viewerId);
-  const notFound = new DomainError("NOT_FOUND", "Kein Profilbild.");
+  const notFound = new DomainError("NOT_FOUND", "noAvatar");
   if (!(await canSeeAvatar(viewer, input.userId))) throw notFound;
   const user = await prisma.user.findFirst({
     where: { id: input.userId, deletedAt: null },

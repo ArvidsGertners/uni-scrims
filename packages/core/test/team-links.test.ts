@@ -9,6 +9,7 @@ import {
   getScrimDetail,
   leaveTeam,
   parseTeamLink,
+  renderMessage,
   removeTeamLinksAsAdmin,
   searchModerationTargets,
   toTeamLinks,
@@ -33,13 +34,14 @@ const LATER = new Date(NOW.getTime() + 60_000);
 
 function url(platform: TeamLinkPlatform, raw: string) {
   const result = parseTeamLink(platform, raw);
-  if ("error" in result) throw new Error(result.error);
+  if ("error" in result) throw new Error(renderMessage(result.error, "de"));
   return result.url;
 }
 
 function error(platform: TeamLinkPlatform, raw: string) {
   const result = parseTeamLink(platform, raw);
-  return "error" in result ? result.error : null;
+  // The German text, as on the page in German (§5.21).
+  return "error" in result ? renderMessage(result.error, "de") : null;
 }
 
 describe("parseTeamLink", () => {
