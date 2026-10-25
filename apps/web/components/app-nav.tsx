@@ -4,15 +4,19 @@ import type { TeamLogoInfo } from "@uni-scrims/core";
 import { cn } from "cn";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useState, useTransition } from "react";
+import { type ComponentType, type ReactNode, useState, useTransition } from "react";
 import { switchTeamAction } from "@/app/team/actions";
 import {
   CheckIcon,
   ChevronDownIcon,
   ExternalLinkIcon,
+  HelpCircleIcon,
   LayersIcon,
+  LogOutIcon,
   MenuIcon,
   PlusIcon,
+  SettingsIcon,
+  ShieldCheckIcon,
   UsersIcon,
   XIcon,
 } from "@/components/icons";
@@ -67,6 +71,7 @@ type AccountItem = {
   key: string;
   href: string;
   label: string;
+  icon: ComponentType<{ size?: number }>;
   sections: string[];
   /** Another host or area: a plain link with a full page load. */
   external?: boolean;
@@ -108,11 +113,27 @@ function accountItems(nav: AppNavData): AccountItem[] {
       key: "settings",
       href: "/account",
       label: "Einstellungen",
+      icon: SettingsIcon,
       sections: ["/account", "/verify"],
     },
-    { key: "support", href: "/support", label: "Support", sections: ["/support"] },
+    {
+      key: "support",
+      href: "/support",
+      label: "Support",
+      icon: HelpCircleIcon,
+      sections: ["/support"],
+    },
     ...(nav.adminUrl
-      ? [{ key: "admin", href: nav.adminUrl, label: "Admin-Bereich", sections: [], external: true }]
+      ? [
+          {
+            key: "admin",
+            href: nav.adminUrl,
+            label: "Admin-Bereich",
+            icon: ShieldCheckIcon,
+            sections: [],
+            external: true,
+          },
+        ]
       : []),
   ];
 }
@@ -271,17 +292,22 @@ function AccountMenu({ nav, pathname }: { nav: AppNavData; pathname: string }) {
         {items.map((item) =>
           item.external ? (
             <MenuLinkItem key={item.key} href={item.href}>
+              <item.icon size={16} />
               <span className="flex-1">{item.label}</span>
               {externalIcon}
             </MenuLinkItem>
           ) : (
             <MenuLinkItem key={item.key} render={<Link href={item.href} />}>
+              <item.icon size={16} />
               {item.label}
             </MenuLinkItem>
           ),
         )}
         <MenuSeparator />
-        <MenuItem onClick={logout}>Abmelden</MenuItem>
+        <MenuItem onClick={logout}>
+          <LogOutIcon size={16} />
+          Abmelden
+        </MenuItem>
       </MenuPopup>
     </MenuRoot>
   );
@@ -328,6 +354,8 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
   const { top, team } = entries(nav);
   const itemClass = "min-h-14 px-3.5 text-[16px]";
   const subItemClass = "min-h-12 pl-[3.25rem] text-[15px]";
+  // Icon (17 px) and gap (10 px) in front, so the label lines up with subItemClass.
+  const iconSubItemClass = "min-h-12 pl-[1.5625rem] text-[15px]";
   // Without ADMIN_URL the admin area has its own sidebar and none of the site (§5.15): there the
   // menu button stays on desktops too.
   const desktop = pathname === "/admin" || pathname.startsWith("/admin/") ? "" : "lg:hidden";
@@ -445,17 +473,22 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
                   key={item.key}
                   href={item.href}
                   onClick={close}
-                  className={sidebarEntryClass(false, subItemClass)}
+                  className={sidebarEntryClass(false, iconSubItemClass)}
                 >
-                  <SidebarEntryContent label={item.label} trailing={externalIcon} />
+                  <SidebarEntryContent
+                    leading={<item.icon size={17} />}
+                    label={item.label}
+                    trailing={externalIcon}
+                  />
                 </a>
               ) : (
                 <SidebarLink
                   key={item.key}
                   href={item.href}
                   active={inSection(item.sections, pathname)}
+                  leading={<item.icon size={17} />}
                   label={item.label}
-                  className={subItemClass}
+                  className={iconSubItemClass}
                   onClick={close}
                 />
               ),
@@ -468,10 +501,10 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
               }}
               className={sidebarEntryClass(
                 false,
-                cn(subItemClass, "w-full cursor-pointer text-left"),
+                cn(iconSubItemClass, "w-full cursor-pointer text-left"),
               )}
             >
-              Abmelden
+              <SidebarEntryContent leading={<LogOutIcon size={17} />} label="Abmelden" />
             </button>
           </nav>
         </div>
