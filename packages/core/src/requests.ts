@@ -10,6 +10,7 @@ import {
   ScrimStatus,
   prisma,
 } from "@uni-scrims/db";
+import { MAX_OPEN_REQUESTS } from "../config/limits.ts";
 import { TIMING } from "../config/timing.ts";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, type Problem, problemError } from "./errors.ts";
@@ -38,8 +39,7 @@ import {
 import { READY_MEMBER_COUNT, isTeamActive, isTeamReady } from "./readiness.ts";
 import { berlinToUtc } from "./time.ts";
 
-/** Max. open requests per team (SPEC P0-4). */
-export const MAX_OPEN_REQUESTS = 5;
+export { MAX_OPEN_REQUESTS };
 
 function notOpen(): DomainError {
   return new DomainError("CONFLICT", "Die Anfrage ist nicht mehr offen.");

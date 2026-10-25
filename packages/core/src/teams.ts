@@ -8,6 +8,7 @@ import {
   ScrimStatus,
   prisma,
 } from "@uni-scrims/db";
+import { MAX_TEAM_MEMBERS } from "../config/limits.ts";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, problemError } from "./errors.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
@@ -43,7 +44,7 @@ import { NO_TEAM_LINKS, TEAM_LINK_PLATFORMS, teamLinkColumns, toTeamLinks } from
 import { clearTeamLogo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
 import { avatarVersion, findUserByDiscordId, notDeletedUserWhere } from "./users.ts";
 
-export const MAX_TEAM_MEMBERS = 10;
+export { MAX_TEAM_MEMBERS };
 /** Team cards show at most this many universities, then "+n" (SPEC P0-3). */
 export const MAX_SHOWN_UNIVERSITIES = 3;
 

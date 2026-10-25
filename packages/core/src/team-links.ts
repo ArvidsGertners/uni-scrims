@@ -1,7 +1,9 @@
 // External team links (SPEC N-15, ARCHITECTURE §5.18): seven fixed platforms, https only, the host
 // checked per platform. What a link leads to is not checked; admins remove bad ones.
 
-export const TEAM_LINK_MAX = 300;
+import { TEAM_LINK_MAX } from "../config/limits.ts";
+
+export { TEAM_LINK_MAX };
 
 export type TeamLinkPlatform =
   "discord" | "website" | "x" | "instagram" | "twitch" | "youtube" | "tiktok";

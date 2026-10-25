@@ -4,6 +4,7 @@
 import { LogoBackground, type Prisma, prisma } from "@uni-scrims/db";
 import { fileTypeFromBuffer } from "file-type";
 import { z } from "zod";
+import { MAX_LOGO_SIDE, MIN_LOGO_CONTENT } from "../config/limits.ts";
 import { MAX_LOGO_BYTES } from "../config/uploads.ts";
 import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
@@ -14,10 +15,7 @@ export { MAX_LOGO_BYTES };
 
 /** Side of the stored square. */
 export const LOGO_SIZE = 256;
-/** The longer side of the trimmed logo must have at least this many pixels. */
-export const MIN_LOGO_CONTENT = 128;
-/** Longest side of an uploaded image; together against decompression bombs. */
-export const MAX_LOGO_SIDE = 4096;
+export { MAX_LOGO_SIDE, MIN_LOGO_CONTENT };
 const MAX_LOGO_PIXELS = MAX_LOGO_SIDE * MAX_LOGO_SIDE;
 /** Pixels up to this alpha (of 255) count as transparent, so faint leftovers don't hold a margin. */
 export const LOGO_ALPHA_THRESHOLD = 8;

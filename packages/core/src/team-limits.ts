@@ -3,16 +3,14 @@
 // the state.
 import { TeamLimitStatus, prisma } from "@uni-scrims/db";
 import { z } from "zod";
+import { MAX_TEAM_LIMIT, TEAM_LIMIT_REASON_MAX, TEAM_LIMIT_REASON_MIN } from "../config/limits.ts";
 import { DomainError } from "./errors.ts";
 import { lockUser } from "./locks.ts";
 import { requireAdmin, requireUser } from "./permissions.ts";
 import { parseInput } from "./schemas.ts";
 import { countOwnTeams } from "./teams.ts";
 
-export const TEAM_LIMIT_REASON_MIN = 10;
-export const TEAM_LIMIT_REASON_MAX = 500;
-/** The highest limit an admin can set. */
-export const MAX_TEAM_LIMIT = 50;
+export { MAX_TEAM_LIMIT, TEAM_LIMIT_REASON_MAX, TEAM_LIMIT_REASON_MIN };
 
 export const teamLimitReasonSchema = z
   .string("Bitte begründe deinen Antrag.")

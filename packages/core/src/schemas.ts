@@ -9,16 +9,23 @@ import {
 } from "@uni-scrims/db";
 import { z } from "zod";
 import { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../config/account.ts";
+import {
+  APPLICATION_MESSAGE_MAX,
+  RATING_MAX,
+  RATING_MIN,
+  REQUEST_NOTE_MAX,
+  TEAM_NAME_MAX,
+  TEAM_NAME_MIN,
+  TEAM_TAG_MAX,
+  TEAM_TAG_MIN,
+} from "../config/limits.ts";
 import { mapSchema } from "../config/maps.ts";
 import { DomainError } from "./errors.ts";
 import { rankValue } from "./ranks.ts";
 import { type TeamLinkPlatform, parseTeamLink } from "./team-links.ts";
 import { isStartSlot, isValidDateString } from "./time.ts";
 
-export const TEAM_NAME_MIN = 2;
-export const TEAM_NAME_MAX = 40;
-export const TEAM_TAG_MIN = 2;
-export const TEAM_TAG_MAX = 5;
+export { TEAM_NAME_MAX, TEAM_NAME_MIN, TEAM_TAG_MAX, TEAM_TAG_MIN };
 
 export const teamInputSchema = z.object({
   name: z
@@ -138,10 +145,7 @@ export type RegistrationInput = z.input<typeof registrationSchema>;
 
 // ─── Requests, applications, feedback ─────────────────────────────────────────
 
-export const REQUEST_NOTE_MAX = 300;
-export const APPLICATION_MESSAGE_MAX = 200;
-export const RATING_MIN = 1;
-export const RATING_MAX = 5;
+export { APPLICATION_MESSAGE_MAX, RATING_MAX, RATING_MIN, REQUEST_NOTE_MAX };
 
 /** Empty optional text becomes null. */
 function optionalText(max: number, message: string) {
