@@ -2,7 +2,13 @@
 import "./env.ts";
 import { setTimeout as sleep } from "node:timers/promises";
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
-import { handleSetup, handleSetupAutocomplete, setupCommand } from "./commands/setup.ts";
+import {
+  discordAppLocale,
+  handleSetup,
+  handleSetupAutocomplete,
+  setupCommand,
+} from "./commands/setup.ts";
+import { SETUP_TEXTS } from "./i18n/setup.ts";
 import { createDeliver } from "./outbox/deliver.ts";
 import { runOutboxLoop } from "./outbox/loop.ts";
 import { runSweeperLoop } from "./sweeper/loop.ts";
@@ -67,7 +73,8 @@ client.on(Events.InteractionCreate, (interaction) => {
   if (!interaction.isChatInputCommand() || interaction.commandName !== setupCommand.name) return;
   handleSetup(interaction, baseUrl).catch(async (error: unknown) => {
     console.error("/setup failed", error);
-    const content = "Etwas ist schiefgelaufen. Bitte versuch es später erneut.";
+    // Without the account (which may be what failed), in the language of the Discord app (§5.22).
+    const content = SETUP_TEXTS[discordAppLocale(interaction.locale)].failed;
     try {
       if (interaction.deferred || interaction.replied) await interaction.editReply({ content });
       else await interaction.reply({ content, flags: MessageFlags.Ephemeral });

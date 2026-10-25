@@ -3,30 +3,45 @@
 // team option (SPEC N-17). Who may do it is decided in core.
 import {
   type DomainError,
+  findUserByDiscordId,
+  fromDbLocale,
   isDomainError,
   linkTeamChannel,
   listCaptainTeamsForDiscordUser,
+  renderMessage,
 } from "@uni-scrims/core";
+import type { Locale } from "@uni-scrims/core/config/locale";
 import {
   type AutocompleteInteraction,
   ChannelType,
   type ChatInputCommandInteraction,
   EmbedBuilder,
   InteractionContextType,
+  Locale as DiscordLocale,
   MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
+import { SETUP_TEXTS } from "../i18n/setup.ts";
 import { plain } from "../messages/common.ts";
+
+/** German is Discord's default; English Discord apps show the English descriptions (§5.22). */
+function english(text: string) {
+  return { [DiscordLocale.EnglishGB]: text, [DiscordLocale.EnglishUS]: text };
+}
+
+const { de, en } = SETUP_TEXTS;
 
 export const setupCommand = new SlashCommandBuilder()
   .setName("setup")
-  .setDescription("Verknüpft einen Channel dieses Servers mit deinem Uni-Scrims-Team")
+  .setDescription(de.command)
+  .setDescriptionLocalizations(english(en.command))
   .setContexts(InteractionContextType.Guild)
   .addChannelOption((option) =>
     option
       .setName("channel")
-      .setDescription("Hier landen Buchungen, Absagen, Reminder und Feedback-Hinweise")
+      .setDescription(de.channelOption)
+      .setDescriptionLocalizations(english(en.channelOption))
       .addChannelTypes(ChannelType.GuildText)
       .setRequired(true),
   )
@@ -34,9 +49,29 @@ export const setupCommand = new SlashCommandBuilder()
   .addStringOption((option) =>
     option
       .setName("team")
-      .setDescription("Welches Team, wenn du Captain mehrerer Teams bist")
+      .setDescription(de.teamOption)
+      .setDescriptionLocalizations(english(en.teamOption))
       .setAutocomplete(true),
   );
+
+/** The language of the Discord app: English for any English variant, German otherwise. */
+export function discordAppLocale(discordLocale: string): Locale {
+  return discordLocale.startsWith("en") ? "en" : "de";
+}
+
+/**
+ * The language of the answers (§5.22): the account's, without one the Discord app's. The test post
+ * goes to the team channel in the captain's language, i.e. the account's, German without one.
+ */
+export function setupLocales(
+  account: { locale: Locale | null } | null,
+  discordLocale: string,
+): { reply: Locale; post: Locale } {
+  return {
+    reply: account?.locale ?? discordAppLocale(discordLocale),
+    post: account?.locale ?? "de",
+  };
+}
 
 /** Discord allows at most 100 characters per suggestion name. */
 const MAX_CHOICE_NAME = 100;
@@ -54,17 +89,15 @@ export async function handleSetupAutocomplete(interaction: AutocompleteInteracti
 
 /** What the bot needs in the channel to post embeds. */
 const REQUIRED_PERMISSIONS = [
-  { flag: PermissionFlagsBits.ViewChannel, label: "Kanal ansehen" },
-  { flag: PermissionFlagsBits.SendMessages, label: "Nachrichten senden" },
-  { flag: PermissionFlagsBits.EmbedLinks, label: "Links einbetten" },
-];
+  { flag: PermissionFlagsBits.ViewChannel, key: "viewChannel" },
+  { flag: PermissionFlagsBits.SendMessages, key: "sendMessages" },
+  { flag: PermissionFlagsBits.EmbedLinks, key: "embedLinks" },
+] as const;
 
 /** The answer to a refused /setup; core's texts, except for users without an account. */
-export function setupErrorText(error: DomainError, baseUrl: string): string {
-  if (error.code === "UNAUTHENTICATED") {
-    return `Zu deinem Discord-Konto gibt es kein Uni-Scrims-Konto. Registriere dich unter ${baseUrl}/register und verknüpfe dort Discord.`;
-  }
-  return error.message;
+export function setupErrorText(error: DomainError, baseUrl: string, locale: Locale): string {
+  if (error.code === "UNAUTHENTICATED") return SETUP_TEXTS[locale].noAccount(`${baseUrl}/register`);
+  return renderMessage(error.text, locale);
 }
 
 export async function handleSetup(
@@ -72,20 +105,24 @@ export async function handleSetup(
   baseUrl: string,
 ): Promise<void> {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  const user = await findUserByDiscordId(interaction.user.id);
+  const locales = setupLocales(
+    user ? { locale: fromDbLocale(user.locale) } : null,
+    interaction.locale,
+  );
+  const t = SETUP_TEXTS[locales.reply];
   const reply = async (content: string) => {
     await interaction.editReply({ content, allowedMentions: { parse: [] } });
   };
   // Not cached: the command was added without the bot itself joining the server.
-  if (!interaction.inCachedGuild()) {
-    return reply("Lade den Bot zuerst mit dem Einladungslink auf diesen Server ein.");
-  }
+  if (!interaction.inCachedGuild()) return reply(t.inviteFirst);
   const channel = interaction.options.getChannel("channel", true, [ChannelType.GuildText]);
   const me = interaction.guild.members.me;
   const permissions = me ? channel.permissionsFor(me) : null;
   const missing = REQUIRED_PERMISSIONS.filter(({ flag }) => !permissions?.has(flag));
   if (missing.length > 0) {
-    const labels = missing.map(({ label }) => `„${label}“`).join(", ");
-    return reply(`Mir fehlen in ${channel} diese Rechte: ${labels}.`);
+    const labels = missing.map(({ key }) => t.quoted(t.permissions[key])).join(", ");
+    return reply(t.missingPermissions(`${channel}`, labels));
   }
 
   let team: { name: string };
@@ -98,27 +135,22 @@ export async function handleSetup(
       team: interaction.options.getString("team"),
     });
   } catch (error) {
-    if (isDomainError(error)) return reply(setupErrorText(error, baseUrl));
+    if (isDomainError(error)) return reply(setupErrorText(error, baseUrl, locales.reply));
     throw error;
   }
 
   const teamName = plain(team.name);
+  const post = SETUP_TEXTS[locales.post];
   try {
     await channel.send({
       embeds: [
-        new EmbedBuilder()
-          .setTitle("Team-Channel verknüpft")
-          .setDescription(
-            `Hier landen ab jetzt Buchungen, Absagen, Reminder und Feedback-Hinweise für **${teamName}**.`,
-          ),
+        new EmbedBuilder().setTitle(post.testTitle).setDescription(post.testDescription(teamName)),
       ],
       allowedMentions: { parse: [] },
     });
   } catch (error) {
     console.error("Could not post the /setup test message", error);
-    return reply(
-      `${channel} ist mit **${teamName}** verknüpft, aber die Test-Nachricht kam nicht an. Prüfe die Rechte des Bots im Channel.`,
-    );
+    return reply(t.testFailed(`${channel}`, teamName));
   }
-  return reply(`Fertig: ${channel} ist jetzt mit **${teamName}** verknüpft.`);
+  return reply(t.done(`${channel}`, teamName));
 }
