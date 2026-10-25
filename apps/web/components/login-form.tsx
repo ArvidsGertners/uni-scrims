@@ -10,7 +10,7 @@ import { DiscordButton } from "@/components/discord-button";
 export function LoginForm({ callbackURL }: { callbackURL: string }) {
   const encoded = encodeURIComponent(callbackURL);
   return (
-    <div className="flex w-full max-w-md flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <ActionForm
         action={loginAction}
         submitLabel="Anmelden"
@@ -47,15 +47,6 @@ export function LoginForm({ callbackURL }: { callbackURL: string }) {
           Geht, sobald du Discord mit deinem Konto verknüpft hast.
         </span>
       </div>
-      <p className="text-[14px]">
-        Noch kein Konto?{" "}
-        <Link
-          href={`/register?callbackURL=${encoded}`}
-          className="font-semibold underline underline-offset-2"
-        >
-          Registrieren
-        </Link>
-      </p>
     </div>
   );
 }

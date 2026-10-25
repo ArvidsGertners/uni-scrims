@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 import { LoginNote } from "@/components/login-note";
-import { LoginHero } from "@/components/login-hero";
+import { PageMain } from "@/components/page-main";
 import { Alert } from "@/components/ui/alert";
 import { STAFF_SESSION_ERRORS } from "@/lib/auth-paths";
 import { safeCallbackURL } from "@/lib/callback-url";
@@ -21,6 +22,7 @@ function loginError(code: string): string {
   return "Die Anmeldung hat nicht geklappt. Bitte versuch es erneut.";
 }
 
+/** Its own page like the registration, not the landing hero (ARCHITECTURE §7). */
 export default async function LoginPage({
   searchParams,
 }: {
@@ -31,17 +33,28 @@ export default async function LoginPage({
   if (await getSignedInUser()) redirect(callbackURL);
 
   return (
-    <LoginHero
-      notice={
-        typeof params.error === "string" ? (
-          <Alert>
-            <span>{loginError(params.error)}</span>
-          </Alert>
-        ) : null
-      }
-      footer={<LoginNote />}
-    >
-      <LoginForm callbackURL={callbackURL} />
-    </LoginHero>
+    <PageMain className="gap-7">
+      <h1 className="type-h1">Anmelden</h1>
+      {typeof params.error === "string" ? (
+        <Alert>
+          <span>{loginError(params.error)}</span>
+        </Alert>
+      ) : null}
+      <section className="rounded-lg border border-border bg-card p-5">
+        <LoginForm callbackURL={callbackURL} />
+      </section>
+      <div className="flex flex-col items-start gap-3.5">
+        <p className="text-[14px]">
+          Noch kein Konto?{" "}
+          <Link
+            href={`/register?callbackURL=${encodeURIComponent(callbackURL)}`}
+            className="font-semibold underline underline-offset-2"
+          >
+            Registrieren
+          </Link>
+        </p>
+        <LoginNote />
+      </div>
+    </PageMain>
   );
 }

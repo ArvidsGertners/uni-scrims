@@ -17,8 +17,8 @@ const STEPS = [
   },
 ];
 
-/** Login screen of the design handoff, for the landing page and /login. */
-export function LoginHero({
+/** Login screen of the design handoff, as the landing page (/login is its own page, §7). */
+export function LandingHero({
   notice,
   children,
   footer,

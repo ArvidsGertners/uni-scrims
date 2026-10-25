@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { LandingHero } from "@/components/landing-hero";
 import { LoginNote } from "@/components/login-note";
-import { LoginHero } from "@/components/login-hero";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/callback-url";
@@ -16,7 +16,7 @@ export default async function LandingPage({
   const linkClass = "font-semibold underline underline-offset-2";
 
   return (
-    <LoginHero
+    <LandingHero
       notice={
         gesperrt ? (
           <Alert>
@@ -60,6 +60,6 @@ export default async function LandingPage({
           </Link>
         </div>
       )}
-    </LoginHero>
+    </LandingHero>
   );
 }
