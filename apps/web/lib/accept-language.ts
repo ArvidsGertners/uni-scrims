@@ -34,3 +34,24 @@ export function resolveLocale(input: {
   if (isLocale(input.cookie)) return input.cookie;
   return preferredLocale(input.acceptLanguage) ?? DEFAULT_LOCALE;
 }
+
+/** The language cookie (§5.21) from a Cookie header; set only by setLocaleAction. */
+function localeCookie(cookieHeader: string | null): string | undefined {
+  for (const pair of cookieHeader?.split(";") ?? []) {
+    const [name, value] = pair.trim().split("=");
+    if (name === "locale") return value;
+  }
+  return undefined;
+}
+
+/**
+ * The language a request shows without an account's choice: the cookie, then Accept-Language, then
+ * German. For sign-ins of accounts that have no language yet (§5.22).
+ */
+export function localeFromHeaders(headers: Headers): Locale {
+  return resolveLocale({
+    account: null,
+    cookie: localeCookie(headers.get("cookie")),
+    acceptLanguage: headers.get("accept-language"),
+  });
+}

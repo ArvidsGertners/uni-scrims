@@ -190,6 +190,24 @@ describe("registration (check 1)", () => {
     expect(mail.text).toMatch(/\n\nhttps?:\S+\n\nThe link is valid for 24 hours/);
   });
 
+  it("gives an account without a language the page's at the next sign-in (§5.22)", async () => {
+    const { user } = await confirmedUser();
+    // The confirmation link came without Accept-Language and stored German; an old account has none.
+    await prisma.user.update({ where: { id: user.id }, data: { locale: null } });
+    const english = new Headers({ "accept-language": "en-GB,en;q=0.9" });
+    await auth.api.signInEmail({
+      body: { email: user.email, password: "lang-genug1" },
+      headers: english,
+    });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).locale).toBe("EN");
+    // A stored language stays: only the menu changes it.
+    await auth.api.signInEmail({
+      body: { email: user.email, password: "lang-genug1" },
+      headers: new Headers({ cookie: "locale=de" }),
+    });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).locale).toBe("EN");
+  });
+
   it("answers a taken address like a new one and creates nothing", async () => {
     const email = uniqueEmail();
     await signUp(email);

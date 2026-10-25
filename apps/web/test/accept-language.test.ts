@@ -1,6 +1,6 @@
 // Which language a request gets (§5.21): account, cookie, browser, German.
 import { describe, expect, it } from "vitest";
-import { preferredLocale, resolveLocale } from "../lib/accept-language.ts";
+import { localeFromHeaders, preferredLocale, resolveLocale } from "../lib/accept-language.ts";
 
 describe("preferredLocale", () => {
   it.each([
@@ -47,5 +47,18 @@ describe("resolveLocale", () => {
   it("falls back to German", () => {
     expect(resolveLocale({ account: null, cookie: undefined, acceptLanguage: null })).toBe("de");
     expect(resolveLocale({ account: null, cookie: undefined, acceptLanguage: "fr" })).toBe("de");
+  });
+});
+
+describe("localeFromHeaders (§5.22)", () => {
+  it("takes the cookie, then Accept-Language, then German", () => {
+    expect(
+      localeFromHeaders(new Headers({ cookie: "a=1; locale=en; b=2", "accept-language": "de" })),
+    ).toBe("en");
+    expect(
+      localeFromHeaders(new Headers({ cookie: "locale=fr", "accept-language": "en-GB" })),
+    ).toBe("en");
+    expect(localeFromHeaders(new Headers({ cookie: "other=en" }))).toBe("de");
+    expect(localeFromHeaders(new Headers())).toBe("de");
   });
 });

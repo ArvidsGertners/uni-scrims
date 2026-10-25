@@ -5,6 +5,7 @@ import {
   PASSWORD_MAX,
   PASSWORD_MIN,
   accountCreateProblem,
+  adoptLocale,
   discordLoginUserInfo,
   finishTwoFactorSetup,
   fromDbLocale,
@@ -18,6 +19,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins";
+import { localeFromHeaders } from "./accept-language.ts";
 import { adminOrigin, sharedCookieDomain } from "./admin-url.ts";
 import { isAllowedAuthPath, staffSessionAllowed, staffSessionError } from "./auth-paths.ts";
 import { devLogin } from "./dev-login-plugin.ts";
@@ -182,6 +184,17 @@ export const auth = betterAuth({
           if (staffSessionAllowed(ctx?.path) || !(await hasStaffRole(session.userId))) return;
           if (!ctx) return false;
           throw ctx.redirect(`/login?error=${staffSessionError(ctx.path)}`);
+        },
+        // An account without a language takes the page's at its next sign-in (§5.22): password,
+        // code, Discord and the confirmation link all come with headers. Never stops a sign-in.
+        after: async (session, ctx) => {
+          const headers = ctx?.headers ?? ctx?.request?.headers;
+          if (!headers) return;
+          try {
+            await adoptLocale({ userId: session.userId, locale: localeFromHeaders(headers) });
+          } catch (error) {
+            console.error("Could not store the language of a sign-in", error);
+          }
         },
       },
     },
