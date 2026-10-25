@@ -1,10 +1,11 @@
 "use server";
 
-import { NEW_ACCOUNT_NAME, parseInput, registrationSchema } from "@uni-scrims/core";
+import { NEW_ACCOUNT_NAME, parseInput, registrationSchema, toDbLocale } from "@uni-scrims/core";
 import { redirect } from "next/navigation";
 import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { safeCallbackURL } from "@/lib/callback-url";
+import { getLocale } from "@/lib/locale";
 import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
 import { setupUrl } from "@/lib/session";
 
@@ -34,6 +35,7 @@ export async function registerAction(
         name: NEW_ACCOUNT_NAME,
         firstName: input.firstName,
         lastName: input.lastName,
+        locale: toDbLocale(await getLocale()),
         // The confirmation link signs in and continues with linking Discord.
         callbackURL: setupUrl(callbackURL),
       },

@@ -6,8 +6,11 @@ import type { AppNavData } from "@/components/app-nav";
 import { adminUrl, isAdminHost } from "./admin-url.ts";
 import { getSignedInUser } from "./session.ts";
 
-/** The signed-in user for the header, or null; also null if the database is down, so legal pages still render. */
-export async function headerUser() {
+/**
+ * The signed-in user for the header and the language (§5.21), or null, once per request; also null
+ * if the database is down, so legal pages still render.
+ */
+export const headerUser = cache(async () => {
   try {
     return await getSignedInUser();
   } catch (error) {
@@ -16,7 +19,7 @@ export async function headerUser() {
     console.error("Could not load the user for the header", error);
     return null;
   }
-}
+});
 
 /**
  * Signed-in user, own team and host for header, sidebar and footer (§5.15), once per request. The

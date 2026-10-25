@@ -168,10 +168,21 @@ describe("registration (check 1)", () => {
       firstName: "Ana",
       lastName: "Muster",
       emailVerified: false,
+      locale: null,
     });
     expect(sentMails.map((mail) => [mail.to, mail.subject])).toEqual([
       [email, "Bitte bestätige deine E-Mail-Adresse"],
     ]);
+  });
+
+  it("stores the language the registration action passes (§5.21)", async () => {
+    const email = uniqueEmail();
+    await auth.api.signUpEmail({
+      body: { email, password: "lang-genug1", name: "Ana", locale: "EN" },
+    });
+    expect(await prisma.user.findUniqueOrThrow({ where: { email } })).toMatchObject({
+      locale: "EN",
+    });
   });
 
   it("answers a taken address like a new one and creates nothing", async () => {

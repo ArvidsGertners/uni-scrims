@@ -133,6 +133,8 @@ export const auth = betterAuth({
       deletedAt: { type: "date", ...coreOnly },
       firstName: { type: "string", ...registrationOnly },
       lastName: { type: "string", ...registrationOnly },
+      // The language shown at the registration (§5.21), so later mails have one (Phase 23).
+      locale: { type: "string", ...registrationOnly },
     },
   },
   advanced: {

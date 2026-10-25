@@ -18,3 +18,8 @@ export const INTL_LOCALES: Localized<string> = { de: "de-DE", en: "en-GB" };
 
 /** The languages in their own language, never translated (language menu). */
 export const LANGUAGE_NAMES: Localized<string> = { de: "Deutsch", en: "English" };
+
+/** A dictionary with German as the template: English must have exactly its entries (tsc checks). */
+export function dictionary<T>(de: T, en: NoInfer<T>): Localized<T> {
+  return { de, en };
+}
