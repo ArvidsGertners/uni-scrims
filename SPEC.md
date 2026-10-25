@@ -413,13 +413,13 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Datenauskunft nennt beim Team die Links und wann sie zuletzt geändert wurden. Die Datenschutzerklärung nennt die Links. Sonst ändern sich Funktionen und Rechte der Team-Seite nicht.
 
 **N-16 Spieler-Rang und Team-Rang** (Phase 20)
-- [ ] Jeder gibt in den Einstellungen unter „Allgemein“ seinen Rang an (Iron bis Radiant) oder lässt ihn leer, und kann ihn jederzeit ändern oder löschen. Der Rang ist selbst angegeben, bis eine Riot-Anbindung kommt (P2). Gesperrte und unvollständige Konten können ihn nicht setzen.
-- [ ] Der Team-Rang wird nicht mehr gewählt, sondern beim Anzeigen berechnet: der Durchschnitt der Ränge aller Spieler und Ersatzspieler, die einen Rang angegeben haben (auch wenn sie noch nicht verifiziert sind), auf einen Rang gerundet, bei genau der Mitte aufwärts. Coaches zählen nie. Hat niemand davon einen Rang, hat das Team keinen Rang („Ohne Rang“).
-- [ ] Gründen und Bearbeiten eines Teams haben kein Rangfeld mehr. Alle bestehenden Teams starten nach dem Update ohne Rang; der bisher gewählte Rang wird nicht übernommen.
-- [ ] Ohne Team-Rang filtert das Board nicht vorab (alle Ränge), eine neue Anfrage startet mit dem Rang-Bereich Iron bis Radiant, und es gibt keinen Hinweis „außerhalb des Bereichs“, weder beim Bewerben noch beim Ersteller. Mit Team-Rang bleibt alles wie bisher.
-- [ ] Andere Teams sehen nur den Team-Rang (Board, Anfrage, Bewerbungen, Einladungsseite). Die Mitglieder eines Teams sehen zusätzlich den Rang jedes Einzelnen im Tab „Mitglieder“.
-- [ ] Der Tab „Team“ zeigt den Team-Rang mit der Anzahl der Ränge, aus denen er berechnet ist. Wer als Spieler oder Ersatzspieler zählt und keinen Rang angegeben hat, sieht dort einen Link „Rang angeben“ zu den Einstellungen.
-- [ ] Die Datenauskunft enthält den eigenen Rang und den Rang des Teams; die Kontolöschung löscht den eigenen Rang. Die Datenschutzerklärung nennt den Rang, wer ihn sieht und dass er in den Team-Rang einfließt.
+- [x] Jeder gibt in den Einstellungen unter „Allgemein“ seinen Rang an (Iron bis Radiant) oder lässt ihn leer, und kann ihn jederzeit ändern oder löschen. Der Rang ist selbst angegeben, bis eine Riot-Anbindung kommt (P2). Gesperrte und unvollständige Konten können ihn nicht setzen.
+- [x] Der Team-Rang wird nicht mehr gewählt, sondern beim Anzeigen berechnet: der Durchschnitt der Ränge aller Spieler und Ersatzspieler, die einen Rang angegeben haben (auch wenn sie noch nicht verifiziert sind), auf einen Rang gerundet, bei genau der Mitte aufwärts. Coaches zählen nie. Hat niemand davon einen Rang, hat das Team keinen Rang („Ohne Rang“).
+- [x] Gründen und Bearbeiten eines Teams haben kein Rangfeld mehr. Alle bestehenden Teams starten nach dem Update ohne Rang; der bisher gewählte Rang wird nicht übernommen.
+- [x] Ohne Team-Rang filtert das Board nicht vorab (alle Ränge), eine neue Anfrage startet mit dem Rang-Bereich Iron bis Radiant, und es gibt keinen Hinweis „außerhalb des Bereichs“, weder beim Bewerben noch beim Ersteller. Mit Team-Rang bleibt alles wie bisher.
+- [x] Andere Teams sehen nur den Team-Rang (Board, Anfrage, Bewerbungen, Einladungsseite). Die Mitglieder eines Teams sehen zusätzlich den Rang jedes Einzelnen im Tab „Mitglieder“.
+- [x] Der Tab „Team“ zeigt den Team-Rang mit der Anzahl der Ränge, aus denen er berechnet ist. Wer als Spieler oder Ersatzspieler zählt und keinen Rang angegeben hat, sieht dort einen Link „Rang angeben“ zu den Einstellungen.
+- [x] Die Datenauskunft enthält den eigenen Rang und den Rang des Teams; die Kontolöschung löscht den eigenen Rang. Die Datenschutzerklärung nennt den Rang, wer ihn sieht und dass er in den Team-Rang einfließt.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
