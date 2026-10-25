@@ -101,6 +101,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 37. Als Spieler will ich meinen Rang selbst angeben, und als Team will ich, dass sich unser Team-Rang daraus ergibt, damit er stimmt, ohne dass der Captain ihn pflegen muss.
 38. Als Spieler, der in mehreren Teams spielt oder mehrere Teams betreut, will ich in mehreren Teams sein und in der Leiste zwischen ihnen wechseln, und mehr Teams beantragen können, wenn fünf nicht reichen.
 39. Als Studierender, der kein Deutsch spricht, will ich die ganze Seite oben rechts auf Englisch umstellen, und mit englischem Browser will ich sie gleich auf Englisch sehen.
+40. Als Spieler mit englischer Sprachwahl will ich auch die Mails und Discord-Nachrichten von Uni Scrims auf Englisch bekommen, und als Captain will ich `/setup` auf Englisch bedienen können.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -304,7 +305,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
 
 *Mails, Löschen, Sperren*
-- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com` (seit Phase 18 auch Benachrichtigungen, wenn man sie einschaltet, N-14; bis Phase 23 auch bei englischer Sprachwahl deutsch, N-18)
+- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com` (seit Phase 18 auch Benachrichtigungen, wenn man sie einschaltet, N-14; seit Phase 23 in der Sprache des Kontos, N-19)
 - [x] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
 - [x] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen; Name, E-Mail und Passwort ändern sie nicht
 
@@ -400,7 +401,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Einstellungen haben einen Tab „Benachrichtigungen“ zwischen „Allgemein“ und „Verifizierung“. Dort stellt jeder für jede Benachrichtigung ein, ob sie per Discord-DM, per Mail, auf beiden Wegen oder gar nicht kommt, nach Kategorien: Verifizierung (Ergebnis der Prüfung); Anfragen und Bewerbungen (Bewerbung erhalten, Bewerbung abgelehnt, Anfrage gelöscht, Anfrage abgelaufen; nur für den Captain); Scrims (gebucht, abgesagt, Erinnerung 24 Stunden und 1 Stunde vorher, Bitte um Feedback); Team (Verknüpfung mit dem Team-Channel ist weg; nur für den Captain). Speichern geht auch ohne JavaScript.
 - [x] Ohne eigene Einstellung bleibt alles wie bisher: Discord an, Mail aus, und Scrim-Benachrichtigungen bekommt nur der Captain. Mitglieder können sie für sich einschalten, per Discord und/oder Mail. Anfragen, Bewerbungen und der Team-Hinweis gehen weiter nur an den Captain; die Einstellung eines Mitglieds gilt, sobald es Captain ist.
 - [x] Wer etwas bekommt, entscheidet sich beim Versand: der Captain und die Mitglieder in diesem Moment, mit ihrer Einstellung in diesem Moment. Wer vorher das Team verlässt oder abschaltet, bekommt nichts mehr. Erinnerungen zu Scrims, die vor dem Update gebucht wurden, folgen ebenfalls den Einstellungen.
-- [x] Mails gehen an die bestätigte Adresse des Kontos, als reiner Text auf Deutsch (bis Phase 23 auch bei englischer Sprachwahl, N-18) von `noreply@uniscrims.com`, mit dem Link zur passenden Seite und dem Hinweis, wo man sie abschaltet. Kommt eine Mail nicht an, versucht der Bot es mehrmals wie bei Discord; der Hinweis auf der Website hängt nur an DMs.
+- [x] Mails gehen an die bestätigte Adresse des Kontos, als reiner Text (seit Phase 23 in der Sprache des Empfängers, N-19) von `noreply@uniscrims.com`, mit dem Link zur passenden Seite und dem Hinweis, wo man sie abschaltet. Kommt eine Mail nicht an, versucht der Bot es mehrmals wie bei Discord; der Hinweis auf der Website hängt nur an DMs.
 - [x] Nicht einstellbar sind die Konto-Mails (Bestätigung, Passwort, E-Mail-Wechsel) und die Posts im Team-Channel; die gehören zum Team.
 - [x] Wer Discord für alle Benachrichtigungen abschaltet, sieht den Hinweis zu blockierten DMs nicht mehr. Die Datenauskunft enthält die Einstellungen und die persönlichen Nachrichten (DMs und Mails); die Kontolöschung löscht beides. Die Datenschutzerklärung nennt die Mails für Benachrichtigungen.
 
@@ -444,8 +445,16 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Wahl gilt in diesem Browser (ein Cookie, ein Jahr, auch im Admin-Bereich) und mit Konto auf allen Geräten: Angemeldet gilt die Sprache des Kontos vor Cookie und Browser. Speichern geht auch für gesperrte und unvollständige Konten. Bei der Registrierung wird die gerade angezeigte Sprache am Konto gespeichert.
 - [x] Auf Englisch ist die ganze Website englisch: alle Seiten, der Admin-Bereich, Fehlermeldungen, Hinweise, Erfolgsmeldungen, Bestätigungsfragen, Datums- und Zahlenangaben (englische Schreibweise, 24-Stunden-Uhr, weiterhin deutsche Zeit) sowie Impressum und Datenschutzerklärung als englische Fassung, bei der die deutsche verbindlich bleibt. Fehlt eine englische Fassung, steht die deutsche mit dem Hinweis, dass es die Seite nur auf Deutsch gibt. Den Riot-Hinweis zeigt das englische Impressum im Original.
 - [x] In beiden Sprachen gleich bleiben: die Rang-Namen (schon englisch), was Nutzer eingeben (Teamnamen, Kürzel, Begründungen, Notizen), Hochschulnamen, die Adressen der Seiten und die Datenauskunft (deutsche Schlüssel und Bezeichnungen; die englische Datenschutzerklärung sagt das). Auf Deutsch bleibt alles wie bisher.
-- [x] Mails und Discord-Nachrichten bleiben bis Phase 23 deutsch; dann kommen sie in der Sprache des Empfängers.
+- [x] Mails und Discord-Nachrichten bleiben bis Phase 23 deutsch; seitdem kommen sie in der Sprache des Empfängers (N-19).
 - [x] Die Datenauskunft nennt die gespeicherte Sprache, die Kontolöschung löscht sie. Die Datenschutzerklärung nennt das Cookie, das Lesen der Browsersprache (nicht gespeichert) und die Sprache am Konto.
+
+**N-19 Mails und Discord-Nachrichten in der Sprache des Empfängers** (Phase 23)
+- [ ] Persönliche Nachrichten kommen in der Sprache, die am Konto des Empfängers gespeichert ist: Discord-DMs, Benachrichtigungs-Mails und die Konto-Mails (Adresse bestätigen, Passwort zurücksetzen, neue Adresse). Ohne gespeicherte Sprache kommen sie auf Deutsch. Datums- und Zeitangaben, Formate, die Namen der Einstellungen in der Fußzeile und der Ablehnungsgrund einer Prüfung (sofern ihn nicht ein Prüfer frei geschrieben hat) folgen der Sprache.
+- [ ] Posts im verknüpften Team-Channel kommen in der Sprache, die der Captain des Teams beim Versand am Konto hat, ohne gespeicherte Sprache auf Deutsch; ebenso die Test-Nachricht von `/setup`.
+- [ ] `/setup` antwortet in der Sprache des Kontos, das zum Discord-Konto gehört; ohne Konto oder ohne gespeicherte Sprache in der Sprache der Discord-App (Englisch, wenn sie englisch eingestellt ist), sonst auf Deutsch. Befehl und Optionen sind in englischen Discord-Apps englisch beschrieben.
+- [ ] Ein Konto ohne gespeicherte Sprache (vor Phase 22 angelegt) bekommt bei der nächsten Anmeldung (Passwort, Code, Discord oder Bestätigungslink) die Sprache, in der die Seite gerade erscheint: die im Browser gewählte, sonst die Browsersprache, sonst Deutsch. Eine gespeicherte Sprache ändert nur die Wahl oben rechts.
+- [ ] Deutsch bleiben: die Test-Skripte und Ausgaben für den Betreiber, die Präfixe der Entwicklungs-Umleitungen und die Datenauskunft. Die deutschen Texte bleiben unverändert.
+- [ ] Die Datenschutzerklärung nennt die Übernahme der Sprache bei der Anmeldung und dass Mails und Discord-Nachrichten in der gespeicherten Sprache kommen.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -577,6 +586,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 20 | Spieler-Rang und Team-Rang (N-16) | Spieler geben ihren Rang in den Einstellungen an; der Team-Rang ist der gerundete Durchschnitt der Spieler und Ersatzspieler mit Rang, sonst „Ohne Rang“; Gründen und Bearbeiten ohne Rangfeld; ohne Team-Rang filtert das Board nicht vorab und eine Anfrage startet bei Iron–Radiant |
 | 21 | Mehrere Teams pro Nutzer (N-17) | Ein Nutzer ist in bis zu 5 Teams und wechselt in der Leiste das aktive Team; Rechte gelten je Team; am Limit verweisen Gründen und Beitreten auf den Antrag, den Admins auf „Anträge“ entscheiden; `/setup` fragt nach dem Team |
 | 22 | Deutsch und Englisch (N-18) | Oben rechts wechselt ein Menü mit Flaggen auf jeder Seite die Sprache; auf Englisch sind alle Seiten samt Admin-Bereich, Meldungen, Datumsangaben und Rechtstexten englisch, auf Deutsch bleibt alles wie bisher; ohne Wahl gilt die Browsersprache; die Wahl gilt im Browser und mit Konto auf allen Geräten |
+| 23 | Mails und Discord-Nachrichten in der Sprache des Empfängers (N-19) | DMs, Mails und Konto-Mails kommen in der Sprache des Kontos, Team-Channel-Posts in der des Captains, ohne Sprache auf Deutsch; `/setup` antwortet auf Englisch für englische Konten und Discord-Apps; Konten ohne Sprache bekommen sie bei der nächsten Anmeldung |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
