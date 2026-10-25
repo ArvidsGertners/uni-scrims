@@ -99,6 +99,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 35. Als Spieler will ich selbst bestimmen, welche Benachrichtigungen ich per Discord oder per Mail bekomme, und als Mitglied auch Buchungen und Erinnerungen zu unseren Scrims bekommen, nicht nur der Captain.
 36. Als Captain will ich auf der Team-Seite die Teamdaten und unsere Mitglieder getrennt sehen und Links zu unserem Discord-Server, unserer Website und unseren Kanälen angeben, damit andere Teams uns dort finden.
 37. Als Spieler will ich meinen Rang selbst angeben, und als Team will ich, dass sich unser Team-Rang daraus ergibt, damit er stimmt, ohne dass der Captain ihn pflegen muss.
+38. Als Spieler, der in mehreren Teams spielt oder mehrere Teams betreut, will ich in mehreren Teams sein und in der Leiste zwischen ihnen wechseln, und mehr Teams beantragen können, wenn fünf nicht reichen.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -112,7 +113,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 - Ein Team hat seine Bewerbung zurückgezogen: Es kann sich auf dieselbe Anfrage nicht erneut bewerben.
 - Der Captain verlässt das Team: nur nach Übertragung der Captain-Rolle. Ist er das einzige Mitglied, wird das Team beim Verlassen aufgelöst.
 - Ein Team wird gesperrt oder aufgelöst: Seine offenen Anfragen werden gelöscht, seine offenen Bewerbungen zurückgezogen und seine künftigen Scrims abgesagt. Das Gegnerteam bekommt Bescheid, und die Absage zählt für niemanden als kurzfristig. Anfragen, deren Startzeit schon vorbei ist, verfallen wie sonst auch.
-- Ein Spieler wird gesperrt: Er wird aus seinem Team entfernt. Ein gesperrter Captain bleibt im Team, das Team wird mitgesperrt. Die übrigen Mitglieder können das gesperrte Team verlassen und ein neues gründen oder einem anderen beitreten. Eine offene Prüfung seiner Bescheinigung wird ohne Nachricht abgelehnt und die Datei gelöscht.
+- Ein Spieler wird gesperrt: Er wird aus seinem Team entfernt. Ein gesperrter Captain bleibt im Team, das Team wird mitgesperrt (seit Phase 21 für jedes seiner Teams: aus Teams, in denen er nicht Captain ist, wird er entfernt, Teams, in denen er Captain ist, werden mitgesperrt, N-17). Die übrigen Mitglieder können das gesperrte Team verlassen und ein neues gründen oder einem anderen beitreten. Eine offene Prüfung seiner Bescheinigung wird ohne Nachricht abgelehnt und die Datei gelöscht.
 - Der Captain ist selbst noch nicht verifiziert: Er kann das Team verwalten und einladen, aber keine Scrim-Aktionen ausführen.
 - Der Bot ist nicht auf dem Team-Server: Benachrichtigungen gehen dann nur per DM an den Captain.
 - DMs kommen nicht an (Hub-Server-Beitritt gescheitert, DMs blockiert): dauerhafter Hinweis auf der Website, bis eine DM wieder zugestellt wurde. Seit Phase 18 verschwindet der Hinweis zu blockierten DMs auch, wenn man Discord für alle Benachrichtigungen abschaltet (N-14).
@@ -195,7 +196,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Captain kann Name, Kürzel und Team-Rang ändern (den Rang bis Phase 20, N-16); seit Phase 10 auch ein Logo hochladen (N-6), seit Phase 19 auch Links zu Discord-Server, Website und Social Media angeben (N-15)
 - [x] Mitglieder dürfen von verschiedenen Hochschulen sein; die Team-Karte zeigt die vertretenen Hochschulen (max. 3, danach "+n")
 - [x] Einladungslink, den der Captain erneuern kann; ohne Team lässt sich ein Einladungslink auch einfügen, das öffnet seine Beitrittsseite
-- [x] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team
+- [x] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team (seit Phase 21 in bis zu 5 Teams, mehr auf Antrag, N-17)
 - [x] Genau ein Captain pro Team; Captain-Rolle übertragen; Mitglieder entfernen
 - [x] Mitglieder können das Team verlassen; Captain nur nach Übertragung, als einziges Mitglied löst er das Team damit auf
 - [x] Ein Team ist **spielbereit** ab 5 verifizierten Spielern (Rolle Spieler oder Ersatzspieler, siehe „Nach dem MVP“; Coaches zählen nicht). Geprüft wird nur beim Posten, Bewerben und Bestätigen.
@@ -422,6 +423,20 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Datenauskunft enthält den eigenen Rang und den Rang des Teams; die Kontolöschung löscht den eigenen Rang. Die Datenschutzerklärung nennt den Rang, wer ihn sieht und dass er in den Team-Rang einfließt.
 - [x] Neben jedem Rang steht sein Rang-Bild aus dem Spiel (Board, Anfrage, Scrims, Team, Mitglieder, Einladung, Einstellungen und die Rang-Auswahlen); ohne Rang steht Riots „Unrated“-Bild davor („Ohne Rang“, in der Auswahl „Kein Rang“). Der Footer nennt dafür Riots Hinweis zur Nutzung seiner Assets im englischen Wortlaut der Richtlinie (nach Phase 20 ergänzt).
 
+**N-17 Mehrere Teams pro Nutzer** (Phase 21)
+- [ ] Ein Nutzer kann in bis zu 5 Teams sein, in jeder Rolle. Es zählen alle nicht aufgelösten Teams, auch gesperrte (aus denen man austreten kann). Am Limit lässt sich kein Team gründen und keinem beitreten; die Seite sagt das und verweist auf den Antrag.
+- [ ] Eines der Teams ist das aktive. Board, die Scrims-Tabs, „Anfrage erstellen“, die Team-Seite und Anfragen zeigen alles aus seiner Sicht. Die Wahl gilt auf allen Geräten. Wer ein Team gründet oder einem beitritt, hat es danach aktiv. Ist das aktive Team weg (verlassen, entfernt, aufgelöst), gilt das zuletzt beigetretene.
+- [ ] In der Leiste öffnet der Team-Eintrag ein Menü mit den eigenen Teams (Logo, Name, Haken beim aktiven) und „Neues Team erstellen“; am Limit ist der Punkt gesperrt, darunter steht „Mehr Teams beantragen“. Die Auswahl eines Teams macht es aktiv und öffnet die Team-Seite. Ohne Team bleibt der Eintrag „Gründen oder beitreten“. Auf dem Handy stehen dieselben Punkte im Menü.
+- [ ] Rechte gelten je Team: Captain-Rolle, Rollen und Verifizierung wie bisher, jeweils für das Team, für das man handelt. Eine Aktion handelt immer für das Team, das beim Öffnen der Seite aktiv war.
+- [ ] Gehört ein Scrim zu einem anderen eigenen Team, zeigt seine Seite das mit „Zu Team X wechseln“. Gehört eine Anfrage zu einem anderen eigenen Team, zeigt ihre Seite sie aus Sicht des aktiven Teams, mit demselben Hinweis (um die Bewerbungen zu sehen). Diese Knöpfe bleiben auf der Seite.
+- [ ] Teams mit gemeinsamen Mitgliedern dürfen gegeneinander scrimmen; auf die eigene Anfrage bewerben geht weiter nicht.
+- [ ] Die Einladungsseite lässt beitreten, solange das Limit nicht erreicht ist, und verweist am Limit auf den Antrag. Der Hinweis „Verlasse es zuerst“ entfällt.
+- [ ] Ein gesperrter Nutzer wird aus allen Teams entfernt, in denen er nicht Captain ist; jedes Team, in dem er Captain ist, wird mitgesperrt. Wer sein Konto löscht, muss vorher in jedem Team mit weiteren Mitgliedern die Captain-Rolle übertragen; die Löschung verlässt danach alle Teams bzw. löst Teams auf, in denen man allein ist.
+- [ ] Die Einstellungen zeigen alle eigenen Teams. Die Datenauskunft nennt alle Teams, das aktive, das Limit und die Anträge.
+- [ ] Auf der Support-Seite kann ein eingeloggter Nutzer „Mehr Teams beantragen“ (Begründung 10–500 Zeichen, ein offener Antrag gleichzeitig). Er sieht dort, in wie vielen von wie vielen Teams er ist, und den Stand seines Antrags (In Prüfung, Angenommen mit dem neuen Limit, Abgelehnt). Admins und Betreiber entscheiden auf der Admin-Seite „Anträge“: neues Limit (größer als das bisherige, höchstens 50) oder ablehnen. Eine Nachricht über die Entscheidung gibt es nicht.
+- [ ] `/setup` hat eine Option „team“ mit Vorschlägen (die Teams, in denen man Captain ist); mit nur einem solchen Team kann man sie weglassen.
+- [ ] Benachrichtigungen kommen je Team wie bisher; wer in beiden Teams eines Scrims ist, bekommt beide. Die Datenschutzerklärung nennt mehrere Teams, das gespeicherte aktive Team und den Antrag.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -550,6 +565,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 18 | Benachrichtigungen einstellen (N-14) | Jede Benachrichtigung lässt sich per Discord und/oder Mail ein- und ausschalten; ohne Einstellung bleibt alles wie bisher; Mitglieder bekommen Scrim-Benachrichtigungen, wenn sie sie einschalten; Mails kommen als reiner Text mit Link und Abmelde-Hinweis |
 | 19 | Team-Tabs und Links (N-15) | Die Team-Seite hat die Tabs „Team“ (Karte mit Team-ID und Spiel, Logos, Einladung, externe Links) und „Mitglieder“ (Tabelle mit Beitrittsdatum, Rollen und Rechte); falsche Links werden abgelehnt; andere Teams sehen die Links auf Anfrage, Bewerbung und Scrim; ein Admin kann sie entfernen |
 | 20 | Spieler-Rang und Team-Rang (N-16) | Spieler geben ihren Rang in den Einstellungen an; der Team-Rang ist der gerundete Durchschnitt der Spieler und Ersatzspieler mit Rang, sonst „Ohne Rang“; Gründen und Bearbeiten ohne Rangfeld; ohne Team-Rang filtert das Board nicht vorab und eine Anfrage startet bei Iron–Radiant |
+| 21 | Mehrere Teams pro Nutzer (N-17) | Ein Nutzer ist in bis zu 5 Teams und wechselt in der Leiste das aktive Team; Rechte gelten je Team; am Limit verweisen Gründen und Beitreten auf den Antrag, den Admins auf „Anträge“ entscheiden; `/setup` fragt nach dem Team |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
