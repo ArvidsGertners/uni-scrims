@@ -27,7 +27,7 @@ Scrim-Plattform für Valorant-Teams deutscher Hochschulen: Next.js-Web-App + dis
 - Schleifen in Bot und Janitor sequenziell (`await` + sleep), **nie `setInterval`**.
 - Versionen exakt pinnen (ohne `^`/`~`), keine Major-Upgrades während des Baus.
 - Berechtigungen immer über `core/permissions.ts` laut Tabelle in ARCHITECTURE §7.
-- UI-Texte auf Deutsch, mobilfreundlich. Code, Variablen und Kommentare auf Englisch.
+- UI-Texte auf Deutsch und Englisch, nur über die Wörterbücher (`apps/web/i18n`, `packages/core/src/i18n`, ARCHITECTURE §5.21); Deutsch ist die Vorlage. Mobilfreundlich. Code, Variablen und Kommentare auf Englisch.
 
 ## Befehle
 

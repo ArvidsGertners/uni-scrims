@@ -29,7 +29,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 | Nicht drin | Warum |
 |---|---|
 | Andere Games (LoL, CS, RL …) | Erst ein Game richtig machen. Datenmodell aber game-agnostisch anlegen (siehe P2). |
-| Teams außerhalb Deutschlands | Eine Zeitzone, eine Sprache, ein Semesterrhythmus. |
+| Teams außerhalb Deutschlands | Eine Zeitzone, ein Semesterrhythmus. (Die Oberfläche gibt es seit Phase 22 auch auf Englisch, für internationale Studierende deutscher Hochschulen, N-18.) |
 | Verifizierung per Uni-Mail | Domain-Listen pflegen ist zu aufwendig. Es gibt nur den Upload-Weg. |
 | Benachrichtigungen per E-Mail | Alle Benachrichtigungen laufen über Discord. Mails gibt es seit Phase 7 nur für das Konto selbst (Bestätigung, Passwort, E-Mail-Wechsel; N-3). Seit Phase 18 kann jeder Benachrichtigungen zusätzlich oder statt Discord per Mail einschalten (N-14). |
 | Rang-Verifizierung über die Riot-API | Braucht Riot-Freigabe (RSO). Ränge werden selbst angegeben. |
@@ -100,6 +100,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 36. Als Captain will ich auf der Team-Seite die Teamdaten und unsere Mitglieder getrennt sehen und Links zu unserem Discord-Server, unserer Website und unseren Kanälen angeben, damit andere Teams uns dort finden.
 37. Als Spieler will ich meinen Rang selbst angeben, und als Team will ich, dass sich unser Team-Rang daraus ergibt, damit er stimmt, ohne dass der Captain ihn pflegen muss.
 38. Als Spieler, der in mehreren Teams spielt oder mehrere Teams betreut, will ich in mehreren Teams sein und in der Leiste zwischen ihnen wechseln, und mehr Teams beantragen können, wenn fünf nicht reichen.
+39. Als Studierender, der kein Deutsch spricht, will ich die ganze Seite oben rechts auf Englisch umstellen, und mit englischem Browser will ich sie gleich auf Englisch sehen.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -303,7 +304,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
 
 *Mails, Löschen, Sperren*
-- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com` (seit Phase 18 auch Benachrichtigungen, wenn man sie einschaltet, N-14)
+- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com` (seit Phase 18 auch Benachrichtigungen, wenn man sie einschaltet, N-14; bis Phase 23 auch bei englischer Sprachwahl deutsch, N-18)
 - [x] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
 - [x] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen; Name, E-Mail und Passwort ändern sie nicht
 
@@ -399,7 +400,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Einstellungen haben einen Tab „Benachrichtigungen“ zwischen „Allgemein“ und „Verifizierung“. Dort stellt jeder für jede Benachrichtigung ein, ob sie per Discord-DM, per Mail, auf beiden Wegen oder gar nicht kommt, nach Kategorien: Verifizierung (Ergebnis der Prüfung); Anfragen und Bewerbungen (Bewerbung erhalten, Bewerbung abgelehnt, Anfrage gelöscht, Anfrage abgelaufen; nur für den Captain); Scrims (gebucht, abgesagt, Erinnerung 24 Stunden und 1 Stunde vorher, Bitte um Feedback); Team (Verknüpfung mit dem Team-Channel ist weg; nur für den Captain). Speichern geht auch ohne JavaScript.
 - [x] Ohne eigene Einstellung bleibt alles wie bisher: Discord an, Mail aus, und Scrim-Benachrichtigungen bekommt nur der Captain. Mitglieder können sie für sich einschalten, per Discord und/oder Mail. Anfragen, Bewerbungen und der Team-Hinweis gehen weiter nur an den Captain; die Einstellung eines Mitglieds gilt, sobald es Captain ist.
 - [x] Wer etwas bekommt, entscheidet sich beim Versand: der Captain und die Mitglieder in diesem Moment, mit ihrer Einstellung in diesem Moment. Wer vorher das Team verlässt oder abschaltet, bekommt nichts mehr. Erinnerungen zu Scrims, die vor dem Update gebucht wurden, folgen ebenfalls den Einstellungen.
-- [x] Mails gehen an die bestätigte Adresse des Kontos, als reiner Text auf Deutsch von `noreply@uniscrims.com`, mit dem Link zur passenden Seite und dem Hinweis, wo man sie abschaltet. Kommt eine Mail nicht an, versucht der Bot es mehrmals wie bei Discord; der Hinweis auf der Website hängt nur an DMs.
+- [x] Mails gehen an die bestätigte Adresse des Kontos, als reiner Text auf Deutsch (bis Phase 23 auch bei englischer Sprachwahl, N-18) von `noreply@uniscrims.com`, mit dem Link zur passenden Seite und dem Hinweis, wo man sie abschaltet. Kommt eine Mail nicht an, versucht der Bot es mehrmals wie bei Discord; der Hinweis auf der Website hängt nur an DMs.
 - [x] Nicht einstellbar sind die Konto-Mails (Bestätigung, Passwort, E-Mail-Wechsel) und die Posts im Team-Channel; die gehören zum Team.
 - [x] Wer Discord für alle Benachrichtigungen abschaltet, sieht den Hinweis zu blockierten DMs nicht mehr. Die Datenauskunft enthält die Einstellungen und die persönlichen Nachrichten (DMs und Mails); die Kontolöschung löscht beides. Die Datenschutzerklärung nennt die Mails für Benachrichtigungen.
 
@@ -436,6 +437,15 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Auf der Support-Seite kann ein eingeloggter Nutzer „Mehr Teams beantragen“ (Begründung 10–500 Zeichen, ein offener Antrag gleichzeitig). Er sieht dort, in wie vielen von wie vielen Teams er ist, und den Stand seines Antrags (In Prüfung, Angenommen mit dem neuen Limit, Abgelehnt). Admins und Betreiber entscheiden auf der Admin-Seite „Anträge“: neues Limit (größer als das bisherige, höchstens 50) oder ablehnen. Eine Nachricht über die Entscheidung gibt es nicht. Wer schon 50 Teams haben darf, kann keinen Antrag mehr stellen.
 - [x] `/setup` hat eine Option „team“ mit Vorschlägen (die nicht gesperrten Teams, in denen man Captain ist); auch der getippte Name eines solchen Teams geht. Mit nur einem solchen Team kann man sie weglassen.
 - [x] Benachrichtigungen kommen je Team wie bisher; wer in beiden Teams eines Scrims ist, bekommt beide. Wer in einem Team Captain ist und in einem anderen nicht, bekommt Scrim-Benachrichtigungen ohne eigene Wahl nur für seine Captain-Teams; die Einstellungen sagen das, und eine Wahl dort gilt für alle Teams. Die Datenschutzerklärung nennt mehrere Teams, das gespeicherte aktive Team und den Antrag.
+
+**N-18 Deutsch und Englisch** (Phase 22)
+- [ ] Oben rechts im Kopf jeder Seite (abgemeldet, angemeldet, Admin-Bereich) steht die Sprachwahl: ein Knopf mit der Flagge der aktuellen Sprache, „DE“ bzw. „EN“ und einem Pfeil. Er öffnet ein Menü mit „Deutsch“ (deutsche Flagge) und „English“ (britische Flagge), mit Haken an der aktiven Sprache. Eine Auswahl zeigt dieselbe Seite in der neuen Sprache. Angemeldet steht die Wahl auf dem Handy links neben dem Menü-Knopf; im Admin-Bereich auf schmalen Bildschirmen nur die Flagge. Ohne JavaScript lässt sich die Sprache nicht wechseln (wie bei den Auswahlfeldern).
+- [ ] Ohne eigene Wahl gilt die Sprache des Browsers: Englisch, wenn er Englisch vor Deutsch bevorzugt, sonst Deutsch.
+- [ ] Die Wahl gilt in diesem Browser (ein Cookie, ein Jahr, auch im Admin-Bereich) und mit Konto auf allen Geräten: Angemeldet gilt die Sprache des Kontos vor Cookie und Browser. Speichern geht auch für gesperrte und unvollständige Konten. Bei der Registrierung wird die gerade angezeigte Sprache am Konto gespeichert.
+- [ ] Auf Englisch ist die ganze Website englisch: alle Seiten, der Admin-Bereich, Fehlermeldungen, Hinweise, Erfolgsmeldungen, Bestätigungsfragen, Datums- und Zahlenangaben (englische Schreibweise, 24-Stunden-Uhr, weiterhin deutsche Zeit) sowie Impressum und Datenschutzerklärung als englische Fassung, bei der die deutsche verbindlich bleibt. Fehlt eine englische Fassung, steht die deutsche mit dem Hinweis, dass es die Seite nur auf Deutsch gibt. Den Riot-Hinweis zeigt das englische Impressum im Original.
+- [ ] In beiden Sprachen gleich bleiben: die Rang-Namen (schon englisch), was Nutzer eingeben (Teamnamen, Kürzel, Begründungen, Notizen), Hochschulnamen, die Adressen der Seiten und die Datenauskunft (deutsche Schlüssel und Bezeichnungen; die englische Datenschutzerklärung sagt das). Auf Deutsch bleibt alles wie bisher.
+- [ ] Mails und Discord-Nachrichten bleiben bis Phase 23 deutsch; dann kommen sie in der Sprache des Empfängers.
+- [ ] Die Datenauskunft nennt die gespeicherte Sprache, die Kontolöschung löscht sie. Die Datenschutzerklärung nennt das Cookie, das Lesen der Browsersprache (nicht gespeichert) und die Sprache am Konto.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -566,6 +576,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 19 | Team-Tabs und Links (N-15) | Die Team-Seite hat die Tabs „Team“ (Karte mit Team-ID und Spiel, Logos, Einladung, externe Links) und „Mitglieder“ (Tabelle mit Beitrittsdatum, Rollen und Rechte); falsche Links werden abgelehnt; andere Teams sehen die Links auf Anfrage, Bewerbung und Scrim; ein Admin kann sie entfernen |
 | 20 | Spieler-Rang und Team-Rang (N-16) | Spieler geben ihren Rang in den Einstellungen an; der Team-Rang ist der gerundete Durchschnitt der Spieler und Ersatzspieler mit Rang, sonst „Ohne Rang“; Gründen und Bearbeiten ohne Rangfeld; ohne Team-Rang filtert das Board nicht vorab und eine Anfrage startet bei Iron–Radiant |
 | 21 | Mehrere Teams pro Nutzer (N-17) | Ein Nutzer ist in bis zu 5 Teams und wechselt in der Leiste das aktive Team; Rechte gelten je Team; am Limit verweisen Gründen und Beitreten auf den Antrag, den Admins auf „Anträge“ entscheiden; `/setup` fragt nach dem Team |
+| 22 | Deutsch und Englisch (N-18) | Oben rechts wechselt ein Menü mit Flaggen auf jeder Seite die Sprache; auf Englisch sind alle Seiten samt Admin-Bereich, Meldungen, Datumsangaben und Rechtstexten englisch, auf Deutsch bleibt alles wie bisher; ohne Wahl gilt die Browsersprache; die Wahl gilt im Browser und mit Konto auf allen Geräten |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
