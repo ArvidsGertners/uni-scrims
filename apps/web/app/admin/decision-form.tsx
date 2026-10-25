@@ -41,7 +41,7 @@ export function DecisionForm({
         <Label htmlFor={`reason-${requestId}`}>Grund (nur beim Ablehnen)</Label>
         <Textarea id={`reason-${requestId}`} name="rejectReason" maxLength={500} rows={2} />
       </div>
-      {state.error ? <p className="text-[14px] text-accent-text">{state.error}</p> : null}
+      {state.error ? <p className="text-[14px] text-destructive-text">{state.error}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" name="decision" value="APPROVED" disabled={pending}>
           Freigeben

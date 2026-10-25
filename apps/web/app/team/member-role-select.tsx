@@ -61,7 +61,7 @@ export function MemberRoleSelect({ action, teamId, memberId, memberName, role, o
         ) : null}
       </div>
       {state.error ? (
-        <p role="alert" className="text-[13px] text-accent-text">
+        <p role="alert" className="text-[13px] text-destructive-text">
           {state.error}
         </p>
       ) : null}

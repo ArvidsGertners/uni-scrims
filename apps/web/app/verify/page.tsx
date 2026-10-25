@@ -96,15 +96,15 @@ export default async function VerifyPage({
           </div>
         ) : rejected && !neu ? (
           <div className="flex flex-col gap-6">
-            <IconTile className="bg-accent-soft text-accent-text">
+            <IconTile className="bg-destructive-soft text-destructive-text">
               <AlertTriangleIcon size={30} />
             </IconTile>
             <Headline title="Das hat leider nicht geklappt">
               Wir konnten deinen Studierendenstatus mit diesem Dokument nicht bestätigen.
             </Headline>
             {latest.rejectReason ? (
-              <div className="flex flex-col gap-1.5 rounded-sm border border-primary bg-accent-soft px-[18px] py-4">
-                <span className="type-label text-accent-text">Grund</span>
+              <div className="flex flex-col gap-1.5 rounded-sm border border-destructive bg-destructive-soft px-[18px] py-4">
+                <span className="type-label text-destructive-text">Grund</span>
                 <span className="text-[15px] text-pretty">{latest.rejectReason}</span>
               </div>
             ) : null}

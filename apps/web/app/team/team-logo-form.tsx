@@ -97,7 +97,7 @@ export function TeamLogoForm({
         </Button>
       ) : null}
       {error ? (
-        <p role="alert" className="text-[14px] text-accent-text">
+        <p role="alert" className="text-[14px] text-destructive-text">
           {error}
         </p>
       ) : null}

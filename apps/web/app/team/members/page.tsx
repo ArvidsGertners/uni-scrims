@@ -142,7 +142,7 @@ export default async function TeamMembersPage() {
                             submitLabel="Entfernen"
                             variant="ghost"
                             size="bare"
-                            submitClassName={`${memberActionClass} not-disabled:hover:bg-accent-soft not-disabled:hover:text-accent-text`}
+                            submitClassName={`${memberActionClass} not-disabled:hover:bg-destructive-soft not-disabled:hover:text-destructive-text`}
                             confirmText={`${member.name} aus dem Team entfernen?`}
                           >
                             <input type="hidden" name="teamId" value={team.id} />

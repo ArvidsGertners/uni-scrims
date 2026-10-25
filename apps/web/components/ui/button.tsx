@@ -2,7 +2,7 @@ import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
-// Buttons of the design handoff: primary, secondary (outline), accent outline (destructive),
+// Buttons of the design handoff: primary, secondary (outline), red outline (destructive),
 // ghost and link. Heights 44/48/52/56 px.
 const buttonVariants = cva(
   "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm whitespace-nowrap transition-colors duration-150 select-none disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:shrink-0",
@@ -14,7 +14,7 @@ const buttonVariants = cva(
         outline:
           "type-btn border border-border-strong font-semibold text-foreground not-disabled:hover:bg-secondary disabled:text-faint",
         destructive:
-          "type-btn border border-primary font-semibold text-accent-text not-disabled:hover:bg-accent-soft disabled:text-faint",
+          "type-btn border border-destructive font-semibold text-destructive-text not-disabled:hover:bg-destructive-soft disabled:text-faint",
         ghost: "text-muted-foreground not-disabled:hover:text-foreground disabled:text-faint",
         link: "text-muted-foreground underline underline-offset-3 not-disabled:hover:text-accent-text disabled:text-faint",
       },

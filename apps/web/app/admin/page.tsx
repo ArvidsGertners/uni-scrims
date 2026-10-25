@@ -37,7 +37,7 @@ export default async function AdminOverviewPage() {
             href={adminHref("/disputes")}
             label="Streitfälle"
             value={disputes}
-            tone={disputes ? "text-accent-text" : undefined}
+            tone={disputes ? "text-destructive-text" : undefined}
           >
             {disputes ? "Warten auf eine Entscheidung" : "Keine offenen Streitfälle"}
           </StatTile>
@@ -57,7 +57,7 @@ export default async function AdminOverviewPage() {
             href={adminHref("/notifications")}
             label="Nachrichten"
             value={failedNotifications}
-            tone={failedNotifications ? "text-accent-text" : undefined}
+            tone={failedNotifications ? "text-destructive-text" : undefined}
           >
             {failedNotifications ? "Fehlgeschlagen, nicht zugestellt" : "Keine fehlgeschlagen"}
           </StatTile>
@@ -67,7 +67,7 @@ export default async function AdminOverviewPage() {
           <StatTile
             label="Bot"
             value={bot.online ? "Läuft" : "Offline"}
-            tone={bot.online ? "text-success" : "text-accent-text"}
+            tone={bot.online ? "text-success" : "text-destructive-text"}
           >
             {BOT_LOOPS.map(({ loop, label }) => (
               <span key={loop} className="block">

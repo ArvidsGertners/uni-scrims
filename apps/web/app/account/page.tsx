@@ -58,7 +58,7 @@ const VERIFICATION_LABELS = {
   },
   REJECTED: {
     label: "Abgelehnt",
-    className: "text-accent-text",
+    className: "text-destructive-text",
     action: "Bescheinigung hochladen",
     primary: true,
   },

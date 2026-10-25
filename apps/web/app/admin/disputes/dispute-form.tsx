@@ -53,7 +53,7 @@ export function DisputeForm({
           </Button>
         ))}
       </div>
-      {state.error ? <p className="text-[14px] text-accent-text">{state.error}</p> : null}
+      {state.error ? <p className="text-[14px] text-destructive-text">{state.error}</p> : null}
     </form>
   );
 }

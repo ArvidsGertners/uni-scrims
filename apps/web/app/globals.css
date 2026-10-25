@@ -38,6 +38,8 @@
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-text: var(--destructive-text);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
@@ -107,6 +109,8 @@
   --primary-hover: #ff766d;
   --accent-soft: rgba(255, 90, 79, 0.13);
   --accent-text: #ff8279;
+  --destructive-soft: rgba(255, 90, 79, 0.13);
+  --destructive-text: #ff8279;
   --success: #3dd68c;
   --success-soft: rgba(61, 214, 140, 0.12);
   --warning: #f5b84b;
@@ -169,6 +173,8 @@
     --faint: #666c77;
     --accent-soft: rgba(255, 90, 79, 0.12);
     --accent-text: #c2332a;
+    --destructive-soft: rgba(255, 90, 79, 0.12);
+    --destructive-text: #c2332a;
     --success: #0e7543;
     --success-soft: rgba(14, 117, 67, 0.1);
     --success-line: rgba(14, 117, 67, 0.3);

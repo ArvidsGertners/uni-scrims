@@ -59,7 +59,7 @@ export default async function AdminPage() {
               <CardContent className="flex flex-col gap-4">
                 {!request.fileAvailable ? (
                   // Uploads are not in the backups (ARCHITECTURE §8): after a restore the file can be gone.
-                  <p className="text-[14px] text-accent-text">
+                  <p className="text-[14px] text-destructive-text">
                     Die Datei fehlt (z. B. nach dem Einspielen eines Backups). Bitte ablehnen, etwa
                     mit „Bitte erneut hochladen“; freigeben geht ohne Datei nicht.
                   </p>

@@ -182,7 +182,7 @@ export function VerificationForm({
           {pending ? "Wird hochgeladen …" : "Zur Prüfung einreichen"}
         </Button>
         {error ? (
-          <p role="alert" className="text-[14px] text-accent-text">
+          <p role="alert" className="text-[14px] text-destructive-text">
             {error}
           </p>
         ) : null}

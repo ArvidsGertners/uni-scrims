@@ -12,7 +12,7 @@ const cardClass = "flex flex-col gap-[18px] rounded-lg border border-border bg-c
 
 function ErrorLine({ error }: { error: string | null }) {
   return error ? (
-    <p role="alert" className="text-[14px] text-accent-text">
+    <p role="alert" className="text-[14px] text-destructive-text">
       {error}
     </p>
   ) : null;

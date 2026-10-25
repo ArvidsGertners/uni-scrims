@@ -97,7 +97,7 @@ function BotDot({ online }: { online: boolean }) {
     <span
       className={cn(
         "inline-flex items-center gap-2 text-[13px] font-semibold",
-        online ? "text-success" : "text-accent-text",
+        online ? "text-success" : "text-destructive-text",
       )}
     >
       <span aria-hidden className="size-2 rounded-full bg-current" />

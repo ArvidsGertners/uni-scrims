@@ -58,7 +58,7 @@ export function ActionForm({
           {submitLabel}
         </Button>
         {state.error ? (
-          <p role="alert" className="text-[14px] text-accent-text">
+          <p role="alert" className="text-[14px] text-destructive-text">
             {state.error}
           </p>
         ) : null}
