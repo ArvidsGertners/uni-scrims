@@ -210,6 +210,72 @@ Den Stand zeigt die Tabelle `Notification` (`status`, `attempts`, `lastError`); 
 
 Discord-IDs kopieren: In Discord unter Einstellungen → Erweitert den Entwicklermodus aktivieren, dann Rechtsklick → "ID kopieren".
 
+## Discord-Hub einrichten (Struktur)
+
+Jeder, der Discord verknüpft, landet automatisch im Hub (§5.1). Damit er dort nicht nur `#general` sieht, bekommt der Hub diese Struktur. Sie wird von Hand angelegt; der Bot braucht dafür keine weiteren Rechte. Die Reihenfolge ist wichtig, vor allem Schritt 5 vor Schritt 6.
+
+| Kategorie | Kanäle | Wer darf schreiben |
+|---|---|---|
+| INFO | `#willkommen`, `#regeln`, `#ankündigungen` | nur „Team“ |
+| HILFE | `#support`, `#feedback` (Feedback zur Plattform) | alle, Slowmode 30 s |
+| COMMUNITY | `#allgemein` | alle, Slowmode 10 s |
+| INTERN (privat) | der Dev-Channel | nur „Team“ und der Bot |
+
+1. **Rolle „Team“** anlegen (Servereinstellungen → Rollen) und dir und den Admins geben, mit „Nachrichten verwalten“ und „Mitglieder timeouten“. Die Rolle des Bots („Uni Scrims“) bleibt, wie sie ist.
+2. **Kategorie INFO** mit den drei Kanälen. In den Berechtigungen der Kategorie für `@everyone`: „Nachrichten senden“, „Nachrichten in Threads senden“ und „Threads erstellen“ (öffentlich und privat) aus, „Reaktionen hinzufügen“ an; für „Team“: „Nachrichten senden“ an. Die Kanäle mit der Kategorie synchronisieren.
+3. **Kategorie HILFE** mit `#support` (Slowmode 30 s) und `#feedback` (Slowmode 30 s), **Kategorie COMMUNITY** mit `#allgemein` (Slowmode 10 s). Keine besonderen Rechte.
+4. **Kategorie INTERN**: für `@everyone` „Kanal ansehen“ aus; für „Team“ an; für die Rolle des Bots „Kanal ansehen“, „Nachrichten senden“ und „Links einbetten“ an. Dann den Dev-Channel hineinziehen und mit der Kategorie synchronisieren. Seine ID bleibt, `DEV_CHANNEL_ID` ändert sich nicht.
+5. **Neuen Einladungslink** auf `#willkommen` erzeugen (Rechtsklick → Leute einladen → Link bearbeiten: läuft nie ab, keine Begrenzung) und `HUB_INVITE_URL` in der `.env` von Production und Entwicklung ersetzen, danach `web` neu starten (`dc up -d web`). Der Link steht im Discord-Knopf auf `/support` und im Hinweis, wenn der Beitritt zum Hub gescheitert ist. **Erst danach** Schritt 6: Einladungen hängen an ihrem Kanal, und löscht man den Kanal des alten Links, führt der Knopf ins Leere.
+6. `#general` und den Standard-Sprachkanal löschen.
+7. **Servereinstellungen:**
+   - Übersicht: Standard-Benachrichtigungen „Nur @Erwähnungen“ (sonst meldet Discord jedem automatisch beigetretenen Mitglied jede Nachricht), Systemnachrichten bei Beitritt aus, Server-Icon `apps/web/public/brand/uniscrims-avatar-512.png`.
+   - Sicherheit: Verifizierungsstufe **niedrig** lassen und **kein Regel-Screening** einschalten, sonst bekommen per `guilds.join` beigetretene Nutzer keine DMs (Punkt 3 unter „Discord-Einrichtung“). Die Community-Funktion von Discord ist nicht nötig.
+8. Die Texte unten in `#willkommen` und `#regeln` posten.
+
+Moderation: Wer im Hub gekickt oder gebannt wird, bekommt keine DMs mehr; die Website zeigt ihm dann den Hinweis zu blockierten DMs. Für Sperren auf der Plattform gibt es den Admin-Bereich.
+
+**`#willkommen`**
+
+```
+**Willkommen bei Uni Scrims!**
+Uni Scrims ist die Scrim-Plattform für Valorant-Teams deutscher Hochschulen: Anfragen aufs Board posten, bei anderen Teams bewerben, die Lobby direkt auf Discord klären. → https://uniscrims.com
+
+**Warum bist du hier?** Beim Verknüpfen deines Discord-Kontos bist du diesem Server beigetreten, damit dir der Bot Bewerbungen, Zusagen und Erinnerungen per DM schicken kann.
+• Erlaube in den Privatsphäre-Einstellungen dieses Servers „Direktnachrichten von Servermitgliedern“.
+• Verlässt du den Server, kommen keine DMs mehr an. Zurück kommst du über https://uniscrims.com/support.
+
+Fragen? → #support
+
+**Welcome to Uni Scrims!**
+Uni Scrims is the scrim platform for Valorant teams of German universities: post requests on the board, apply to other teams, sort out the lobby directly on Discord. → https://uniscrims.com
+
+**Why are you here?** When you linked your Discord account, you joined this server, so the bot can send you applications, confirmations and reminders by DM.
+• In this server's privacy settings, allow "Direct messages from server members".
+• If you leave the server, DMs stop arriving. You can come back through https://uniscrims.com/support.
+
+Questions? → #support
+```
+
+**`#regeln`**
+
+```
+**Regeln**
+1. Bleib respektvoll: keine Beleidigungen, kein Hass, keine Diskriminierung.
+2. Kein Spam und keine Werbung, auch keine Einladungen zu anderen Servern.
+3. Keine persönlichen Daten posten, weder deine noch die anderer.
+4. Ob ein Scrim stattgefunden hat, gebt ihr im Feedback auf der Scrim-Seite an; bei Streit entscheidet ein Admin. Das gehört nicht in den Chat.
+5. Hilfe gibt es in #support oder per Mail an support@uniscrims.com.
+Wer gegen die Regeln verstößt, kann vom Server ausgeschlossen werden. Außerdem gelten die Richtlinien von Discord.
+
+**Rules**
+1. Be respectful: no insults, no hate, no discrimination.
+2. No spam and no advertising, including invites to other servers.
+3. Don't post personal data, neither yours nor anyone else's.
+4. Whether a scrim took place goes into the feedback on the scrim page; in a dispute an admin decides. It doesn't belong in the chat.
+5. Get help in #support or by email to support@uniscrims.com.
+Breaking the rules can get you removed from the server. Discord's guidelines apply as well.
+```
+
 ## Production (VPS)
 
 **Vorher erledigt** (SPEC §9, Punkte 1–4): Impressum geklärt, Datenschutzerklärung geschrieben, AVV mit dem Hoster abgeschlossen, Hoster-Snapshots und -Backups ausgeschaltet (sonst landen Uploads doch in Backups), Ablauf für die Datenauskunft festgelegt.

@@ -993,9 +993,9 @@ Nächtlich `pg_dump` per Cron auf dem Host (`docker/backup.sh`), verschlüsselt 
 
 1. Discord-Application anlegen; OAuth2-Redirect auf `<BETTER_AUTH_URL>/api/auth/callback/discord` (lokal und Production).
 2. Bot-User anlegen. Keine privilegierten Intents nötig.
-3. Hub-Server anlegen, Bot einladen mit `CREATE_INSTANT_INVITE`, `ViewChannel`, `SendMessages`, `EmbedLinks`. Im Hub **kein Regel-Screening** (Membership Screening) und eine **niedrige Verifizierungsstufe**, damit per `guilds.join` hinzugefügte Nutzer sofort DMs bekommen können (nicht verifiziert, in Phase 1 testen).
+3. Hub-Server anlegen, Bot einladen mit `CREATE_INSTANT_INVITE`, `ViewChannel`, `SendMessages`, `EmbedLinks`. Im Hub **kein Regel-Screening** (Membership Screening) und eine **niedrige Verifizierungsstufe**, damit per `guilds.join` hinzugefügte Nutzer sofort DMs bekommen können (nicht verifiziert, in Phase 1 testen). Kategorien, Kanäle, Rechte und die Texte für `#willkommen` und `#regeln` stehen seit dem 25.10.2026 im README („Discord-Hub einrichten“); sie werden von Hand angelegt, der Bot braucht dafür keine weiteren Rechte. `HUB_INVITE_URL` zeigt auf `#willkommen`.
 4. Einladungslink für Team-Server generieren (Scopes `bot` + `applications.commands`, Rechte `ViewChannel`, `SendMessages`, `EmbedLinks`).
-5. Einen privaten Dev-Channel für `DEV_CHANNEL_ID` anlegen.
+5. Einen privaten Dev-Channel für `DEV_CHANNEL_ID` anlegen (im Hub in der privaten Kategorie INTERN).
 
 ### Env-Variablen (`.env.example`)
 
