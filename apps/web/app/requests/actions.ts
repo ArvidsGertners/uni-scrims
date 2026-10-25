@@ -25,6 +25,8 @@ const requestFields = z.object({
   rankMax: z.string(),
   maps: z.array(z.string()),
   note: z.string().optional(),
+  // The team the form was shown for (§5.20).
+  teamId: idSchema,
 });
 
 export async function createRequestAction(_state: ActionState, formData: FormData) {
@@ -37,6 +39,7 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
     rankMax: formField(formData, "rankMax"),
     maps: formData.getAll("maps"),
     note: formField(formData, "note"),
+    teamId: formField(formData, "teamId"),
   });
   if (!parsed.success) return invalidInput;
   const state = await runAction(async () => {
@@ -76,19 +79,22 @@ export async function applyAction(_state: ActionState, formData: FormData) {
   const parsed = z
     .object({
       requestId: idSchema,
+      // The team the request page was shown for (§5.20).
+      teamId: idSchema,
       message: z.string().optional(),
       // Only for the toast text.
       teamName: z.string().max(100).optional(),
     })
     .safeParse({
       requestId: formField(formData, "requestId"),
+      teamId: formField(formData, "teamId"),
       message: formField(formData, "message"),
       teamName: formField(formData, "teamName"),
     });
   if (!parsed.success) return invalidInput;
-  const { requestId, message, teamName } = parsed.data;
+  const { requestId, teamId, message, teamName } = parsed.data;
   const state = await runAction(async () => {
-    await applyToRequest({ userId, requestId, message, now: new Date() });
+    await applyToRequest({ userId, teamId, requestId, message, now: new Date() });
   });
   if (state.done) {
     await setFlash(teamName ? `Bewerbung an ${teamName} gesendet` : "Bewerbung gesendet");

@@ -188,7 +188,7 @@ describe("deleteAccount", () => {
       ...deletedValues(player.id),
       bannedAt: null,
     });
-    expect(await prisma.teamMember.findUnique({ where: { userId: player.id } })).toBeNull();
+    expect(await prisma.teamMember.findFirst({ where: { userId: player.id } })).toBeNull();
     expect(await prisma.teamMember.count({ where: { teamId: team.id } })).toBe(4);
     expect(await prisma.session.count({ where: { userId: player.id } })).toBe(0);
     expect(await prisma.account.count({ where: { userId: player.id } })).toBe(0);
@@ -255,7 +255,7 @@ describe("deleteAccount", () => {
     expect(await getAccount(placeholder.id)).toMatchObject({
       name: "echter.name",
       banned: true,
-      team: null,
+      teams: [],
       deletionProblem: null,
     });
 
@@ -307,6 +307,7 @@ describe("deleteAccount", () => {
     const request = await createOpenRequest(other.captain.id);
     const { application } = await applyToRequest({
       userId: x.captain.id,
+      teamId: x.team.id,
       requestId: request.id,
       message: "Wir spielen gern früher.",
       now: NOW,
@@ -337,7 +338,7 @@ describe("deleteAccount", () => {
       dissolvedAt: NOW,
     });
     for (const member of members) {
-      expect(await prisma.teamMember.findUnique({ where: { userId: member.id } })).toBeNull();
+      expect(await prisma.teamMember.findFirst({ where: { userId: member.id } })).toBeNull();
     }
     expect(await prisma.account.count({ where: { userId: captain.id } })).toBe(0);
   });
@@ -398,7 +399,7 @@ describe("deleteAccount", () => {
       dissolvedAt: NOW,
     });
     for (const member of members) {
-      expect(await prisma.teamMember.findUnique({ where: { userId: member.id } })).toBeNull();
+      expect(await prisma.teamMember.findFirst({ where: { userId: member.id } })).toBeNull();
     }
   });
 
@@ -563,7 +564,7 @@ describe("completeAccount", () => {
       }),
     ).toMatchObject({ accountId: user.id, password: "hash" });
     // The team stays; the next step is confirming the address (§5.8).
-    expect(await prisma.teamMember.findUnique({ where: { userId: user.id } })).toMatchObject({
+    expect(await prisma.teamMember.findFirst({ where: { userId: user.id } })).toMatchObject({
       teamId: team.id,
     });
     await expect(requireUser(user.id)).rejects.toMatchObject({ step: "VERIFY_EMAIL" });
@@ -762,9 +763,15 @@ describe("handOverCaptain", () => {
     expect(await getAccount(captain.id)).toMatchObject({
       setupStep: "COMPLETE_ACCOUNT",
       deletionProblem: expect.any(String),
-      captainCandidates: [{ id: members[0]!.id, name: members[0]!.name }],
+      captainHandovers: [
+        {
+          teamId: team.id,
+          teamName: team.name,
+          candidates: [{ id: members[0]!.id, name: members[0]!.name }],
+        },
+      ],
     });
-    await handOverCaptain({ userId: captain.id, newCaptainId: members[0]!.id });
+    await handOverCaptain({ userId: captain.id, teamId: team.id, newCaptainId: members[0]!.id });
     expect((await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).captainId).toBe(
       members[0]!.id,
     );
@@ -774,15 +781,15 @@ describe("handOverCaptain", () => {
   it("refuses members, banned teams and banned users", async () => {
     const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
     await expect(
-      handOverCaptain({ userId: members[0]!.id, newCaptainId: captain.id }),
+      handOverCaptain({ userId: members[0]!.id, teamId: team.id, newCaptainId: captain.id }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     await prisma.team.update({ where: { id: team.id }, data: { bannedAt: NOW } });
     await expect(
-      handOverCaptain({ userId: captain.id, newCaptainId: members[0]!.id }),
+      handOverCaptain({ userId: captain.id, teamId: team.id, newCaptainId: members[0]!.id }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     const banned = await createUser({ banned: true });
     await expect(
-      handOverCaptain({ userId: banned.id, newCaptainId: captain.id }),
+      handOverCaptain({ userId: banned.id, teamId: team.id, newCaptainId: captain.id }),
     ).rejects.toMatchObject({ code: "BANNED" });
   });
 });

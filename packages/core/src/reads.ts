@@ -5,8 +5,10 @@ import {
   actingCaptainProblem,
   canSeeApplications,
   findOwnTeam,
+  findOwnTeams,
   isCaptainOf,
   isScrimTeam,
+  pickActiveTeam,
   requireUser,
   teamReadyProblem,
 } from "./permissions.ts";
@@ -266,6 +268,9 @@ export async function getRequestForm(input: { userId: string; now: Date }) {
     loadTeamRank(ownTeam.id),
   ]);
   return {
+    /** The team the form posts for: the active one (§5.20). */
+    teamId: ownTeam.id,
+    teamName: ownTeam.name,
     rank,
     /** Where the range of a new request starts: the team rank, without one Iron to Radiant (SPEC N-16). */
     rankRange: rank
@@ -309,6 +314,15 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const ownTeam = await findOwnTeam(user.id);
   const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
   const isOwner = ownTeam?.id === request.teamId;
+  // Created by another of the user's teams: the page offers to switch to see it as owner (§5.20).
+  const otherOwnTeam =
+    !isOwner &&
+    (await prisma.teamMember.findUnique({
+      where: { teamId_userId: { teamId: request.teamId, userId: user.id } },
+      select: { userId: true },
+    }))
+      ? { id: request.team.id, name: request.team.name }
+      : null;
   const showApplications = canSeeApplications(ownTeam?.id, request);
   // Only one of the two ever runs: the creating team sees all applications, others their own.
   const applications = showApplications
@@ -366,6 +380,9 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     id: request.id,
     status: request.status,
     open,
+    /** The team the page shows the request for; its forms act for it (§5.20). */
+    actingTeamId: ownTeam?.id ?? null,
+    otherOwnTeam,
     startsAt: request.startsAt,
     format: request.format,
     rankMin: request.rankMin,
@@ -405,6 +422,29 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
 }
 
 // ─── Scrims ───────────────────────────────────────────────────────────────────
+
+/**
+ * Another of the user's teams that plays the scrim while the active one does not (§5.20): the scrim
+ * page then offers to switch instead of "not found". null otherwise.
+ */
+export async function getOtherOwnScrimTeam(input: { userId: string; scrimId: string }) {
+  const user = await requireUser(input.userId);
+  const scrim = await prisma.scrim.findUnique({
+    where: { id: input.scrimId },
+    select: { hostTeamId: true, guestTeamId: true },
+  });
+  if (!scrim || isScrimTeam((await findOwnTeam(user.id))?.id, scrim)) return null;
+  const membership = await prisma.teamMember.findFirst({
+    where: {
+      userId: user.id,
+      teamId: { in: [scrim.hostTeamId, scrim.guestTeamId] },
+      team: { dissolvedAt: null },
+    },
+    orderBy: [{ joinedAt: "desc" }, { teamId: "asc" }],
+    select: { team: { select: { id: true, name: true } } },
+  });
+  return membership?.team ?? null;
+}
 
 const scrimTeamSelect = {
   id: true,
@@ -661,12 +701,28 @@ export async function getTeamDashboard(input: { userId: string; now: Date }) {
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 /**
- * The own team for the sidebar (§5.15): name, tag and logo, which every signed-in user sees on team
- * cards anyway; null without a team. Like the team page only for active accounts (requireUser).
+ * The own teams for the sidebar (§5.15, §5.20): name, tag and logo, which every signed-in user sees
+ * on team cards anyway, the active one marked, and the limit for „Neues Team erstellen“. Like the
+ * team page only for active accounts (requireUser).
  */
 export async function getNavTeam(userId: string) {
   const user = await requireUser(userId);
-  const team = await findOwnTeam(user.id);
-  if (!team) return null;
-  return { id: team.id, name: team.name, tag: team.tag, logo: await loadTeamLogoInfo(team) };
+  const own = await findOwnTeams(user.id);
+  const active = pickActiveTeam(own, user.activeTeamId);
+  const teams = [];
+  for (const team of [...own].sort((a, b) => a.name.localeCompare(b.name, "de"))) {
+    teams.push({
+      id: team.id,
+      name: team.name,
+      tag: team.tag,
+      logo: await loadTeamLogoInfo(team),
+      active: team === active,
+    });
+  }
+  return {
+    team: teams.find((team) => team.active) ?? null,
+    teams,
+    teamCount: own.length,
+    teamLimit: user.teamLimit,
+  };
 }

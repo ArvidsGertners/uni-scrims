@@ -9,6 +9,7 @@ import {
   type ScrimFormat,
   type ScrimStatus,
   type StaffRole,
+  type TeamLimitStatus,
   type ThemePreference,
   type VerifStatus,
 } from "@uni-scrims/db";
@@ -94,6 +95,13 @@ export const NOTIFICATION_CHANNEL_LABELS: Record<NotifChannel, string> = {
 };
 
 /** States of a review (SPEC P0-2), for the data export; the account page shows the student status. */
+/** Requests for more teams (SPEC N-17). */
+export const TEAM_LIMIT_STATUS_LABELS: Record<TeamLimitStatus, string> = {
+  PENDING: "In Prüfung",
+  APPROVED: "Angenommen",
+  REJECTED: "Abgelehnt",
+};
+
 export const VERIF_STATUS_LABELS: Record<VerifStatus, string> = {
   PENDING: "In Prüfung",
   APPROVED: "Freigegeben",

@@ -1,7 +1,7 @@
 // Data export per button (SPEC N-5, ARCHITECTURE §5.10): everything stored about an account, for
 // the person itself (Art. 15 GDPR). Read-only. Credentials and other people's data stay out: every
 // query selects its columns, so a token or another user's name cannot slip in through a relation.
-import { NotifType, Prisma, VerifStatus, prisma } from "@uni-scrims/db";
+import { NotifType, Prisma, type Rank, VerifStatus, prisma } from "@uni-scrims/db";
 import { CREDENTIAL_PROVIDER } from "./account.ts";
 import {
   FEEDBACK_OUTCOME_LABELS,
@@ -14,11 +14,12 @@ import {
   SCRIM_FORMAT_LABELS,
   SCRIM_STATUS_LABELS,
   STAFF_ROLE_LABELS,
+  TEAM_LIMIT_STATUS_LABELS,
   THEME_LABELS,
   VERIF_STATUS_LABELS,
 } from "./labels.ts";
 import { parseNotificationPayload } from "./notifications.ts";
-import { isCaptainOf, requireAccountUser } from "./permissions.ts";
+import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { RANK_LABELS, loadTeamRank } from "./ranks.ts";
 import { TEAM_LINK_PLATFORMS, teamLinksSelect } from "./team-links.ts";
 import { DISCORD_PROVIDER } from "./users.ts";
@@ -135,9 +136,11 @@ export async function exportAccountData(input: {
           filePath: true,
         },
       });
-      // As findOwnTeam: a membership of a dissolved team does not count (§4).
-      const membership = await tx.teamMember.findUnique({
-        where: { userId: user.id },
+      // As findOwnTeams: a membership of a dissolved team does not count (§4). All teams since
+      // Phase 21 (§5.20).
+      const memberships = await tx.teamMember.findMany({
+        where: { userId: user.id, team: { dissolvedAt: null } },
+        orderBy: [{ joinedAt: "asc" }, { teamId: "asc" }],
         select: {
           role: true,
           joinedAt: true,
@@ -157,8 +160,15 @@ export async function exportAccountData(input: {
           },
         },
       });
-      const team = membership && !membership.team.dissolvedAt ? membership.team : null;
-      const teamRankValue = team ? await loadTeamRank(team.id, tx) : null;
+      // One after the other: the one connection of a transaction runs no parallel queries.
+      const teamRanks: (Rank | null)[] = [];
+      for (const { team } of memberships) teamRanks.push(await loadTeamRank(team.id, tx));
+      const activeTeam = await findOwnTeam(user.id, tx);
+      const teamLimitRequests = await tx.teamLimitRequest.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true, reason: true, status: true, newLimit: true, decidedAt: true },
+      });
       const dissolvedTeams = await tx.team.findMany({
         where: { captainId: user.id, dissolvedAt: { not: null } },
         orderBy: { createdAt: "asc" },
@@ -308,28 +318,39 @@ export async function exportAccountData(input: {
           hochschuleFreitext: review.universityOther,
           dateiGespeichert: filesStored[index],
         })),
-        team:
-          membership && team
-            ? {
-                name: team.name,
-                kürzel: team.tag,
-                // Computed like everywhere (SPEC N-16); null without any rank.
-                rang: teamRankValue && RANK_LABELS[teamRankValue],
-                gesperrtAm: team.bannedAt,
-                // The image itself is team data without personal reference (SPEC N-6).
-                // The last change to either logo (SPEC N-6, N-7).
-                logosGeändertAm: team.logoUpdatedAt,
-                logos: team.logos.map((logo) => LOGO_BACKGROUND_LABELS[logo.background]),
-                // Per platform the address or null (SPEC N-15).
-                externeLinks: Object.fromEntries(
-                  TEAM_LINK_PLATFORMS.map((platform) => [platform.key, team[platform.field]]),
-                ),
-                linksGeändertAm: team.linksUpdatedAt,
-                rolle: MEMBER_ROLE_LABELS[membership.role],
-                captain: isCaptainOf(user, team),
-                beigetretenAm: membership.joinedAt,
-              }
-            : null,
+        teams: memberships.map(({ team, role, joinedAt }, index) => {
+          const rank = teamRanks[index];
+          return {
+            name: team.name,
+            kürzel: team.tag,
+            // Computed like everywhere (SPEC N-16); null without any rank.
+            rang: rank ? RANK_LABELS[rank] : null,
+            gesperrtAm: team.bannedAt,
+            // The image itself is team data without personal reference (SPEC N-6).
+            // The last change to either logo (SPEC N-6, N-7).
+            logosGeändertAm: team.logoUpdatedAt,
+            logos: team.logos.map((logo) => LOGO_BACKGROUND_LABELS[logo.background]),
+            // Per platform the address or null (SPEC N-15).
+            externeLinks: Object.fromEntries(
+              TEAM_LINK_PLATFORMS.map((platform) => [platform.key, team[platform.field]]),
+            ),
+            linksGeändertAm: team.linksUpdatedAt,
+            rolle: MEMBER_ROLE_LABELS[role],
+            captain: isCaptainOf(user, team),
+            beigetretenAm: joinedAt,
+          };
+        }),
+        // SPEC N-17: the team the pages show, the limit and the requests for more teams.
+        aktivesTeam: activeTeam?.name ?? null,
+        teamLimit: user.teamLimit,
+        teamAnträge: teamLimitRequests.map((request) => ({
+          gestelltAm: request.createdAt,
+          begründung: request.reason,
+          status: TEAM_LIMIT_STATUS_LABELS[request.status],
+          neuesLimit: request.newLimit,
+          // Only when, never who decided.
+          entschiedenAm: request.decidedAt,
+        })),
         aufgelösteTeams: dissolvedTeams.map((team) => ({
           name: team.name,
           kürzel: team.tag,

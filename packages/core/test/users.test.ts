@@ -115,7 +115,7 @@ describe("getCurrentUser", () => {
 });
 
 describe("listSeedUsers", () => {
-  it("lists the seed users by id with their team", async () => {
+  it("lists the seed users by id with their teams", async () => {
     const id = `seed-${NOW.getTime()}-a`;
     await prisma.user.create({
       data: { id, name: "Seed A", email: `${id}@users.uniscrims.invalid` },
@@ -130,8 +130,8 @@ describe("listSeedUsers", () => {
       seed.id.startsWith(`seed-${NOW.getTime()}`),
     );
     expect(seeds).toEqual([
-      { id, name: "Seed A", teamName: null },
-      { id: memberId, name: "Seed B", teamName: team.name },
+      { id, name: "Seed A", teamNames: [] },
+      { id: memberId, name: "Seed B", teamNames: [team.name] },
     ]);
   });
 });

@@ -171,6 +171,7 @@ describe("computed team rank", () => {
     expect((await detail(unranked.captain.id))?.outOfRange).toBe(false);
     const { outOfRange } = await applyToRequest({
       userId: unranked.captain.id,
+      teamId: unranked.team.id,
       requestId: request.id,
       now: NOW,
     });
@@ -184,8 +185,14 @@ describe("computed team rank", () => {
     const low = await createReadyTeam({ rank: Rank.IRON });
     expect((await detail(low.captain.id))?.outOfRange).toBe(true);
     expect(
-      (await applyToRequest({ userId: low.captain.id, requestId: request.id, now: NOW }))
-        .outOfRange,
+      (
+        await applyToRequest({
+          userId: low.captain.id,
+          teamId: low.team.id,
+          requestId: request.id,
+          now: NOW,
+        })
+      ).outOfRange,
     ).toBe(true);
   });
 });

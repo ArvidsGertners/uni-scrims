@@ -102,12 +102,20 @@ const teamNames = {
   guestTeam: { select: { name: true } },
 } as const;
 
-/** Either team until the start; under LATE_CANCEL before the start it counts as late (Flow C). */
-export async function cancelScrim(input: { userId: string; scrimId: string; now: Date }) {
+/**
+ * Either team until the start; under LATE_CANCEL before the start it counts as late (Flow C).
+ * `teamId` is the team the scrim page was shown for (§5.20).
+ */
+export async function cancelScrim(input: {
+  userId: string;
+  teamId: string;
+  scrimId: string;
+  now: Date;
+}) {
   return prisma.$transaction(async (tx) => {
     const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId }, include: teamNames });
     if (!scrim) throw scrimNotFound();
-    const { team } = await requireScrimActingCaptain(input.userId, scrim, tx);
+    const { team } = await requireScrimActingCaptain(input.userId, input.teamId, scrim, tx);
     const lateCancel = isLateCancel(scrim.startsAt, input.now);
     if (!(await cancelScheduledScrim(tx, scrim, team.id, lateCancel, input.now))) {
       throw new DomainError("CONFLICT", "Der Scrim kann nicht mehr abgesagt werden.");
@@ -204,8 +212,9 @@ async function evaluate(
  * After the deadline the sweeper evaluates, so late answers cannot change a result that is
  * already due.
  */
+/** Feedback of `teamId`, the team the scrim page was shown for (§5.20). */
 export async function submitFeedback(
-  input: FeedbackInput & { userId: string; scrimId: string; now: Date },
+  input: FeedbackInput & { userId: string; teamId: string; scrimId: string; now: Date },
 ) {
   const { now } = input;
   try {
@@ -216,7 +225,7 @@ export async function submitFeedback(
       await lockScrim(tx, input.scrimId);
       const scrim = await tx.scrim.findUnique({ where: { id: input.scrimId } });
       if (!scrim) throw scrimNotFound();
-      const { user, team } = await requireScrimActingCaptain(input.userId, scrim, tx);
+      const { user, team } = await requireScrimActingCaptain(input.userId, input.teamId, scrim, tx);
       const data = parseInput(feedbackInputSchema, {
         outcome: input.outcome,
         rating: input.rating,

@@ -26,6 +26,7 @@ import {
   submitFeedback,
 } from "../src/index.ts";
 import {
+  activeTeamId,
   NOW,
   REQUEST_STARTS_AT,
   SOON,
@@ -87,7 +88,7 @@ describe("cancelScrim", () => {
   it("cancels early without counting as late and notifies the other team", async () => {
     const { host, guest, request, scrim } = await bookScrim();
     await expect(
-      cancelScrim({ userId: guest.captain.id, scrimId: scrim.id, now: NOW }),
+      cancelScrim({ userId: guest.captain.id, teamId: guest.team.id, scrimId: scrim.id, now: NOW }),
     ).resolves.toEqual({ lateCancel: false });
 
     expect(await prisma.scrim.findUnique({ where: { id: scrim.id } })).toMatchObject({
@@ -117,13 +118,14 @@ describe("cancelScrim", () => {
   it("marks cancellations less than 24 h before the start as late", async () => {
     const { host, scrim } = await bookScrim(SOON);
     await expect(
-      cancelScrim({ userId: host.captain.id, scrimId: scrim.id, now: NOW }),
+      cancelScrim({ userId: host.captain.id, teamId: host.team.id, scrimId: scrim.id, now: NOW }),
     ).resolves.toEqual({ lateCancel: true });
   });
 
   it("only works before the start, once, and for the captains of both teams", async () => {
     const { host, guest, scrim } = await bookScrim();
-    const cancel = (userId: string, now = NOW) => cancelScrim({ userId, scrimId: scrim.id, now });
+    const cancel = async (userId: string, now = NOW) =>
+      cancelScrim({ userId, teamId: await activeTeamId(userId), scrimId: scrim.id, now });
     const outsider = await createReadyTeam();
     await expect(cancel(outsider.captain.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(cancel(guest.members[0]!.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -144,7 +146,10 @@ describe("submitFeedback", () => {
     outcome: FeedbackOutcome,
     rating: number | null = null,
     now = AFTER_START,
-  ) => submitFeedback({ userId, scrimId, outcome, rating, now });
+  ) =>
+    activeTeamId(userId).then((teamId) =>
+      submitFeedback({ userId, teamId, scrimId, outcome, rating, now }),
+    );
 
   it("accepts feedback from the start time and evaluates once both teams answered", async () => {
     const { host, guest, scrim } = await bookScrim();
@@ -222,7 +227,12 @@ describe("submitFeedback", () => {
     });
 
     const cancelled = await bookScrim();
-    await cancelScrim({ userId: cancelled.host.captain.id, scrimId: cancelled.scrim.id, now: NOW });
+    await cancelScrim({
+      userId: cancelled.host.captain.id,
+      teamId: cancelled.host.team.id,
+      scrimId: cancelled.scrim.id,
+      now: NOW,
+    });
     await expect(
       feedback(cancelled.guest.captain.id, cancelled.scrim.id, PLAYED, 5),
     ).rejects.toMatchObject({ code: "CONFLICT", message: "Der Scrim wurde abgesagt." });
@@ -258,6 +268,7 @@ describe("sweeper steps", () => {
     const playedOnly = await bookScrim();
     await submitFeedback({
       userId: playedOnly.host.captain.id,
+      teamId: playedOnly.host.team.id,
       scrimId: playedOnly.scrim.id,
       outcome: PLAYED,
       rating: 5,
@@ -266,6 +277,7 @@ describe("sweeper steps", () => {
     const noShowOnly = await bookScrim();
     await submitFeedback({
       userId: noShowOnly.guest.captain.id,
+      teamId: noShowOnly.guest.team.id,
       scrimId: noShowOnly.scrim.id,
       outcome: OPPONENT_NO_SHOW,
       now: AFTER_START,
@@ -302,12 +314,13 @@ describe("resolveDispute", () => {
 
   async function dispute() {
     const booked = await bookScrim();
-    for (const [captain, outcome] of [
-      [booked.host.captain, PLAYED],
-      [booked.guest.captain, OPPONENT_NO_SHOW],
+    for (const [side, outcome] of [
+      [booked.host, PLAYED],
+      [booked.guest, OPPONENT_NO_SHOW],
     ] as const) {
       await submitFeedback({
-        userId: captain.id,
+        userId: side.captain.id,
+        teamId: side.team.id,
         scrimId: booked.scrim.id,
         outcome,
         rating: outcome === PLAYED ? 3 : null,
@@ -410,11 +423,17 @@ describe("retireTeamActivity", () => {
     const { host: x, guest: opponent, scrim } = await bookScrim(SOON);
     const applicant = await createReadyTeam();
     const ownRequest = await createOpenRequest(x.captain.id);
-    await applyToRequest({ userId: applicant.captain.id, requestId: ownRequest.id, now: NOW });
+    await applyToRequest({
+      userId: applicant.captain.id,
+      teamId: applicant.team.id,
+      requestId: ownRequest.id,
+      now: NOW,
+    });
     const elsewhere = await createReadyTeam();
     const foreignRequest = await createOpenRequest(elsewhere.captain.id);
     const { application } = await applyToRequest({
       userId: x.captain.id,
+      teamId: x.team.id,
       requestId: foreignRequest.id,
       now: NOW,
     });
@@ -454,9 +473,11 @@ describe("retireTeamActivity", () => {
     await prisma.teamMember.deleteMany({
       where: { teamId: x.team.id, userId: { not: x.captain.id } },
     });
-    await expect(leaveTeam({ userId: x.captain.id, now: NOW })).resolves.toEqual({
-      dissolved: true,
-    });
+    await expect(leaveTeam({ userId: x.captain.id, teamId: x.team.id, now: NOW })).resolves.toEqual(
+      {
+        dissolved: true,
+      },
+    );
     expect(await prisma.scrim.findUnique({ where: { id: scrim.id } })).toMatchObject({
       status: ScrimStatus.CANCELLED,
       cancelledByTeamId: x.team.id,
@@ -489,16 +510,26 @@ describe("retireTeamActivity", () => {
       const leaving = await createReadyTeam();
       const other = await createReadyTeam();
       const foreignRequest = await createOpenRequest(other.captain.id);
-      await applyToRequest({ userId: leaving.captain.id, requestId: foreignRequest.id, now: NOW });
+      await applyToRequest({
+        userId: leaving.captain.id,
+        teamId: leaving.team.id,
+        requestId: foreignRequest.id,
+        now: NOW,
+      });
       await prisma.teamMember.deleteMany({
         where: { teamId: leaving.team.id, userId: { not: leaving.captain.id } },
       });
 
       const results = await Promise.allSettled([
-        applyToRequest({ userId: applicant.captain.id, requestId: ownRequest.id, now: NOW }),
-        leaveTeam({ userId: host.captain.id, now: NOW }),
+        applyToRequest({
+          userId: applicant.captain.id,
+          teamId: applicant.team.id,
+          requestId: ownRequest.id,
+          now: NOW,
+        }),
+        leaveTeam({ userId: host.captain.id, teamId: host.team.id, now: NOW }),
         deleteRequest({ userId: other.captain.id, requestId: foreignRequest.id, now: NOW }),
-        leaveTeam({ userId: leaving.captain.id, now: NOW }),
+        leaveTeam({ userId: leaving.captain.id, teamId: leaving.team.id, now: NOW }),
       ]);
       // Domain errors (e.g. "nicht mehr offen") are fine; a deadlock is not.
       for (const result of results) {
@@ -525,6 +556,7 @@ describe("retireTeamActivity", () => {
     const ownRequest = await createOpenRequest(x.captain.id);
     const { application: received } = await applyToRequest({
       userId: applicant.captain.id,
+      teamId: applicant.team.id,
       requestId: ownRequest.id,
       now: NOW,
     });
@@ -532,6 +564,7 @@ describe("retireTeamActivity", () => {
     const foreignRequest = await createOpenRequest(elsewhere.captain.id);
     const { application: sent } = await applyToRequest({
       userId: x.captain.id,
+      teamId: x.team.id,
       requestId: foreignRequest.id,
       now: NOW,
     });

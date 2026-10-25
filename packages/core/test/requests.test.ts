@@ -25,6 +25,7 @@ import {
   SOON,
   SOON_STARTS_AT,
   createOpenRequest,
+  activeTeamId,
   createReadyTeam,
   createTeamWithMembers,
 } from "./helpers.ts";
@@ -32,7 +33,8 @@ import {
 const HOUR = 60 * 60 * 1000;
 
 async function apply(captainId: string, requestId: string, message?: string) {
-  return applyToRequest({ userId: captainId, requestId, message, now: NOW });
+  const teamId = await activeTeamId(captainId);
+  return applyToRequest({ userId: captainId, teamId, requestId, message, now: NOW });
 }
 
 describe("createRequest", () => {
@@ -67,7 +69,7 @@ describe("createRequest", () => {
 
   it("does not count a verified coach as the fifth player (SPEC N-1)", async () => {
     const { captain, members } = await createReadyTeam();
-    await prisma.teamMember.update({
+    await prisma.teamMember.updateMany({
       where: { userId: members[0]!.id },
       data: { role: MemberRole.COACH },
     });
@@ -75,7 +77,7 @@ describe("createRequest", () => {
       code: "FORBIDDEN",
       message: "Euer Team hat noch keine 5 verifizierten Spieler.",
     });
-    await prisma.teamMember.update({
+    await prisma.teamMember.updateMany({
       where: { userId: members[0]!.id },
       data: { role: MemberRole.SUBSTITUTE },
     });
@@ -217,7 +219,12 @@ describe("applyToRequest", () => {
     const guest = await createReadyTeam();
     const request = await createOpenRequest(host.captain.id);
     await expect(
-      applyToRequest({ userId: guest.captain.id, requestId: request.id, now: REQUEST_STARTS_AT }),
+      applyToRequest({
+        userId: guest.captain.id,
+        teamId: guest.team.id,
+        requestId: request.id,
+        now: REQUEST_STARTS_AT,
+      }),
     ).rejects.toMatchObject({ code: "CONFLICT" });
     await deleteRequest({ userId: host.captain.id, requestId: request.id, now: NOW });
     await expect(apply(guest.captain.id, request.id)).rejects.toMatchObject({ code: "CONFLICT" });
@@ -406,7 +413,7 @@ describe("confirmApplication", () => {
     await prisma.user.update({ where: { id: guest.members[0]!.id }, data: { verifiedAt: NOW } });
     // A verified coach does not count either (SPEC N-1).
     const guestRole = (role: MemberRole) =>
-      prisma.teamMember.update({ where: { userId: guest.members[0]!.id }, data: { role } });
+      prisma.teamMember.updateMany({ where: { userId: guest.members[0]!.id }, data: { role } });
     await guestRole(MemberRole.COACH);
     await expect(confirm()).rejects.toMatchObject({
       code: "CONFLICT",

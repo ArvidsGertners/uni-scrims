@@ -392,7 +392,9 @@ export default async function TeamPage() {
                 ? "Du bist das einzige Mitglied. Das Team wird aufgelöst. Fortfahren?"
                 : "Team wirklich verlassen?"
             }
-          />
+          >
+            <input type="hidden" name="teamId" value={team.id} />
+          </ActionForm>
         )}
 
         {me && me.status !== "VERIFIED" && me.needsVerification ? (

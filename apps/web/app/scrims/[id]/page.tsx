@@ -48,7 +48,12 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
             {formatDateTime(scrim.feedbackDeadline)}.
           </p>
         </div>
-        <FeedbackForm scrimId={scrim.id} outcomes={OUTCOMES} ratings={RATINGS} />
+        <FeedbackForm
+          scrimId={scrim.id}
+          teamId={scrim.ownTeam.id}
+          outcomes={OUTCOMES}
+          ratings={RATINGS}
+        />
       </PageMain>
     );
   }
@@ -151,6 +156,8 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
                     }
                   >
                     <input type="hidden" name="scrimId" value={scrim.id} />
+                    {/* The team the page was shown for (§5.20). */}
+                    <input type="hidden" name="teamId" value={scrim.ownTeam.id} />
                   </ActionForm>
                 </>
               ) : (

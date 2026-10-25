@@ -60,11 +60,17 @@ describe("banTeam", () => {
     const { host: banned, guest: opponent, scrim } = await bookScrim(SOON);
     const applicant = await createReadyTeam();
     const ownRequest = await createOpenRequest(banned.captain.id);
-    await applyToRequest({ userId: applicant.captain.id, requestId: ownRequest.id, now: NOW });
+    await applyToRequest({
+      userId: applicant.captain.id,
+      teamId: applicant.team.id,
+      requestId: ownRequest.id,
+      now: NOW,
+    });
     const other = await createReadyTeam();
     const foreignRequest = await createOpenRequest(other.captain.id);
     const { application } = await applyToRequest({
       userId: banned.captain.id,
+      teamId: banned.team.id,
       requestId: foreignRequest.id,
       now: NOW,
     });
@@ -133,7 +139,7 @@ describe("banUser", () => {
       bannedAt: NOW,
     });
     expect(await prisma.session.count({ where: { userId: player.id } })).toBe(0);
-    expect(await prisma.teamMember.findUnique({ where: { userId: player.id } })).toBeNull();
+    expect(await prisma.teamMember.findFirst({ where: { userId: player.id } })).toBeNull();
     expect(await prisma.team.findUnique({ where: { id: team.id } })).toMatchObject({
       bannedAt: null,
     });
@@ -152,9 +158,9 @@ describe("banUser", () => {
       bannedAt: NOW,
       captainId: host.captain.id,
     });
-    expect(
-      await prisma.teamMember.findUnique({ where: { userId: host.captain.id } }),
-    ).toMatchObject({ teamId: host.team.id });
+    expect(await prisma.teamMember.findFirst({ where: { userId: host.captain.id } })).toMatchObject(
+      { teamId: host.team.id },
+    );
     expect(await prisma.scrim.findUnique({ where: { id: scrim.id } })).toMatchObject({
       status: ScrimStatus.CANCELLED,
       lateCancel: false,
@@ -269,12 +275,14 @@ describe("searchModerationTargets", () => {
         image: null,
         discordId: captain.discordId,
         banned: false,
-        team: { id: team.id, name: team.name, isCaptain: true },
+        teams: [{ id: team.id, name: team.name, isCaptain: true }],
       },
     ]);
     const player = members[0]!;
     const byId = await search(player.discordId);
-    expect(byId.users).toMatchObject([{ id: player.id, team: { id: team.id, isCaptain: false } }]);
+    expect(byId.users).toMatchObject([
+      { id: player.id, teams: [{ id: team.id, isCaptain: false }] },
+    ]);
     // Only the exact ID, not a part of it.
     expect((await search(player.discordId.slice(0, -1))).users).not.toContainEqual(
       expect.objectContaining({ id: player.id }),
@@ -301,7 +309,7 @@ describe("searchModerationTargets", () => {
     }
 
     const result = await search(marker);
-    expect(result.users).toMatchObject([{ id: banned.id, banned: true, team: null }]);
+    expect(result.users).toMatchObject([{ id: banned.id, banned: true, teams: [] }]);
     expect(result.teams).toEqual([
       {
         id: active.team.id,

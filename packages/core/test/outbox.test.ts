@@ -439,7 +439,12 @@ describe("deliverNotification: personal notifications (§5.17)", () => {
     const guest = await createReadyTeam();
     const request = await createOpenRequest(host.captain.id);
     await choose(host.members[0]!.id, NotifType.APPLICATION_RECEIVED, { discord: true });
-    await applyToRequest({ userId: guest.captain.id, requestId: request.id, now: NOW });
+    await applyToRequest({
+      userId: guest.captain.id,
+      teamId: guest.team.id,
+      requestId: request.id,
+      now: NOW,
+    });
     const received = await find({
       type: NotifType.APPLICATION_RECEIVED,
       targetTeamId: host.team.id,
@@ -579,7 +584,12 @@ describe("deliverNotification: relevance (§6.1)", () => {
     const second = await createReadyTeam();
     const request = await createOpenRequest(host.captain.id);
     for (const team of [first, second]) {
-      await applyToRequest({ userId: team.captain.id, requestId: request.id, now: NOW });
+      await applyToRequest({
+        userId: team.captain.id,
+        teamId: team.team.id,
+        requestId: request.id,
+        now: NOW,
+      });
     }
     const received = await prisma.notification.findMany({
       where: { requestId: request.id, type: NotifType.APPLICATION_RECEIVED },
@@ -620,6 +630,7 @@ describe("deliverNotification: relevance (§6.1)", () => {
     const { host, guest, scrim } = await bookScrim();
     await submitFeedback({
       userId: host.captain.id,
+      teamId: host.team.id,
       scrimId: scrim.id,
       outcome: FeedbackOutcome.PLAYED,
       rating: 4,
@@ -645,6 +656,7 @@ describe("deliverNotification: relevance (§6.1)", () => {
     for (const team of [host, guest]) {
       await submitFeedback({
         userId: team.captain.id,
+        teamId: team.team.id,
         scrimId: scrim.id,
         outcome: FeedbackOutcome.WE_COULD_NOT,
         now: AFTER_START,
@@ -658,7 +670,12 @@ describe("deliverNotification: relevance (§6.1)", () => {
     const host = await createReadyTeam();
     const applicant = await createReadyTeam();
     const request = await createOpenRequest(host.captain.id);
-    await applyToRequest({ userId: applicant.captain.id, requestId: request.id, now: NOW });
+    await applyToRequest({
+      userId: applicant.captain.id,
+      teamId: applicant.team.id,
+      requestId: request.id,
+      now: NOW,
+    });
     await expireRequests(REQUEST_STARTS_AT);
     const expired = await find({ requestId: request.id, type: NotifType.REQUEST_EXPIRED });
     await prisma.team.update({ where: { id: applicant.team.id }, data: { dissolvedAt: NOW } });
@@ -669,7 +686,12 @@ describe("deliverNotification: relevance (§6.1)", () => {
     const host = await createReadyTeam();
     const applicant = await createReadyTeam();
     const request = await createOpenRequest(host.captain.id);
-    await applyToRequest({ userId: applicant.captain.id, requestId: request.id, now: NOW });
+    await applyToRequest({
+      userId: applicant.captain.id,
+      teamId: applicant.team.id,
+      requestId: request.id,
+      now: NOW,
+    });
     await expireRequests(REQUEST_STARTS_AT);
     const expired = await find({ requestId: request.id, type: NotifType.REQUEST_EXPIRED });
     expect(await send(expired.id, REQUEST_STARTS_AT)).toBe("SENT");
@@ -717,6 +739,7 @@ describe("deliverNotification: results (§6.2)", () => {
       const cancelDuringSend: Deliver = async () => {
         await cancelScrim({
           userId: host.captain.id,
+          teamId: host.team.id,
           scrimId: scrim.id,
           now: reminder.scheduledFor,
         });

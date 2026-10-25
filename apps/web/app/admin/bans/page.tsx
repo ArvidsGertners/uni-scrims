@@ -82,23 +82,17 @@ export default async function BansPage({
                   <span className="text-muted-foreground">Discord-ID {user.discordId}</span>
                   {user.banned ? <Badge variant="accent">Gesperrt</Badge> : null}
                 </p>
-                {user.team ? (
-                  <p>
-                    {user.team.isCaptain ? "Captain" : "Mitglied"} von {user.team.name}
+                {user.teams.map((team) => (
+                  <p key={team.id}>
+                    {team.isCaptain ? "Captain" : "Mitglied"} von {team.name}
                   </p>
-                ) : null}
+                ))}
                 {user.banned ? null : (
                   <ActionForm
                     action={banUserAction}
                     submitLabel="Nutzer sperren"
                     variant="destructive"
-                    confirmText={
-                      user.team?.isCaptain
-                        ? `${user.name} sperren? Als Captain wird auch das Team ${user.team.name} gesperrt: ${TEAM_BAN_CONSEQUENCES}`
-                        : user.team
-                          ? `${user.name} sperren? Die Person wird abgemeldet und aus ${user.team.name} entfernt.`
-                          : `${user.name} sperren? Die Person wird abgemeldet.`
-                    }
+                    confirmText={banUserConfirmText(user)}
                   >
                     <input type="hidden" name="userId" value={user.id} />
                   </ActionForm>
@@ -208,4 +202,22 @@ export default async function BansPage({
       ) : null}
     </AdminShell>
   );
+}
+
+/** What a user ban does to each of the user's teams (SPEC N-17). */
+function banUserConfirmText(user: {
+  name: string;
+  teams: { name: string; isCaptain: boolean }[];
+}): string {
+  const names = (teams: { name: string }[]) => teams.map((team) => team.name).join(", ");
+  const captainOf = user.teams.filter((team) => team.isCaptain);
+  const memberOf = user.teams.filter((team) => !team.isCaptain);
+  const parts = [`${user.name} sperren? Die Person wird abgemeldet.`];
+  if (memberOf.length > 0) parts.push(`Sie wird aus ${names(memberOf)} entfernt.`);
+  if (captainOf.length > 0) {
+    parts.push(
+      `Als Captain ${captainOf.length === 1 ? "wird auch das Team" : "werden auch die Teams"} ${names(captainOf)} gesperrt: ${TEAM_BAN_CONSEQUENCES}`,
+    );
+  }
+  return parts.join(" ");
 }

@@ -182,11 +182,13 @@ export async function setMemberRoleAction(_state: ActionState, formData: FormDat
   );
 }
 
-export async function leaveTeamAction(_state: ActionState, _formData: FormData) {
+export async function leaveTeamAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  if (!teamId.success) return invalidInput;
   let dissolved = false;
   const state = await runAction(async () => {
-    ({ dissolved } = await leaveTeam({ userId, now: new Date() }));
+    ({ dissolved } = await leaveTeam({ userId, teamId: teamId.data, now: new Date() }));
   });
   if (state.done) {
     await setFlash(dissolved ? "Du hast das Team aufgelöst" : "Du hast das Team verlassen");

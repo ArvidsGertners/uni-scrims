@@ -4,9 +4,9 @@ import { randomUUID } from "node:crypto";
 import { VerifStatus, prisma } from "@uni-scrims/db";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
-import { lockRequest, lockTeam, lockUser } from "./locks.ts";
+import { lockTeam, lockUser } from "./locks.ts";
 import {
-  findOwnTeam,
+  findOwnTeams,
   isCaptainOf,
   requireAccountUser,
   requireActiveAccountUser,
@@ -19,7 +19,7 @@ import {
   realNameSchema,
   themePreferenceSchema,
 } from "./schemas.ts";
-import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
+import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, lockRetirements } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
 import { avatarVersion } from "./users.ts";
 import {
@@ -72,9 +72,9 @@ function realNameLocked(user: { verifiedAt: Date | null }, hasPendingRequest: bo
  */
 export async function getAccount(userId: string) {
   const user = await requireAccountUser(userId);
-  const team = await findOwnTeam(user.id);
-  const [memberCount, student, discordId, credential] = await Promise.all([
-    team ? prisma.teamMember.count({ where: { teamId: team.id } }) : 0,
+  const ownTeams = await findOwnTeams(user.id);
+  const [memberCounts, student, discordId, credential] = await Promise.all([
+    Promise.all(ownTeams.map((team) => prisma.teamMember.count({ where: { teamId: team.id } }))),
     readStudentStatus(user),
     getDiscordId(user.id),
     prisma.account.findFirst({
@@ -83,7 +83,11 @@ export async function getAccount(userId: string) {
     }),
   ]);
   const latestStatus = student.latest?.status;
-  const deletionProblem = accountDeletionProblem(user, team, memberCount);
+  // Each team on its own (SPEC N-17): the role must be handed over in every team that blocks.
+  const blocking = ownTeams.filter((team, index) =>
+    accountDeletionProblem(user, team, memberCounts[index]!),
+  );
+  const deletionProblem = blocking.length > 0 ? TRANSFER_CAPTAIN_FIRST : null;
   const setupStep = accountSetupStep(user, discordId !== null);
   return {
     name: user.name,
@@ -113,23 +117,34 @@ export async function getAccount(userId: string) {
                 : ("NONE" as const),
           university: student.latest?.university ?? null,
         },
-    team: team ? { name: team.name, isCaptain: isCaptainOf(user, team) } : null,
+    /** All own teams (SPEC N-17); a captain's team is dissolved by the deletion, others are left. */
+    teams: ownTeams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      isCaptain: isCaptainOf(user, team),
+      blocksDeletion: blocking.includes(team),
+    })),
     /** null if the account can be deleted now, otherwise why not. */
     deletionProblem,
     /**
-     * Who can take over the captain role from the account page: only while the account is
-     * incomplete and the role blocks the deletion, since the team page needs a complete account.
+     * Who can take over the captain role from the account page, per blocking team: only while the
+     * account is incomplete, since the team page needs a complete account.
      */
-    captainCandidates:
-      team && deletionProblem && setupStep
-        ? await prisma.teamMember
-            .findMany({
-              where: { teamId: team.id, userId: { not: user.id } },
-              orderBy: { joinedAt: "asc" },
-              select: { user: { select: { id: true, name: true } } },
-            })
-            .then((rows) => rows.map((row) => row.user))
-        : [],
+    captainHandovers: setupStep
+      ? await Promise.all(
+          blocking.map(async (team) => ({
+            teamId: team.id,
+            teamName: team.name,
+            candidates: await prisma.teamMember
+              .findMany({
+                where: { teamId: team.id, userId: { not: user.id } },
+                orderBy: { joinedAt: "asc" },
+                select: { user: { select: { id: true, name: true } } },
+              })
+              .then((rows) => rows.map((row) => row.user)),
+          })),
+        )
+      : [],
   };
 }
 
@@ -242,10 +257,10 @@ export async function deleteAccount(input: {
 }): Promise<void> {
   const user = await requireAccountUser(input.userId);
   const files = await prisma.$transaction(async (tx) => {
-    // Team before user (§4), in the same order as leaveTeam, joinTeam and banUser, so they cannot
+    // Teams before user (§4), in id order, as in leaveTeam, joinTeam and banUser, so they cannot
     // deadlock.
-    const ownTeam = await findOwnTeam(user.id, tx);
-    if (ownTeam) await lockTeam(tx, ownTeam.id);
+    const lockedIds = (await findOwnTeams(user.id, tx)).map((team) => team.id).sort();
+    for (const id of lockedIds) await lockTeam(tx, id);
 
     // Updating first locks the user row; bannedAt and deletedAt are then the committed state, so a
     // ban that lands meanwhile cannot be dodged by deleting the Discord link, and a second deletion
@@ -260,35 +275,39 @@ export async function deleteAccount(input: {
     }
 
     // Read again under the lock: the role or the members may have changed meanwhile.
-    const team = await findOwnTeam(user.id, tx);
-    if (team && team.id !== ownTeam?.id) {
+    const teams = await findOwnTeams(user.id, tx);
+    if (teams.some((team) => !lockedIds.includes(team.id))) {
       // Joined another team in between; that one is not locked.
       throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
     }
-    let dissolve = false;
-    if (team) {
+    // Teams the user captains are dissolved, the others are left (SPEC N-17).
+    const dissolved: string[] = [];
+    for (const team of teams) {
       const memberCount = await tx.teamMember.count({ where: { teamId: team.id } });
       const problem = accountDeletionProblem(user, team, memberCount);
       if (problem) throw new DomainError("CONFLICT", problem);
-      dissolve = isCaptainOf(user, team);
+      if (isCaptainOf(user, team)) dissolved.push(team.id);
     }
 
-    // Requests next, all in id order (§4): those with a note by the user and those the dissolution
-    // retires. The note is free text the user wrote, often with contact details. Application
-    // messages have no author and stay with the team.
+    // Requests next, all in id order, then the scrims of the dissolved teams (§4): requests with a
+    // note by the user and those the dissolutions retire. The note is free text the user wrote,
+    // often with contact details. Application messages have no author and stay with the team.
     const noted = await tx.scrimRequest.findMany({
       where: { createdById: user.id, note: { not: null } },
       select: { id: true },
     });
     const notedIds = noted.map(({ id }) => id);
-    const retired = team && dissolve ? await retirementRequestIds(team.id, input.now, tx) : [];
-    for (const id of [...new Set([...notedIds, ...retired])].sort()) await lockRequest(tx, id);
+    await lockRetirements(tx, dissolved, input.now, notedIds);
     await tx.scrimRequest.updateMany({ where: { id: { in: notedIds } }, data: { note: null } });
-    if (team && dissolve) {
-      await dissolveTeam(team.id, input.now, tx);
-    } else if (team) {
-      await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+    for (const team of teams) {
+      if (dissolved.includes(team.id)) {
+        await dissolveTeam(team.id, input.now, tx);
+      } else {
+        await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+      }
     }
+    // Requests for more teams hold free text (SPEC N-17).
+    await tx.teamLimitRequest.deleteMany({ where: { userId: user.id } });
 
     const verifications = await tx.verificationRequest.findMany({
       where: { userId: user.id },

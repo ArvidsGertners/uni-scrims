@@ -130,6 +130,13 @@ enum ThemePreference {
   DARK
 }
 
+// Phase 21 (§5.20): a request for more teams.
+enum TeamLimitStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ─── Better Auth ──────────────────────────────────────────────────────────────
 
 model User {
@@ -165,6 +172,11 @@ model User {
   theme            ThemePreference @default(SYSTEM)
   // Phase 20 (§5.19): self-declared Valorant rank, null = none; the team rank is computed from it.
   rank             Rank?
+  // Phase 21 (§5.20): the team the pages show; if it is not an own team, the last joined one counts.
+  activeTeamId     String?
+  activeTeam       Team?           @relation("UserActiveTeam", fields: [activeTeamId], references: [id], onDelete: SetNull)
+  // Phase 21 (§5.20): how many teams the user may be in; raised by an admin on request.
+  teamLimit        Int             @default(5)
 
   avatar                  UserAvatar?
   notificationPreferences NotificationPreference[]
@@ -176,7 +188,10 @@ model User {
   pendingVerification  VerificationRequest?  @relation("VerificationRequestPendingUser")
   decidedVerifications VerificationRequest[] @relation("VerificationRequestDecidedBy")
   captainOf            Team[]
-  membership           TeamMember?
+  memberships          TeamMember[]
+  teamLimitRequests    TeamLimitRequest[]    @relation("TeamLimitRequestUser")
+  pendingTeamLimit     TeamLimitRequest?     @relation("TeamLimitRequestPendingUser")
+  decidedTeamLimits    TeamLimitRequest[]    @relation("TeamLimitRequestDecidedBy")
   createdRequests      ScrimRequest[]
   submittedFeedback    ScrimFeedback[]
   resolvedScrims       Scrim[]               @relation("ScrimResolvedBy")
@@ -293,6 +308,28 @@ model VerificationRequest {
   @@index([status, createdAt])
 }
 
+// Phase 21 (§5.20): a request for a higher team limit, decided by an admin.
+model TeamLimitRequest {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation("TeamLimitRequestUser", fields: [userId], references: [id])
+  // = userId while PENDING, otherwise null ⇒ at most one open request per user.
+  pendingUserId String?         @unique
+  pendingUser   User?           @relation("TeamLimitRequestPendingUser", fields: [pendingUserId], references: [id])
+  // 10–500 characters.
+  reason        String
+  status        TeamLimitStatus
+  // The new limit, set when approved.
+  newLimit      Int?
+  createdAt     DateTime        @db.Timestamptz(3)
+  decidedAt     DateTime?       @db.Timestamptz(3)
+  decidedById   String?
+  decidedBy     User?           @relation("TeamLimitRequestDecidedBy", fields: [decidedById], references: [id])
+
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
 // State: active (bannedAt and dissolvedAt null) | banned | dissolved. Banned and dissolved are final in the MVP.
 model Team {
   id               String    @id @default(cuid())
@@ -335,6 +372,7 @@ model Team {
   noShows       Scrim[]         @relation("ScrimNoShowTeam")
   feedback      ScrimFeedback[]
   notifications Notification[]
+  activeFor     User[]          @relation("UserActiveTeam")
 
   @@index([captainId])
 }
@@ -365,14 +403,15 @@ model TeamLogo {
 model TeamMember {
   teamId   String
   team     Team       @relation(fields: [teamId], references: [id])
-  // unique ⇒ a user is in at most one team.
-  userId   String     @unique
+  // Up to User.teamLimit teams per user since Phase 21 (counted in core); unique until then.
+  userId   String
   user     User       @relation(fields: [userId], references: [id])
   // Set by the captain; independent of the captain role (Team.captainId).
   role     MemberRole @default(PLAYER)
   joinedAt DateTime   @db.Timestamptz(3)
 
   @@id([teamId, userId])
+  @@index([userId])
 }
 
 model ScrimRequest {

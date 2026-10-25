@@ -30,6 +30,8 @@ import {
   requireTeamReady,
   requireUser,
   requireVerified,
+  decideTeamLimitRequest,
+  listTeamLimitRequests,
   resetStaffTwoFactor,
   resolveDispute,
   searchModerationTargets,
@@ -50,7 +52,7 @@ const NOT_IN_TEAM = { code: "FORBIDDEN", message: "Du bist nicht in diesem Team.
 /** Dissolved the real way: the captain leaves as the last member, which deletes the membership. */
 async function dissolvedTeam() {
   const dissolved = await createTeamWithMembers();
-  await leaveTeam({ userId: dissolved.captain.id, now: NOW });
+  await leaveTeam({ userId: dissolved.captain.id, teamId: dissolved.team.id, now: NOW });
   return dissolved;
 }
 
@@ -198,7 +200,7 @@ describe("requireTeamReady / isTeamReady", () => {
   it("counts substitutes but never coaches (SPEC N-1)", async () => {
     const { team, members } = await createTeamWithMembers({ extraMembers: 4 });
     const setRole = (role: MemberRole) =>
-      prisma.teamMember.update({ where: { userId: members[3]!.id }, data: { role } });
+      prisma.teamMember.updateMany({ where: { userId: members[3]!.id }, data: { role } });
     await setRole(MemberRole.COACH);
     expect(await isTeamReady(team.id)).toBe(false);
     await setRole(MemberRole.SUBSTITUTE);
@@ -268,6 +270,9 @@ describe("staff checks (§5.9)", () => {
       findStaffCandidates: (id) => findStaffCandidates({ operatorId: id, query: "niemand" }),
       setStaffRole: (id) => setStaffRole({ operatorId: id, userId: missing, role: null }),
       resetStaffTwoFactor: (id) => resetStaffTwoFactor({ operatorId: id, userId: missing }),
+      listTeamLimitRequests: (id) => listTeamLimitRequests(id),
+      decideTeamLimitRequest: (id) =>
+        decideTeamLimitRequest({ adminId: id, requestId: missing, decision: "REJECTED", now: NOW }),
     };
     const area: Record<string, "queue" | "admin" | "staff"> = {
       listPendingVerifications: "queue",

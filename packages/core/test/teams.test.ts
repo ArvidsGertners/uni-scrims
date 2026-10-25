@@ -2,7 +2,9 @@ import { MemberRole, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   MAX_TEAM_MEMBERS,
+  countOwnTeams,
   createTeam,
+  findOwnTeam,
   generateInviteCode,
   getMyTeam,
   getTeamByInviteCode,
@@ -43,7 +45,7 @@ describe("createTeam", () => {
       createdAt: NOW,
     });
     expect(team.inviteCode).toMatch(/^[A-Za-z0-9_-]{12}$/);
-    const member = await prisma.teamMember.findUniqueOrThrow({ where: { userId: user.id } });
+    const member = await prisma.teamMember.findFirstOrThrow({ where: { userId: user.id } });
     expect(member).toMatchObject({ teamId: team.id, joinedAt: NOW });
   });
 
@@ -69,10 +71,20 @@ describe("createTeam", () => {
     });
   });
 
-  it("allows only one team per user", async () => {
+  it("allows up to the user's team limit, banned teams included, and makes the new team active", async () => {
     const user = await createUser();
-    await newTeam(user.id);
-    await expect(newTeam(user.id)).rejects.toThrow("schon in einem Team");
+    await prisma.user.update({ where: { id: user.id }, data: { teamLimit: 2 } });
+    const first = await newTeam(user.id);
+    await prisma.team.update({ where: { id: first.id }, data: { bannedAt: NOW } });
+    const second = await newTeam(user.id);
+    expect((await findOwnTeam(user.id))?.id).toBe(second.id);
+    await expect(newTeam(user.id)).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringContaining("schon in 2 Teams"),
+    });
+    // A dissolved team frees its place.
+    await prisma.team.update({ where: { id: first.id }, data: { dissolvedAt: NOW } });
+    await expect(newTeam(user.id)).resolves.toMatchObject({ captainId: user.id });
   });
 });
 
@@ -138,7 +150,7 @@ describe("captain actions", () => {
       removeMember({ userId: captain.id, teamId: team.id, memberId: captain.id }),
     ).rejects.toMatchObject({ code: "INVALID" });
     await removeMember({ userId: captain.id, teamId: team.id, memberId: members[0]!.id });
-    expect(await prisma.teamMember.findUnique({ where: { userId: members[0]!.id } })).toBeNull();
+    expect(await prisma.teamMember.findFirst({ where: { userId: members[0]!.id } })).toBeNull();
   });
 
   it("sets roles of members and the own one, also without verification", async () => {
@@ -147,7 +159,7 @@ describe("captain actions", () => {
       verifiedCaptain: false,
     });
     const role = async (userId: string) =>
-      (await prisma.teamMember.findUniqueOrThrow({ where: { userId } })).role;
+      (await prisma.teamMember.findFirstOrThrow({ where: { userId } })).role;
     expect(await role(members[0]!.id)).toBe(MemberRole.PLAYER);
 
     await setMemberRole({
@@ -184,7 +196,7 @@ describe("captain actions", () => {
     await prisma.team.update({ where: { id: team.id }, data: { bannedAt: NOW } });
     await expect(set(captain.id, members[0]!.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(
-      (await prisma.teamMember.findUniqueOrThrow({ where: { userId: members[0]!.id } })).role,
+      (await prisma.teamMember.findFirstOrThrow({ where: { userId: members[0]!.id } })).role,
     ).toBe(MemberRole.PLAYER);
   });
 });
@@ -229,7 +241,7 @@ describe("team row lock", () => {
 });
 
 describe("joinTeam", () => {
-  it("rejects unknown codes, banned teams and users in another team", async () => {
+  it("rejects unknown codes, banned teams, own teams and users at their team limit", async () => {
     const user = await createUser();
     await expect(
       joinTeam({ userId: user.id, inviteCode: generateInviteCode(), now: NOW }),
@@ -239,10 +251,19 @@ describe("joinTeam", () => {
       joinTeam({ userId: user.id, inviteCode: banned.team.inviteCode!, now: NOW }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     const own = await createTeamWithMembers();
+    await expect(
+      joinTeam({ userId: own.captain.id, inviteCode: own.team.inviteCode!, now: NOW }),
+    ).rejects.toThrow("schon in diesem Team");
     const other = await createTeamWithMembers();
+    await prisma.user.update({ where: { id: own.captain.id }, data: { teamLimit: 1 } });
     await expect(
       joinTeam({ userId: own.captain.id, inviteCode: other.team.inviteCode!, now: NOW }),
-    ).rejects.toThrow("schon in einem Team");
+    ).rejects.toThrow("schon in 1 Teams");
+    await prisma.user.update({ where: { id: own.captain.id }, data: { teamLimit: 5 } });
+    await joinTeam({ userId: own.captain.id, inviteCode: other.team.inviteCode!, now: NOW });
+    // The joined team is the active one, the first stays the captain's.
+    expect((await findOwnTeam(own.captain.id))?.id).toBe(other.team.id);
+    expect(await countOwnTeams(own.captain.id)).toBe(2);
   });
 
   it("enforces the member limit", async () => {
@@ -266,23 +287,29 @@ describe("joinTeam", () => {
 
 describe("leaveTeam", () => {
   it("lets players leave, also banned teams", async () => {
-    const { members } = await createTeamWithMembers({ extraMembers: 1, banned: true });
-    await expect(leaveTeam({ userId: members[0]!.id, now: NOW })).resolves.toEqual({
-      dissolved: false,
-    });
-    expect(await prisma.teamMember.findUnique({ where: { userId: members[0]!.id } })).toBeNull();
+    const { team, members } = await createTeamWithMembers({ extraMembers: 1, banned: true });
+    await expect(leaveTeam({ userId: members[0]!.id, teamId: team.id, now: NOW })).resolves.toEqual(
+      {
+        dissolved: false,
+      },
+    );
+    expect(await prisma.teamMember.findFirst({ where: { userId: members[0]!.id } })).toBeNull();
   });
 
   it("requires a captain transfer while other members exist", async () => {
-    const { captain } = await createTeamWithMembers({ extraMembers: 1 });
-    await expect(leaveTeam({ userId: captain.id, now: NOW })).rejects.toThrow("Captain-Rolle");
+    const { team, captain } = await createTeamWithMembers({ extraMembers: 1 });
+    await expect(leaveTeam({ userId: captain.id, teamId: team.id, now: NOW })).rejects.toThrow(
+      "Captain-Rolle",
+    );
   });
 
   it("dissolves the team when the captain leaves as the last member", async () => {
     const captain = await createUser();
     const name = teamName();
     const team = await newTeam(captain.id, name);
-    await expect(leaveTeam({ userId: captain.id, now: NOW })).resolves.toEqual({ dissolved: true });
+    await expect(leaveTeam({ userId: captain.id, teamId: team.id, now: NOW })).resolves.toEqual({
+      dissolved: true,
+    });
 
     const row = await prisma.team.findUniqueOrThrow({ where: { id: team.id } });
     expect(row).toMatchObject({ dissolvedAt: NOW, nameNormalized: null, inviteCode: null });
@@ -355,7 +382,7 @@ describe("reads", () => {
   it("counts verified players and substitutes, never coaches", async () => {
     const { captain, members } = await createTeamWithMembers({ extraMembers: 4 });
     const setRole = (userId: string, role: MemberRole) =>
-      prisma.teamMember.update({ where: { userId }, data: { role } });
+      prisma.teamMember.updateMany({ where: { userId }, data: { role } });
     await setRole(members[3]!.id, MemberRole.COACH);
     expect(await getMyTeam(captain.id)).toMatchObject({ verifiedPlayerCount: 4, ready: false });
     expect(

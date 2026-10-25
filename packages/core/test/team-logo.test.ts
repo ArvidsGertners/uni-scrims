@@ -323,7 +323,7 @@ describe("team logo actions", () => {
     const { team, captain } = await createTeamWithMembers();
     await set(captain.id, team.id, DARK);
     await set(captain.id, team.id, LIGHT);
-    await leaveTeam({ userId: captain.id, now: NOW });
+    await leaveTeam({ userId: captain.id, teamId: team.id, now: NOW });
     expect(await prisma.teamLogo.count({ where: { teamId: team.id } })).toBe(0);
     expect(await teamRow(team.id)).toMatchObject({ dissolvedAt: NOW, logoUpdatedAt: null });
     await expect(

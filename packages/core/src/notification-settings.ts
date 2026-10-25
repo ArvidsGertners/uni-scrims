@@ -3,7 +3,7 @@
 import { NotifType, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { lockUser } from "./locks.ts";
-import { findOwnTeam, isCaptainOf, requireUser } from "./permissions.ts";
+import { findOwnTeams, isCaptainOf, requireUser } from "./permissions.ts";
 import { notificationPreferencesSchema, parseInput } from "./schemas.ts";
 import { notDeletedUserWhere } from "./users.ts";
 
@@ -98,11 +98,18 @@ export function effectiveChannels(
   };
 }
 
+/**
+ * The page shows the captain defaults to a captain of at least one team (§5.20); sending decides per
+ * team (§5.17).
+ */
+async function isCaptainAnywhere(user: { id: string }, db: Db = prisma): Promise<boolean> {
+  return (await findOwnTeams(user.id, db)).some((team) => isCaptainOf(user, team));
+}
+
 /** The settings page: per category and type the values in effect and whether they are defaults. */
 export async function getNotificationPreferences(userId: string) {
   const user = await requireUser(userId);
-  const team = await findOwnTeam(user.id);
-  const isCaptain = team ? isCaptainOf(user, team) : false;
+  const isCaptain = await isCaptainAnywhere(user);
   const stored = await prisma.notificationPreference.findMany({ where: { userId: user.id } });
   const byType = new Map(stored.map((row) => [row.type, row]));
   return {
@@ -140,8 +147,7 @@ export async function setNotificationPreferences(input: {
     // Under the user lock, so a save cannot leave rows for an account deleted meanwhile (§4).
     await lockUser(tx, input.userId);
     const user = await requireUser(input.userId, tx);
-    const team = await findOwnTeam(user.id, tx);
-    const isCaptain = team ? isCaptainOf(user, team) : false;
+    const isCaptain = await isCaptainAnywhere(user, tx);
     const stored = await tx.notificationPreference.findMany({ where: { userId: user.id } });
     const byType = new Map(stored.map((row) => [row.type, row]));
     let discordAnywhere = false;

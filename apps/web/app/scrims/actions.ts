@@ -15,14 +15,19 @@ async function finish(scrimId: string, state: ActionState): Promise<ActionState>
   return state;
 }
 
+// Both forms send the team the scrim page was shown for (§5.20).
 export async function cancelScrimAction(_state: ActionState, formData: FormData) {
   const userId = (await getSessionUserId()) ?? "";
-  const scrimId = idSchema.safeParse(formField(formData, "scrimId"));
-  if (!scrimId.success) return invalidInput;
+  const parsed = z.object({ scrimId: idSchema, teamId: idSchema }).safeParse({
+    scrimId: formField(formData, "scrimId"),
+    teamId: formField(formData, "teamId"),
+  });
+  if (!parsed.success) return invalidInput;
+  const { scrimId, teamId } = parsed.data;
   return finish(
-    scrimId.data,
+    scrimId,
     await runAction(async () => {
-      await cancelScrim({ userId, scrimId: scrimId.data, now: new Date() });
+      await cancelScrim({ userId, teamId, scrimId, now: new Date() });
     }),
   );
 }
@@ -31,19 +36,26 @@ export async function submitFeedbackAction(_state: ActionState, formData: FormDa
   const userId = (await getSessionUserId()) ?? "";
   // Shape check only; outcome and rating rules live in core's feedbackInputSchema.
   const parsed = z
-    .object({ scrimId: idSchema, outcome: z.string().optional(), rating: z.string().optional() })
+    .object({
+      scrimId: idSchema,
+      teamId: idSchema,
+      outcome: z.string().optional(),
+      rating: z.string().optional(),
+    })
     .safeParse({
       scrimId: formField(formData, "scrimId"),
+      teamId: formField(formData, "teamId"),
       outcome: formField(formData, "outcome"),
       rating: formField(formData, "rating"),
     });
   if (!parsed.success) return invalidInput;
-  const { scrimId, outcome, rating } = parsed.data;
+  const { scrimId, teamId, outcome, rating } = parsed.data;
   const state = await finish(
     scrimId,
     await runAction(async () => {
       await submitFeedback({
         userId,
+        teamId,
         scrimId,
         outcome: outcome as FeedbackOutcome,
         rating: rating ? Number(rating) : null,

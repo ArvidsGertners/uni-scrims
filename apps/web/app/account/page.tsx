@@ -78,7 +78,6 @@ export default async function AccountPage({
   const { email: emailConfirmed, error } = await searchParams;
   const user = await requirePageAccountUser("/account");
   const account = await getAccount(user.id);
-  const team = account.team;
   const verification = VERIFICATION_LABELS[account.verification.status];
 
   const consequences = [
@@ -86,13 +85,12 @@ export default async function AccountPage({
     account.banned
       ? "Deine Discord-ID bleibt mit der Sperre gespeichert, damit sie bei einer neuen Anmeldung weiter gilt."
       : "Die Verknüpfung mit deinem Discord-Konto wird gelöscht.",
-    ...(team
-      ? [
-          team.isCaptain
-            ? `Dein Team ${team.name} wird aufgelöst.`
-            : `Du verlässt dein Team ${team.name}.`,
-        ]
-      : []),
+    // Every own team (SPEC N-17): a captain's team is dissolved, the others are left.
+    ...account.teams.map((team) =>
+      team.isCaptain
+        ? `Dein Team ${team.name} wird aufgelöst.`
+        : `Du verlässt dein Team ${team.name}.`,
+    ),
     "Vergangene Scrims bleiben anonymisiert für die Team-Statistik.",
     "Vom Uni-Scrims-Discord-Server wirst du nicht entfernt. Den kannst du selbst verlassen.",
   ];
@@ -198,8 +196,20 @@ export default async function AccountPage({
             },
             { label: "Hochschule", value: account.verification.university ?? "–" },
             {
-              label: "Team",
-              value: team ? `${team.name}${team.isCaptain ? " · Captain" : ""}` : "Kein Team",
+              label: account.teams.length > 1 ? "Teams" : "Team",
+              value:
+                account.teams.length > 0 ? (
+                  <span className="flex flex-col items-end gap-0.5">
+                    {account.teams.map((team) => (
+                      <span key={team.id}>
+                        {team.name}
+                        {team.isCaptain ? " · Captain" : ""}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  "Kein Team"
+                ),
             },
           ]}
         >
@@ -378,7 +388,14 @@ export default async function AccountPage({
             <Alert>
               <span>
                 {account.deletionProblem}{" "}
-                {account.captainCandidates.length === 0 ? (
+                {/* Which teams, as there may be several since Phase 21 (SPEC N-17). */}
+                Betrifft:{" "}
+                {account.teams
+                  .filter((team) => team.blocksDeletion)
+                  .map((team) => team.name)
+                  .join(", ")}
+                .{" "}
+                {account.captainHandovers.length === 0 ? (
                   <Link href="/team" className="font-semibold underline underline-offset-2">
                     Zum Team
                   </Link>
@@ -386,29 +403,32 @@ export default async function AccountPage({
               </span>
             </Alert>
           ) : null}
-          {account.captainCandidates.length > 0 ? (
+          {account.captainHandovers.map((handover) => (
             // The team page needs a complete account; the role can move from here (SPEC N-3).
             <ActionForm
+              key={handover.teamId}
               action={handOverCaptainAction}
               submitLabel="Captain-Rolle übertragen"
               variant="outline"
               size="sm"
               className="flex flex-col gap-3"
-              confirmText="Captain-Rolle wirklich übertragen?"
+              confirmText={`Captain-Rolle in ${handover.teamName} wirklich übertragen?`}
             >
-              <Select
-                name="memberId"
-                required
-                defaultValue={null}
-                placeholder="Neuen Captain wählen …"
-                aria-label="Neuer Captain"
-                options={account.captainCandidates.map((member) => ({
-                  value: member.id,
-                  label: member.name,
-                }))}
-              />
+              <input type="hidden" name="teamId" value={handover.teamId} />
+              <Field label={`Neuer Captain für ${handover.teamName}`}>
+                <Select
+                  name="memberId"
+                  required
+                  defaultValue={null}
+                  placeholder="Neuen Captain wählen …"
+                  options={handover.candidates.map((member) => ({
+                    value: member.id,
+                    label: member.name,
+                  }))}
+                />
+              </Field>
             </ActionForm>
-          ) : null}
+          ))}
           {account.deletionProblem ? null : (
             <div className="mt-1.5 flex flex-wrap gap-2.5">
               <DeleteAccountDialog consequences={consequences} />

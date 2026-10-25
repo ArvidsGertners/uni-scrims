@@ -6,6 +6,7 @@ import {
   type Prisma,
   ScrimStatus,
   StaffRole,
+  TeamLimitStatus,
   VerifStatus,
   prisma,
 } from "@uni-scrims/db";
@@ -235,8 +236,8 @@ export async function finishTwoFactorSetup(userId: string): Promise<boolean> {
 
 /**
  * Sidebar and overview of the admin area (§5.14): who is signed in, and what waits, by role. Every
- * role with 2FA; disputes, failed notifications and the bot only for admins and the operator,
- * otherwise null. Counts only, the pages show the entries.
+ * role with 2FA; disputes, failed notifications, the bot and (since Phase 21) the requests for more
+ * teams only for admins and the operator, otherwise null. Counts only, the pages show the entries.
  */
 export async function getAdminOverview(input: { staffId: string; now: Date }) {
   const staff = await requireStaff(input.staffId, STAFF_AREAS.queue);
@@ -251,6 +252,7 @@ export async function getAdminOverview(input: { staffId: string; now: Date }) {
           prisma.scrim.count({ where: { status: ScrimStatus.DISPUTED } }),
           prisma.notification.count({ where: { status: NotifStatus.FAILED } }),
           getBotStatus(staff.id, input.now),
+          prisma.teamLimitRequest.count({ where: { status: TeamLimitStatus.PENDING } }),
         ])
       : null,
   ]);
@@ -265,5 +267,7 @@ export async function getAdminOverview(input: { staffId: string; now: Date }) {
     disputes: admin ? admin[0] : null,
     failedNotifications: admin ? admin[1] : null,
     bot: admin ? admin[2] : null,
+    /** Open requests for more teams (§5.20). */
+    teamLimitRequests: admin ? admin[3] : null,
   };
 }

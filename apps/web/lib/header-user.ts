@@ -27,7 +27,7 @@ export const siteChrome = cache(async () => {
   const user = await headerUser();
   const adminHost = isAdminHost((await headers()).get("host"));
   const active = user !== null && !user.bannedAt && !user.setupStep;
-  let team: Awaited<ReturnType<typeof getNavTeam>> = null;
+  let team: Awaited<ReturnType<typeof getNavTeam>> | null = null;
   let teamUnavailable = false;
   if (user && active && !adminHost) {
     try {
@@ -53,7 +53,7 @@ export async function siteNav(): Promise<AppNavData | null> {
       avatarVersion: user.avatarVersion,
       unverified: active && !user.verifiedAt,
     },
-    team,
+    team: team?.team ?? null,
     teamUnavailable,
     // Like the former box on the account page: staff with an active account (§5.16).
     adminUrl: active && user.staffRole ? adminUrl("/") : null,

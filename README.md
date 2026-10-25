@@ -476,7 +476,7 @@ UPDATE "Team" SET "bannedAt" = NULL WHERE id = '<team-id>';
 Was das Entsperren **nicht** zurückholt:
 
 - Abgesagte Scrims, gelöschte Anfragen und zurückgezogene Bewerbungen bleiben so.
-- Ein gesperrter Spieler wurde aus seinem Team entfernt und muss per Einladungslink neu beitreten.
+- Ein gesperrter Spieler wurde aus seinem Team entfernt (seit Phase 21 aus allen Teams, in denen er nicht Captain war) und muss per Einladungslink neu beitreten.
 - Bei einem gesperrten Captain Nutzer und Team zusammen entsperren. Soll nur das Team wieder spielen, in einer Transaktion einen anderen Captain setzen und den gesperrten Ex-Captain aus dem Team nehmen (wie bei jedem gesperrten Spieler, SPEC Edge Cases):
 
 ```sql

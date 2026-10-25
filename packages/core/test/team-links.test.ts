@@ -244,7 +244,7 @@ describe("updateTeamLinks", () => {
       links: { website: "eure-seite.de", twitch: "twitch.tv/team" },
       now: NOW,
     });
-    await leaveTeam({ userId: captain.id, now: NOW });
+    await leaveTeam({ userId: captain.id, teamId: team.id, now: NOW });
     expect(await teamRow(team.id)).toMatchObject({
       dissolvedAt: NOW,
       websiteUrl: null,
@@ -289,7 +289,7 @@ describe("removeTeamLinksAsAdmin", () => {
 
   it("finds no dissolved team", async () => {
     const { team, captain } = await createTeamWithMembers();
-    await leaveTeam({ userId: captain.id, now: NOW });
+    await leaveTeam({ userId: captain.id, teamId: team.id, now: NOW });
     await expect(
       removeTeamLinksAsAdmin({ adminId: admin.id, teamId: team.id, linksVersion: NOW.getTime() }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });

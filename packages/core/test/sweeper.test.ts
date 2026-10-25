@@ -224,7 +224,12 @@ describe("runSweeper (§6.3)", () => {
     const host = await createReadyTeam();
     const applicant = await createReadyTeam();
     const request = await createOpenRequest(host.captain.id);
-    await applyToRequest({ userId: applicant.captain.id, requestId: request.id, now: NOW });
+    await applyToRequest({
+      userId: applicant.captain.id,
+      teamId: applicant.team.id,
+      requestId: request.id,
+      now: NOW,
+    });
     const { scrim } = await bookScrim();
     const deadline = scrim.feedbackDeadline;
 

@@ -85,7 +85,7 @@ describe("reapplyModeration", () => {
     expect(await prisma.user.findUnique({ where: { id: player.id } })).toMatchObject({
       bannedAt: NOW,
     });
-    expect(await prisma.teamMember.findUnique({ where: { userId: player.id } })).toBeNull();
+    expect(await prisma.teamMember.findFirst({ where: { userId: player.id } })).toBeNull();
     expect(await prisma.teamMember.count({ where: { teamId: team.id } })).toBe(1);
     expect(
       await prisma.verificationRequest.findFirst({ where: { userId: player.id } }),
@@ -137,7 +137,7 @@ describe("reapplyModeration", () => {
 
   it("hands the captain role to the longest-standing member before deleting a captain", async () => {
     const { team, captain, members } = await createTeamWithMembers({ extraMembers: 2 });
-    await prisma.teamMember.update({
+    await prisma.teamMember.updateMany({
       where: { userId: members[1]!.id },
       data: { joinedAt: new Date(NOW.getTime() - 60_000) },
     });
@@ -153,7 +153,7 @@ describe("reapplyModeration", () => {
       captainId: members[1]!.id,
       dissolvedAt: null,
     });
-    expect(await prisma.teamMember.findUnique({ where: { userId: captain.id } })).toBeNull();
+    expect(await prisma.teamMember.findFirst({ where: { userId: captain.id } })).toBeNull();
   });
 
   it("leaves a user who was banned and deleted banned and deleted, and changes nothing twice", async () => {
@@ -205,14 +205,14 @@ describe("reapplyModeration", () => {
       dissolvedAt: NOW,
     });
     for (const member of members) {
-      expect(await prisma.teamMember.findUnique({ where: { userId: member.id } })).toBeNull();
+      expect(await prisma.teamMember.findFirst({ where: { userId: member.id } })).toBeNull();
     }
   });
 
   it("bans an ex-captain only as a player when the team was not banned in the old database", async () => {
     // Old database: the captain handed the role over after the backup and was banned as a player.
     const { team, captain, members } = await createTeamWithMembers({ extraMembers: 2 });
-    await prisma.teamMember.update({
+    await prisma.teamMember.updateMany({
       where: { userId: members[1]!.id },
       data: { joinedAt: new Date(NOW.getTime() - 60_000) },
     });
@@ -228,7 +228,7 @@ describe("reapplyModeration", () => {
       bannedAt: null,
       dissolvedAt: null,
     });
-    expect(await prisma.teamMember.findUnique({ where: { userId: captain.id } })).toBeNull();
+    expect(await prisma.teamMember.findFirst({ where: { userId: captain.id } })).toBeNull();
     expect(await findUserByDiscordId(captain.discordId)).toMatchObject({ bannedAt: NOW });
   });
 

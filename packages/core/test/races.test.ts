@@ -100,7 +100,12 @@ describe("applyToRequest while the applicant team is retired", () => {
       const guest = await createReadyTeam();
       const request = await createOpenRequest(host.captain.id);
       const results = await Promise.allSettled([
-        applyToRequest({ userId: guest.captain.id, requestId: request.id, now: NOW }),
+        applyToRequest({
+          userId: guest.captain.id,
+          teamId: guest.team.id,
+          requestId: request.id,
+          now: NOW,
+        }),
         round % 2 === 0
           ? banTeam({ adminId: admin.id, teamId: guest.team.id, now: NOW })
           : ban(guest.captain.id),
@@ -122,8 +127,18 @@ describe("applyToRequest while the applicant team is retired", () => {
       const requestA = await createOpenRequest(a.captain.id);
       const requestB = await createOpenRequest(b.captain.id);
       const results = await Promise.allSettled([
-        applyToRequest({ userId: a.captain.id, requestId: requestB.id, now: NOW }),
-        applyToRequest({ userId: b.captain.id, requestId: requestA.id, now: NOW }),
+        applyToRequest({
+          userId: a.captain.id,
+          teamId: a.team.id,
+          requestId: requestB.id,
+          now: NOW,
+        }),
+        applyToRequest({
+          userId: b.captain.id,
+          teamId: b.team.id,
+          requestId: requestA.id,
+          now: NOW,
+        }),
         banTeam({ adminId: admin.id, teamId: b.team.id, now: NOW }),
         createOpenRequest(a.captain.id),
       ]);
@@ -149,8 +164,18 @@ describe("two teams retired at the same time", () => {
       const b = await createReadyTeam();
       const requestA = await createOpenRequest(a.captain.id);
       const requestB = await createOpenRequest(b.captain.id);
-      await applyToRequest({ userId: a.captain.id, requestId: requestB.id, now: NOW });
-      await applyToRequest({ userId: b.captain.id, requestId: requestA.id, now: NOW });
+      await applyToRequest({
+        userId: a.captain.id,
+        teamId: a.team.id,
+        requestId: requestB.id,
+        now: NOW,
+      });
+      await applyToRequest({
+        userId: b.captain.id,
+        teamId: b.team.id,
+        requestId: requestA.id,
+        now: NOW,
+      });
       const results = await Promise.allSettled([
         banTeam({ adminId: admin.id, teamId: a.team.id, now: NOW }),
         round % 2 === 0
@@ -211,7 +236,7 @@ describe("team changes while the team is dissolved", () => {
         round % 2 === 0
           ? updateTeam({ userId: captain.id, teamId: target.id, ...team("Renamed") })
           : regenerateInvite({ userId: captain.id, teamId: target.id }),
-        leaveTeam({ userId: captain.id, now: NOW }),
+        leaveTeam({ userId: captain.id, teamId: target.id, now: NOW }),
       ]);
       expectOnlyDomainErrors(results);
       expect(results[1].status).toBe("fulfilled");
@@ -241,7 +266,7 @@ describe("team logo while the team is dissolved", () => {
           file,
           now: NOW,
         }),
-        leaveTeam({ userId: captain.id, now: NOW }),
+        leaveTeam({ userId: captain.id, teamId: target.id, now: NOW }),
       ]);
       expectOnlyDomainErrors(results);
       expect(results[1].status).toBe("fulfilled");
@@ -264,7 +289,7 @@ describe("team links while the team is dissolved", () => {
           links: { website: "eure-seite.de" },
           now: NOW,
         }),
-        leaveTeam({ userId: captain.id, now: NOW }),
+        leaveTeam({ userId: captain.id, teamId: target.id, now: NOW }),
       ]);
       expectOnlyDomainErrors(results);
       expect(results[1].status).toBe("fulfilled");
@@ -284,6 +309,7 @@ describe("confirmApplication while a team is banned", () => {
       const request = await createOpenRequest(host.captain.id);
       const { application } = await applyToRequest({
         userId: guest.captain.id,
+        teamId: guest.team.id,
         requestId: request.id,
         now: NOW,
       });
@@ -333,7 +359,7 @@ describe("joinTeam and createTeam while the user is banned or deleted", () => {
       expectOnlyDomainErrors(results);
       const { bannedAt } = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
       if (bannedAt) {
-        expect(await prisma.teamMember.findUnique({ where: { userId: user.id } })).toBeNull();
+        expect(await prisma.teamMember.findFirst({ where: { userId: user.id } })).toBeNull();
       } else {
         expect(results[1]).toMatchObject({ status: "rejected", reason: { code: "CONFLICT" } });
       }
@@ -351,7 +377,7 @@ describe("joinTeam and createTeam while the user is banned or deleted", () => {
       const { bannedAt } = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
       if (bannedAt) {
         // Either no team, or the ban saw the new team and banned it with its captain.
-        const membership = await prisma.teamMember.findUnique({
+        const membership = await prisma.teamMember.findFirst({
           where: { userId: user.id },
           include: { team: true },
         });
@@ -375,7 +401,7 @@ describe("joinTeam and createTeam while the user is banned or deleted", () => {
       expectOnlyDomainErrors(results);
       const { email } = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
       if (email === deletedUserEmail(user.id)) {
-        expect(await prisma.teamMember.findUnique({ where: { userId: user.id } })).toBeNull();
+        expect(await prisma.teamMember.findFirst({ where: { userId: user.id } })).toBeNull();
         expect(await prisma.team.count({ where: { captainId: user.id, dissolvedAt: null } })).toBe(
           0,
         );
@@ -539,14 +565,14 @@ describe("verifications while the account is deleted or banned", () => {
 describe("leaveTeam while being banned", () => {
   it("does not deadlock", async () => {
     for (let round = 0; round < ROUNDS; round++) {
-      const { members } = await createTeamWithMembers({ extraMembers: 1 });
+      const { team: playerTeam, members } = await createTeamWithMembers({ extraMembers: 1 });
       const player = members[0]!;
       const results = await Promise.allSettled([
-        leaveTeam({ userId: player.id, now: NOW }),
+        leaveTeam({ userId: player.id, teamId: playerTeam.id, now: NOW }),
         ban(player.id),
       ]);
       expectOnlyDomainErrors(results);
-      expect(await prisma.teamMember.findUnique({ where: { userId: player.id } })).toBeNull();
+      expect(await prisma.teamMember.findFirst({ where: { userId: player.id } })).toBeNull();
     }
   });
 });
@@ -562,6 +588,7 @@ describe("submitFeedback while the captain deletes the account", () => {
       const results = await Promise.allSettled([
         submitFeedback({
           userId: guest.captain.id,
+          teamId: guest.team.id,
           scrimId: scrim.id,
           outcome: FeedbackOutcome.PLAYED,
           rating: 5,
@@ -626,7 +653,7 @@ describe("personal notifications fanned out while accounts and teams change (§5
       });
       const results = await Promise.allSettled([
         deliverNotification(parent.id, NOW, sendNothing, env),
-        leaveTeam({ userId: member.id, now: NOW }),
+        leaveTeam({ userId: member.id, teamId: host.team.id, now: NOW }),
       ]);
       expectOnlyDomainErrors(results);
       const sentTo: string[] = [];

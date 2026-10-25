@@ -186,7 +186,7 @@ describe("getSuccessMetrics", () => {
     const c = await createTeamWithMembers({ extraMembers: 3 });
     // A verified coach as fifth member: not ready (SPEC N-1).
     const e = await createTeamWithMembers({ extraMembers: 4 });
-    await prisma.teamMember.update({
+    await prisma.teamMember.updateMany({
       where: { userId: e.members[0]!.id },
       data: { role: MemberRole.COACH },
     });

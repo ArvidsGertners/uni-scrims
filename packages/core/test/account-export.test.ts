@@ -260,27 +260,32 @@ describe("exportAccountData", () => {
       }),
       expect.objectContaining({ status: "In Prüfung", entschieden: null, dateiGespeichert: true }),
     ]);
-    expect(data.team).toEqual({
-      name: host.team.name,
-      kürzel: host.team.tag,
-      rang: "Gold",
-      gesperrtAm: null,
-      logosGeändertAm: NOW,
-      logos: ["Logo für dunklen Hintergrund"],
-      externeLinks: {
-        discord: null,
-        website: "https://eure-seite.de/",
-        x: "https://x.com/team",
-        instagram: null,
-        twitch: null,
-        youtube: null,
-        tiktok: null,
+    expect(data.teams).toEqual([
+      {
+        name: host.team.name,
+        kürzel: host.team.tag,
+        rang: "Gold",
+        gesperrtAm: null,
+        logosGeändertAm: NOW,
+        logos: ["Logo für dunklen Hintergrund"],
+        externeLinks: {
+          discord: null,
+          website: "https://eure-seite.de/",
+          x: "https://x.com/team",
+          instagram: null,
+          twitch: null,
+          youtube: null,
+          tiktok: null,
+        },
+        linksGeändertAm: NOW,
+        rolle: "Spieler",
+        captain: true,
+        beigetretenAm: NOW,
       },
-      linksGeändertAm: NOW,
-      rolle: "Spieler",
-      captain: true,
-      beigetretenAm: NOW,
-    });
+    ]);
+    expect(data.aktivesTeam).toBe(host.team.name);
+    expect(data.teamLimit).toBe(5);
+    expect(data.teamAnträge).toEqual([]);
     expect(data.aufgelösteTeams).toEqual([
       expect.objectContaining({ name: "Altes Team", kürzel: "ALT" }),
     ]);
@@ -366,7 +371,7 @@ describe("exportAccountData", () => {
     await expect(exportOf(legacy.id)).resolves.toMatchObject({
       konto: { vorname: null, eMail: null, eMailBestätigt: false },
       anmeldung: { passwortGespeichert: false },
-      team: null,
+      teams: [],
     });
     const withoutDiscord = await createUser();
     await prisma.account.deleteMany({ where: { userId: withoutDiscord.id } });
@@ -397,20 +402,22 @@ describe("exportAccountData", () => {
     ]);
   });
 
-  it("shows no team for a membership left in a dissolved team, as findOwnTeam", async () => {
+  it("shows no team for a membership left in a dissolved team, as findOwnTeams", async () => {
     const { team, members } = await bookScrim().then(({ host }) => host);
     await prisma.team.update({ where: { id: team.id }, data: { dissolvedAt: NOW } });
-    expect((await exportOf(members[0]!.id)).team).toBeNull();
+    expect(await exportOf(members[0]!.id)).toMatchObject({ teams: [], aktivesTeam: null });
   });
 
   it("shows the role as the team page names it", async () => {
     const { host } = await bookScrim();
     const member = host.members[0]!;
-    await prisma.teamMember.update({
+    await prisma.teamMember.updateMany({
       where: { userId: member.id },
       data: { role: MemberRole.COACH },
     });
-    expect((await exportOf(member.id)).team).toMatchObject({ rolle: "Coach", captain: false });
+    expect((await exportOf(member.id)).teams).toEqual([
+      expect.objectContaining({ rolle: "Coach", captain: false }),
+    ]);
   });
 });
 
@@ -445,6 +452,8 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     avatarUpdatedAt: SHOWN,
     theme: SHOWN,
     rank: SHOWN,
+    activeTeamId: SHOWN,
+    teamLimit: SHOWN,
   },
   UserAvatar: { userId: KEY, data: SHOWN },
   Session: {
@@ -504,6 +513,17 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     createdAt: SHOWN,
     decidedAt: SHOWN,
     decidedById: "nur ob von Hand; wer, wäre eine andere Person",
+  },
+  TeamLimitRequest: {
+    id: KEY,
+    userId: SELF,
+    pendingUserId: "steckt im Status",
+    reason: SHOWN,
+    status: SHOWN,
+    newLimit: SHOWN,
+    createdAt: SHOWN,
+    decidedAt: SHOWN,
+    decidedById: "wer entschieden hat, wäre eine andere Person",
   },
   Team: {
     id: KEY,

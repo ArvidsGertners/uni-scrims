@@ -41,6 +41,7 @@ async function book(
   const request = await createOpenRequest(host.captain.id, overrides);
   const { application } = await applyToRequest({
     userId: guest.captain.id,
+    teamId: guest.team.id,
     requestId: request.id,
     now: NOW,
   });
@@ -58,7 +59,14 @@ async function answer(
   outcome: FeedbackOutcome,
   rating: number | null = null,
 ) {
-  await submitFeedback({ userId: team.captain.id, scrimId, outcome, rating, now: AFTER_START });
+  await submitFeedback({
+    userId: team.captain.id,
+    teamId: team.team.id,
+    scrimId,
+    outcome,
+    rating,
+    now: AFTER_START,
+  });
 }
 
 describe("getReliability (§5.7)", () => {
@@ -74,11 +82,26 @@ describe("getReliability (§5.7)", () => {
     await answer(team, noShow.id, FeedbackOutcome.WE_COULD_NOT);
     await answer(opponents[0]!, noShow.id, FeedbackOutcome.OPPONENT_NO_SHOW);
     const late = await book(team, opponents[1]!, SOON);
-    await cancelScrim({ userId: team.captain.id, scrimId: late.id, now: NOW });
+    await cancelScrim({
+      userId: team.captain.id,
+      teamId: team.team.id,
+      scrimId: late.id,
+      now: NOW,
+    });
     const early = await book(team, opponents[1]!);
-    await cancelScrim({ userId: team.captain.id, scrimId: early.id, now: NOW });
+    await cancelScrim({
+      userId: team.captain.id,
+      teamId: team.team.id,
+      scrimId: early.id,
+      now: NOW,
+    });
     const lateByOpponent = await book(team, opponents[2]!, SOON);
-    await cancelScrim({ userId: opponents[2]!.captain.id, scrimId: lateByOpponent.id, now: NOW });
+    await cancelScrim({
+      userId: opponents[2]!.captain.id,
+      teamId: opponents[2]!.team.id,
+      scrimId: lateByOpponent.id,
+      now: NOW,
+    });
     const retired = await book(team, opponents[2]!, SOON);
     expect(retired.status).toBe(ScrimStatus.SCHEDULED);
     await retireTeamActivity(team.team.id, NOW);
@@ -180,12 +203,14 @@ describe("getBoard", () => {
     const own = await createOpenRequest(viewer.captain.id);
     const { application } = await applyToRequest({
       userId: viewer.captain.id,
+      teamId: viewer.team.id,
       requestId: request.id,
       now: NOW,
     });
     const withdrawn = await createReadyTeam();
     const { application: withdrawnApplication } = await applyToRequest({
       userId: withdrawn.captain.id,
+      teamId: withdrawn.team.id,
       requestId: request.id,
       now: NOW,
     });
@@ -247,6 +272,9 @@ describe("getRequestForm", () => {
     // Unverified captain plus 4 verified members: also not ready.
     const team = await createReadyTeam({ verifiedCaptain: false });
     expect(await form(team.captain.id)).toEqual({
+      // The active team, which the form posts for (§5.20).
+      teamId: team.team.id,
+      teamName: team.team.name,
       rank: Rank.GOLD,
       rankRange: { rankMin: Rank.GOLD, rankMax: Rank.GOLD },
       problems: [NOT_VERIFIED, NOT_READY],
@@ -294,6 +322,7 @@ describe("getRequestDetail", () => {
     const request = await createOpenRequest(author.captain.id);
     const { application } = await applyToRequest({
       userId: applicant.captain.id,
+      teamId: applicant.team.id,
       requestId: request.id,
       message: "Hallo",
       now: NOW,
@@ -351,6 +380,7 @@ describe("getRequestDetail", () => {
     const request = await createOpenRequest(author.captain.id);
     const { application } = await applyToRequest({
       userId: applicant.captain.id,
+      teamId: applicant.team.id,
       requestId: request.id,
       now: NOW,
     });
@@ -390,7 +420,7 @@ describe("getRequestDetail", () => {
     await unverify(applicant.members[0]!.id, NOW);
     // A verified coach does not count as a player of the applicant team (SPEC N-1).
     const applicantRole = (role: MemberRole) =>
-      prisma.teamMember.update({ where: { userId: applicant.members[0]!.id }, data: { role } });
+      prisma.teamMember.updateMany({ where: { userId: applicant.members[0]!.id }, data: { role } });
     await applicantRole(MemberRole.COACH);
     expect(await detail(author.captain.id)).toMatchObject({
       applications: [{ canConfirm: false, teamProblem: applicantNotReady }],
@@ -412,7 +442,12 @@ describe("getRequestDetail", () => {
       applyAs: { name: late.team.name, memberCount: 5 },
     });
     await expect(
-      applyToRequest({ userId: late.captain.id, requestId: request.id, now: NOW }),
+      applyToRequest({
+        userId: late.captain.id,
+        teamId: late.team.id,
+        requestId: request.id,
+        now: NOW,
+      }),
     ).rejects.toMatchObject({ message: notReady });
     // The captain rule comes first.
     expect(await detail(late.members[1]!.id)).toMatchObject({
@@ -473,6 +508,7 @@ describe("getScrimDetail and getMyScrims", () => {
     });
     await submitFeedback({
       userId: guest.captain.id,
+      teamId: guest.team.id,
       scrimId: scrim.id,
       outcome: FeedbackOutcome.PLAYED,
       rating: 5,
@@ -506,7 +542,12 @@ describe("getScrimDetail and getMyScrims", () => {
     const soon = await book(team, opponent, SOON);
     const later = await book(opponent, team);
     const cancelled = await book(team, opponent);
-    await cancelScrim({ userId: team.captain.id, scrimId: cancelled.id, now: NOW });
+    await cancelScrim({
+      userId: team.captain.id,
+      teamId: team.team.id,
+      scrimId: cancelled.id,
+      now: NOW,
+    });
 
     const mine = await getMyScrims({ userId: team.members[0]!.id, now: NOW });
     expect(mine.upcoming.map((s) => s.id)).toEqual([soon.id, later.id]);
@@ -535,6 +576,7 @@ describe("getScrimDetail and getMyScrims", () => {
     const otherRequest = await createOpenRequest(other.captain.id);
     const { application } = await applyToRequest({
       userId: team.captain.id,
+      teamId: team.team.id,
       requestId: otherRequest.id,
       now: NOW,
     });
@@ -645,15 +687,23 @@ describe("getNavTeam (§5.15)", () => {
     await prisma.teamLogo.create({
       data: { teamId: team.id, background: "DARK", data: Buffer.from([1]) },
     });
-    expect(await getNavTeam(members[0]!.id)).toEqual({
+    const entry = {
       id: team.id,
       name: team.name,
       tag: team.tag,
       logo: { version: logoAt.getTime(), backgrounds: ["DARK"] },
+      active: true,
+    };
+    expect(await getNavTeam(members[0]!.id)).toEqual({
+      team: entry,
+      teams: [entry],
+      teamCount: 1,
+      teamLimit: 5,
     });
-    expect(await getNavTeam((await createUser()).id)).toBeNull();
+    const none = { team: null, teams: [], teamCount: 0, teamLimit: 5 };
+    expect(await getNavTeam((await createUser()).id)).toEqual(none);
     await prisma.team.update({ where: { id: team.id }, data: { dissolvedAt: NOW } });
-    expect(await getNavTeam(captain.id)).toBeNull();
+    expect(await getNavTeam(captain.id)).toEqual(none);
   });
 
   it("is only for active accounts, like the team page", async () => {

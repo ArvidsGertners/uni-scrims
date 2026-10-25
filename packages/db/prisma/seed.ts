@@ -3,7 +3,7 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { config } from "dotenv";
-import { prisma, Rank } from "../src/index.ts";
+import { MemberRole, prisma, Rank } from "../src/index.ts";
 import { universities } from "./seed-data/universities.ts";
 
 // As in prisma.config.ts: `seed:universities` runs this file without the Prisma CLI, so the monorepo
@@ -118,7 +118,7 @@ async function seedTeam(team: SeedTeam, now: Date): Promise<void> {
 
   for (const userId of userIds) {
     await prisma.teamMember.upsert({
-      where: { userId },
+      where: { teamId_userId: { teamId: team.id, userId } },
       create: { teamId: team.id, userId, joinedAt: now },
       update: {},
     });
@@ -135,6 +135,13 @@ async function main(): Promise<void> {
   for (const team of seedTeams) {
     await seedTeam(team, now);
   }
+  // Phase 21 (§5.20): a member of two teams, as coach in the second, so Beta's readiness stays.
+  const twoTeams = { teamId: "seed-team-beta", userId: "seed-team-alpha-user-2" };
+  await prisma.teamMember.upsert({
+    where: { teamId_userId: twoTeams },
+    create: { ...twoTeams, role: MemberRole.COACH, joinedAt: now },
+    update: {},
+  });
   console.log(
     `Seed fertig: ${universities.length} Hochschulen, ${seedTeams.length} Teams à ${MEMBERS_PER_TEAM} Spieler.`,
   );

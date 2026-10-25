@@ -24,7 +24,6 @@ import {
   captainProblem,
   captainVerificationProblem,
   requireActingCaptain,
-  requireOwnActingCaptain,
   requireTeamMember,
   requireTeamReady,
   teamReadyProblem,
@@ -133,9 +132,12 @@ export async function findApplicantTeamProblem(
   return applicantTeamProblem(team, isTeamActive(team) && (await isTeamReady(team.id, db)));
 }
 
-export async function createRequest(input: RequestInput & { userId: string; now: Date }) {
+/** Posts a request for `teamId`, the team the form was shown for (§5.20). */
+export async function createRequest(
+  input: RequestInput & { userId: string; teamId: string; now: Date },
+) {
   return prisma.$transaction(async (tx) => {
-    const { user, team } = await requireOwnActingCaptain(input.userId, tx);
+    const { user, team } = await requireActingCaptain(input.userId, input.teamId, tx);
     const data = parseInput(requestInputSchema, input);
     const startsAt = berlinToUtc(data.date, data.time);
     if (startsAt.getTime() < input.now.getTime() + TIMING.MIN_REQUEST_LEAD) {
@@ -252,8 +254,10 @@ export async function expireRequests(now: Date): Promise<number> {
   return expired;
 }
 
+/** Applies as `teamId`, the team the request page was shown for (§5.20). */
 export async function applyToRequest(input: {
   userId: string;
+  teamId: string;
   requestId: string;
   message?: string | null;
   now: Date;
@@ -262,7 +266,7 @@ export async function applyToRequest(input: {
     return await prisma.$transaction(async (tx) => {
       // Own team before the request, as in retireTeamActivity (§4): a ban or dissolution of the
       // applicant team either commits first (seen below) or waits and then withdraws this application.
-      const { team: ownTeam } = await requireOwnActingCaptain(input.userId, tx);
+      const { team: ownTeam } = await requireActingCaptain(input.userId, input.teamId, tx);
       await lockTeam(tx, ownTeam.id);
       await lockRequest(tx, input.requestId);
       const request = await tx.scrimRequest.findUnique({ where: { id: input.requestId } });

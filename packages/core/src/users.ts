@@ -35,6 +35,7 @@ export function deletedUserData(userId: string) {
     avatarUpdatedAt: null,
     theme: "SYSTEM",
     rank: null,
+    activeTeamId: null,
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
 
@@ -303,16 +304,24 @@ export async function clearOAuthTokens(userId: string, db: Db = prisma): Promise
 /** Seed users have IDs with this prefix; only they can use the dev login. */
 export const SEED_USER_PREFIX = "seed-";
 
-/** Dev login only: seed users with their team. */
+/** Dev login only: seed users with their teams. */
 export async function listSeedUsers(db: Db = prisma) {
   const users = await db.user.findMany({
     where: { id: { startsWith: SEED_USER_PREFIX } },
     orderBy: { id: "asc" },
-    select: { id: true, name: true, membership: { select: { team: { select: { name: true } } } } },
+    select: {
+      id: true,
+      name: true,
+      memberships: {
+        where: { team: { dissolvedAt: null } },
+        orderBy: { joinedAt: "asc" },
+        select: { team: { select: { name: true } } },
+      },
+    },
   });
   return users.map((user) => ({
     id: user.id,
     name: user.name,
-    teamName: user.membership?.team.name ?? null,
+    teamNames: user.memberships.map(({ team }) => team.name),
   }));
 }

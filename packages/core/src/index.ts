@@ -10,6 +10,7 @@ export * from "./schemas.ts";
 export * from "./teams.ts";
 export * from "./team-links.ts";
 export * from "./team-logo.ts";
+export * from "./team-limits.ts";
 export * from "./user-avatar.ts";
 export * from "./ranks.ts";
 export * from "./labels.ts";

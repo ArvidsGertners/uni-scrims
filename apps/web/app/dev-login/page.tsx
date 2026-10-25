@@ -20,8 +20,8 @@ export default async function DevLoginPage() {
               <input type="hidden" name="userId" value={user.id} />
               <Button type="submit" variant="outline" className="w-full justify-start">
                 {user.name}
-                {user.teamName ? (
-                  <span className="text-muted-foreground">({user.teamName})</span>
+                {user.teamNames.length > 0 ? (
+                  <span className="text-muted-foreground">({user.teamNames.join(", ")})</span>
                 ) : null}
               </Button>
             </form>

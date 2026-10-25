@@ -165,6 +165,8 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     className="flex flex-col gap-4"
                   >
                     <input type="hidden" name="requestId" value={request.id} />
+                    {/* The team the page was shown for (§5.20). */}
+                    <input type="hidden" name="teamId" value={request.actingTeamId ?? ""} />
                     <input type="hidden" name="teamName" value={team.name} />
                     <CountedTextarea
                       label={`Nachricht an ${team.name}`}

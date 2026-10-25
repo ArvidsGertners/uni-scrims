@@ -8,7 +8,7 @@ import { deleteAccount } from "./account.ts";
 import { isDomainError } from "./errors.ts";
 import { banTeamInTx, banUserInTx } from "./moderation.ts";
 import { lockUser } from "./locks.ts";
-import { findOwnTeam, isCaptainOf } from "./permissions.ts";
+import { findOwnTeams, isCaptainOf } from "./permissions.ts";
 import { endStaffSessions } from "./staff.ts";
 import { TRANSFER_CAPTAIN_FIRST, handOverCaptain, leaveTeam } from "./teams.ts";
 import { removeFilesAfterCommit } from "./verification.ts";
@@ -124,15 +124,15 @@ export async function reapplyModeration(input: {
     const user = await findUserByDiscordId(discordId);
     if (user?.bannedAt) continue;
     if (user) {
-      const team = await findOwnTeam(user.id);
-      if (team && isCaptainOf(user, team) && !team.bannedAt) {
+      for (const team of await findOwnTeams(user.id)) {
+        if (!isCaptainOf(user, team) || team.bannedAt) continue;
         // Captain here, but the team is not banned after the first loop: in the old database a ban
         // of its captain would have banned it, so the role had been handed over (or the team left)
         // after the backup, and only the player was banned. As there, the ban must not hit the team.
-        if (await transferToLongestMember(user.id)) {
+        if (await transferToLongestMember(user.id, team.id)) {
           report.transferredCaptains++;
         } else {
-          await leaveTeam({ userId: user.id, now });
+          await leaveTeam({ userId: user.id, teamId: team.id, now });
           report.leftTeams++;
         }
       }
@@ -170,8 +170,12 @@ export async function reapplyModeration(input: {
     } catch (error) {
       if (!isDomainError(error) || error.message !== TRANSFER_CAPTAIN_FIRST) throw error;
       // Captain with members here, but deleted in the old database: the role had been handed over
-      // after the backup. The longest-standing member takes it, then the deletion goes through.
-      if (await transferToLongestMember(id)) report.transferredCaptains++;
+      // after the backup. The longest-standing member takes it in each such team, then the
+      // deletion goes through.
+      for (const team of await findOwnTeams(id)) {
+        if (!isCaptainOf({ id }, team) || team.bannedAt) continue;
+        if (await transferToLongestMember(id, team.id)) report.transferredCaptains++;
+      }
       await deleteAccount({ userId: id, uploadDir, now });
     }
     report.deletedUsers++;
@@ -179,16 +183,14 @@ export async function reapplyModeration(input: {
   return report;
 }
 
-/** False if the user is no longer captain of a team with members; then nothing is changed. */
-async function transferToLongestMember(userId: string): Promise<boolean> {
-  const team = await findOwnTeam(userId);
-  if (!team || !isCaptainOf({ id: userId }, team)) return false;
+/** False if the team has no other member; then nothing is changed. */
+async function transferToLongestMember(userId: string, teamId: string): Promise<boolean> {
   const successor = await prisma.teamMember.findFirst({
-    where: { teamId: team.id, userId: { not: userId } },
+    where: { teamId, userId: { not: userId } },
     orderBy: [{ joinedAt: "asc" }, { userId: "asc" }],
   });
   if (!successor) return false;
   // handOverCaptain, as the captain may be an account from before Phase 7 (§5.8).
-  await handOverCaptain({ userId, newCaptainId: successor.userId });
+  await handOverCaptain({ userId, teamId, newCaptainId: successor.userId });
   return true;
 }

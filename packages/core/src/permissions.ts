@@ -69,9 +69,9 @@ export function captainVerificationProblem(user: { verifiedAt: Date | null }): P
 }
 
 /**
- * Non-throwing counterpart of requireActingCaptain for the user's own team (callers filter dissolved
- * teams): null if allowed, otherwise the one reason. The only place that fixes the order;
- * requireActingCaptain and requireOwnActingCaptain throw exactly this.
+ * Non-throwing counterpart of requireActingCaptain for one of the user's teams (callers filter
+ * dissolved teams): null if allowed, otherwise the one reason. The only place that fixes the order;
+ * requireActingCaptain and requireScrimActingCaptain throw exactly this.
  */
 export function actingCaptainProblem(user: ActingUser, team: ActingTeam): Problem | null {
   return captainProblem(user, team) ?? captainVerificationProblem(user);
@@ -159,26 +159,54 @@ export async function requireActingCaptain(
 }
 
 /**
- * The user's team if it is not dissolved, else null. The one membership rule for pages and checks
- * (dissolving deletes the memberships; the check covers rows that are left anyway).
+ * The user's teams that are not dissolved, the last joined first (§5.20). Dissolving deletes the
+ * memberships; the filter covers rows that are left anyway.
  */
-export async function findOwnTeam(userId: string, db: Db = prisma) {
-  const membership = await db.teamMember.findUnique({ where: { userId }, select: { team: true } });
-  return membership && !membership.team.dissolvedAt ? membership.team : null;
+export async function findOwnTeams(userId: string, db: Db = prisma) {
+  const memberships = await db.teamMember.findMany({
+    where: { userId, team: { dissolvedAt: null } },
+    orderBy: [{ joinedAt: "desc" }, { teamId: "asc" }],
+    select: { team: true },
+  });
+  return memberships.map(({ team }) => team);
 }
 
-/** Member of a team that is not dissolved. Banned teams still count, so members can leave them. */
+/**
+ * The user's active team (§5.20): User.activeTeamId if the user is still in it and it is not
+ * dissolved, else the last joined team, else null. The one rule for what the pages show; actions get
+ * the team ID from the page instead.
+ */
+export async function findOwnTeam(userId: string, db: Db = prisma) {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { activeTeamId: true } });
+  return pickActiveTeam(await findOwnTeams(userId, db), user?.activeTeamId ?? null);
+}
+
+/** findOwnTeam's rule for teams that are already loaded (from findOwnTeams, in its order). */
+export function pickActiveTeam<T extends { id: string }>(
+  teams: T[],
+  activeTeamId: string | null,
+): T | null {
+  return teams.find((team) => team.id === activeTeamId) ?? teams[0] ?? null;
+}
+
+/**
+ * Member of the team, which is not dissolved. Banned teams still count, so members can leave them.
+ * Non-members get the same answer for active, banned and dissolved teams (§4).
+ */
 export async function requireTeamMember(
   userId: string | null | undefined,
   teamId: string,
   db: Db = prisma,
 ) {
   const user = await requireUser(userId, db);
-  const team = await findOwnTeam(user.id, db);
-  if (!team || team.id !== teamId) {
+  const membership = await db.teamMember.findUnique({
+    where: { teamId_userId: { teamId, userId: user.id } },
+    select: { team: true },
+  });
+  if (!membership || membership.team.dissolvedAt) {
     throw new DomainError("FORBIDDEN", "Du bist nicht in diesem Team.");
   }
-  return { user, team };
+  return { user, team: membership.team };
 }
 
 export async function requireTeamReady(teamId: string, db: Db = prisma): Promise<void> {
@@ -246,8 +274,8 @@ export async function requireOperator(userId: string | null | undefined, db: Db 
 
 /**
  * Who sees a user's avatar copy (§5.12, §7): the user, also banned; otherwise an unbanned member of
- * the same team (also a banned team, whose members still see their team page) or staff with access
- * to the queue.
+ * a team they share (also a banned team, whose members still see their team page) or staff with
+ * access to the queue.
  */
 export async function canSeeAvatar(
   viewer: { id: string; bannedAt: Date | null },
@@ -256,8 +284,10 @@ export async function canSeeAvatar(
 ): Promise<boolean> {
   if (viewer.id === userId) return true;
   if (viewer.bannedAt) return false;
-  const [own, theirs] = await Promise.all([findOwnTeam(viewer.id, db), findOwnTeam(userId, db)]);
-  if (own && theirs && own.id === theirs.id) return true;
+  const shared = await db.teamMember.count({
+    where: { userId: viewer.id, team: { dissolvedAt: null, members: { some: { userId } } } },
+  });
+  if (shared > 0) return true;
   try {
     await requireStaff(viewer.id, STAFF_AREAS.queue, db);
     return true;
@@ -265,38 +295,6 @@ export async function canSeeAvatar(
     if (isDomainError(error)) return false;
     throw error;
   }
-}
-
-/** The user and the team they are in; user and membership are read once. */
-async function requireOwnTeam(userId: string | null | undefined, db: Db) {
-  const user = await requireUser(userId, db);
-  const team = await findOwnTeam(user.id, db);
-  if (!team) {
-    throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
-  }
-  return { user, team };
-}
-
-/**
- * requireCaptain for the user's own team, for team management that starts without a team ID
- * (/setup in Discord). Verification is not required.
- */
-export async function requireOwnCaptain(userId: string | null | undefined, db: Db = prisma) {
-  const { user, team } = await requireOwnTeam(userId, db);
-  const problem = captainProblem(user, team);
-  if (problem) throw problemError(problem);
-  return { user, team };
-}
-
-/**
- * requireActingCaptain for the user's own team: scrim actions always act for the team
- * the user is in.
- */
-export async function requireOwnActingCaptain(userId: string | null | undefined, db: Db = prisma) {
-  const { user, team } = await requireOwnTeam(userId, db);
-  const problem = actingCaptainProblem(user, team);
-  if (problem) throw problemError(problem);
-  return { user, team };
 }
 
 /**
@@ -322,15 +320,21 @@ export function canSeeApplications(
   return !!teamId && teamId === request.teamId;
 }
 
-/** §7: cancelling and feedback by the current, verified captain of one of the two teams. */
+/**
+ * §7: cancelling and feedback by the current, verified captain of one of the two teams, for the team
+ * the page acted for (§5.20). Members of a team outside the scrim learn nothing about it.
+ */
 export async function requireScrimActingCaptain(
   userId: string | null | undefined,
+  teamId: string,
   scrim: ScrimTeams,
   db: Db = prisma,
 ) {
-  const result = await requireOwnActingCaptain(userId, db);
-  if (!isScrimTeam(result.team.id, scrim)) {
+  const { user, team } = await requireTeamMember(userId, teamId, db);
+  if (!isScrimTeam(team.id, scrim)) {
     throw new DomainError("NOT_FOUND", "Scrim nicht gefunden.");
   }
-  return result;
+  const problem = actingCaptainProblem(user, team);
+  if (problem) throw problemError(problem);
+  return { user, team };
 }

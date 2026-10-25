@@ -166,7 +166,11 @@ export async function handOverCaptainAction(
 ): Promise<ActionState> {
   const userId = (await getSessionUserId()) ?? "";
   const state = await runAction(async () => {
-    await handOverCaptain({ userId, newCaptainId: String(formField(formData, "memberId") ?? "") });
+    await handOverCaptain({
+      userId,
+      teamId: String(formField(formData, "teamId") ?? ""),
+      newCaptainId: String(formField(formData, "memberId") ?? ""),
+    });
   });
   if (state.error) return state;
   await setFlash("Captain-Rolle übertragen");

@@ -2,10 +2,10 @@
 import { type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { lockTeam } from "./locks.ts";
-import { findOwnTeam, isCaptainOf, requireAdmin } from "./permissions.ts";
+import { findOwnTeams, isCaptainOf, requireAdmin } from "./permissions.ts";
 import { linksVersion, teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { clearTeamLogo, logoVersion, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
-import { clearTeamLinks, retireTeamActivity } from "./teams.ts";
+import { clearTeamLinks, lockRetirements, retireTeamActivity } from "./teams.ts";
 import { DISCORD_PROVIDER, getDiscordId } from "./users.ts";
 import { BAN_REJECT_REASON, removeFilesAfterCommit } from "./verification.ts";
 
@@ -40,10 +40,10 @@ export async function searchModerationTargets(input: { adminId: string; query: s
         image: true,
         bannedAt: true,
         accounts: { where: discordAccount, select: { accountId: true } },
-        membership: {
-          select: {
-            team: { select: { id: true, name: true, captainId: true, dissolvedAt: true } },
-          },
+        memberships: {
+          where: { team: { dissolvedAt: null } },
+          orderBy: { joinedAt: "asc" },
+          select: { team: { select: { id: true, name: true, captainId: true } } },
         },
       },
     }),
@@ -66,20 +66,19 @@ export async function searchModerationTargets(input: { adminId: string; query: s
   ]);
 
   return {
-    users: users.map((user) => {
-      const team = user.membership?.team;
-      return {
-        id: user.id,
-        name: user.name,
-        image: user.image,
-        discordId: user.accounts[0]?.accountId ?? null,
-        banned: user.bannedAt !== null,
-        team:
-          team && !team.dissolvedAt
-            ? { id: team.id, name: team.name, isCaptain: isCaptainOf(user, team) }
-            : null,
-      };
-    }),
+    users: users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      image: user.image,
+      discordId: user.accounts[0]?.accountId ?? null,
+      banned: user.bannedAt !== null,
+      // All teams since Phase 21 (§5.20).
+      teams: user.memberships.map(({ team }) => ({
+        id: team.id,
+        name: team.name,
+        isCaptain: isCaptainOf(user, team),
+      })),
+    })),
     teams: teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -180,8 +179,8 @@ export async function banTeam(input: { adminId: string; teamId: string; now: Dat
 
 /**
  * Bans a user and ends their sessions. A player is removed from the team; a captain stays member
- * and captain, and the team is banned with them. A pending verification is closed without a message
- * and its file deleted.
+ * and captain, and the team is banned with them; since Phase 21 for each of the user's teams. A
+ * pending verification is closed without a message and its file deleted.
  */
 export async function banUser(input: {
   adminId: string;
@@ -203,9 +202,13 @@ export async function banUser(input: {
 /** Building block of banUser without permission check (also used after a restore). */
 export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, now: Date) {
   const user = { id: userId };
-  // Team before user, in the same order as leaveTeam, joinTeam and deleteAccount (§4).
-  const membership = await tx.teamMember.findUnique({ where: { userId: user.id } });
-  if (membership) await lockTeam(tx, membership.teamId);
+  // Teams before user, in id order, as in leaveTeam, joinTeam and deleteAccount (§4).
+  const memberships = await tx.teamMember.findMany({
+    where: { userId: user.id },
+    orderBy: { teamId: "asc" },
+    select: { teamId: true },
+  });
+  for (const { teamId } of memberships) await lockTeam(tx, teamId);
   // The update locks the user row, so it waits for a running deleteAccount, joinTeam, createTeam or
   // submitVerification, and they wait for it.
   // Staff cannot be banned while they hold a role (§5.9): checked under the same row lock.
@@ -228,19 +231,29 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
     throw new DomainError("CONFLICT", "Das Konto wurde gelöscht, eine Sperre würde nicht greifen.");
   }
 
-  // Read again under the lock: the user may have left or changed teams meanwhile.
-  const team = await findOwnTeam(user.id, tx);
-  if (team && team.id !== membership?.teamId) {
+  // Read again under the lock: the user may have left or joined teams meanwhile.
+  const locked = new Set(memberships.map(({ teamId }) => teamId));
+  const teams = (await findOwnTeams(user.id, tx)).sort((a, b) => (a.id < b.id ? -1 : 1));
+  if (teams.some((team) => !locked.has(team.id))) {
     // Joined another team in between; that one is not locked, and locking it now would invert
     // the order.
     throw new DomainError("CONFLICT", "Bitte versuch es erneut.");
   }
-  // The team's requests and scrims before the verification rows (§4).
+  // Every team the user captains is banned with them, the others lose the member (SPEC N-17). The
+  // teams' requests and scrims before the verification rows (§4), all of them in id order.
+  const captainOf = teams.filter((team) => isCaptainOf(user, team) && !team.bannedAt);
+  await lockRetirements(
+    tx,
+    captainOf.map((team) => team.id),
+    now,
+  );
   let teamBanned = false;
-  if (team && isCaptainOf(user, team)) {
-    teamBanned = await banTeamInTx(tx, team.id, now);
-  } else if (team) {
-    await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+  for (const team of teams) {
+    if (isCaptainOf(user, team)) {
+      teamBanned = (await banTeamInTx(tx, team.id, now)) || teamBanned;
+    } else {
+      await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+    }
   }
 
   await tx.session.deleteMany({ where: { userId: user.id } });

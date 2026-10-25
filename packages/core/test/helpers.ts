@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { prisma, Rank, ScrimFormat, StaffRole } from "@uni-scrims/db";
 import { beforeAll } from "vitest";
 import type { ValorantMap } from "../config/maps.ts";
-import { applyToRequest, confirmApplication, createRequest } from "../src/index.ts";
+import { applyToRequest, confirmApplication, createRequest, findOwnTeam } from "../src/index.ts";
 
 export const NOW = new Date("2026-10-21T12:00:00Z");
 
@@ -150,11 +150,18 @@ export const REQUEST_STARTS_AT = new Date("2026-10-22T18:00:00Z");
 export const SOON = { date: "2026-10-21", time: "20:00" };
 export const SOON_STARTS_AT = new Date(NOW.getTime() + 6 * HOUR);
 
+/** The user's active team, which the pages act for (§5.20); a made-up ID without a team. */
+export async function activeTeamId(userId: string): Promise<string> {
+  return (await findOwnTeam(userId))?.id ?? "no-team";
+}
+
+/** For the user's active team, as the page would post it (§5.20). */
 export async function createOpenRequest(
   captainId: string,
   overrides: Partial<typeof REQUEST_INPUT> = {},
 ) {
-  return createRequest({ ...REQUEST_INPUT, ...overrides, userId: captainId, now: NOW });
+  const teamId = await activeTeamId(captainId);
+  return createRequest({ ...REQUEST_INPUT, ...overrides, userId: captainId, teamId, now: NOW });
 }
 
 /** Two ready teams, a request of the host and the guest's confirmed application. */
@@ -164,6 +171,7 @@ export async function bookScrim(overrides: Partial<typeof REQUEST_INPUT> = {}) {
   const request = await createOpenRequest(host.captain.id, overrides);
   const { application } = await applyToRequest({
     userId: guest.captain.id,
+    teamId: guest.team.id,
     requestId: request.id,
     now: NOW,
   });

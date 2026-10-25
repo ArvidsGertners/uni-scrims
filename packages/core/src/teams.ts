@@ -1,16 +1,24 @@
 // Team lifecycle (SPEC P0-3, ARCHITECTURE §5.5). All paths ignore dissolved teams.
 import { randomBytes } from "node:crypto";
-import { AppStatus, MemberRole, RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
+import {
+  AppStatus,
+  MemberRole,
+  type Prisma,
+  RequestStatus,
+  ScrimStatus,
+  prisma,
+} from "@uni-scrims/db";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, problemError } from "./errors.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
 import {
   captainProblem,
   findOwnTeam,
+  findOwnTeams,
   isCaptainOf,
   requireActiveAccountUser,
   requireCaptain,
-  requireOwnCaptain,
+  requireTeamMember,
   requireUser,
 } from "./permissions.ts";
 import { teamRank, teamRankSummary } from "./ranks.ts";
@@ -33,7 +41,7 @@ import {
 import { cancelScheduledScrim } from "./scrims.ts";
 import { NO_TEAM_LINKS, TEAM_LINK_PLATFORMS, teamLinkColumns, toTeamLinks } from "./team-links.ts";
 import { clearTeamLogo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
-import { avatarVersion, findUserByDiscordId } from "./users.ts";
+import { avatarVersion, findUserByDiscordId, notDeletedUserWhere } from "./users.ts";
 
 export const MAX_TEAM_MEMBERS = 10;
 /** Team cards show at most this many universities, then "+n" (SPEC P0-3). */
@@ -56,25 +64,36 @@ function nameTaken(): DomainError {
   return new DomainError("CONFLICT", "Der Teamname ist schon vergeben.");
 }
 
-function alreadyInTeam(): DomainError {
-  return new DomainError("CONFLICT", "Du bist schon in einem Team.");
+/** The teams that count for User.teamLimit: all that are not dissolved, banned ones included. */
+export async function countOwnTeams(userId: string, db: Db = prisma): Promise<number> {
+  return db.teamMember.count({ where: { userId, team: { dissolvedAt: null } } });
+}
+
+/** Why the user cannot found or join another team (SPEC N-17), or null; also shown by the pages. */
+export function teamLimitProblem(teamCount: number, teamLimit: number): string | null {
+  return teamCount < teamLimit
+    ? null
+    : `Du bist schon in ${teamCount} Teams, mehr geht für dein Konto gerade nicht. Mehr Teams kannst du beim Support beantragen.`;
+}
+
+/** Throws the limit problem; called under the user lock, so parallel joins cannot exceed it. */
+async function requireBelowTeamLimit(user: { id: string; teamLimit: number }, db: Db) {
+  const problem = teamLimitProblem(await countOwnTeams(user.id, db), user.teamLimit);
+  if (problem) throw new DomainError("CONFLICT", problem);
 }
 
 export async function createTeam(input: TeamInput & { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
   const data = parseInput(teamInputSchema, input);
-  if (await prisma.teamMember.findUnique({ where: { userId: user.id } })) {
-    throw alreadyInTeam();
-  }
+  await requireBelowTeamLimit(user, prisma);
   try {
     return await prisma.$transaction(async (tx) => {
       // Nobody sees the new team yet, so the user row is the first lock (§4). A ban or deletion that
       // holds it finishes first and is seen here; a later one sees the membership and asks to retry.
+      // The lock also counts the teams once for parallel foundings and joins (§5.20).
       await lockUser(tx, user.id);
-      await requireUser(user.id, tx);
-      if (await tx.teamMember.findUnique({ where: { userId: user.id } })) {
-        throw alreadyInTeam();
-      }
+      const locked = await requireUser(user.id, tx);
+      await requireBelowTeamLimit(locked, tx);
       const team = await tx.team.create({
         data: {
           name: data.name,
@@ -85,19 +104,30 @@ export async function createTeam(input: TeamInput & { userId: string; now: Date 
           createdAt: input.now,
         },
       });
-      // The captain is always a member too.
+      // The captain is always a member too; the new team becomes the active one (§5.20).
       await tx.teamMember.create({
         data: { teamId: team.id, userId: user.id, joinedAt: input.now },
       });
+      await tx.user.update({ where: { id: user.id }, data: { activeTeamId: team.id } });
       return team;
     });
   } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
-    const taken = await prisma.team.findUnique({
-      where: { nameNormalized: normalizeTeamName(data.name) },
-    });
-    throw taken ? nameTaken() : alreadyInTeam();
+    if (isUniqueViolation(error)) throw nameTaken();
+    throw error;
   }
+}
+
+/**
+ * Makes one of the user's teams the active one (SPEC N-17), on all devices. No lock: a membership
+ * that ends right after the check leaves a pointer findOwnTeam ignores (§5.20).
+ */
+export async function setActiveTeam(input: { userId: string; teamId: string }): Promise<void> {
+  const { user } = await requireTeamMember(input.userId, input.teamId);
+  // Not for an account deleted or banned meanwhile.
+  await prisma.user.updateMany({
+    where: { ...notDeletedUserWhere(user.id), bannedAt: null },
+    data: { activeTeamId: input.teamId },
+  });
 }
 
 export async function updateTeam(input: TeamInput & { userId: string; teamId: string }) {
@@ -177,12 +207,13 @@ export async function regenerateInvite(input: { userId: string; teamId: string }
 }
 
 /**
- * /setup (ARCHITECTURE §6.4): links a Discord server and channel to the caller's team, so bookings,
- * cancellations and reminders are also posted there. Only the captain of a team that is not banned,
- * and not on the hub server: the bot can post there, and every team would post in public.
+ * /setup (ARCHITECTURE §6.4): links a Discord server and channel to one of the caller's teams, so
+ * bookings, cancellations and reminders are also posted there. Only the captain of a team that is
+ * not banned, and not on the hub server: the bot can post there, and every team would post in
+ * public. Without a chosen team the caller's only team as captain (§5.20).
  */
 export async function linkTeamChannel(
-  input: { discordUserId: string; guildId: string; channelId: string },
+  input: { discordUserId: string; guildId: string; channelId: string; teamId?: string | null },
   env: Record<string, string | undefined> = process.env,
 ) {
   if (input.guildId === env.HUB_GUILD_ID) {
@@ -192,16 +223,63 @@ export async function linkTeamChannel(
     );
   }
   const user = await findUserByDiscordId(input.discordUserId);
-  const { team } = await requireOwnCaptain(user?.id);
+  const teamId = input.teamId || (await soleCaptainTeamId(user?.id));
+  await requireCaptain(user?.id, teamId);
   return prisma.$transaction(async (tx) => {
     // Checked again under the team lock: the role or the ban may have changed meanwhile.
-    await lockTeam(tx, team.id);
-    await requireCaptain(user?.id, team.id, tx);
+    await lockTeam(tx, teamId);
+    await requireCaptain(user?.id, teamId, tx);
     return tx.team.update({
-      where: { id: team.id },
+      where: { id: teamId },
       data: { discordGuildId: input.guildId, discordChannelId: input.channelId },
       select: { id: true, name: true },
     });
+  });
+}
+
+/**
+ * The team /setup links when no team was chosen: the only one the user captains that is not banned.
+ * Otherwise the reason, as requireCaptain would give it for the own team.
+ */
+async function soleCaptainTeamId(userId: string | null | undefined): Promise<string> {
+  const user = await requireUser(userId);
+  const teams = await findOwnTeams(user.id);
+  const captainOf = teams.filter((team) => isCaptainOf(user, team));
+  const active = captainOf.filter((team) => !team.bannedAt);
+  if (active.length > 1) {
+    throw new DomainError(
+      "INVALID",
+      "Du bist Captain mehrerer Teams. Wähle mit der Option „team“, welches Team du verknüpfst.",
+    );
+  }
+  const team = active[0] ?? captainOf[0] ?? teams[0];
+  if (!team) throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
+  return team.id;
+}
+
+/**
+ * Suggestions for the team option of /setup: up to 25 teams the user captains that are not banned,
+ * whose name contains `query`. Empty for unknown, banned or incomplete accounts.
+ */
+export async function listCaptainTeamsForDiscordUser(discordUserId: string, query: string) {
+  const user = await findUserByDiscordId(discordUserId);
+  if (!user) return [];
+  try {
+    await requireUser(user.id);
+  } catch (error) {
+    if (error instanceof DomainError) return [];
+    throw error;
+  }
+  return prisma.team.findMany({
+    where: {
+      captainId: user.id,
+      bannedAt: null,
+      dissolvedAt: null,
+      name: { contains: query.trim(), mode: "insensitive" },
+    },
+    orderBy: { name: "asc" },
+    take: 25,
+    select: { id: true, name: true },
   });
 }
 
@@ -216,20 +294,25 @@ export async function transferCaptain(input: {
 /**
  * transferCaptain from the account page for an account that is not complete yet (§5.8): a captain
  * from before Phase 7 must hand over the role before deleting the account, without first giving a
- * name, an address and a password (SPEC N-3).
+ * name, an address and a password (SPEC N-3). Since Phase 21 for the team the page shows it for.
  */
-export async function handOverCaptain(input: { userId: string; newCaptainId: string }) {
-  const user = await requireActiveAccountUser(input.userId);
-  const team = await findOwnTeam(user.id);
-  if (!team) throw new DomainError("NOT_FOUND", "Du bist in keinem Team.");
-  await transferCaptainWith(requireAccountCaptain, { ...input, teamId: team.id });
+export async function handOverCaptain(input: {
+  userId: string;
+  teamId: string;
+  newCaptainId: string;
+}) {
+  await transferCaptainWith(requireAccountCaptain, input);
 }
 
-/** Captain of the own team (not banned), checked like requireCaptain but for incomplete accounts. */
+/** Captain of one of the user's teams (not banned), like requireCaptain but for incomplete accounts. */
 async function requireAccountCaptain(userId: string | null | undefined, teamId: string, db: Db) {
   const user = await requireActiveAccountUser(userId, db);
-  const team = await findOwnTeam(user.id, db);
-  if (!team || team.id !== teamId) {
+  const membership = await db.teamMember.findUnique({
+    where: { teamId_userId: { teamId, userId: user.id } },
+    select: { team: true },
+  });
+  const team = membership?.team;
+  if (!team || team.dissolvedAt) {
     throw new DomainError("FORBIDDEN", "Du bist nicht in diesem Team.");
   }
   const problem = captainProblem(user, team);
@@ -249,8 +332,10 @@ async function transferCaptainWith(
     if (input.newCaptainId === user.id) {
       throw new DomainError("INVALID", "Du bist schon Captain.");
     }
-    const member = await tx.teamMember.findUnique({ where: { userId: input.newCaptainId } });
-    if (member?.teamId !== input.teamId) {
+    const member = await tx.teamMember.findUnique({
+      where: { teamId_userId: { teamId: input.teamId, userId: input.newCaptainId } },
+    });
+    if (!member) {
       throw new DomainError("INVALID", "Nur Mitglieder können Captain werden.");
     }
     await tx.team.update({ where: { id: input.teamId }, data: { captainId: input.newCaptainId } });
@@ -305,45 +390,40 @@ export async function setMemberRole(input: {
   });
 }
 
-/** Join via invite code of an active team; max. 10 members, at most one team per user. */
+/**
+ * Join via invite code of an active team; max. 10 members, and up to User.teamLimit teams per user
+ * (SPEC N-17). The joined team becomes the active one.
+ */
 export async function joinTeam(input: { userId: string; inviteCode: string; now: Date }) {
   const user = await requireUser(input.userId);
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const found = await tx.team.findUnique({ where: { inviteCode: input.inviteCode } });
-      if (!found) throw invalidInvite();
-      // Lock first, then re-check: parallel joins must not exceed the member limit.
-      await lockTeam(tx, found.id);
-      const team = await tx.team.findUniqueOrThrow({ where: { id: found.id } });
-      if (team.inviteCode !== input.inviteCode || !isTeamActive(team)) {
-        throw invalidInvite();
-      }
-      // Team before user (§4), as in banUser and deleteAccount: a ban or deletion that holds the user
-      // row finishes first and is seen here; a later one sees the membership and asks to retry.
-      await lockUser(tx, user.id);
-      await requireUser(user.id, tx);
-      const membership = await tx.teamMember.findUnique({ where: { userId: user.id } });
-      if (membership) {
-        throw membership.teamId === team.id
-          ? new DomainError("CONFLICT", "Du bist schon in diesem Team.")
-          : alreadyInTeam();
-      }
-      if ((await tx.teamMember.count({ where: { teamId: team.id } })) >= MAX_TEAM_MEMBERS) {
-        throw new DomainError(
-          "CONFLICT",
-          `Das Team ist voll (max. ${MAX_TEAM_MEMBERS} Mitglieder).`,
-        );
-      }
-      await tx.teamMember.create({
-        data: { teamId: team.id, userId: user.id, joinedAt: input.now },
-      });
-      return team;
+  return prisma.$transaction(async (tx) => {
+    const found = await tx.team.findUnique({ where: { inviteCode: input.inviteCode } });
+    if (!found) throw invalidInvite();
+    // Lock first, then re-check: parallel joins must not exceed the member limit.
+    await lockTeam(tx, found.id);
+    const team = await tx.team.findUniqueOrThrow({ where: { id: found.id } });
+    if (team.inviteCode !== input.inviteCode || !isTeamActive(team)) {
+      throw invalidInvite();
+    }
+    // Team before user (§4), as in banUser and deleteAccount: a ban or deletion that holds the user
+    // row finishes first and is seen here; a later one sees the membership and asks to retry. The
+    // user lock also counts the teams once for parallel joins to different teams (§5.20).
+    await lockUser(tx, user.id);
+    const locked = await requireUser(user.id, tx);
+    const membership = await tx.teamMember.findUnique({
+      where: { teamId_userId: { teamId: team.id, userId: user.id } },
     });
-  } catch (error) {
-    // Parallel joins of the same user to two teams hit TeamMember.userId unique.
-    if (isUniqueViolation(error)) throw alreadyInTeam();
-    throw error;
-  }
+    if (membership) throw new DomainError("CONFLICT", "Du bist schon in diesem Team.");
+    await requireBelowTeamLimit(locked, tx);
+    if ((await tx.teamMember.count({ where: { teamId: team.id } })) >= MAX_TEAM_MEMBERS) {
+      throw new DomainError("CONFLICT", `Das Team ist voll (max. ${MAX_TEAM_MEMBERS} Mitglieder).`);
+    }
+    await tx.teamMember.create({
+      data: { teamId: team.id, userId: user.id, joinedAt: input.now },
+    });
+    await tx.user.update({ where: { id: user.id }, data: { activeTeamId: team.id } });
+    return team;
+  });
 }
 
 function invalidInvite(): DomainError {
@@ -352,17 +432,15 @@ function invalidInvite(): DomainError {
 
 /**
  * Players can always leave, also banned teams. The captain only as the last member,
- * which dissolves the team.
+ * which dissolves the team. A pointer of User.activeTeamId to the team may stay: findOwnTeam
+ * ignores teams the user is not in (§5.20).
  */
-export async function leaveTeam(input: { userId: string; now: Date }) {
-  const user = await requireUser(input.userId);
-  const ownTeam = await findOwnTeam(user.id);
-  if (!ownTeam) {
-    throw new DomainError("NOT_FOUND", "Du bist in keinem Team.");
-  }
+export async function leaveTeam(input: { userId: string; teamId: string; now: Date }) {
+  await requireTeamMember(input.userId, input.teamId);
   return prisma.$transaction(async (tx) => {
-    await lockTeam(tx, ownTeam.id);
-    const team = await tx.team.findUniqueOrThrow({ where: { id: ownTeam.id } });
+    await lockTeam(tx, input.teamId);
+    // Read again under the lock: the user may have left or been removed meanwhile.
+    const { user, team } = await requireTeamMember(input.userId, input.teamId, tx);
     if (!isCaptainOf(user, team)) {
       await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
       return { dissolved: false };
@@ -415,6 +493,33 @@ export async function retirementRequestIds(
   return [
     ...new Set([...own.map(({ id }) => id), ...applied.map(({ requestId }) => requestId)]),
   ].sort();
+}
+
+/**
+ * Locks what retireTeamActivity locks, for several teams retired in one transaction (banUser and
+ * deleteAccount since Phase 21): first all their requests together with `requestIds` of the caller,
+ * then all their scrims, each kind in id order (§4). retireTeamActivity then finds them locked.
+ */
+export async function lockRetirements(
+  tx: Prisma.TransactionClient,
+  teamIds: string[],
+  now: Date,
+  requestIds: string[] = [],
+): Promise<void> {
+  const retired: string[] = [];
+  for (const teamId of teamIds) retired.push(...(await retirementRequestIds(teamId, now, tx)));
+  for (const id of [...new Set([...requestIds, ...retired])].sort()) await lockRequest(tx, id);
+  if (teamIds.length === 0) return;
+  const scrims = await tx.scrim.findMany({
+    where: {
+      status: ScrimStatus.SCHEDULED,
+      startsAt: { gt: now },
+      OR: [{ hostTeamId: { in: teamIds } }, { guestTeamId: { in: teamIds } }],
+    },
+    orderBy: { id: "asc" },
+    select: { id: true },
+  });
+  for (const scrim of scrims) await lockScrim(tx, scrim.id);
 }
 
 /**

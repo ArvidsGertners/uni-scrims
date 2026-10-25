@@ -10,6 +10,8 @@ import { submitFeedbackAction } from "../actions";
 
 type Props = {
   scrimId: string;
+  /** The team the page was shown for (§5.20). */
+  teamId: string;
   /** Passed from the server page, so this client component needs no core import. */
   outcomes: { value: FeedbackOutcome; label: string }[];
   ratings: number[];
@@ -39,7 +41,7 @@ function Question({
  * Outcome toggles; the rating only appears for "Hat stattgefunden" (SPEC P0-8). Sending stays
  * disabled until everything needed is answered.
  */
-export function FeedbackForm({ scrimId, outcomes, ratings }: Props) {
+export function FeedbackForm({ scrimId, teamId, outcomes, ratings }: Props) {
   const [state, action, pending] = useActionState(submitFeedbackAction, initialActionState);
   const [outcome, setOutcome] = useState<FeedbackOutcome | null>(null);
   const [rating, setRating] = useState<number | null>(null);
@@ -58,6 +60,7 @@ export function FeedbackForm({ scrimId, outcomes, ratings }: Props) {
       }}
     >
       <input type="hidden" name="scrimId" value={scrimId} />
+      <input type="hidden" name="teamId" value={teamId} />
       <Question number="01" title="Hat das Scrim stattgefunden?">
         <div className="grid gap-2 sm:grid-cols-3">
           {outcomes.map(({ value, label }) => (

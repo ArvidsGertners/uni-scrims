@@ -78,14 +78,20 @@ export default async function NewRequestPage() {
           })}
         </div>
       ) : (
-        <RequestForm range={form.rankRange} />
+        <RequestForm teamId={form.teamId} range={form.rankRange} />
       )}
     </PageMain>
   );
 }
 
 /** The range starts where core says: the team rank, without one Iron to Radiant (SPEC N-16). */
-function RequestForm({ range }: { range: { rankMin: Rank; rankMax: Rank } }) {
+function RequestForm({
+  teamId,
+  range,
+}: {
+  teamId: string;
+  range: { rankMin: Rank; rankMax: Rank };
+}) {
   const rankOptions = RANKS.map((rank) => ({
     value: rank,
     label: RANK_LABELS[rank],
@@ -104,6 +110,8 @@ function RequestForm({ range }: { range: { rankMin: Rank; rankMax: Rank } }) {
         </Link>
       }
     >
+      {/* The team the form was shown for, so a switch in another tab changes nothing (§5.20). */}
+      <input type="hidden" name="teamId" value={teamId} />
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Datum">
