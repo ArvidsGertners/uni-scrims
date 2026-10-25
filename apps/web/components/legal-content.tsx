@@ -1,10 +1,21 @@
 import { connection } from "next/server";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { type LegalPage, readLegalPage } from "@/lib/legal";
 import { PageMain } from "@/components/page-main";
 
-/** Impressum or privacy policy from LEGAL_DIR; a placeholder if the file is missing. */
-export async function LegalContent({ page, title }: { page: LegalPage; title: string }) {
+/**
+ * Impressum or privacy policy from LEGAL_DIR; a placeholder if the file is missing. `children` come
+ * after the text, for sections that live in the code (the Riot notice, ARCHITECTURE §5.19).
+ */
+export async function LegalContent({
+  page,
+  title,
+  children,
+}: {
+  page: LegalPage;
+  title: string;
+  children?: ReactNode;
+}) {
   // Read per request: `next build` would otherwise prerender the page without the file.
   await connection();
   const blocks = await readLegalPage(page);
@@ -42,6 +53,7 @@ export async function LegalContent({ page, title }: { page: LegalPage; title: st
             );
         }
       })}
+      {children}
     </PageMain>
   );
 }

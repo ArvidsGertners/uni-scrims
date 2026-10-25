@@ -26,12 +26,6 @@ export async function SiteFooter() {
             Support
           </Link>
         </div>
-        {/* The notice Riot's "Legal Jibber Jabber" policy asks for, word for word, as the rank
-            icons are Riot's assets (ARCHITECTURE §5.19). */}
-        <span lang="en" className="text-pretty">
-          Uni Scrims was created under Riot Games&apos; &quot;Legal Jibber Jabber&quot; policy using
-          assets owned by Riot Games. Riot Games does not endorse or sponsor this project.
-        </span>
       </div>
     </footer>
   );
