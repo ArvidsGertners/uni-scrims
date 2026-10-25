@@ -1,7 +1,7 @@
 import type { ThemePreference } from "@uni-scrims/db";
 
 /** The --background of each mode (globals.css), for the browser's toolbar. */
-const BACKGROUNDS = { light: "#f5f6f8", dark: "#0b0c0e" } as const;
+const BACKGROUNDS = { light: "#f5f6f8", dark: "#0e1116" } as const;
 
 /** The data-theme value on <html> (§5.16); none follows the system setting. */
 export function themeAttribute(theme: ThemePreference | undefined): "light" | "dark" | undefined {

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Space_Grotesk } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteFrame } from "@/components/site-frame";
 import { SiteHeader } from "@/components/site-header";
@@ -10,12 +10,12 @@ import { siteChrome } from "@/lib/header-user";
 import { themeAttribute, themeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
-// Direction A of the design handoff: Geist for display and body, Geist Mono for labels. The same
-// static weights as the prototype loads, so in-between weights (display 650) render like there.
-const geist = Geist({
+// Space Grotesk for display and body (public/brand/BRAND.md), as the variable font (300–700); Geist
+// Mono for labels and codes as in direction A of the design handoff. next/font serves both from this
+// site, so the browser makes no request to Google.
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-geist",
+  variable: "--font-space-grotesk",
 });
 const geistMono = Geist_Mono({
   subsets: ["latin"],
@@ -41,7 +41,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html
       lang="de"
       data-theme={themeAttribute(user?.theme)}
-      className={cn(geist.variable, geistMono.variable)}
+      className={cn(spaceGrotesk.variable, geistMono.variable)}
     >
       <body className="flex min-h-dvh flex-col">
         <ThemeProvider theme={user?.theme ?? "SYSTEM"}>

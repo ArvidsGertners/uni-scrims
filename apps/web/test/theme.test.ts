@@ -14,10 +14,10 @@ describe("themeAttribute", () => {
 describe("themeColor", () => {
   it("gives the colour of the chosen mode, or both by the system setting", () => {
     expect(themeColor("LIGHT")).toBe("#f5f6f8");
-    expect(themeColor("DARK")).toBe("#0b0c0e");
+    expect(themeColor("DARK")).toBe("#0e1116");
     expect(themeColor(undefined)).toEqual([
       { media: "(prefers-color-scheme: light)", color: "#f5f6f8" },
-      { media: "(prefers-color-scheme: dark)", color: "#0b0c0e" },
+      { media: "(prefers-color-scheme: dark)", color: "#0e1116" },
     ]);
   });
 });

@@ -76,39 +76,45 @@
 }
 
 /*
- * Design tokens from docs/design_handoff_uni_scrims/tokens.css, direction A ("Klar") only.
- * Fonts come from next/font (layout.tsx) as --font-geist and --font-geist-mono.
+ * Design tokens from docs/design_handoff_uni_scrims/tokens.css, direction A ("Klar"), with the
+ * colours and font of the brand (public/brand/BRAND.md): background, surface (--card), surface-2
+ * (--secondary, also inputs), text, text-muted and accent (--primary; shadcn's --accent is the
+ * hover surface). Fonts come from next/font (layout.tsx) as --font-space-grotesk and
+ * --font-geist-mono.
  */
 :root {
   /* shadcn */
-  --background: #0b0c0e;
-  --foreground: #f4f5f7;
-  --card: #131519;
-  --card-foreground: #f4f5f7;
-  --popover: #131519;
-  --popover-foreground: #f4f5f7;
-  --primary: #ff5a4f;
-  --primary-foreground: #1c0705;
-  --secondary: #1b1e23;
-  --secondary-foreground: #f4f5f7;
-  --muted: #1b1e23;
-  --muted-foreground: #a3a9b4;
-  --accent: #1b1e23;
-  --accent-foreground: #f4f5f7;
+  --background: #0e1116;
+  --foreground: #f2f4f7;
+  --card: #141820;
+  --card-foreground: #f2f4f7;
+  --popover: #141820;
+  --popover-foreground: #f2f4f7;
+  --primary: #3d7bff;
+  /* Dark text on the accent: 4.9:1, white would be 3.8:1. */
+  --primary-foreground: #0e1116;
+  --secondary: #1a1f27;
+  --secondary-foreground: #f2f4f7;
+  --muted: #1a1f27;
+  --muted-foreground: #8b93a1;
+  --accent: #1a1f27;
+  --accent-foreground: #f2f4f7;
+  /* Not a brand colour: errors and destructive actions stay red. */
   --destructive: #ff5a4f;
-  --border: #262a31;
-  --input: #0f1114;
-  --ring: #ff5a4f;
+  --border: #262c36;
+  --input: #1a1f27;
+  --ring: #3d7bff;
   --radius: 12px;
 
   /* Additional tokens */
   --radius-sm: 8px;
   --radius-pill: 999px;
-  --border-strong: #383d46;
-  --faint: #6e7480;
-  --primary-hover: #ff766d;
-  --accent-soft: rgba(255, 90, 79, 0.13);
-  --accent-text: #ff8279;
+  --border-strong: #383f4b;
+  --faint: #717886;
+  --primary-hover: #5a8fff;
+  --accent-soft: rgba(61, 123, 255, 0.13);
+  /* The accent as text, lightened to stay above 4.5:1 on surface-2 and on --accent-soft too. */
+  --accent-text: #5a8fff;
   --destructive-soft: rgba(255, 90, 79, 0.13);
   --destructive-text: #ff8279;
   --success: #3dd68c;
@@ -117,7 +123,7 @@
   --warning-soft: rgba(245, 184, 75, 0.1);
   --warning-line: rgba(245, 184, 75, 0.32);
   --success-line: rgba(61, 214, 140, 0.3);
-  --accent-soft-hover: rgba(255, 90, 79, 0.2);
+  --accent-soft-hover: rgba(61, 123, 255, 0.2);
   /* Chrome's default placeholder, readable on both backgrounds. */
   --placeholder: #757575;
   --shadow-popup: 0 16px 40px rgba(0, 0, 0, 0.55);
@@ -130,10 +136,11 @@
   --clip-btn: none;
   --card-border: 1px solid #262a31;
 
-  --font-display: var(--font-geist), system-ui, sans-serif;
-  --font-body: var(--font-geist), system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), system-ui, sans-serif;
+  --font-body: var(--font-space-grotesk), system-ui, sans-serif;
   --font-label: var(--font-geist-mono), ui-monospace, monospace;
-  --display-weight: 650;
+  /* Headings in 700 (BRAND.md). */
+  --display-weight: 700;
   --display-transform: none;
   --display-tracking: -0.025em;
   --label-transform: none;
@@ -150,29 +157,30 @@
 
 /*
  * Light mode (Phase 11): the same tokens with light colours; text at least 4.5:1 on background,
- * card and secondary. The dark values above stay those of the design handoff. By the system
+ * card and secondary. The dark values above are those of the brand, which has no light palette:
+ * text in its background colour (like uniscrims-logo-light.svg), the accent stays. By the system
  * setting or the account's choice, like the light variant.
  */
 :root {
   @variant light {
     --background: #f5f6f8;
-    --foreground: #111318;
+    --foreground: #0e1116;
     --card: #ffffff;
-    --card-foreground: #111318;
+    --card-foreground: #0e1116;
     --popover: #ffffff;
-    --popover-foreground: #111318;
+    --popover-foreground: #0e1116;
     --secondary: #eef0f3;
-    --secondary-foreground: #111318;
+    --secondary-foreground: #0e1116;
     --muted: #eef0f3;
     --muted-foreground: #5c6370;
     --accent: #eef0f3;
-    --accent-foreground: #111318;
+    --accent-foreground: #0e1116;
     --border: #e1e4e8;
     --input: #ffffff;
     --border-strong: #c9ced6;
     --faint: #666c77;
-    --accent-soft: rgba(255, 90, 79, 0.12);
-    --accent-text: #c2332a;
+    --accent-soft: rgba(61, 123, 255, 0.12);
+    --accent-text: #1f5bd8;
     --destructive-soft: rgba(255, 90, 79, 0.12);
     --destructive-text: #c2332a;
     --success: #0e7543;
