@@ -107,7 +107,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             {details.map((detail) => (
               <div key={detail.label} className="flex min-w-0 flex-col gap-1 bg-card p-4">
                 <dt className="type-label text-muted-foreground">{detail.label}</dt>
-                <dd className="type-btn text-[18px] leading-[1.25] font-semibold">
+                {/* A rank may break after its icon here: "Ascendant" with icon is wider than a
+                    tile at 320 px, and the grid clips. */}
+                <dd className="type-btn text-[18px] leading-[1.25] font-semibold *:whitespace-normal">
                   {detail.value}
                 </dd>
               </div>

@@ -420,7 +420,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Andere Teams sehen nur den Team-Rang (Board, Anfrage, Bewerbungen, Einladungsseite). Die Mitglieder eines Teams sehen zusätzlich den Rang jedes Einzelnen im Tab „Mitglieder“.
 - [x] Der Tab „Team“ zeigt den Team-Rang mit der Anzahl der Ränge, aus denen er berechnet ist. Wer als Spieler oder Ersatzspieler zählt und keinen Rang angegeben hat, sieht dort einen Link „Rang angeben“ zu den Einstellungen.
 - [x] Die Datenauskunft enthält den eigenen Rang und den Rang des Teams; die Kontolöschung löscht den eigenen Rang. Die Datenschutzerklärung nennt den Rang, wer ihn sieht und dass er in den Team-Rang einfließt.
-- [x] Neben jedem Rang steht sein Rang-Bild aus dem Spiel (Board, Anfrage, Scrims, Team, Mitglieder, Einladung, Einstellungen und die Rang-Auswahlen); „Ohne Rang“ hat keins. Der Footer nennt dafür Riots Hinweis zur Nutzung seiner Assets (nach Phase 20 ergänzt).
+- [x] Neben jedem Rang steht sein Rang-Bild aus dem Spiel (Board, Anfrage, Scrims, Team, Mitglieder, Einladung, Einstellungen und die Rang-Auswahlen); „Ohne Rang“ hat keins. Der Footer nennt dafür Riots Hinweis zur Nutzung seiner Assets im englischen Wortlaut der Richtlinie (nach Phase 20 ergänzt).
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).

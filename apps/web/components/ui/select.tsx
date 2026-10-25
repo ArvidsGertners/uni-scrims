@@ -83,12 +83,12 @@ function Select<Multiple extends boolean | undefined = false>({
                   className="flex min-h-11 scroll-my-1 cursor-pointer items-center gap-3 rounded-[6px] px-3 py-2 text-[16px] leading-snug outline-none select-none data-highlighted:bg-secondary data-selected:font-medium"
                 >
                   {/* The text stays plain, so typing a name still finds the option. */}
-                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
                     {option.icon}
                     <SelectPrimitive.ItemText className="min-w-0 flex-1">
                       {option.label}
                     </SelectPrimitive.ItemText>
-                  </span>
+                  </div>
                   {option.hint ? (
                     <span className="text-[13px] font-normal text-faint">{option.hint}</span>
                   ) : null}

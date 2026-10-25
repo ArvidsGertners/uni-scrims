@@ -26,11 +26,11 @@ export async function SiteFooter() {
             Support
           </Link>
         </div>
-        {/* Riot's "Legal Jibber Jabber" policy asks for this note, as the rank icons are Riot's
-            assets (ARCHITECTURE §5.19). */}
-        <span className="text-pretty">
-          Uni Scrims wurde unter der „Legal Jibber Jabber“-Richtlinie von Riot Games mit Assets von
-          Riot Games erstellt. Riot Games unterstützt oder sponsert dieses Projekt nicht.
+        {/* The notice Riot's "Legal Jibber Jabber" policy asks for, word for word, as the rank
+            icons are Riot's assets (ARCHITECTURE §5.19). */}
+        <span lang="en" className="text-pretty">
+          Uni Scrims was created under Riot Games&apos; &quot;Legal Jibber Jabber&quot; policy using
+          assets owned by Riot Games. Riot Games does not endorse or sponsor this project.
         </span>
       </div>
     </footer>
