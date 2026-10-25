@@ -7,10 +7,12 @@ import {
   accountCreateProblem,
   discordLoginUserInfo,
   finishTwoFactorSetup,
+  fromDbLocale,
   handleDiscordLogin,
   hasStaffRole,
 } from "@uni-scrims/core";
-import { prisma } from "@uni-scrims/db";
+import { DEFAULT_LOCALE, type Locale } from "@uni-scrims/core/config/locale";
+import { type Locale as DbLocale, prisma } from "@uni-scrims/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -61,6 +63,15 @@ async function sendAccountMail(mail: Mail) {
   }
 }
 
+/**
+ * The language of an account mail (§5.22): the account's, German without one. Better Auth passes
+ * the user row with its additional fields, so `locale` is there at runtime, though not in the type.
+ */
+function mailLocale(user: object): Locale {
+  const stored = (user as { locale?: DbLocale | null }).locale ?? null;
+  return fromDbLocale(stored) ?? DEFAULT_LOCALE;
+}
+
 // The admin area on its own host shares the login (§5.13).
 const admin = adminOrigin();
 const cookieDomain = sharedCookieDomain();
@@ -78,7 +89,7 @@ export const auth = betterAuth({
     resetPasswordTokenExpiresIn: 60 * 60,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      await sendAccountMail(passwordResetMail(user.email, url));
+      await sendAccountMail(passwordResetMail(user.email, url, mailLocale(user)));
     },
   },
   emailVerification: {
@@ -89,7 +100,7 @@ export const auth = betterAuth({
     expiresIn: 24 * 60 * 60,
     // Also for a new address: Better Auth sends it there and switches after the click.
     sendVerificationEmail: async ({ user, url }) => {
-      await sendAccountMail(verificationMail(user.email, url));
+      await sendAccountMail(verificationMail(user.email, url, mailLocale(user)));
     },
   },
   socialProviders: {

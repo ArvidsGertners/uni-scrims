@@ -51,7 +51,7 @@ export default tseslint.config(
   },
   // UI text only from the dictionaries (ARCHITECTURE §5.21): no text in JSX besides punctuation and
   // names, and no strings that look German outside the dictionaries. The data export is German by
-  // design; mails and Discord messages follow in Phase 23.
+  // design; the account mails are in the dictionaries too since Phase 23 (§5.22).
   {
     files: ["apps/web/app/**/*.tsx", "apps/web/components/**/*.tsx"],
     rules: {
@@ -93,7 +93,6 @@ export default tseslint.config(
       "apps/web/i18n/**",
       "packages/core/src/i18n/**",
       "packages/core/src/account-export.ts",
-      "apps/web/lib/mail.ts",
     ],
     rules: {
       "no-restricted-syntax": [

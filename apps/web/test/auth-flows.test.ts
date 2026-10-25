@@ -183,6 +183,11 @@ describe("registration (check 1)", () => {
     expect(await prisma.user.findUniqueOrThrow({ where: { email } })).toMatchObject({
       locale: "EN",
     });
+    // The confirmation comes in the account's language (§5.22), the link on its own line.
+    const mail = sentMails.findLast((sent) => sent.to === email)!;
+    expect(mail.subject).toBe("Please confirm your email address");
+    expect(mail.text).toMatch(/^Hi,\n\nplease confirm your email address for Uni Scrims/);
+    expect(mail.text).toMatch(/\n\nhttps?:\S+\n\nThe link is valid for 24 hours/);
   });
 
   it("answers a taken address like a new one and creates nothing", async () => {

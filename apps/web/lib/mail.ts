@@ -1,34 +1,25 @@
-// Account mails (ARCHITECTURE §5.8): plain German text, sent over the transport in core, which the
-// bot uses for notification mails too (§5.17).
+// Account mails (ARCHITECTURE §5.8): plain text in the account's language (§5.22), sent over the
+// transport in core, which the bot uses for notification mails too (§5.17).
+import type { Locale } from "@uni-scrims/core/config/locale";
 import type { Mail } from "@uni-scrims/core/mail";
+import { accountMailMessages } from "../i18n/mail.ts";
 
 export { type Mail, sendMail } from "@uni-scrims/core/mail";
 
-/** Shown when sending fails; Better Auth passes the error on to the server action. */
-export const MAIL_FAILED = "Die Mail konnte nicht gesendet werden. Bitte versuch es später erneut.";
+/**
+ * The detail of the error Better Auth passes on to the server action; the form shows its own text
+ * for the code MAIL_FAILED (i18n/common.ts).
+ */
+export const MAIL_FAILED = "The account mail could not be sent.";
 
 const SIGNATURE = "\n\nUni Scrims";
 
-export function verificationMail(to: string, url: string): Mail {
-  return {
-    to,
-    subject: "Bitte bestätige deine E-Mail-Adresse",
-    text:
-      `Hallo,\n\nbitte bestätige deine E-Mail-Adresse für Uni Scrims über diesen Link:\n\n${url}\n\n` +
-      "Der Link ist 24 Stunden gültig. Hast du dich nicht bei Uni Scrims registriert und auch " +
-      "keine neue Adresse eingetragen, kannst du diese Mail ignorieren." +
-      SIGNATURE,
-  };
+export function verificationMail(to: string, url: string, locale: Locale): Mail {
+  const t = accountMailMessages[locale].verification;
+  return { to, subject: t.subject, text: t.text(url) + SIGNATURE };
 }
 
-export function passwordResetMail(to: string, url: string): Mail {
-  return {
-    to,
-    subject: "Neues Passwort für Uni Scrims",
-    text:
-      `Hallo,\n\nüber diesen Link setzt du ein neues Passwort für Uni Scrims:\n\n${url}\n\n` +
-      "Der Link ist 1 Stunde gültig. Danach bist du auf allen Geräten abgemeldet. Hast du das " +
-      "nicht angefordert, ignoriere diese Mail; dein Passwort bleibt, wie es ist." +
-      SIGNATURE,
-  };
+export function passwordResetMail(to: string, url: string, locale: Locale): Mail {
+  const t = accountMailMessages[locale].passwordReset;
+  return { to, subject: t.subject, text: t.text(url) + SIGNATURE };
 }
