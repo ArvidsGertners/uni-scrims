@@ -30,6 +30,7 @@ import {
   registrationSchema,
   requireAccountUser,
   requireUser,
+  setLocalePreference,
   setThemePreference,
   updateRealName,
 } from "../src/index.ts";
@@ -694,6 +695,45 @@ describe("setThemePreference", () => {
     await setThemePreference({ userId: user.id, theme: "LIGHT" });
     await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).theme).toBe("SYSTEM");
+  });
+});
+
+describe("setLocalePreference", () => {
+  it("stores the language of the own account, banned and incomplete accounts included", async () => {
+    const user = await createUser();
+    expect(await getCurrentUser(user.id)).toMatchObject({ locale: null });
+    await setLocalePreference({ userId: user.id, locale: "en" });
+    expect(await getCurrentUser(user.id)).toMatchObject({ locale: "en" });
+    await setLocalePreference({ userId: user.id, locale: "de" });
+    expect(await getCurrentUser(user.id)).toMatchObject({ locale: "de" });
+
+    const banned = await createUser({ banned: true });
+    const legacy = await createUser({ legacy: true });
+    for (const other of [banned, legacy]) {
+      await setLocalePreference({ userId: other.id, locale: "en" });
+      expect((await prisma.user.findUniqueOrThrow({ where: { id: other.id } })).locale).toBe("EN");
+    }
+  });
+
+  it("rejects unknown languages and missing or deleted accounts", async () => {
+    const user = await createUser();
+    await expect(setLocalePreference({ userId: user.id, locale: "fr" })).rejects.toMatchObject({
+      code: "INVALID",
+    });
+    await expect(setLocalePreference({ userId: "missing", locale: "en" })).rejects.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
+    await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
+    await expect(setLocalePreference({ userId: user.id, locale: "en" })).rejects.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
+  });
+
+  it("forgets the language when the account is deleted", async () => {
+    const user = await createUser();
+    await setLocalePreference({ userId: user.id, locale: "en" });
+    await deleteAccount({ userId: user.id, uploadDir: tmpdir(), now: NOW });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).locale).toBeNull();
   });
 });
 

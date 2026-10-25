@@ -130,6 +130,12 @@ enum ThemePreference {
   DARK
 }
 
+// The language an account chose (Phase 22, §5.21).
+enum Locale {
+  DE
+  EN
+}
+
 // Phase 21 (§5.20): a request for more teams.
 enum TeamLimitStatus {
   PENDING
@@ -177,6 +183,8 @@ model User {
   activeTeam       Team?           @relation("UserActiveTeam", fields: [activeTeamId], references: [id], onDelete: SetNull)
   // Phase 21 (§5.20): how many teams the user may be in; raised by an admin on request.
   teamLimit        Int             @default(5)
+  // Phase 22 (§5.21): the chosen language on every device; null = never chosen.
+  locale           Locale?
 
   avatar                  UserAvatar?
   notificationPreferences NotificationPreference[]

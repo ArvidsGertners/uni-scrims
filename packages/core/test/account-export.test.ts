@@ -82,6 +82,7 @@ async function fullAccount() {
       avatarUpdatedAt: NOW,
       avatar: { create: { data: new Uint8Array([4, 5, 6]) } },
       theme: "DARK",
+      locale: "EN",
       // Above the others' Gold: the team rank stays Gold (4 × Gold + Diamond).
       rank: "DIAMOND",
       notificationPreferences: { create: { type: "SCRIM_BOOKED", email: true } },
@@ -224,6 +225,7 @@ describe("exportAccountData", () => {
       zweiFaktorFehlversuche: 2,
       zweiFaktorGesperrtBis: null,
       design: "Dunkel",
+      sprache: "Englisch",
       rang: "Diamond",
     });
     expect(data.anmeldung).toMatchObject({
@@ -453,6 +455,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     avatarUpdatedAt: SHOWN,
     theme: SHOWN,
     rank: SHOWN,
+    locale: SHOWN,
     activeTeamId: SHOWN,
     teamLimit: SHOWN,
   },

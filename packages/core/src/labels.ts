@@ -1,5 +1,6 @@
 import {
   type FeedbackOutcome,
+  type Locale,
   type LogoBackground,
   MemberRole,
   type NotifChannel,
@@ -120,6 +121,12 @@ export const THEME_LABELS: Record<ThemePreference, string> = {
   SYSTEM: "System",
   LIGHT: "Hell",
   DARK: "Dunkel",
+};
+
+/** The stored language of an account (SPEC N-18), for the data export. */
+export const LOCALE_LABELS: Record<Locale, string> = {
+  DE: "Deutsch",
+  EN: "Englisch",
 };
 
 /** The two team logos (SPEC N-7). */

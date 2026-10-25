@@ -1,5 +1,6 @@
 import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
+import { fromDbLocale } from "./i18n/locale.ts";
 import { isReservedEmail } from "./schemas.ts";
 
 export const DISCORD_PROVIDER = "discord";
@@ -35,6 +36,7 @@ export function deletedUserData(userId: string) {
     avatarUpdatedAt: null,
     theme: "SYSTEM",
     rank: null,
+    locale: null,
     activeTeamId: null,
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
@@ -247,6 +249,7 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
       staffRole: true,
       avatarUpdatedAt: true,
       theme: true,
+      locale: true,
     },
   });
   if (!user) return null;
@@ -267,6 +270,8 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
     avatarVersion: avatarVersion(user),
     /** The chosen design, set on <html> by the root layout (§5.16). */
     theme: user.theme,
+    /** The chosen language, null if never chosen; it comes before cookie and browser (§5.21). */
+    locale: fromDbLocale(user.locale),
   };
 }
 

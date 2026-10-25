@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { VerifStatus, prisma } from "@uni-scrims/db";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
+import { toDbLocale } from "./i18n/locale.ts";
 import { lockTeam, lockUser } from "./locks.ts";
 import {
   findOwnTeams,
@@ -17,6 +18,7 @@ import {
   parseInput,
   playerRankSchema,
   realNameSchema,
+  localeSchema,
   themePreferenceSchema,
 } from "./schemas.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, lockRetirements } from "./teams.ts";
@@ -227,6 +229,20 @@ export async function setThemePreference(input: { userId: string; theme: string 
   const theme = parseInput(themePreferenceSchema, input.theme);
   // updateMany: a deletion that commits meanwhile has reset the row, which then stays as it is.
   await prisma.user.updateMany({ where: notDeletedUserWhere(user.id), data: { theme } });
+}
+
+/**
+ * The language of the own account (SPEC N-18, §5.21); banned users and incomplete accounts included,
+ * like the design. Signed out, the language only lives in the cookie.
+ */
+export async function setLocalePreference(input: {
+  userId: string;
+  locale: string;
+}): Promise<void> {
+  const user = await requireAccountUser(input.userId);
+  const locale = toDbLocale(parseInput(localeSchema, input.locale));
+  // updateMany: a deletion that commits meanwhile has reset the row, which then stays as it is.
+  await prisma.user.updateMany({ where: notDeletedUserWhere(user.id), data: { locale } });
 }
 
 /**

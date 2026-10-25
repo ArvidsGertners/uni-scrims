@@ -19,6 +19,7 @@ import {
   TEAM_TAG_MAX,
   TEAM_TAG_MIN,
 } from "../config/limits.ts";
+import { LOCALES } from "../config/locale.ts";
 import { mapSchema } from "../config/maps.ts";
 import { DomainError } from "./errors.ts";
 import { rankValue } from "./ranks.ts";
@@ -75,6 +76,9 @@ export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
 export const playerRankSchema = z
   .union([z.enum(Rank), z.literal("")], "Bitte wähle einen Rang.")
   .transform((rank) => rank || null);
+
+/** The language of the own account (Phase 22, §5.21). */
+export const localeSchema = z.enum(LOCALES, "Bitte wähle eine Sprache.");
 
 /** The design of the own account (Phase 17, §5.16). */
 export const themePreferenceSchema = z.enum(ThemePreference, "Bitte wähle ein Design.");

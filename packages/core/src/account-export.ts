@@ -5,6 +5,7 @@ import { NotifType, Prisma, type Rank, VerifStatus, prisma } from "@uni-scrims/d
 import { CREDENTIAL_PROVIDER } from "./account.ts";
 import {
   FEEDBACK_OUTCOME_LABELS,
+  LOCALE_LABELS,
   LOGO_BACKGROUND_LABELS,
   NOTIFICATION_CHANNEL_LABELS,
   MEMBER_ROLE_LABELS,
@@ -284,6 +285,8 @@ export async function exportAccountData(input: {
           zweiFaktorFehlversuche: twoFactor?.failedVerificationCount ?? null,
           zweiFaktorGesperrtBis: twoFactor?.lockedUntil ?? null,
           design: THEME_LABELS[user.theme],
+          // Null until the account chose one (SPEC N-18).
+          sprache: user.locale && LOCALE_LABELS[user.locale],
           // Self-declared (SPEC N-16).
           rang: user.rank && RANK_LABELS[user.rank],
         },
