@@ -699,8 +699,9 @@ describe("getNavTeam (§5.15)", () => {
       teams: [entry],
       teamCount: 1,
       teamLimit: 5,
+      limitProblem: null,
     });
-    const none = { team: null, teams: [], teamCount: 0, teamLimit: 5 };
+    const none = { team: null, teams: [], teamCount: 0, teamLimit: 5, limitProblem: null };
     expect(await getNavTeam((await createUser()).id)).toEqual(none);
     await prisma.team.update({ where: { id: team.id }, data: { dissolvedAt: NOW } });
     expect(await getNavTeam(captain.id)).toEqual(none);

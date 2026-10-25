@@ -30,7 +30,7 @@ import {
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
-import { getMyTeam, teamUniversities } from "./teams.ts";
+import { getMyTeam, teamLimitProblem, teamUniversities } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
 import { getDiscordId } from "./users.ts";
 
@@ -724,5 +724,7 @@ export async function getNavTeam(userId: string) {
     teams,
     teamCount: own.length,
     teamLimit: user.teamLimit,
+    /** Why no further team can be founded or joined (SPEC N-17), or null. */
+    limitProblem: teamLimitProblem(own.length, user.teamLimit),
   };
 }

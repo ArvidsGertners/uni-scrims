@@ -27,23 +27,23 @@ export const siteChrome = cache(async () => {
   const user = await headerUser();
   const adminHost = isAdminHost((await headers()).get("host"));
   const active = user !== null && !user.bannedAt && !user.setupStep;
-  let team: Awaited<ReturnType<typeof getNavTeam>> | null = null;
+  let teams: Awaited<ReturnType<typeof getNavTeam>> | null = null;
   let teamUnavailable = false;
   if (user && active && !adminHost) {
     try {
-      team = await getNavTeam(user.id);
+      teams = await getNavTeam(user.id);
     } catch (error) {
       unstable_rethrow(error);
       console.error("Could not load the team for the sidebar", error);
       teamUnavailable = true;
     }
   }
-  return { user, active, team, teamUnavailable, adminHost };
+  return { user, active, teams, teamUnavailable, adminHost };
 });
 
 /** The navigation of the signed-in user, or null (logged out, admin host). */
 export async function siteNav(): Promise<AppNavData | null> {
-  const { user, active, team, teamUnavailable, adminHost } = await siteChrome();
+  const { user, active, teams, teamUnavailable, adminHost } = await siteChrome();
   if (!user || adminHost) return null;
   return {
     full: active,
@@ -53,7 +53,9 @@ export async function siteNav(): Promise<AppNavData | null> {
       avatarVersion: user.avatarVersion,
       unverified: active && !user.verifiedAt,
     },
-    team: team?.team ?? null,
+    team: teams?.team ?? null,
+    teams: teams?.teams ?? [],
+    canAddTeam: teams !== null && teams.limitProblem === null,
     teamUnavailable,
     // Like the former box on the account page: staff with an active account (§5.16).
     adminUrl: active && user.staffRole ? adminUrl("/") : null,

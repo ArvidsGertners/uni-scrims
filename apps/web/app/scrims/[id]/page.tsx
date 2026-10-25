@@ -3,6 +3,7 @@ import {
   RATING_MAX,
   RATING_MIN,
   describeStartShort,
+  getOtherOwnScrimTeam,
   getScrimDetail,
 } from "@uni-scrims/core";
 import type { FeedbackOutcome } from "@uni-scrims/db";
@@ -12,6 +13,7 @@ import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { DiscordContact } from "@/components/discord-contact";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
+import { SwitchTeamHint } from "@/components/switch-team-hint";
 import { TeamLinks } from "@/components/team-links";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +33,19 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requirePageUser(`/scrims/${id}`);
   const scrim = await getScrimDetail({ userId: user.id, scrimId: id, now: new Date() });
-  if (!scrim) notFound();
+  if (!scrim) {
+    // Played by another own team (SPEC N-17): offer to switch instead of "not found".
+    const otherTeam = await getOtherOwnScrimTeam({ userId: user.id, scrimId: id });
+    if (!otherTeam) notFound();
+    return (
+      <PageMain className="gap-7">
+        <BackLink href="/scrims?tab=anstehend">Scrims</BackLink>
+        <SwitchTeamHint team={otherTeam} returnTo={`/scrims/${id}`}>
+          Dieser Scrim gehört zu deinem Team {otherTeam.name}.
+        </SwitchTeamHint>
+      </PageMain>
+    );
+  }
 
   const when = `${describeStartShort(scrim.startsAt)} · ${formatFormat(scrim.format)}`;
 

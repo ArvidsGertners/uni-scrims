@@ -32,6 +32,11 @@ const ROWS: { right: string; cells: [Cell, Cell, Cell, Cell] }[] = [
   },
   { right: "Team-Channel verknüpfen (/setup)", cells: [true, false, false, false] },
   { right: "Team verlassen", cells: ["✓²", true, true, true] },
+  // Per person, not per team role (SPEC N-17).
+  {
+    right: "In weiteren Teams sein und das aktive Team wechseln",
+    cells: [true, true, true, true],
+  },
 ];
 
 function CellValue({ value }: { value: Cell }) {

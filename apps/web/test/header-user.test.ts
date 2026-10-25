@@ -46,14 +46,15 @@ describe("headerUser", () => {
 
 describe("siteChrome (§5.15)", () => {
   const user = { id: "u1", name: "Nutzer", bannedAt: null, setupStep: null };
-  const team = { id: "t1", name: "Team", tag: "TT", logo: null };
+  const team = { id: "t1", name: "Team", tag: "TT", logo: null, active: true };
+  const teams = { team, teams: [team], teamCount: 1, teamLimit: 5, limitProblem: null };
 
   it("loads the team for active accounts", async () => {
     session.getSignedInUser.mockResolvedValue(user);
-    core.getNavTeam.mockResolvedValue(team);
+    core.getNavTeam.mockResolvedValue(teams);
     await expect(siteChrome()).resolves.toMatchObject({
       active: true,
-      team,
+      teams,
       teamUnavailable: false,
       adminHost: false,
     });
@@ -65,13 +66,13 @@ describe("siteChrome (§5.15)", () => {
       { ...user, setupStep: "LINK_DISCORD" },
     ]) {
       session.getSignedInUser.mockResolvedValue(restricted);
-      await expect(siteChrome()).resolves.toMatchObject({ active: false, team: null });
+      await expect(siteChrome()).resolves.toMatchObject({ active: false, teams: null });
     }
     vi.stubEnv("BETTER_AUTH_URL", "https://uniscrims.test");
     vi.stubEnv("ADMIN_URL", "https://admin.uniscrims.test");
     request.host = "admin.uniscrims.test";
     session.getSignedInUser.mockResolvedValue(user);
-    await expect(siteChrome()).resolves.toMatchObject({ adminHost: true, team: null });
+    await expect(siteChrome()).resolves.toMatchObject({ adminHost: true, teams: null });
     expect(core.getNavTeam).not.toHaveBeenCalled();
   });
 
@@ -81,7 +82,7 @@ describe("siteChrome (§5.15)", () => {
     core.getNavTeam.mockRejectedValue(new Error("connect ECONNREFUSED"));
     await expect(siteChrome()).resolves.toMatchObject({
       user,
-      team: null,
+      teams: null,
       teamUnavailable: true,
     });
     expect(errors).toHaveBeenCalledWith(
@@ -104,15 +105,42 @@ describe("siteNav (§5.16)", () => {
 
   it("links the admin area for staff with an active account", async () => {
     session.getSignedInUser.mockResolvedValue(staff);
-    core.getNavTeam.mockResolvedValue(null);
+    core.getNavTeam.mockResolvedValue({
+      team: null,
+      teams: [],
+      teamCount: 0,
+      teamLimit: 5,
+      limitProblem: null,
+    });
     await expect(siteNav()).resolves.toMatchObject({ full: true, adminUrl: "/admin" });
     vi.stubEnv("BETTER_AUTH_URL", "https://uniscrims.test");
     vi.stubEnv("ADMIN_URL", "https://admin.uniscrims.test");
     await expect(siteNav()).resolves.toMatchObject({ adminUrl: "https://admin.uniscrims.test/" });
   });
 
+  it("passes the active team, all own teams and whether another one fits (SPEC N-17)", async () => {
+    session.getSignedInUser.mockResolvedValue(staff);
+    const first = { id: "t1", name: "Erstes", tag: "EE", logo: null, active: true };
+    const second = { id: "t2", name: "Zweites", tag: "ZZ", logo: null, active: false };
+    const nav = { team: first, teams: [first, second], teamCount: 2, teamLimit: 5 };
+    core.getNavTeam.mockResolvedValue({ ...nav, limitProblem: null });
+    await expect(siteNav()).resolves.toMatchObject({
+      team: first,
+      teams: [first, second],
+      canAddTeam: true,
+    });
+    core.getNavTeam.mockResolvedValue({ ...nav, limitProblem: "Limit erreicht" });
+    await expect(siteNav()).resolves.toMatchObject({ canAddTeam: false });
+  });
+
   it("has no admin link without a role or with a banned or incomplete account", async () => {
-    core.getNavTeam.mockResolvedValue(null);
+    core.getNavTeam.mockResolvedValue({
+      team: null,
+      teams: [],
+      teamCount: 0,
+      teamLimit: 5,
+      limitProblem: null,
+    });
     for (const user of [
       { ...staff, staffRole: null },
       { ...staff, bannedAt: new Date() },

@@ -14,6 +14,7 @@ import { CheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
+import { SwitchTeamHint } from "@/components/switch-team-hint";
 import { TeamLinks } from "@/components/team-links";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -74,6 +75,12 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
       ) : (
         <BackLink href="/scrims">Zurück zum Board</BackLink>
       )}
+      {request.otherOwnTeam ? (
+        <SwitchTeamHint team={request.otherOwnTeam} returnTo={`/requests/${request.id}`}>
+          Diese Anfrage gehört zu deinem Team {request.otherOwnTeam.name}. Die Bewerbungen siehst du
+          als {request.otherOwnTeam.name}.
+        </SwitchTeamHint>
+      ) : null}
 
       <div className="flex items-center gap-4">
         <TeamAvatar team={team} size="lg" own={ownRequest} />

@@ -9,6 +9,7 @@ import {
   removeMember,
   logoBackgroundSchema,
   removeTeamLogo,
+  setActiveTeam,
   setMemberRole,
   setTeamLogo,
   transferCaptain,
@@ -50,8 +51,27 @@ export async function createTeamAction(_state: ActionState, formData: FormData) 
   const state = await runAction(async () => {
     teamName = (await createTeam({ ...input, userId, now: new Date() })).name;
   });
-  if (state.done) await setFlash(`Willkommen bei ${teamName}`);
-  return finish(state);
+  if (!state.done) return state;
+  await setFlash(`Willkommen bei ${teamName}`);
+  await finish(state);
+  // The new team is the active one (SPEC N-17); from /team/new back to the team page.
+  redirect("/team");
+}
+
+/** Detail pages that switch and stay (SPEC N-17); everything else opens the team page. */
+const SWITCH_RETURN = /^\/(requests|scrims)\/[\w-]+$/;
+
+/**
+ * Makes another own team active (SPEC N-17) and opens the team page, or goes back to `returnTo` (the
+ * hint on a scrim or request of that team). A failed switch lands there too, showing the state.
+ */
+export async function switchTeamAction(teamId: string, returnTo: string | null = null) {
+  const userId = (await getSessionUserId()) ?? "";
+  const id = idSchema.safeParse(teamId);
+  if (id.success) await runAction(() => setActiveTeam({ userId, teamId: id.data }));
+  // The sidebar in the root layout shows the active team.
+  revalidatePath("/", "layout");
+  redirect(returnTo && SWITCH_RETURN.test(returnTo) ? returnTo : "/team");
 }
 
 export async function setTeamLogoAction(_state: ActionState, formData: FormData) {

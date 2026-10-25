@@ -43,7 +43,8 @@ export default async function NewRequestPage() {
       <div className="flex flex-col gap-2.5">
         <h1 className="type-h1">Scrim-Anfrage erstellen</h1>
         <p className="text-pretty text-muted-foreground">
-          Deine Anfrage erscheint sofort auf dem Board. Ihr entscheidet, welches Team ihr annehmt.
+          {form ? `Für ${form.teamName}: ` : null}Deine Anfrage erscheint sofort auf dem Board. Ihr
+          entscheidet, welches Team ihr annehmt.
         </p>
       </div>
       {!form ? (

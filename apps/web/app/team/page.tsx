@@ -27,14 +27,13 @@ import { Alert } from "@/components/ui/alert";
 import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import {
-  createTeamAction,
   leaveTeamAction,
   regenerateInviteAction,
   removeTeamLogoAction,
   updateTeamAction,
   updateTeamLinksAction,
 } from "./actions";
-import { JoinLinkForm } from "./join-link-form";
+import { NewTeamForms } from "./new-team-forms";
 import { TeamLogoForm } from "./team-logo-form";
 import { TeamHeader } from "./team-tabs";
 
@@ -56,33 +55,7 @@ export default async function TeamPage() {
             Mitglieder. Das geht auch, während deine Verifizierung noch läuft.
           </p>
         </div>
-        {/* From 1024 px both ways side by side (SPEC N-12); below in this order. */}
-        <div className="contents lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
-          <section className={`${cardClass} gap-[18px]`}>
-            <h2 className="type-h2">Team gründen</h2>
-            <ActionForm
-              action={createTeamAction}
-              submitLabel="Team gründen"
-              size="lg"
-              submitClassName="w-full"
-              className="flex flex-col gap-[18px]"
-            >
-              <TeamFields />
-            </ActionForm>
-          </section>
-          <div className="flex items-center gap-3 text-[13px] text-faint lg:hidden">
-            <span className="h-px flex-1 bg-border" />
-            oder
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <section className={`${cardClass} gap-3.5`}>
-            <h2 className="type-h2">Team beitreten</h2>
-            <p className="text-[14px] text-pretty text-muted-foreground">
-              Frag deinen Captain nach dem Einladungslink und öffne ihn. Oder füge ihn hier ein:
-            </p>
-            <JoinLinkForm placeholder={`${baseUrl.replace(/^https?:\/\//, "")}/join/…`} />
-          </section>
-        </div>
+        <NewTeamForms />
       </PageMain>
     );
   }

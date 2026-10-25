@@ -4,12 +4,15 @@ import type { TeamLogoInfo } from "@uni-scrims/core";
 import { cn } from "cn";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useState, useTransition } from "react";
+import { switchTeamAction } from "@/app/team/actions";
 import {
+  CheckIcon,
   ChevronDownIcon,
   ExternalLinkIcon,
   LayersIcon,
   MenuIcon,
+  PlusIcon,
   UsersIcon,
   XIcon,
 } from "@/components/icons";
@@ -33,12 +36,21 @@ export type AppNavData = {
   /** Banned users and incomplete accounts only get Konto (ARCHITECTURE §7, §5.8). */
   full: boolean;
   account: { id: string; name: string; avatarVersion: number | null; unverified: boolean };
-  team: { id: string; name: string; tag: string; logo: TeamLogoInfo | null } | null;
+  /** The active team (SPEC N-17), null without a team. */
+  team: NavTeam | null;
+  /** All own teams by name, for the team menu (SPEC N-17). */
+  teams: NavTeam[];
+  /** Below the team limit: „Neues Team erstellen“ is offered, else „Mehr Teams beantragen“. */
+  canAddTeam: boolean;
   /** The team query failed: a neutral entry instead of claiming there is no team. */
   teamUnavailable: boolean;
   /** The admin area for staff with an active account (§5.16), else null. */
   adminUrl: string | null;
 };
+
+type NavTeam = { id: string; name: string; tag: string; logo: TeamLogoInfo | null };
+
+const TEAM_SECTIONS = ["/team", "/join"];
 
 type Entry = {
   key: string;
@@ -71,9 +83,9 @@ function entries(nav: AppNavData) {
     href: "/team",
     label: nav.team?.name ?? "Team",
     sub: nav.team ? "Team" : nav.teamUnavailable ? undefined : "Gründen oder beitreten",
-    sections: ["/team", "/join"],
+    sections: TEAM_SECTIONS,
     leading: nav.team ? (
-      <TeamAvatar team={nav.team} size="sm" own className="size-8 rounded-[7px] text-[9px]" />
+      <TeamIcon team={nav.team} />
     ) : (
       <span className="flex size-8 items-center justify-center rounded-[7px] border border-border font-label text-[11px]">
         {nav.teamUnavailable ? <UsersIcon size={15} /> : "?"}
@@ -126,6 +138,89 @@ function EntryLink({
       className={className}
       onClick={onClick}
     />
+  );
+}
+
+function TeamIcon({ team, small }: { team: NavTeam; small?: boolean }) {
+  return (
+    <TeamAvatar
+      team={team}
+      size="sm"
+      own
+      className={small ? "size-6 rounded-[6px] text-[8px]" : "size-8 rounded-[7px] text-[9px]"}
+    />
+  );
+}
+
+/** Switches the active team and opens its team page (SPEC N-17). */
+function useSwitchTeam() {
+  const [, startTransition] = useTransition();
+  return (teamId: string) => startTransition(() => switchTeamAction(teamId));
+}
+
+/**
+ * Team as a menu from 1024 px (SPEC N-17): the own teams, the active one checked and opening the
+ * team page, the others switching to it; then founding or, at the limit, asking for more teams.
+ */
+function TeamMenu({ nav, entry, pathname }: { nav: AppNavData; entry: Entry; pathname: string }) {
+  const switchTeam = useSwitchTeam();
+  const active = inSection(entry.sections, pathname);
+  return (
+    <MenuRoot>
+      <MenuTrigger
+        aria-current={active ? "page" : undefined}
+        className={sidebarEntryClass(active, "group w-full cursor-pointer text-left")}
+      >
+        <SidebarEntryContent
+          leading={entry.leading}
+          label={entry.label}
+          sub={entry.sub}
+          trailing={
+            <ChevronDownIcon
+              size={16}
+              className="shrink-0 rotate-180 transition-transform group-data-popup-open:rotate-0"
+            />
+          }
+        />
+      </MenuTrigger>
+      <MenuPopup side="top">
+        {nav.teams.map((team) =>
+          team.id === nav.team?.id ? (
+            <MenuLinkItem key={team.id} render={<Link href="/team" />}>
+              <TeamIcon team={team} small />
+              <span className="min-w-0 flex-1 truncate">{team.name}</span>
+              <CheckIcon size={16} strokeWidth={2.5} className="text-accent-text" />
+              <span className="sr-only">(aktiv)</span>
+            </MenuLinkItem>
+          ) : (
+            <MenuItem key={team.id} onClick={() => switchTeam(team.id)}>
+              <TeamIcon team={team} small />
+              <span className="min-w-0 flex-1 truncate">{team.name}</span>
+            </MenuItem>
+          ),
+        )}
+        <MenuSeparator />
+        {nav.canAddTeam ? (
+          <MenuLinkItem render={<Link href="/team/new" />}>
+            <PlusIcon size={16} />
+            Neues Team erstellen
+          </MenuLinkItem>
+        ) : (
+          <>
+            <MenuItem
+              disabled
+              className="cursor-default text-faint data-highlighted:bg-transparent"
+            >
+              <PlusIcon size={16} />
+              Neues Team erstellen
+            </MenuItem>
+            <MenuLinkItem render={<Link href="/support#mehr-teams" />}>
+              Mehr Teams beantragen
+            </MenuLinkItem>
+          </>
+        )}
+      </MenuPopup>
+    </MenuRoot>
   );
 }
 
@@ -206,7 +301,11 @@ export function AppSidebar({ nav }: { nav: AppNavData }) {
       }
       bottom={
         <nav aria-label="Team und Konto" className="flex flex-col gap-1">
-          {team ? <EntryLink entry={team} pathname={pathname} /> : null}
+          {team && nav.teams.length > 0 ? (
+            <TeamMenu nav={nav} entry={team} pathname={pathname} />
+          ) : team ? (
+            <EntryLink entry={team} pathname={pathname} />
+          ) : null}
           <AccountMenu nav={nav} pathname={pathname} />
         </nav>
       }
@@ -222,6 +321,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
   const open = openOn === pathname;
   const close = () => setOpenOn(null);
   const logout = useLogout();
+  const switchTeam = useSwitchTeam();
   const { top, team } = entries(nav);
   const itemClass = "min-h-14 px-3.5 text-[16px]";
   const subItemClass = "min-h-12 pl-[3.25rem] text-[15px]";
@@ -269,7 +369,63 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
             </>
           ) : null}
           <nav aria-label="Team und Konto" className="flex flex-col gap-1">
-            {team ? (
+            {team && nav.teams.length > 0 ? (
+              // The entries of the team menu as a list (SPEC N-17).
+              <>
+                {nav.teams.map((item) =>
+                  item.id === nav.team?.id ? (
+                    <SidebarLink
+                      key={item.id}
+                      href="/team"
+                      active={inSection(TEAM_SECTIONS, pathname)}
+                      leading={<TeamIcon team={item} />}
+                      label={item.name}
+                      sub="Aktives Team"
+                      trailing={<CheckIcon size={16} strokeWidth={2.5} />}
+                      className={itemClass}
+                      onClick={close}
+                    />
+                  ) : (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        close();
+                        switchTeam(item.id);
+                      }}
+                      className={sidebarEntryClass(
+                        false,
+                        cn(itemClass, "w-full cursor-pointer text-left"),
+                      )}
+                    >
+                      <SidebarEntryContent
+                        leading={<TeamIcon team={item} />}
+                        label={item.name}
+                        sub="Wechseln"
+                      />
+                    </button>
+                  ),
+                )}
+                {nav.canAddTeam ? (
+                  <SidebarLink
+                    href="/team/new"
+                    active={pathname === "/team/new"}
+                    label="Neues Team erstellen"
+                    className={subItemClass}
+                    onClick={close}
+                  />
+                ) : (
+                  <SidebarLink
+                    href="/support#mehr-teams"
+                    active={false}
+                    label="Mehr Teams beantragen"
+                    className={subItemClass}
+                    onClick={close}
+                  />
+                )}
+                <div className="my-2 h-px bg-border" />
+              </>
+            ) : team ? (
               <EntryLink entry={team} pathname={pathname} className={itemClass} onClick={close} />
             ) : null}
             {/* The account as the heading of the items of the account menu (§5.16). */}

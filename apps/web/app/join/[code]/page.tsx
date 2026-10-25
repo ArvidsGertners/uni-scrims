@@ -1,4 +1,4 @@
-import { getMyTeam, getTeamByInviteCode } from "@uni-scrims/core";
+import { getNavTeam, getTeamByInviteCode } from "@uni-scrims/core";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
@@ -8,7 +8,8 @@ import { TeamAvatar } from "@/components/team-avatar";
 import { Alert } from "@/components/ui/alert";
 import { formatUniversities } from "@/lib/scrim-format";
 import { getSessionUserId, loginUrl, requirePageUser } from "@/lib/session";
-import { joinTeamAction } from "../../team/actions";
+import { Button } from "@/components/ui/button";
+import { joinTeamAction, switchTeamAction } from "../../team/actions";
 
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -32,7 +33,9 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
     );
   }
 
-  const myTeam = await getMyTeam(user.id);
+  // All own teams since Phase 21 (SPEC N-17): joining works up to the team limit.
+  const own = await getNavTeam(user.id);
+  const member = own.teams.find((ownTeam) => ownTeam.id === team.id);
   const linkClass = "font-semibold underline underline-offset-2";
   return (
     <PageMain className="gap-7">
@@ -47,7 +50,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
           </span>
         </div>
       </div>
-      {myTeam?.id === team.id ? (
+      {member?.active ? (
         <Alert variant="success">
           <span>
             Du bist schon in diesem Team.{" "}
@@ -56,10 +59,24 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
             </Link>
           </span>
         </Alert>
-      ) : myTeam ? (
+      ) : member ? (
+        <div className="flex flex-col gap-3">
+          <Alert variant="success">
+            <span>Du bist schon in diesem Team.</span>
+          </Alert>
+          <form action={switchTeamAction.bind(null, team.id, null)}>
+            <Button type="submit" variant="outline" size="lg" className="w-full">
+              Zu {team.name} wechseln
+            </Button>
+          </form>
+        </div>
+      ) : own.limitProblem ? (
         <Alert>
           <span>
-            Du bist schon im Team {myTeam.name}. Verlasse es zuerst, um diesem Team beizutreten.
+            {own.limitProblem}{" "}
+            <Link href="/support#mehr-teams" className={linkClass}>
+              Mehr Teams beantragen
+            </Link>
           </span>
         </Alert>
       ) : team.full ? (
