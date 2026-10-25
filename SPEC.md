@@ -305,7 +305,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Team und Rolle bleiben erhalten. Die Verifizierung von Altkonten wird beim Deploy von Phase 7 zurückgesetzt, weil ihr Name nie abgeglichen wurde: Sie laden die Bescheinigung nach dem Vervollständigen neu hoch. Offene Prüfungen von Altkonten werden mit dem Grund „Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.“ abgelehnt (mit DM). Teams können dadurch vorübergehend nicht spielbereit sein; gebuchte Scrims bleiben bestehen.
 
 *Mails, Löschen, Sperren*
-- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch, von `noreply@uniscrims.com` (seit Phase 18 auch Benachrichtigungen, wenn man sie einschaltet, N-14; seit Phase 23 in der Sprache des Kontos, N-19)
+- [x] Mails nur für das Konto (Bestätigung, Passwort zurücksetzen, E-Mail ändern), als reiner Text auf Deutsch (seit dem 25.10.2026 zusätzlich als HTML im Stil der Seite, der Text bleibt als Alternative), von `noreply@uniscrims.com` (seit Phase 18 auch Benachrichtigungen, wenn man sie einschaltet, N-14; seit Phase 23 in der Sprache des Kontos, N-19)
 - [x] Kontolöschung löscht zusätzlich E-Mail-Adresse, Passwort und Klarname (P0-10)
 - [x] Gesperrte Nutzer können sich weiter anmelden, aber wie bisher nur ihr Konto löschen; Name, E-Mail und Passwort ändern sie nicht
 

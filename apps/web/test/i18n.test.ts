@@ -9,6 +9,7 @@ import * as chrome from "../i18n/chrome.ts";
 import * as client from "../i18n/client.ts";
 import * as common from "../i18n/common.ts";
 import * as format from "../i18n/format.ts";
+import * as mail from "../i18n/mail.ts";
 import * as publicPages from "../i18n/public.tsx";
 import * as scrims from "../i18n/scrims.tsx";
 import * as scrimsClient from "../i18n/scrims-client.ts";
@@ -24,6 +25,7 @@ const FILES = {
   client,
   common,
   format,
+  mail,
   publicPages,
   scrims,
   scrimsClient,

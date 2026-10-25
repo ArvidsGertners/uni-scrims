@@ -1,10 +1,12 @@
-// Mail transport (ARCHITECTURE §5.8, §5.17): plain German text over SMTP, for the account mails of
-// the web and, from Phase 18, the notification mails of the bot. A subpath export of its own
-// (@uni-scrims/core/mail), so no client bundle that imports core pulls in nodemailer.
+// Mail transport (ARCHITECTURE §5.8, §5.17): plain text over SMTP, for the account mails of the web
+// (since 25.10.2026 also as HTML) and, from Phase 18, the notification mails of the bot. A subpath
+// export of its own (@uni-scrims/core/mail), so no client bundle that imports core pulls in
+// nodemailer.
 import nodemailer, { type Transporter } from "nodemailer";
 import { getDevMailRedirect } from "../config/dev.ts";
 
-export type Mail = { to: string; subject: string; text: string };
+/** `text` always; `html` optionally, sent alongside as the alternative mail clients show first. */
+export type Mail = { to: string; subject: string; text: string; html?: string };
 
 let transporter: Transporter | null = null;
 

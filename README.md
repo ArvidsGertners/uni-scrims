@@ -100,7 +100,7 @@ Weitere Beobachtungen: Mit `requireEmailVerification` antwortet die Registrierun
 
 ## Konto-Mails (ab Phase 7)
 
-Versand per SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, siehe `.env.example`), in Production über das Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting, `www779.your-server.de:587`). DNS bei Cloudflare: MX auf `www779.your-server.de`, SPF `v=spf1 a mx ~all`, DKIM unter `default2610._domainkey`, DMARC `v=DMARC1; p=none`. Lokal (alles außer `NODE_ENV=production`) gehen Mails nur ins Log von `web`, mit `DEV_MAIL_REDIRECT=<deine Adresse>` stattdessen alle an diese Adresse.
+Versand per SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, siehe `.env.example`), in Production über das Postfach `noreply@uniscrims.com` bei Hetzner (Webhosting, `www779.your-server.de:587`). DNS bei Cloudflare: MX auf `www779.your-server.de`, SPF `v=spf1 a mx ~all`, DKIM unter `default2610._domainkey`, DMARC `v=DMARC1; p=none`. Lokal (alles außer `NODE_ENV=production`) gehen Mails nur ins Log von `web` (nur der Text), mit `DEV_MAIL_REDIRECT=<deine Adresse>` stattdessen alle an diese Adresse. Die Konto-Mails haben seit dem 25.10.2026 zusätzlich eine HTML-Fassung (`apps/web/lib/mail-html.ts`, Vorlage aus `docs/design_handoff_emails`); ihr Logo lädt das Mailprogramm von `BETTER_AUTH_URL`, lokal also nicht.
 
 ## Admins und Prüfer (ab Phase 8)
 
