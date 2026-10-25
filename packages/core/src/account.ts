@@ -221,8 +221,12 @@ export async function setThemePreference(input: { userId: string; theme: string 
 export async function setPlayerRank(input: { userId: string; rank: string }): Promise<void> {
   const user = await requireUser(input.userId);
   const rank = parseInput(playerRankSchema, input.rank);
-  // As setThemePreference: a deletion that commits meanwhile has reset the row and keeps it so.
-  await prisma.user.updateMany({ where: notDeletedUserWhere(user.id), data: { rank } });
+  // As setThemePreference: a deletion that commits meanwhile has reset the row and keeps it so;
+  // a ban that commits meanwhile is seen here too (banned accounts set no rank).
+  await prisma.user.updateMany({
+    where: { ...notDeletedUserWhere(user.id), bannedAt: null },
+    data: { rank },
+  });
 }
 
 /**

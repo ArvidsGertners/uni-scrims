@@ -269,7 +269,7 @@ dc ps    # web "healthy", bot läuft, migrate mit Exit-Code 0 beendet
 
 Prüfen: `https://<domain>/api/health` antwortet, `/impressum` und `/datenschutz` zeigen deine Texte (nicht „Inhalt folgt.“), der Login klappt, und der Admin-Bereich zeigt „Bot läuft“ und keine Warnung zu Rechtstexten.
 
-- **Updates:** `git pull && dc up -d --build`. Der Migrate-Job läuft dabei jedes Mal mit; `web` und `bot` starten erst danach. Nicht in Git und deshalb von Hand nachzuziehen: die Rechtstexte in `docker/legal/` (beschreibt ein Update die Datenverarbeitung anders, die Datenschutzerklärung anpassen; die Seiten lesen sie bei jedem Aufruf) und die Einrichtung auf dem Server aus diesem README (nginx, logrotate, Cron).
+- **Updates:** `git pull && dc up -d --build`. Der Migrate-Job läuft dabei jedes Mal mit; `web` und `bot` starten erst danach. Löscht ein Update eine Spalte (zuletzt Phase 20: `Team.rank`), liefen die alten Container zwischen Migration und Neustart gegen ein Schema ohne diese Spalte; dann so: `dc build && dc stop web bot && dc up -d`. Nicht in Git und deshalb von Hand nachzuziehen: die Rechtstexte in `docker/legal/` (beschreibt ein Update die Datenverarbeitung anders, die Datenschutzerklärung anpassen; die Seiten lesen sie bei jedem Aufruf) und die Einrichtung auf dem Server aus diesem README (nginx, logrotate, Cron).
 - **Logs:** `dc logs -f web bot`. Docker rotiert sie (3 × 10 MB pro Container).
 - **Datenbank-Konsole:** `dc exec db psql -U uniscrims uniscrims`
 

@@ -10,6 +10,11 @@ const ROWS: { right: string; cells: [Cell, Cell, Cell, Cell] }[] = [
     right: "Zählt zur Spielbereitschaft, wenn verifiziert",
     cells: ["je nach Rolle", true, true, false],
   },
+  {
+    right: "Eigener Rang zählt für den Team-Rang",
+    cells: ["je nach Rolle", true, true, false],
+  },
+  { right: "Ränge der Mitglieder sehen", cells: [true, true, true, true] },
   { right: "Scrims, Anfragen und Bewerbungen des Teams sehen", cells: [true, true, true, true] },
   {
     right: "Benachrichtigungen zu Scrims (Buchung, Absage, Erinnerung, Feedback)",

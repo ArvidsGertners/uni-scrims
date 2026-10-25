@@ -198,7 +198,7 @@ export default async function TeamPage() {
                           </span>
                         ) : null}
                       </span>
-                      {me && me.role !== "COACH" && me.rank === null ? (
+                      {me && me.countsForTeamRank && me.rank === null ? (
                         <Link
                           href="/account"
                           className="text-[13px] text-foreground underline underline-offset-2"

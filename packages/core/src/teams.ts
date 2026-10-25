@@ -14,7 +14,13 @@ import {
   requireUser,
 } from "./permissions.ts";
 import { teamRank, teamRankSummary } from "./ranks.ts";
-import { countReadyMembers, isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
+import {
+  countReadyMembers,
+  isPlayingRole,
+  isReadyCount,
+  isTeamActive,
+  isVerifiedMember,
+} from "./readiness.ts";
 import { closeOpenRequest, openRequestWhere } from "./requests.ts";
 import {
   type TeamInput,
@@ -526,6 +532,8 @@ export async function getMyTeam(userId: string) {
     needsVerification: member.id === team.captainId || role !== MemberRole.COACH,
     // Only the own team sees the members' own ranks (SPEC N-16).
     rank: member.rank,
+    /** Whether the member's own rank counts for the team rank: players and substitutes. */
+    countsForTeamRank: isPlayingRole(role),
     status: isVerifiedMember(member)
       ? ("VERIFIED" as const)
       : member.pendingVerification

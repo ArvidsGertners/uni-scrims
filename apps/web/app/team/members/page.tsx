@@ -75,9 +75,9 @@ export default async function TeamMembersPage() {
               return (
                 <tr
                   key={member.id}
-                  className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-border bg-card p-4 md:table-row md:rounded-none md:border-x-0 md:border-t-0 md:bg-transparent md:p-0"
+                  className="grid grid-cols-6 gap-x-4 gap-y-3 rounded-lg border border-border bg-card p-4 md:table-row md:rounded-none md:border-x-0 md:border-t-0 md:bg-transparent md:p-0"
                 >
-                  <td className="col-span-2 md:px-3 md:py-3 md:align-middle">
+                  <td className="col-span-6 md:px-3 md:py-3 md:align-middle">
                     <div className="flex min-w-0 items-center gap-3">
                       <UserAvatar
                         user={member}
@@ -96,8 +96,9 @@ export default async function TeamMembersPage() {
                       </div>
                     </div>
                   </td>
-                  {/* The captain's select needs the whole width of a block. */}
-                  <td className={cn(cellClass, manage && "col-span-2")}>
+                  {/* Two values per row; the captain's select needs a whole row, and so does the
+                      status then, which is too long for a third of a phone's width. */}
+                  <td className={cn(cellClass, manage ? "col-span-6" : "col-span-3")}>
                     <span className={cellLabel}>Rolle</span>
                     {manage ? (
                       <MemberRoleSelect
@@ -114,20 +115,20 @@ export default async function TeamMembersPage() {
                     )}
                   </td>
                   {/* Only the own team sees each member's rank (SPEC N-16). */}
-                  <td className={cellClass}>
+                  <td className={cn(cellClass, "col-span-3")}>
                     <span className={cellLabel}>Rang</span>
                     <span>{member.rank ? RANK_LABELS[member.rank] : "–"}</span>
                   </td>
-                  <td className={cellClass}>
+                  <td className={cn(cellClass, "col-span-3")}>
                     <span className={cellLabel}>Beigetreten</span>
                     <span className="tabular-nums">{formatBerlinDate(member.joinedAt)}</span>
                   </td>
-                  <td className={cellClass}>
+                  <td className={cn(cellClass, manage ? "col-span-6" : "col-span-3")}>
                     <span className={cellLabel}>Status</span>
                     <StatusDot className={status.className}>{status.label}</StatusDot>
                   </td>
                   {manage ? (
-                    <td className="col-span-2 md:px-3 md:py-3 md:text-right md:align-middle">
+                    <td className="col-span-6 md:px-3 md:py-3 md:text-right md:align-middle">
                       {member.isCaptain ? null : (
                         <div className="-ml-2.5 flex flex-wrap gap-1 md:ml-0 md:justify-end">
                           <ActionForm

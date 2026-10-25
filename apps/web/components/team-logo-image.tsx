@@ -5,11 +5,6 @@ import { cn } from "cn";
 import { useTheme } from "@/components/theme-provider";
 import { teamLogoUrl } from "@/lib/team-logo-url";
 
-/**
- * The logo of TeamAvatar for the current mode: the system setting or the account's choice (SPEC
- * N-13), which comes from ThemeProvider. Gets only what it shows, so pages pass no further team data
- * to the browser.
- */
 // Padding of the tile per TeamAvatar size, about 10–12 % of its side. Fixed values: a percentage
 // would refer to the width of the parent, not the logo, and squeeze it to nothing in wide rows.
 const TILE_PADDING = {
@@ -18,6 +13,11 @@ const TILE_PADDING = {
   lg: { light: "light:p-2", dark: "dark:p-2" },
 };
 
+/**
+ * The logo of TeamAvatar for the current mode: the system setting or the account's choice (SPEC
+ * N-13), which comes from ThemeProvider. Gets only what it shows, so pages pass no further team data
+ * to the browser.
+ */
 export function TeamLogoImage({
   team,
   size,

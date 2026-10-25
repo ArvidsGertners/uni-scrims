@@ -111,6 +111,9 @@ describe("computed team rank", () => {
     });
     const own = await getMyTeam(members[2]!.id);
     expect(own).toMatchObject({ rank: Rank.PLATINUM, rankedCount: 2 });
+    // Only players and substitutes count; the link to the settings goes to them (SPEC N-16).
+    expect(own!.members.find((m) => m.id === members[1]!.id)?.countsForTeamRank).toBe(false);
+    expect(own!.members.find((m) => m.id === captain.id)?.countsForTeamRank).toBe(true);
     expect(Object.fromEntries(own!.members.map((m) => [m.id, m.rank]))).toEqual({
       [captain.id]: Rank.GOLD,
       [members[0]!.id]: Rank.PLATINUM,
@@ -155,6 +158,7 @@ describe("computed team rank", () => {
     const unranked = await createReadyTeam({ rank: null });
     expect(await getRequestForm({ userId: unranked.captain.id, now: NOW })).toMatchObject({
       rank: null,
+      rankRange: { rankMin: Rank.IRON, rankMax: Rank.RADIANT },
     });
 
     const author = await createReadyTeam({ rank: Rank.DIAMOND });

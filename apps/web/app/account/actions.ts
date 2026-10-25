@@ -64,7 +64,8 @@ export async function setPlayerRankAction(
   const state = await runAction(async () => {
     await setPlayerRank({ userId, rank: value === "NONE" ? "" : value });
   });
-  if (state.done) await setFlash("Rang gespeichert");
+  if (state.error) return state;
+  await setFlash("Rang gespeichert");
   // The team rank shows on the team page and the cards of other teams.
   revalidatePath("/", "layout");
   return state;

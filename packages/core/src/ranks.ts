@@ -1,5 +1,6 @@
-import { MemberRole, Rank, prisma } from "@uni-scrims/db";
+import { type MemberRole, Rank, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
+import { isPlayingRole } from "./readiness.ts";
 
 /** Valorant ranks in order (value 1–9, ARCHITECTURE §4). */
 export const RANKS: readonly Rank[] = [
@@ -68,7 +69,7 @@ export function teamRankSummary(members: readonly RankedMember[]): {
   rankedCount: number;
 } {
   const values = members
-    .filter((member) => member.role !== MemberRole.COACH && member.user.rank !== null)
+    .filter((member) => isPlayingRole(member.role) && member.user.rank !== null)
     .map((member) => rankValue(member.user.rank!));
   if (values.length === 0) return { rank: null, rankedCount: 0 };
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;

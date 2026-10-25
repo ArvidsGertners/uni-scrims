@@ -261,10 +261,16 @@ export async function getRequestForm(input: { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
   if (!ownTeam) return null;
-  const problems = await requestPostingProblems(user, ownTeam, input.now, prisma);
+  const [problems, rank] = await Promise.all([
+    requestPostingProblems(user, ownTeam, input.now, prisma),
+    loadTeamRank(ownTeam.id),
+  ]);
   return {
-    /** The range of a new request starts at it, without one at Iron to Radiant (SPEC N-16). */
-    rank: await loadTeamRank(ownTeam.id),
+    rank,
+    /** Where the range of a new request starts: the team rank, without one Iron to Radiant (SPEC N-16). */
+    rankRange: rank
+      ? { rankMin: rank, rankMax: rank }
+      : { rankMin: RANKS[0]!, rankMax: RANKS[RANKS.length - 1]! },
     problems: problems.map(({ kind, message }) => ({ kind, message })),
   };
 }

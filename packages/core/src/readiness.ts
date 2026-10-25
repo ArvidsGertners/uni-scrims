@@ -24,15 +24,22 @@ export function isVerifiedMember(user: { verifiedAt: Date | null }): boolean {
   return user.verifiedAt !== null;
 }
 
-/** Roles that play and so count for readiness; coaches never do, verified or not (SPEC N-1). */
+/**
+ * Roles that play and so count for readiness and, since Phase 20, for the team rank; coaches never
+ * do, verified or not (SPEC N-1, N-16).
+ */
 const PLAYING_ROLES: readonly MemberRole[] = [MemberRole.PLAYER, MemberRole.SUBSTITUTE];
+
+export function isPlayingRole(role: MemberRole): boolean {
+  return PLAYING_ROLES.includes(role);
+}
 
 /** A member counts for readiness: verified and not a coach. */
 export function countsForReadiness(member: {
   role: MemberRole;
   user: { verifiedAt: Date | null };
 }): boolean {
-  return isVerifiedMember(member.user) && PLAYING_ROLES.includes(member.role);
+  return isVerifiedMember(member.user) && isPlayingRole(member.role);
 }
 
 /** The readiness rule on a number of members that count for it. */

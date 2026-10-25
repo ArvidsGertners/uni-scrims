@@ -77,14 +77,14 @@ export default async function NewRequestPage() {
           })}
         </div>
       ) : (
-        <RequestForm defaultRank={form.rank} />
+        <RequestForm range={form.rankRange} />
       )}
     </PageMain>
   );
 }
 
-/** The range starts at the team rank, without one at Iron to Radiant (SPEC N-16). */
-function RequestForm({ defaultRank }: { defaultRank: Rank | null }) {
+/** The range starts where core says: the team rank, without one Iron to Radiant (SPEC N-16). */
+function RequestForm({ range }: { range: { rankMin: Rank; rankMax: Rank } }) {
   const rankOptions = RANKS.map((rank) => ({ value: rank, label: RANK_LABELS[rank] }));
   return (
     <ActionForm
@@ -154,7 +154,7 @@ function RequestForm({ defaultRank }: { defaultRank: Rank | null }) {
             name="rankMin"
             aria-label="Rang von"
             required
-            defaultValue={defaultRank ?? RANKS[0]}
+            defaultValue={range.rankMin}
             options={rankOptions}
           />
           <span className="text-faint">bis</span>
@@ -162,7 +162,7 @@ function RequestForm({ defaultRank }: { defaultRank: Rank | null }) {
             name="rankMax"
             aria-label="Rang bis"
             required
-            defaultValue={defaultRank ?? RANKS[RANKS.length - 1]}
+            defaultValue={range.rankMax}
             options={rankOptions}
           />
         </div>

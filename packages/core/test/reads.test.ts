@@ -248,6 +248,7 @@ describe("getRequestForm", () => {
     const team = await createReadyTeam({ verifiedCaptain: false });
     expect(await form(team.captain.id)).toEqual({
       rank: Rank.GOLD,
+      rankRange: { rankMin: Rank.GOLD, rankMax: Rank.GOLD },
       problems: [NOT_VERIFIED, NOT_READY],
     });
     expect(await form(team.members[0]!.id)).toMatchObject({ problems: [NOT_CAPTAIN] });
