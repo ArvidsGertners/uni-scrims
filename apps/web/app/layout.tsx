@@ -26,6 +26,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Uni Scrims",
   description: "Scrims für Valorant-Teams deutscher Hochschulen",
+  icons: { icon: { url: "/brand/favicon.svg", type: "image/svg+xml" } },
 };
 
 export async function generateViewport(): Promise<Viewport> {

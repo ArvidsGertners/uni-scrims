@@ -1,4 +1,6 @@
+import type { ThemePreference } from "@uni-scrims/db";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { DiscordBanner } from "@/components/discord-banner";
 import { MobileMenu } from "@/components/app-nav";
 import { LogoutButton } from "@/components/logout-button";
@@ -6,21 +8,27 @@ import { mainUrl } from "@/lib/admin-url";
 import { siteChrome, siteNav } from "@/lib/header-user";
 import { cn } from "@/lib/utils";
 
-const WORDMARK_CLASS =
-  "font-display text-[18px] font-extrabold tracking-[0.04em] whitespace-nowrap uppercase";
-
-function Logo({ href, admin = false }: { href: string; admin?: boolean }) {
+function Logo({
+  href,
+  theme,
+  admin = false,
+}: {
+  href: string;
+  theme: ThemePreference;
+  admin?: boolean;
+}) {
   return (
-    <Link href={href} className="flex items-center gap-2.5 text-foreground">
-      <span aria-hidden className="h-5 w-2.5 shrink-0 -skew-x-14 bg-primary" />
+    // gap-3: the clear space of BRAND.md, one chevron arm of the 28 px logo.
+    <Link href={href} className="flex items-center gap-3 text-foreground">
       {admin ? (
-        // Two more controls on the right: on small phones the label goes below the wordmark.
-        <span className="flex items-center gap-2.5 max-[399px]:flex-col max-[399px]:items-start max-[399px]:gap-0.5">
-          <span className={cn(WORDMARK_CLASS, "max-[359px]:text-[16px]")}>Uni Scrims</span>
+        // Two more controls on the right: on small phones only the icon (BRAND.md).
+        <>
+          <BrandLogo theme={theme} className="max-[400px]:hidden" />
+          <BrandLogo variant="icon" theme={theme} className="min-[400px]:hidden" />
           <span className="type-label leading-none text-muted-foreground">Admin</span>
-        </span>
+        </>
       ) : (
-        <span className={WORDMARK_CLASS}>Uni Scrims</span>
+        <BrandLogo theme={theme} />
       )}
     </Link>
   );
@@ -30,12 +38,12 @@ function Logo({ href, admin = false }: { href: string; admin?: boolean }) {
  * Header of the admin host (§5.13): no player navigation and no Discord banner. Full width like the
  * dashboard (§5.14, §5.15); from 1024 px the sidebar holds the logout, where a page has one.
  */
-function AdminHeader({ signedIn }: { signedIn: boolean }) {
+function AdminHeader({ signedIn, theme }: { signedIn: boolean; theme: ThemePreference }) {
   return (
     // Sticky like the header of the site, so the sidebar sits below it either way (§5.14).
     <header className="sticky top-0 z-30 border-b border-border bg-background">
       <div className="flex h-16 items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
-        <Logo href="/" admin />
+        <Logo href="/" theme={theme} admin />
         <div className="flex items-center gap-1 max-[359px]:gap-0">
           <a
             href={mainUrl("/scrims")}
@@ -57,7 +65,8 @@ function AdminHeader({ signedIn }: { signedIn: boolean }) {
 
 export async function SiteHeader() {
   const { user, active, adminHost } = await siteChrome();
-  if (adminHost) return <AdminHeader signedIn={user !== null} />;
+  const theme = user?.theme ?? "SYSTEM";
+  if (adminHost) return <AdminHeader signedIn={user !== null} theme={theme} />;
   const showBanner = user !== null && (user.hubJoinFailedAt !== null || user.dmFailedAt !== null);
   // The navigation is the sidebar from 1024 px and the menu below (§5.15). Signed in, the header is
   // full width with the logo above the sidebar.
@@ -72,7 +81,7 @@ export async function SiteHeader() {
             !user && "mx-auto max-w-3xl",
           )}
         >
-          <Logo href={active ? "/scrims" : "/"} />
+          <Logo href={active ? "/scrims" : "/"} theme={theme} />
           {nav ? <MobileMenu nav={nav} /> : null}
         </div>
       </header>
