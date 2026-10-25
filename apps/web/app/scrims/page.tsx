@@ -21,6 +21,7 @@ import {
 } from "@/components/icons";
 import { CARD_COLUMNS, ListGroup } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
+import { RankIcon, RankRangeLabel } from "@/components/rank-icon";
 import { RequestCard } from "@/components/request-card";
 import { TabNav } from "@/components/tab-nav";
 import { type AvatarTeam, TeamAvatar } from "@/components/team-avatar";
@@ -35,7 +36,6 @@ import {
   SCRIM_STATUS_LABELS,
   formatFormat,
   formatMaps,
-  formatRankRange,
   formatUniversities,
 } from "@/lib/scrim-format";
 import { RankFilter } from "./rank-filter";
@@ -247,6 +247,7 @@ function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequests: boo
             options={RANKS.map((value) => ({
               value,
               label: RANK_LABELS[value],
+              icon: <RankIcon rank={value} />,
               hint: value === board.ownTeam?.rank ? "euer Rang" : undefined,
             }))}
           />
@@ -333,7 +334,7 @@ function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
                 <span className="type-h2 group-hover:underline">gegen {scrim.opponent.name}</span>
                 <span className="text-[13px] text-muted-foreground">
                   {formatUniversities(scrim.opponent.universities)} · {formatFormat(scrim.format)} ·{" "}
-                  {formatRankRange(scrim.rankMin, scrim.rankMax)}
+                  <RankRangeLabel rankMin={scrim.rankMin} rankMax={scrim.rankMax} />
                 </span>
               </div>
             </div>
@@ -362,8 +363,9 @@ function Requests({ mine }: { mine: MyScrims }) {
             <div className="flex flex-col gap-0.5">
               <span className="type-h2">{describeStartShort(request.startsAt)}</span>
               <span className="text-[13px] text-muted-foreground">
-                {formatFormat(request.format)} · {formatRankRange(request.rankMin, request.rankMax)}{" "}
-                · {formatMaps(request.maps)}
+                {formatFormat(request.format)} ·{" "}
+                <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} /> ·{" "}
+                {formatMaps(request.maps)}
               </span>
             </div>
             <Badge variant="accent">Offen</Badge>

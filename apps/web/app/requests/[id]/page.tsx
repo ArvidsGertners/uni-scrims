@@ -12,6 +12,7 @@ import { BackLink } from "@/components/back-link";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { CheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
+import { RankRangeLabel, TeamRankLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
 import { TeamLinks } from "@/components/team-links";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +23,7 @@ import {
   REQUEST_STATUS_LABELS,
   formatFormat,
   formatMaps,
-  formatRankRange,
   formatReliability,
-  formatTeamRank,
   formatUniversities,
 } from "@/lib/scrim-format";
 import {
@@ -58,8 +57,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     { label: "Uhrzeit", value: describeStartTime(request.startsAt) },
     { label: "Format", value: formatFormat(request.format) },
     { label: "Maps", value: formatMaps(request.maps) },
-    { label: "Rang", value: formatRankRange(request.rankMin, request.rankMax) },
-    { label: "Teamrang", value: formatTeamRank(team.rank) },
+    {
+      label: "Rang",
+      value: <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} />,
+    },
+    { label: "Teamrang", value: <TeamRankLabel rank={team.rank} /> },
   ];
   const ownApplication = request.ownApplication;
   const hasActions = Boolean(request.apply || ownApplication || request.applications);
@@ -296,7 +298,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       ) : null}
                     </div>
                     <p className="text-[13px] text-muted-foreground">
-                      Teamrang {formatTeamRank(application.team.rank)} ·{" "}
+                      Teamrang <TeamRankLabel rank={application.team.rank} /> ·{" "}
                       {formatReliability(application.team.reliability)}
                     </p>
                     {application.outOfRange ? (

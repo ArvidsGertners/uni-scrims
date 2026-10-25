@@ -1,5 +1,5 @@
-import { RANK_LABELS, type Reliability, SCRIM_FORMAT_LABELS } from "@uni-scrims/core";
-import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
+import { type Reliability, SCRIM_FORMAT_LABELS } from "@uni-scrims/core";
+import type { AppStatus, ScrimFormat } from "@uni-scrims/db";
 
 // Moved to core for the data export (Phase 9, the channels in Phase 18); the pages keep importing
 // them from here.
@@ -9,17 +9,6 @@ export {
   REQUEST_STATUS_LABELS,
   SCRIM_STATUS_LABELS,
 } from "@uni-scrims/core";
-
-export function formatRankRange(rankMin: Rank, rankMax: Rank): string {
-  return rankMin === rankMax
-    ? RANK_LABELS[rankMin]
-    : `${RANK_LABELS[rankMin]} – ${RANK_LABELS[rankMax]}`;
-}
-
-/** The computed team rank (SPEC N-16); a team without ranks is "Ohne Rang". */
-export function formatTeamRank(rank: Rank | null): string {
-  return rank ? RANK_LABELS[rank] : "Ohne Rang";
-}
 
 export function formatFormat(format: ScrimFormat): string {
   return SCRIM_FORMAT_LABELS[format];

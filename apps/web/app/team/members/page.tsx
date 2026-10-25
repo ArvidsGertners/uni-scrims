@@ -1,15 +1,10 @@
-import {
-  MEMBER_ROLES,
-  MEMBER_ROLE_LABELS,
-  RANK_LABELS,
-  formatBerlinDate,
-  getMyTeam,
-} from "@uni-scrims/core";
+import { MEMBER_ROLES, MEMBER_ROLE_LABELS, formatBerlinDate, getMyTeam } from "@uni-scrims/core";
 import { cn } from "cn";
 import { redirect } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { StatusDot } from "@/components/detail-rows";
 import { PageMain } from "@/components/page-main";
+import { RankLabel } from "@/components/rank-icon";
 import { UserAvatar } from "@/components/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { requirePageUser } from "@/lib/session";
@@ -117,7 +112,7 @@ export default async function TeamMembersPage() {
                   {/* Only the own team sees each member's rank (SPEC N-16). */}
                   <td className={cn(cellClass, "col-span-3")}>
                     <span className={cellLabel}>Rang</span>
-                    <span>{member.rank ? RANK_LABELS[member.rank] : "–"}</span>
+                    <span>{member.rank ? <RankLabel rank={member.rank} /> : "–"}</span>
                   </td>
                   <td className={cn(cellClass, "col-span-3")}>
                     <span className={cellLabel}>Beigetreten</span>

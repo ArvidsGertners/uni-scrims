@@ -10,6 +10,7 @@ import { DiscordButton } from "@/components/discord-button";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
 import { CheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
+import { RankIcon } from "@/components/rank-icon";
 import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -38,7 +39,11 @@ const THEME_OPTIONS = Object.values(ThemePreference).map((value) => ({
 const NO_RANK = "NONE";
 const RANK_OPTIONS = [
   { value: NO_RANK, label: "Kein Rang" },
-  ...RANKS.map((rank) => ({ value: rank, label: RANK_LABELS[rank] })),
+  ...RANKS.map((rank) => ({
+    value: rank,
+    label: RANK_LABELS[rank],
+    icon: <RankIcon rank={rank} />,
+  })),
 ];
 
 // The verification belongs to Konto (SPEC N-9): status here, the upload on /verify.

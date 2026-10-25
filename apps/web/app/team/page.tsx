@@ -16,6 +16,7 @@ import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { CopyValue } from "@/components/copy-value";
 import { PageMain } from "@/components/page-main";
+import { TeamRankLabel } from "@/components/rank-icon";
 import { StatTile } from "@/components/stat-tile";
 import { TeamLogoPreview } from "@/components/team-avatar";
 import { TeamFields } from "@/components/team-fields";
@@ -23,12 +24,7 @@ import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
-import {
-  formatFormat,
-  formatReliabilityDetails,
-  formatTeamRank,
-  formatUniversities,
-} from "@/lib/scrim-format";
+import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import {
   createTeamAction,
@@ -190,7 +186,7 @@ export default async function TeamPage() {
                   value: (
                     <span className="flex flex-col items-end gap-0.5">
                       <span>
-                        {formatTeamRank(team.rank)}
+                        <TeamRankLabel rank={team.rank} />
                         {team.rankedCount > 0 ? (
                           <span className="text-muted-foreground">
                             {" "}

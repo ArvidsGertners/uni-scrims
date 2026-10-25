@@ -15,6 +15,7 @@ import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { PageMain } from "@/components/page-main";
+import { RankIcon } from "@/components/rank-icon";
 import { ToggleOption } from "@/components/toggle-option";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
@@ -85,7 +86,11 @@ export default async function NewRequestPage() {
 
 /** The range starts where core says: the team rank, without one Iron to Radiant (SPEC N-16). */
 function RequestForm({ range }: { range: { rankMin: Rank; rankMax: Rank } }) {
-  const rankOptions = RANKS.map((rank) => ({ value: rank, label: RANK_LABELS[rank] }));
+  const rankOptions = RANKS.map((rank) => ({
+    value: rank,
+    label: RANK_LABELS[rank],
+    icon: <RankIcon rank={rank} />,
+  }));
   return (
     <ActionForm
       action={createRequestAction}

@@ -2,6 +2,7 @@
 
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cn } from "cn";
+import { Fragment, type ReactNode } from "react";
 import { CheckIcon, ChevronDownIcon } from "@/components/icons";
 import { controlClass } from "@/components/ui/input";
 
@@ -10,6 +11,8 @@ export type SelectOption = {
   label: string;
   /** Muted text on the right of the option, e.g. "euer Rang"; not shown in the trigger. */
   hint?: string;
+  /** Before the label, in the list and in the trigger, e.g. a rank icon. */
+  icon?: ReactNode;
 };
 
 type SelectProps<Multiple extends boolean | undefined> = Omit<
@@ -52,7 +55,13 @@ function Select<Multiple extends boolean | undefined = false>({
               const values = Array.isArray(value) ? value : value === null ? [] : [value];
               const chosen = options.filter((option) => values.includes(option.value));
               return chosen.length > 0
-                ? chosen.map((option) => option.label).join(", ")
+                ? chosen.map((option, index) => (
+                    <Fragment key={option.value}>
+                      {index > 0 ? ", " : null}
+                      {option.icon ? <span className="mr-[0.4em]">{option.icon}</span> : null}
+                      {option.label}
+                    </Fragment>
+                  ))
                 : placeholder;
             }}
           </SelectPrimitive.Value>
@@ -73,9 +82,13 @@ function Select<Multiple extends boolean | undefined = false>({
                   value={option.value}
                   className="flex min-h-11 scroll-my-1 cursor-pointer items-center gap-3 rounded-[6px] px-3 py-2 text-[16px] leading-snug outline-none select-none data-highlighted:bg-secondary data-selected:font-medium"
                 >
-                  <SelectPrimitive.ItemText className="min-w-0 flex-1">
-                    {option.label}
-                  </SelectPrimitive.ItemText>
+                  {/* The text stays plain, so typing a name still finds the option. */}
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    {option.icon}
+                    <SelectPrimitive.ItemText className="min-w-0 flex-1">
+                      {option.label}
+                    </SelectPrimitive.ItemText>
+                  </span>
                   {option.hint ? (
                     <span className="text-[13px] font-normal text-faint">{option.hint}</span>
                   ) : null}

@@ -2,16 +2,15 @@ import type { TeamCardData } from "@uni-scrims/core";
 import { describeStartTime } from "@uni-scrims/core";
 import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
-import { CheckIcon, ChevronRightIcon, ClockIcon, LayersIcon, MapPinIcon } from "@/components/icons";
+import { CheckIcon, ChevronRightIcon, ClockIcon, MapPinIcon } from "@/components/icons";
+import { RankRangeLabel, TeamRankLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   APPLICATION_STATUS_LABELS,
   formatFormat,
   formatMaps,
-  formatRankRange,
   formatReliability,
-  formatTeamRank,
   formatUniversities,
 } from "@/lib/scrim-format";
 
@@ -58,9 +57,9 @@ export function RequestCard({ request }: Props) {
             <ClockIcon />
             {describeStartTime(request.startsAt)}
           </span>
-          <span className="flex items-center gap-1.5">
-            <LayersIcon />
-            {formatRankRange(request.rankMin, request.rankMax)}
+          {/* The rank icons take the place of a generic icon here. */}
+          <span>
+            <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} />
           </span>
           <span className="flex items-center gap-1.5">
             <MapPinIcon />
@@ -68,7 +67,7 @@ export function RequestCard({ request }: Props) {
           </span>
         </div>
         <p className="text-[13px] text-muted-foreground">
-          Teamrang {formatTeamRank(team.rank)} · {formatReliability(team.reliability)}
+          Teamrang <TeamRankLabel rank={team.rank} /> · {formatReliability(team.reliability)}
         </p>
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3.5">
