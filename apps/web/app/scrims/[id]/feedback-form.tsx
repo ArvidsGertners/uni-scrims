@@ -2,6 +2,7 @@
 
 import type { FeedbackOutcome } from "@uni-scrims/db";
 import { type ReactNode, useActionState, useState } from "react";
+import { useSubmitConfirmation } from "@/components/confirm-dialog";
 import { useMessages } from "@/components/locale-provider";
 import { ToggleOption } from "@/components/toggle-option";
 import { Button } from "@/components/ui/button";
@@ -49,67 +50,68 @@ export function FeedbackForm({ scrimId, teamId, outcomes, ratings }: Props) {
   const [outcome, setOutcome] = useState<FeedbackOutcome | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const ready = outcome !== null && (outcome !== "PLAYED" || rating !== null);
+  const { confirm, dialog } = useSubmitConfirmation();
 
   return (
-    <form
-      action={action}
-      className="flex flex-col gap-7"
-      onSubmit={(event) => {
-        if (!window.confirm(t.confirm)) {
-          event.preventDefault();
-          return;
-        }
-        submitKeepingValues(event, action);
-      }}
-    >
-      <input type="hidden" name="scrimId" value={scrimId} />
-      <input type="hidden" name="teamId" value={teamId} />
-      <Question number="01" title={t.tookPlace}>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {outcomes.map(({ value, label }) => (
-            <ToggleOption
-              key={value}
-              type="radio"
-              name="outcome"
-              value={value}
-              label={label}
-              required
-              onChange={() => {
-                setOutcome(value);
-                // The rating radios unmount for other outcomes and come back unchecked.
-                setRating(null);
-              }}
-            />
-          ))}
-        </div>
-      </Question>
-      {outcome === "PLAYED" ? (
-        <Question number="02" title={t.rating}>
-          <div className="grid grid-cols-5 gap-2">
-            {ratings.map((value) => (
+    <>
+      <form
+        action={action}
+        className="flex flex-col gap-7"
+        onSubmit={(event) => {
+          if (!confirm(event, t.confirm)) return;
+          submitKeepingValues(event, action);
+        }}
+      >
+        <input type="hidden" name="scrimId" value={scrimId} />
+        <input type="hidden" name="teamId" value={teamId} />
+        <Question number="01" title={t.tookPlace}>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {outcomes.map(({ value, label }) => (
               <ToggleOption
                 key={value}
                 type="radio"
-                name="rating"
+                name="outcome"
                 value={value}
-                label={`${value} ★`}
+                label={label}
                 required
-                onChange={() => setRating(value)}
+                onChange={() => {
+                  setOutcome(value);
+                  // The rating radios unmount for other outcomes and come back unchecked.
+                  setRating(null);
+                }}
               />
             ))}
           </div>
         </Question>
-      ) : null}
-      <div className="flex flex-col gap-2">
-        <Button type="submit" size="lg" className="w-full" disabled={!ready || pending}>
-          {t.submit}
-        </Button>
-        {state.error ? (
-          <p role="alert" className="text-[14px] text-destructive-text">
-            {state.error}
-          </p>
+        {outcome === "PLAYED" ? (
+          <Question number="02" title={t.rating}>
+            <div className="grid grid-cols-5 gap-2">
+              {ratings.map((value) => (
+                <ToggleOption
+                  key={value}
+                  type="radio"
+                  name="rating"
+                  value={value}
+                  label={`${value} ★`}
+                  required
+                  onChange={() => setRating(value)}
+                />
+              ))}
+            </div>
+          </Question>
         ) : null}
-      </div>
-    </form>
+        <div className="flex flex-col gap-2">
+          <Button type="submit" size="lg" className="w-full" disabled={!ready || pending}>
+            {t.submit}
+          </Button>
+          {state.error ? (
+            <p role="alert" className="text-[14px] text-destructive-text">
+              {state.error}
+            </p>
+          ) : null}
+        </div>
+      </form>
+      {dialog}
+    </>
   );
 }

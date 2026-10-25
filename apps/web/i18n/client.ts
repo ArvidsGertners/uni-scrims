@@ -80,6 +80,9 @@ export const copyValueMessages = dictionary(
   },
 );
 
+/** The dialog that asks before a final action (components/confirm-dialog.tsx). */
+export const confirmDialogMessages = dictionary({ cancel: "Abbrechen" }, { cancel: "Cancel" });
+
 export const countedTextareaMessages = dictionary(
   { optional: "optional" },
   { optional: "optional" },
