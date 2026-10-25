@@ -30,6 +30,9 @@ function pendingConflict(): DomainError {
   return new DomainError("CONFLICT", "Du hast schon einen offenen Antrag.");
 }
 
+/** No admin could approve more (decideTeamLimitRequest), so no request is taken. */
+const AT_MAX = `Mehr als ${MAX_TEAM_LIMIT} Teams gehen nicht.`;
+
 /** Asks for more teams; one open request per user (pendingUserId). */
 export async function submitTeamLimitRequest(input: { userId: string; reason: string; now: Date }) {
   const user = await requireUser(input.userId);
@@ -37,7 +40,8 @@ export async function submitTeamLimitRequest(input: { userId: string; reason: st
   await prisma.$transaction(async (tx) => {
     // The user row first, so a deletion or ban that commits meanwhile is seen below (§4).
     await lockUser(tx, user.id);
-    await requireUser(user.id, tx);
+    const locked = await requireUser(user.id, tx);
+    if (locked.teamLimit >= MAX_TEAM_LIMIT) throw new DomainError("CONFLICT", AT_MAX);
     if (await tx.teamLimitRequest.findUnique({ where: { pendingUserId: user.id } })) {
       throw pendingConflict();
     }
@@ -64,7 +68,13 @@ export async function getTeamLimitStatus(userId: string) {
       select: { status: true, createdAt: true, decidedAt: true, newLimit: true },
     }),
   ]);
-  return { teamCount, teamLimit: user.teamLimit, latest };
+  return {
+    teamCount,
+    teamLimit: user.teamLimit,
+    latest,
+    /** null while a request can be made, else why not (at the highest limit). */
+    requestProblem: user.teamLimit >= MAX_TEAM_LIMIT ? AT_MAX : null,
+  };
 }
 
 /** Open requests for the admin page „Anträge“, the oldest first. */

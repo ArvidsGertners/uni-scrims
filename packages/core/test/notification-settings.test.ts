@@ -171,3 +171,41 @@ describe("setNotificationPreferences", () => {
     ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
   });
 });
+
+describe("captain of one team and member of another (§5.20)", () => {
+  it("shows the member defaults and stores a changed scrim choice for all teams", async () => {
+    const captained = await createReadyTeam();
+    const joined = await createReadyTeam();
+    const user = captained.captain;
+    await prisma.teamMember.create({
+      data: { teamId: joined.team.id, userId: user.id, joinedAt: NOW },
+    });
+    const page = await getNotificationPreferences(user.id);
+    expect(page).toMatchObject({ isCaptain: false, mixedRoles: true });
+    const booked = page.categories
+      .flatMap((category) => category.types)
+      .find((item) => item.type === NotifType.SCRIM_BOOKED);
+    expect(booked).toMatchObject({ discord: false, email: false });
+
+    // On is stored, although it is the default of the captain team: it is meant for both teams.
+    await setNotificationPreferences({
+      userId: user.id,
+      preferences: await submitted(user.id, {
+        [NotifType.SCRIM_BOOKED]: { discord: true, email: false },
+      }),
+      shownAsCaptain: false,
+    });
+    expect(await storedRows(user.id)).toEqual([
+      expect.objectContaining({ type: NotifType.SCRIM_BOOKED, discord: true, email: null }),
+    ]);
+    // Off is stored too, so the captain team gets none either.
+    await setNotificationPreferences({
+      userId: user.id,
+      preferences: await submitted(user.id, { [NotifType.SCRIM_BOOKED]: OFF }),
+      shownAsCaptain: false,
+    });
+    expect(await storedRows(user.id)).toEqual([
+      expect.objectContaining({ type: NotifType.SCRIM_BOOKED, discord: false, email: null }),
+    ]);
+  });
+});

@@ -115,23 +115,27 @@ function TeamLimitCard({ status }: { status: Awaited<ReturnType<typeof getTeamLi
               </span>
             </Alert>
           ) : null}
-          <ActionForm
-            action={submitTeamLimitRequestAction}
-            submitLabel="Antrag senden"
-            variant="outline"
-            size="sm"
-            className="flex flex-col gap-3"
-          >
-            <CountedTextarea
-              label="Begründung"
-              name="reason"
-              maxLength={TEAM_LIMIT_REASON_MAX}
-              optional={false}
-              required
-              rows={3}
-              placeholder="Zum Beispiel: Ich betreue die Teams unserer Hochschule."
-            />
-          </ActionForm>
+          {status.requestProblem ? (
+            <p className="text-[14px] text-muted-foreground">{status.requestProblem}</p>
+          ) : (
+            <ActionForm
+              action={submitTeamLimitRequestAction}
+              submitLabel="Antrag senden"
+              variant="outline"
+              size="sm"
+              className="flex flex-col gap-3"
+            >
+              <CountedTextarea
+                label="Begründung"
+                name="reason"
+                maxLength={TEAM_LIMIT_REASON_MAX}
+                optional={false}
+                required
+                rows={3}
+                placeholder="Zum Beispiel: Ich betreue die Teams unserer Hochschule."
+              />
+            </ActionForm>
+          )}
         </>
       )}
     </section>

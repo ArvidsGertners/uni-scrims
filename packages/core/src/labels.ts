@@ -94,7 +94,6 @@ export const NOTIFICATION_CHANNEL_LABELS: Record<NotifChannel, string> = {
   PERSONAL: "Verteilung nach den Einstellungen",
 };
 
-/** States of a review (SPEC P0-2), for the data export; the account page shows the student status. */
 /** Requests for more teams (SPEC N-17). */
 export const TEAM_LIMIT_STATUS_LABELS: Record<TeamLimitStatus, string> = {
   PENDING: "In Prüfung",
@@ -102,6 +101,7 @@ export const TEAM_LIMIT_STATUS_LABELS: Record<TeamLimitStatus, string> = {
   REJECTED: "Abgelehnt",
 };
 
+/** States of a review (SPEC P0-2), for the data export; the account page shows the student status. */
 export const VERIF_STATUS_LABELS: Record<VerifStatus, string> = {
   PENDING: "In Prüfung",
   APPROVED: "Freigegeben",

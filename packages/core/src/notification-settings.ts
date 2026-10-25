@@ -99,21 +99,30 @@ export function effectiveChannels(
 }
 
 /**
- * The page shows the captain defaults to a captain of at least one team (§5.20); sending decides per
- * team (§5.17).
+ * The defaults the settings page works with (§5.20); sending decides per team (§5.17). The captain
+ * defaults only for a captain of every own team. With teams of both kinds no default holds for all
+ * of them: the page shows the member defaults, and a changed scrim box is stored as a choice of its
+ * own, so it applies to every team.
  */
-async function isCaptainAnywhere(user: { id: string }, db: Db = prisma): Promise<boolean> {
-  return (await findOwnTeams(user.id, db)).some((team) => isCaptainOf(user, team));
+async function captainRoles(user: { id: string }, db: Db = prisma) {
+  const teams = await findOwnTeams(user.id, db);
+  const captainOf = teams.filter((team) => isCaptainOf(user, team)).length;
+  return {
+    isCaptain: captainOf > 0 && captainOf === teams.length,
+    mixedRoles: captainOf > 0 && captainOf < teams.length,
+  };
 }
 
 /** The settings page: per category and type the values in effect and whether they are defaults. */
 export async function getNotificationPreferences(userId: string) {
   const user = await requireUser(userId);
-  const isCaptain = await isCaptainAnywhere(user);
+  const { isCaptain, mixedRoles } = await captainRoles(user);
   const stored = await prisma.notificationPreference.findMany({ where: { userId: user.id } });
   const byType = new Map(stored.map((row) => [row.type, row]));
   return {
     isCaptain,
+    /** Captain in some own teams and not in others: the page says what the defaults mean. */
+    mixedRoles,
     categories: NOTIFICATION_CATEGORIES.map((category) => ({
       key: category.key,
       title: category.title,
@@ -147,7 +156,7 @@ export async function setNotificationPreferences(input: {
     // Under the user lock, so a save cannot leave rows for an account deleted meanwhile (§4).
     await lockUser(tx, input.userId);
     const user = await requireUser(input.userId, tx);
-    const isCaptain = await isCaptainAnywhere(user, tx);
+    const { isCaptain, mixedRoles } = await captainRoles(user, tx);
     const stored = await tx.notificationPreference.findMany({ where: { userId: user.id } });
     const byType = new Map(stored.map((row) => [row.type, row]));
     let discordAnywhere = false;
@@ -159,6 +168,7 @@ export async function setNotificationPreferences(input: {
         { discord: row?.discord ?? null, email: row?.email ?? null },
         preferences[type],
         input.shownAsCaptain ?? isCaptain,
+        mixedRoles,
       );
       discordAnywhere ||= effectiveChannels(type, isCaptain, next).discord;
       if (next.discord !== (row?.discord ?? null) || next.email !== (row?.email ?? null)) {
@@ -171,20 +181,26 @@ export async function setNotificationPreferences(input: {
   });
 }
 
-/** The stored values after a save; see setNotificationPreferences. */
+/**
+ * The stored values after a save; see setNotificationPreferences. With `mixedRoles` (§5.20) a
+ * changed Discord box of a scrim type stays an explicit choice, as its default differs per team.
+ */
 export function nextStored(
   type: NotifType,
   isCaptain: boolean,
   stored: StoredChannels,
   submitted: ChannelSettings,
   shownAsCaptain: boolean = isCaptain,
+  mixedRoles: boolean = false,
 ): StoredChannels {
   const current = effectiveChannels(type, shownAsCaptain, stored);
   const defaults = defaultChannels(type, isCaptain);
   const next = { ...stored };
   for (const channel of ["discord", "email"] as const) {
     if (submitted[channel] === current[channel]) continue;
-    next[channel] = submitted[channel] === defaults[channel] ? null : submitted[channel];
+    const perTeam = mixedRoles && channel === "discord" && notificationAudience(type) === "TEAM";
+    next[channel] =
+      !perTeam && submitted[channel] === defaults[channel] ? null : submitted[channel];
   }
   return next;
 }

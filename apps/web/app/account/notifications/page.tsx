@@ -45,6 +45,10 @@ export default async function NotificationsPage() {
           ) : null}
           . Scrim-Benachrichtigungen bekommt ohne eigene Wahl nur der Captain; als Mitglied kannst
           du sie hier für dich einschalten.
+          {/* Captain in one team, member in another: no single default (§5.20). */}
+          {settings.mixedRoles
+            ? " Du bist in einem Team Captain und in einem anderen nicht: Ohne eigene Wahl bekommst du Scrim-Benachrichtigungen nur für deine Teams als Captain. Was du hier änderst, gilt für alle deine Teams."
+            : null}
         </p>
         {user.hubJoinFailedAt || user.dmFailedAt ? (
           <DiscordDmWarning hubJoinFailed={user.hubJoinFailedAt !== null} />

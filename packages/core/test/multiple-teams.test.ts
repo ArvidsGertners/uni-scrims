@@ -358,6 +358,7 @@ describe("requests for more teams", () => {
     expect(await getTeamLimitStatus(user.id)).toEqual({
       teamCount: 0,
       teamLimit: 8,
+      requestProblem: null,
       latest: {
         status: TeamLimitStatus.APPROVED,
         createdAt: NOW,
@@ -382,6 +383,15 @@ describe("requests for more teams", () => {
     expect(await getTeamLimitStatus(user.id)).toMatchObject({
       teamLimit: 8,
       latest: { status: TeamLimitStatus.REJECTED, newLimit: null },
+    });
+
+    // At the highest limit nobody could approve more, so no request is taken.
+    await prisma.user.update({ where: { id: user.id }, data: { teamLimit: 50 } });
+    await expect(
+      submitTeamLimitRequest({ userId: user.id, reason: "Noch mehr Teams bitte.", now: LATER }),
+    ).rejects.toThrow("Mehr als 50 Teams");
+    expect(await getTeamLimitStatus(user.id)).toMatchObject({
+      requestProblem: "Mehr als 50 Teams gehen nicht.",
     });
   });
 
@@ -416,8 +426,8 @@ describe("requests for more teams", () => {
 });
 
 describe("/setup with several teams", () => {
-  const link = (discordUserId: string, teamId?: string) =>
-    linkTeamChannel({ discordUserId, guildId: "600", channelId: "601", teamId });
+  const link = (discordUserId: string, team?: string) =>
+    linkTeamChannel({ discordUserId, guildId: "600", channelId: "601", team });
 
   it("asks which team when the user captains several, and links the chosen one", async () => {
     const { user, first, second } = await captainOfBoth();
@@ -425,6 +435,14 @@ describe("/setup with several teams", () => {
     expect(await link(user.discordId, second.team.id)).toEqual({
       id: second.team.id,
       name: second.team.name,
+    });
+    // A typed name without picking a suggestion, in any case.
+    expect(await link(user.discordId, ` ${first.team.name.toUpperCase()} `)).toEqual({
+      id: first.team.id,
+      name: first.team.name,
+    });
+    await expect(link(user.discordId, "Kein solches Team")).rejects.toMatchObject({
+      code: "FORBIDDEN",
     });
     // A team the user is only a member of is refused like before.
     const joined = await createTeamWithMembers();
@@ -440,7 +458,7 @@ describe("/setup with several teams", () => {
 
   it("suggests the teams the user captains that are not banned", async () => {
     const { user, first, second } = await captainOfBoth();
-    const byName = [first.team, second.team].sort((a, b) => a.name.localeCompare(b.name));
+    const byName = [first.team, second.team].sort((a, b) => a.name.localeCompare(b.name, "de"));
     expect(await listCaptainTeamsForDiscordUser(user.discordId, "")).toEqual(
       byName.map((team) => ({ id: team.id, name: team.name })),
     );

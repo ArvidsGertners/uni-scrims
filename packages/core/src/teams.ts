@@ -210,10 +210,11 @@ export async function regenerateInvite(input: { userId: string; teamId: string }
  * /setup (ARCHITECTURE §6.4): links a Discord server and channel to one of the caller's teams, so
  * bookings, cancellations and reminders are also posted there. Only the captain of a team that is
  * not banned, and not on the hub server: the bot can post there, and every team would post in
- * public. Without a chosen team the caller's only team as captain (§5.20).
+ * public. `team` is what the option holds: a suggestion's ID or a typed name; without it the
+ * caller's only team as captain (§5.20).
  */
 export async function linkTeamChannel(
-  input: { discordUserId: string; guildId: string; channelId: string; teamId?: string | null },
+  input: { discordUserId: string; guildId: string; channelId: string; team?: string | null },
   env: Record<string, string | undefined> = process.env,
 ) {
   if (input.guildId === env.HUB_GUILD_ID) {
@@ -223,7 +224,7 @@ export async function linkTeamChannel(
     );
   }
   const user = await findUserByDiscordId(input.discordUserId);
-  const teamId = input.teamId || (await soleCaptainTeamId(user?.id));
+  const teamId = await chosenTeamId(user?.id, input.team?.trim() || null);
   await requireCaptain(user?.id, teamId);
   return prisma.$transaction(async (tx) => {
     // Checked again under the team lock: the role or the ban may have changed meanwhile.
@@ -237,29 +238,50 @@ export async function linkTeamChannel(
   });
 }
 
+/** What /setup can link: the user's teams as captain that are not banned (§6.4). */
+function linkableTeams<T extends { captainId: string; bannedAt: Date | null }>(
+  user: { id: string },
+  teams: T[],
+): T[] {
+  return teams.filter((team) => isCaptainOf(user, team) && !team.bannedAt);
+}
+
 /**
- * The team /setup links when no team was chosen: the only one the user captains that is not banned.
- * Otherwise the reason, as requireCaptain would give it for the own team.
+ * The team /setup links. A suggestion's ID, or a typed name of a linkable team; anything else is
+ * checked by requireCaptain as an ID and refused. Without a choice the only linkable team, else the
+ * reason, as requireCaptain would give it for the own team.
  */
-async function soleCaptainTeamId(userId: string | null | undefined): Promise<string> {
+async function chosenTeamId(
+  userId: string | null | undefined,
+  choice: string | null,
+): Promise<string> {
   const user = await requireUser(userId);
   const teams = await findOwnTeams(user.id);
-  const captainOf = teams.filter((team) => isCaptainOf(user, team));
-  const active = captainOf.filter((team) => !team.bannedAt);
-  if (active.length > 1) {
+  const linkable = linkableTeams(user, teams);
+  if (choice) {
+    const name = choice.toLowerCase();
+    const team =
+      linkable.find((candidate) => candidate.id === choice) ??
+      linkable.find((candidate) => candidate.name.toLowerCase() === name);
+    return team?.id ?? choice;
+  }
+  if (linkable.length > 1) {
     throw new DomainError(
       "INVALID",
       "Du bist Captain mehrerer Teams. Wähle mit der Option „team“, welches Team du verknüpfst.",
     );
   }
-  const team = active[0] ?? captainOf[0] ?? teams[0];
+  const team = linkable[0] ?? teams.find((own) => isCaptainOf(user, own)) ?? teams[0];
   if (!team) throw new DomainError("FORBIDDEN", "Du bist in keinem Team.");
   return team.id;
 }
 
+/** Discord shows at most this many suggestions. */
+const MAX_SUGGESTIONS = 25;
+
 /**
- * Suggestions for the team option of /setup: up to 25 teams the user captains that are not banned,
- * whose name contains `query`. Empty for unknown, banned or incomplete accounts.
+ * Suggestions for the team option of /setup: the linkable teams whose name contains `query`, by
+ * name. Empty for unknown, banned or incomplete accounts.
  */
 export async function listCaptainTeamsForDiscordUser(discordUserId: string, query: string) {
   const user = await findUserByDiscordId(discordUserId);
@@ -270,17 +292,12 @@ export async function listCaptainTeamsForDiscordUser(discordUserId: string, quer
     if (error instanceof DomainError) return [];
     throw error;
   }
-  return prisma.team.findMany({
-    where: {
-      captainId: user.id,
-      bannedAt: null,
-      dissolvedAt: null,
-      name: { contains: query.trim(), mode: "insensitive" },
-    },
-    orderBy: { name: "asc" },
-    take: 25,
-    select: { id: true, name: true },
-  });
+  const part = query.trim().toLowerCase();
+  return linkableTeams(user, await findOwnTeams(user.id))
+    .filter((team) => team.name.toLowerCase().includes(part))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"))
+    .slice(0, MAX_SUGGESTIONS)
+    .map((team) => ({ id: team.id, name: team.name }));
 }
 
 export async function transferCaptain(input: {
@@ -511,15 +528,20 @@ export async function lockRetirements(
   for (const id of [...new Set([...requestIds, ...retired])].sort()) await lockRequest(tx, id);
   if (teamIds.length === 0) return;
   const scrims = await tx.scrim.findMany({
-    where: {
-      status: ScrimStatus.SCHEDULED,
-      startsAt: { gt: now },
-      OR: [{ hostTeamId: { in: teamIds } }, { guestTeamId: { in: teamIds } }],
-    },
+    where: retiredScrimWhere(teamIds, now),
     orderBy: { id: "asc" },
     select: { id: true },
   });
   for (const scrim of scrims) await lockScrim(tx, scrim.id);
+}
+
+/** The scrims a retirement cancels: future, scheduled scrims of the teams. One rule for both users. */
+function retiredScrimWhere(teamIds: string[], now: Date): Prisma.ScrimWhereInput {
+  return {
+    status: ScrimStatus.SCHEDULED,
+    startsAt: { gt: now },
+    OR: [{ hostTeamId: { in: teamIds } }, { guestTeamId: { in: teamIds } }],
+  };
 }
 
 /**
@@ -536,11 +558,7 @@ export async function retireTeamActivity(teamId: string, now: Date, db: Db = pri
     const requestIds = await retirementRequestIds(teamId, now, tx);
     for (const id of requestIds) await lockRequest(tx, id);
     const scrims = await tx.scrim.findMany({
-      where: {
-        status: ScrimStatus.SCHEDULED,
-        startsAt: { gt: now },
-        OR: [{ hostTeamId: teamId }, { guestTeamId: teamId }],
-      },
+      where: retiredScrimWhere([teamId], now),
       orderBy: { id: "asc" },
       include: { hostTeam: { select: { name: true } }, guestTeam: { select: { name: true } } },
     });

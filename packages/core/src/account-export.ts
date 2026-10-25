@@ -244,6 +244,11 @@ export async function exportAccountData(input: {
         orderBy: { resolvedAt: "asc" },
         select: { resolvedAt: true, status: true },
       });
+      const decidedTeamLimits = await tx.teamLimitRequest.findMany({
+        where: { decidedById: user.id },
+        orderBy: { decidedAt: "asc" },
+        select: { decidedAt: true, status: true },
+      });
       const filesStored = await Promise.all(
         reviews.map((review) => uploadExists(input.uploadDir, review.filePath)),
       );
@@ -406,6 +411,11 @@ export async function exportAccountData(input: {
           streitfälle: resolvedDisputes.map((scrim) => ({
             entschiedenAm: scrim.resolvedAt,
             ergebnis: SCRIM_STATUS_LABELS[scrim.status],
+          })),
+          // Since Phase 21; without the person who asked (SPEC N-17).
+          teamAnträge: decidedTeamLimits.map((request) => ({
+            entschiedenAm: request.decidedAt,
+            ergebnis: TEAM_LIMIT_STATUS_LABELS[request.status],
           })),
         },
       };

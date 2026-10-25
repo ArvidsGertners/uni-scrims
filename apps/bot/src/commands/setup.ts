@@ -52,20 +52,6 @@ export async function handleSetupAutocomplete(interaction: AutocompleteInteracti
   );
 }
 
-/**
- * The option holds a suggested team's ID, or what the user typed without picking a suggestion: then
- * the team with that name. Anything else goes to core as it is, which refuses it.
- */
-async function chosenTeamId(discordUserId: string, value: string | null): Promise<string | null> {
-  if (!value) return null;
-  const teams = await listCaptainTeamsForDiscordUser(discordUserId, "");
-  const name = value.trim().toLowerCase();
-  const team =
-    teams.find((candidate) => candidate.id === value) ??
-    teams.find((candidate) => candidate.name.toLowerCase() === name);
-  return team?.id ?? value;
-}
-
 /** What the bot needs in the channel to post embeds. */
 const REQUIRED_PERMISSIONS = [
   { flag: PermissionFlagsBits.ViewChannel, label: "Kanal ansehen" },
@@ -108,7 +94,8 @@ export async function handleSetup(
       discordUserId: interaction.user.id,
       guildId: interaction.guildId,
       channelId: channel.id,
-      teamId: await chosenTeamId(interaction.user.id, interaction.options.getString("team")),
+      // A suggestion's ID or a typed name; core resolves it.
+      team: interaction.options.getString("team"),
     });
   } catch (error) {
     if (isDomainError(error)) return reply(setupErrorText(error, baseUrl));

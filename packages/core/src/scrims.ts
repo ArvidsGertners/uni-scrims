@@ -210,9 +210,8 @@ async function evaluate(
 /**
  * One answer per team, from the start time until the deadline; not changeable (§5.6).
  * After the deadline the sweeper evaluates, so late answers cannot change a result that is
- * already due.
+ * already due. For `teamId`, the team the scrim page was shown for (§5.20).
  */
-/** Feedback of `teamId`, the team the scrim page was shown for (§5.20). */
 export async function submitFeedback(
   input: FeedbackInput & { userId: string; teamId: string; scrimId: string; now: Date },
 ) {

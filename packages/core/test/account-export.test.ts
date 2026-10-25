@@ -319,7 +319,7 @@ describe("exportAccountData", () => {
     expect(data.benachrichtigungen).toEqual([
       { art: "Scrim gebucht", discord: "Standard", eMail: "an" },
     ]);
-    expect(data.verwaltung).toEqual({ prüfungen: [], streitfälle: [] });
+    expect(data.verwaltung).toEqual({ prüfungen: [], streitfälle: [], teamAnträge: [] });
   });
 
   it("leaves out credentials and other people's data", async () => {
@@ -354,6 +354,7 @@ describe("exportAccountData", () => {
     expect(data.verwaltung).toEqual({
       prüfungen: [{ entschiedenAm: NOW, ergebnis: "Freigegeben" }],
       streitfälle: [{ entschiedenAm: NOW, ergebnis: "Gespielt" }],
+      teamAnträge: [],
     });
     const json = JSON.stringify(data);
     const studentRow = await prisma.user.findUniqueOrThrow({ where: { id: student.id } });
@@ -523,7 +524,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     newLimit: SHOWN,
     createdAt: SHOWN,
     decidedAt: SHOWN,
-    decidedById: "wer entschieden hat, wäre eine andere Person",
+    decidedById: "bei der Person nur ob von Hand; bei Admins ihre Entscheidungen in verwaltung",
   },
   Team: {
     id: KEY,

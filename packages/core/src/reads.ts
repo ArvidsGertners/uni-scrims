@@ -709,16 +709,18 @@ export async function getNavTeam(userId: string) {
   const user = await requireUser(userId);
   const own = await findOwnTeams(user.id);
   const active = pickActiveTeam(own, user.activeTeamId);
-  const teams = [];
-  for (const team of [...own].sort((a, b) => a.name.localeCompare(b.name, "de"))) {
-    teams.push({
-      id: team.id,
-      name: team.name,
-      tag: team.tag,
-      logo: await loadTeamLogoInfo(team),
-      active: team === active,
-    });
-  }
+  // Outside a transaction, so the logos load in parallel; every page asks for this.
+  const teams = await Promise.all(
+    [...own]
+      .sort((a, b) => a.name.localeCompare(b.name, "de"))
+      .map(async (team) => ({
+        id: team.id,
+        name: team.name,
+        tag: team.tag,
+        logo: await loadTeamLogoInfo(team),
+        active: team === active,
+      })),
+  );
   return {
     team: teams.find((team) => team.active) ?? null,
     teams,

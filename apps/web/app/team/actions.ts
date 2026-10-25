@@ -37,9 +37,9 @@ function teamInput(formData: FormData) {
 }
 
 async function finish(state: ActionState): Promise<ActionState> {
-  // Both team tabs show the members and the team (SPEC N-15).
-  revalidatePath("/team");
-  revalidatePath("/team/members");
+  // Both team tabs show the members and the team (SPEC N-15), the sidebar in the root layout the
+  // own teams and the active one (SPEC N-17).
+  revalidatePath("/", "layout");
   return state;
 }
 
@@ -226,7 +226,7 @@ export async function joinTeamAction(_state: ActionState, formData: FormData) {
   });
   if (!state.done) return state;
   await setFlash(`Willkommen bei ${teamName}`);
-  // redirect() throws, so it must stay outside runAction.
-  revalidatePath("/team");
+  // redirect() throws, so it must stay outside runAction. The joined team is the active one now.
+  revalidatePath("/", "layout");
   redirect("/team");
 }

@@ -13,7 +13,7 @@ import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { RankIcon } from "@/components/rank-icon";
 import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { requirePageAccountUser, setupUrl } from "@/lib/session";
@@ -24,6 +24,7 @@ import {
   setPlayerRankAction,
   updateRealNameAction,
 } from "./actions";
+import { switchTeamAction } from "../team/actions";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 import { ThemeForm } from "./theme-form";
@@ -386,21 +387,36 @@ export default async function AccountPage({
           </p>
           {account.deletionProblem ? (
             <Alert>
-              <span>
-                {account.deletionProblem}{" "}
+              <div className="flex flex-col gap-3">
                 {/* Which teams, as there may be several since Phase 21 (SPEC N-17). */}
-                Betrifft:{" "}
-                {account.teams
-                  .filter((team) => team.blocksDeletion)
-                  .map((team) => team.name)
-                  .join(", ")}
-                .{" "}
+                <span>
+                  {account.deletionProblem} Betrifft:{" "}
+                  {account.teams
+                    .filter((team) => team.blocksDeletion)
+                    .map((team) => team.name)
+                    .join(", ")}
+                  .
+                </span>
+                {/* The role moves on the team page of each such team (Mitglieder). */}
                 {account.captainHandovers.length === 0 ? (
-                  <Link href="/team" className="font-semibold underline underline-offset-2">
-                    Zum Team
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    {account.teams
+                      .filter((team) => team.blocksDeletion)
+                      .map((team) => (
+                        <form key={team.id} action={switchTeamAction.bind(null, team.id, null)}>
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="sm"
+                            className="h-auto max-w-full py-2 text-left whitespace-normal"
+                          >
+                            Zu {team.name}
+                          </Button>
+                        </form>
+                      ))}
+                  </div>
                 ) : null}
-              </span>
+              </div>
             </Alert>
           ) : null}
           {account.captainHandovers.map((handover) => (
