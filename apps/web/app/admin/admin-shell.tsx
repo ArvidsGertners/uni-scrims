@@ -10,6 +10,7 @@ import {
   AlertTriangleIcon,
   BanIcon,
   BarChartIcon,
+  FileIcon,
   LayoutGridIcon,
   MessageSquareIcon,
   ShieldCheckIcon,
@@ -51,6 +52,13 @@ const AREAS: {
     area: "admin",
     icon: AlertTriangleIcon,
     count: (o) => o.disputes,
+  },
+  {
+    path: "/team-limits",
+    label: "Anträge",
+    area: "admin",
+    icon: FileIcon,
+    count: (o) => o.teamLimitRequests,
   },
   { path: "/bans", label: "Sperren", area: "admin", icon: BanIcon },
   {

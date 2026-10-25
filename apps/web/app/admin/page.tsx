@@ -15,7 +15,7 @@ const lastSeen = (heartbeatAt: Date | null) =>
 /** Start page of the admin area (SPEC N-10): what waits, by role. */
 export default async function AdminOverviewPage() {
   const { overview } = await requireAdminShellPage("/", "queue");
-  const { queue, disputes, failedNotifications, bot } = overview;
+  const { queue, disputes, failedNotifications, bot, teamLimitRequests } = overview;
 
   return (
     <AdminShell overview={overview} current="/">
@@ -40,6 +40,16 @@ export default async function AdminOverviewPage() {
             tone={disputes ? "text-accent-text" : undefined}
           >
             {disputes ? "Warten auf eine Entscheidung" : "Keine offenen Streitfälle"}
+          </StatTile>
+        ) : null}
+        {teamLimitRequests !== null ? (
+          <StatTile
+            href={adminHref("/team-limits")}
+            label="Anträge"
+            value={teamLimitRequests}
+            tone={teamLimitRequests ? "text-warning" : undefined}
+          >
+            {teamLimitRequests ? "Mehr Teams beantragt" : "Keine offenen Anträge"}
           </StatTile>
         ) : null}
         {failedNotifications !== null ? (

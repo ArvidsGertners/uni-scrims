@@ -4,6 +4,7 @@ import {
   type DisputeDecision,
   banTeam,
   banUser,
+  decideTeamLimitRequest,
   decideVerification,
   removeTeamLinksAsAdmin,
   removeTeamLogoAsAdmin,
@@ -73,6 +74,39 @@ export async function resolveDisputeAction(
     await resolveDispute({ ...parsed, adminId, scrimId: scrimId.data, now: new Date() });
   });
   revalidatePath("/admin/disputes");
+  return state;
+}
+
+/** Annehmen with the new limit, or Ablehnen (SPEC N-17); core checks the limit's range. */
+export async function decideTeamLimitAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const adminId = (await getSessionUserId()) ?? "";
+  const parsed = z
+    .object({
+      requestId: idSchema,
+      decision: z.enum(["APPROVED", "REJECTED"]),
+      newLimit: z.string().optional(),
+    })
+    .safeParse({
+      requestId: formField(formData, "requestId"),
+      decision: formField(formData, "decision"),
+      newLimit: formField(formData, "newLimit"),
+    });
+  if (!parsed.success) return invalidInput;
+  const { requestId, decision, newLimit } = parsed.data;
+  const state = await runAction(async () => {
+    await decideTeamLimitRequest({
+      adminId,
+      requestId,
+      decision,
+      newLimit: newLimit ? Number(newLimit) : null,
+      now: new Date(),
+    });
+  });
+  revalidatePath("/admin/team-limits");
+  revalidatePath("/admin");
   return state;
 }
 
