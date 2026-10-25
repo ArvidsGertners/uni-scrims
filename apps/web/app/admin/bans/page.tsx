@@ -180,6 +180,7 @@ export default async function BansPage({
                           ? t.removeBothLogosConfirm(team.name)
                           : t.removeLogoConfirm(team.name)
                       }
+                      confirmDestructive
                     >
                       <input type="hidden" name="teamId" value={team.id} />
                       {/* Only the logos shown here, not one uploaded since (SPEC N-6). */}
@@ -193,6 +194,7 @@ export default async function BansPage({
                       submitLabel={t.removeLinks}
                       variant="outline"
                       confirmText={t.removeLinksConfirm(team.name)}
+                      confirmDestructive
                     >
                       <input type="hidden" name="teamId" value={team.id} />
                       {/* Only the links shown here, not ones saved since. */}

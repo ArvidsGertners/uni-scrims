@@ -39,7 +39,7 @@ export function StatTile({
       >
         {value}
       </span>
-      {children ? (
+      {children != null ? (
         <span className="text-[13px] text-pretty text-muted-foreground">{children}</span>
       ) : null}
     </>

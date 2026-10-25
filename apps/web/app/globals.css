@@ -188,7 +188,6 @@
   --btn-tracking: 0;
   --h1: 32px;
   --h2: 20px;
-  --hero: 42px;
   --body-size: 15px;
 }
 
@@ -265,16 +264,6 @@
   letter-spacing: var(--display-tracking);
   font-size: var(--h2);
   line-height: 1.15;
-}
-
-@utility type-hero {
-  font-family: var(--font-display);
-  font-weight: var(--display-weight);
-  text-transform: var(--display-transform);
-  letter-spacing: var(--display-tracking);
-  font-size: var(--hero);
-  line-height: 1;
-  text-wrap: balance;
 }
 
 @utility type-btn {

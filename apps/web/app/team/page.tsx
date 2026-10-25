@@ -224,6 +224,7 @@ export default async function TeamPage() {
                           className="flex flex-col"
                           submitClassName="-ml-4"
                           confirmText={t.removeLogoConfirm[background]}
+                          confirmDestructive
                         >
                           <input type="hidden" name="teamId" value={team.id} />
                           <input type="hidden" name="background" value={background} />

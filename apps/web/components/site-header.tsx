@@ -10,6 +10,7 @@ import { mainUrl } from "@/lib/admin-url";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/callback-url";
 import { siteChrome, siteNav } from "@/lib/header-user";
 import { getMessages } from "@/lib/locale";
+import { loginUrl } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 async function Logo({
@@ -100,7 +101,7 @@ export async function SiteHeader() {
               // Only on the landing page, from 375 px (below, the logo needs the room; the hero has
               // the same link right below).
               <Link
-                href={`/login?callbackURL=${encodeURIComponent(DEFAULT_AFTER_LOGIN)}`}
+                href={loginUrl(DEFAULT_AFTER_LOGIN)}
                 className="type-btn hidden h-9 items-center rounded-sm border border-border-strong px-3 text-[13px] font-semibold whitespace-nowrap text-muted-foreground hover:border-muted-foreground hover:text-foreground min-[375px]:[body:has([data-landing])_&]:flex"
               >
                 {t.signIn}

@@ -237,6 +237,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     variant="outline"
                     size="sm"
                     confirmText={t.confirmWithdrawApplication}
+                    confirmDestructive
                   >
                     <input type="hidden" name="requestId" value={request.id} />
                     <input type="hidden" name="applicationId" value={ownApplication.id} />
@@ -350,6 +351,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       size="bare"
                       submitClassName="min-h-10"
                       confirmText={t.confirmWithdrawRequest}
+                      confirmDestructive
                     >
                       <input type="hidden" name="requestId" value={request.id} />
                     </ActionForm>

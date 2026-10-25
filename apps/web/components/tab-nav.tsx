@@ -10,7 +10,7 @@ export type TabNavItem = {
   trailing?: ReactNode;
 };
 
-const barClass = "flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1";
+const barClass = "flex gap-1 rounded-lg border border-border bg-card p-1";
 
 function tabClass(active: boolean): string {
   return cn(
@@ -35,7 +35,8 @@ export function TabNav({
 }) {
   if (preview) {
     return (
-      <div className={barClass}>
+      // Clipped, not scrollable: a scroller would take keyboard focus inside the hidden preview.
+      <div className={cn(barClass, "overflow-hidden")}>
         {items.map((item) => (
           <span key={item.href} className={tabClass(item.active)}>
             {item.label}
@@ -46,7 +47,7 @@ export function TabNav({
     );
   }
   return (
-    <nav aria-label={label} className={barClass}>
+    <nav aria-label={label} className={cn(barClass, "overflow-x-auto")}>
       {items.map((item) => (
         <Link
           key={item.href}

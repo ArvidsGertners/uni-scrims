@@ -13,6 +13,8 @@ type Props = {
   children?: ReactNode;
   /** Asks before submitting, for destructive actions, in the site's dialog. */
   confirmText?: string;
+  /** The confirming button in red; by default only for the destructive variant. */
+  confirmDestructive?: boolean;
   variant?: "default" | "outline" | "destructive" | "ghost" | "link";
   size?: "sm" | "default" | "lg" | "bare";
   className?: string;
@@ -29,6 +31,7 @@ export function ActionForm({
   children,
   confirmText,
   variant,
+  confirmDestructive = variant === "destructive",
   size,
   className,
   submitClassName,
@@ -46,7 +49,7 @@ export function ActionForm({
             confirmText &&
             !confirm(event, confirmText, {
               label: submitLabel,
-              destructive: variant === "destructive",
+              destructive: confirmDestructive,
             })
           ) {
             return;
@@ -73,7 +76,7 @@ export function ActionForm({
           {footer}
         </div>
       </form>
-      {dialog}
+      {confirmText ? dialog : null}
     </>
   );
 }

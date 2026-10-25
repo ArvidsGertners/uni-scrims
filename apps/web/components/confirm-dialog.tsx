@@ -36,6 +36,8 @@ export function useSubmitConfirmation(): {
   // Kept after closing, so the dialog keeps its text while it closes.
   const [question, setQuestion] = useState<Question | null>(null);
   const [open, setOpen] = useState(false);
+  // The open question until it is answered: a second click on the button sends nothing.
+  const asked = useRef<Question | null>(null);
   // Lets the submit after the confirmation through.
   const confirmed = useRef(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -51,27 +53,41 @@ export function useSubmitConfirmation(): {
     }
     event.preventDefault();
     const submitter = (event.nativeEvent as SubmitEvent).submitter;
-    setQuestion({
+    asked.current = {
       text,
       label: options.label ?? submitter?.textContent ?? "",
       destructive: options.destructive ?? false,
       form: event.currentTarget,
       submitter,
-    });
+    };
+    setQuestion(asked.current);
     setOpen(true);
     return false;
   }
 
   function submit() {
-    if (!question) return;
+    const answered = asked.current;
+    if (!answered) return;
+    asked.current = null;
     setOpen(false);
     confirmed.current = true;
-    // The same submitter, so a button's name and value (e.g. the decision) are sent too.
-    question.form.requestSubmit(question.submitter);
+    try {
+      // The same submitter, so a button's name and value (e.g. the decision) are sent too. The
+      // submit event runs synchronously in here and lets itself through.
+      answered.form.requestSubmit(answered.submitter);
+    } finally {
+      // Also when nothing was submitted (invalid form, removed form), so the next submit asks.
+      confirmed.current = false;
+    }
+  }
+
+  function changeOpen(next: boolean) {
+    if (!next) asked.current = null;
+    setOpen(next);
   }
 
   const dialog = (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog open={open} onOpenChange={changeOpen}>
       <AlertDialogContent
         initialFocus={cancelRef}
         finalFocus={() => (question?.submitter?.isConnected ? question.submitter : true)}

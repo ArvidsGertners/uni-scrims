@@ -32,7 +32,9 @@ export function TeamLimitForm({
         className="flex flex-col gap-3"
         onSubmit={(event) => {
           const label = (event.nativeEvent as SubmitEvent).submitter?.textContent;
-          confirm(event, t.confirm(label));
+          // Rejecting is red, like the other rejections (§7).
+          const rejecting = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value");
+          confirm(event, t.confirm(label), { destructive: rejecting === "REJECTED" });
         }}
       >
         <input type="hidden" name="requestId" value={requestId} />

@@ -19,7 +19,7 @@ import { formatMessages } from "@/i18n/format";
 import { landingMessages } from "@/i18n/public";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/callback-url";
 import { getLocale, getMessages } from "@/lib/locale";
-import { getSignedInUser } from "@/lib/session";
+import { getSignedInUser, loginUrl } from "@/lib/session";
 import { BoardPreview, PREVIEW_TEAMS } from "./board-preview";
 import { HeroBackdrop, SnapIcon } from "./landing-art";
 
@@ -31,6 +31,8 @@ const H2 = cn(DISPLAY, "text-[clamp(28px,3.6vw,40px)] leading-[1.05] tracking-[-
 const H2_LARGE = cn(DISPLAY, "text-[clamp(32px,4.6vw,52px)] leading-none tracking-[-0.025em]");
 const CARD_GRID = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-3";
 const FRAGMENT_ROW = "flex items-center gap-3 border border-border bg-secondary p-3";
+// Three tiles in a row down to 320 px: less padding at the sides there, so the labels fit.
+const TILE = "justify-between max-sm:px-3";
 
 function SectionHead({ id, eyebrow, title }: { id: string; eyebrow: string; title: string }) {
   return (
@@ -86,7 +88,7 @@ export default async function LandingPage({
           {t.createAccount}
         </Link>
         <Link
-          href={`/login?callbackURL=${encodeURIComponent(DEFAULT_AFTER_LOGIN)}`}
+          href={loginUrl(DEFAULT_AFTER_LOGIN)}
           className={buttonVariants({ size: "xl", variant: "outline", className: "max-sm:w-full" })}
         >
           {t.signIn}
@@ -269,7 +271,7 @@ export default async function LandingPage({
           </div>
           <div className="flex flex-col gap-2.5">
             <div aria-hidden className="grid grid-cols-3 gap-3">
-              <StatTile label={t.played} value={12} className="justify-between" />
+              <StatTile label={t.played} value={12} className={TILE} />
               <StatTile
                 label={
                   <span className="flex items-center gap-2">
@@ -279,14 +281,9 @@ export default async function LandingPage({
                 }
                 value={0}
                 tone="text-success"
-                className="justify-between"
+                className={TILE}
               />
-              <StatTile
-                label={t.lateCancels}
-                value={1}
-                tone="text-warning"
-                className="justify-between"
-              />
+              <StatTile label={t.lateCancels} value={1} tone="text-warning" className={TILE} />
             </div>
             <span className="text-[13px] text-faint">{t.sampleNote}</span>
           </div>

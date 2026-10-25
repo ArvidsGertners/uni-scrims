@@ -164,6 +164,7 @@ export default async function TeamMembersPage() {
                             size="bare"
                             submitClassName={`${memberActionClass} not-disabled:hover:bg-destructive-soft not-disabled:hover:text-destructive-text`}
                             confirmText={t.removeConfirm(name)}
+                            confirmDestructive
                           >
                             <input type="hidden" name="teamId" value={team.id} />
                             <input type="hidden" name="memberId" value={member.id} />

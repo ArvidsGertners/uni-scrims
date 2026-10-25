@@ -133,6 +133,7 @@ export default async function StaffPage({
                       variant="ghost"
                       size="sm"
                       confirmText={t.resetTwoFactorConfirm(userDisplayName(person.name, locale))}
+                      confirmDestructive
                     >
                       <input type="hidden" name="userId" value={person.id} />
                     </ActionForm>
