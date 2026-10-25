@@ -37,6 +37,7 @@ import { NewTeamForms } from "./new-team-forms";
 import { TeamLogoForm } from "./team-logo-form";
 import { TeamHeader } from "./team-tabs";
 import { getLocale, getMessages } from "@/lib/locale";
+import { teamPageMessages } from "@/i18n/team";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 
@@ -46,16 +47,15 @@ export default async function TeamPage() {
   const baseUrl = process.env.BETTER_AUTH_URL ?? "";
   const platforms = await getMessages(TEAM_LINK_TEXTS);
   const locale = await getLocale();
+  const t = await getMessages(teamPageMessages);
 
   if (!team) {
     return (
       <PageMain width="wide" className="gap-7">
         <div className="flex flex-col gap-2.5">
-          <h1 className="type-h1">Du bist noch in keinem Team</h1>
+          <h1 className="type-h1">{t.noTeamHeading}</h1>
           <p className="max-w-3xl text-pretty text-muted-foreground">
-            Gründe ein Team oder tritt über einen Einladungslink bei. Ein Team braucht mindestens{" "}
-            {READY_MEMBER_COUNT} verifizierte Spieler und hat höchstens {MAX_TEAM_MEMBERS}{" "}
-            Mitglieder. Das geht auch, während deine Verifizierung noch läuft.
+            {t.noTeamIntro(READY_MEMBER_COUNT, MAX_TEAM_MEMBERS)}
           </p>
         </div>
         <NewTeamForms />
@@ -79,48 +79,47 @@ export default async function TeamPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile
             href="/team/members"
-            label="Mitglieder"
+            label={t.members}
             value={`${memberCount} / ${MAX_TEAM_MEMBERS}`}
           >
             {memberCount >= MAX_TEAM_MEMBERS
-              ? "Kader voll"
-              : `Platz für ${MAX_TEAM_MEMBERS - memberCount} weitere`}
+              ? t.rosterFull
+              : t.roomFor(MAX_TEAM_MEMBERS - memberCount)}
           </StatTile>
           <StatTile
-            label="Verifiziert"
+            label={t.verified}
             value={`${team.verifiedPlayerCount} / ${READY_MEMBER_COUNT}`}
             tone={team.ready ? "text-success" : "text-warning"}
           >
             {team.ready
-              ? `Spielbereit (mindestens ${READY_MEMBER_COUNT})`
-              : `Noch ${missing} bis ${READY_MEMBER_COUNT}`}
+              ? t.readyToPlay(READY_MEMBER_COUNT)
+              : t.missingToReady(missing, READY_MEMBER_COUNT)}
           </StatTile>
-          <StatTile label="Gespielt" value={team.reliability.played}>
+          <StatTile label={t.played} value={team.reliability.played}>
             {formatReliabilityDetails(team.reliability, locale)}
           </StatTile>
           {team.nextScrim ? (
             <StatTile
               href={`/scrims/${team.nextScrim.id}`}
-              label="Nächstes Scrim"
+              label={t.nextScrim}
               value={describeStartDay(team.nextScrim.startsAt, locale)}
               valueClassName="text-[28px]"
             >
-              {describeStartTime(team.nextScrim.startsAt, locale)} · gegen{" "}
-              {team.nextScrim.opponent.name} · {formatFormat(team.nextScrim.format, locale)}
+              {t.nextScrimDetails(
+                describeStartTime(team.nextScrim.startsAt, locale),
+                team.nextScrim.opponent.name,
+                formatFormat(team.nextScrim.format, locale),
+              )}
             </StatTile>
           ) : (
-            <StatTile href="/scrims" label="Nächstes Scrim" value="–" valueClassName="text-faint">
-              Noch keins geplant. Zum Board
+            <StatTile href="/scrims" label={t.nextScrim} value="–" valueClassName="text-faint">
+              {t.noNextScrim}
             </StatTile>
           )}
         </div>
         {!team.ready ? (
           <Alert>
-            <span>
-              Ihr braucht mindestens {READY_MEMBER_COUNT} verifizierte Spieler, um Scrims anzufragen
-              oder euch zu bewerben. Es fehlen noch {missing}. Ersatzspieler zählen mit, Coaches
-              nicht.
-            </span>
+            <span>{t.notReadyNotice(READY_MEMBER_COUNT, missing)}</span>
           </Alert>
         ) : null}
       </div>
@@ -137,11 +136,11 @@ export default async function TeamPage() {
       >
         <div className="flex min-w-0 flex-col gap-8 md:gap-6">
           <section className={`${cardClass} gap-[18px]`}>
-            <h2 className="type-h2 break-words">Team {team.name}</h2>
+            <h2 className="type-h2 break-words">{t.teamHeading(team.name)}</h2>
             {manage ? (
               <ActionForm
                 action={updateTeamAction}
-                submitLabel="Speichern"
+                submitLabel={t.save}
                 className="flex flex-col gap-[18px]"
               >
                 <input type="hidden" name="teamId" value={team.id} />
@@ -153,12 +152,12 @@ export default async function TeamPage() {
                 ...(manage
                   ? []
                   : [
-                      { label: "Name", value: team.name },
-                      { label: "Kürzel", value: team.tag },
+                      { label: t.name, value: team.name },
+                      { label: t.tag, value: team.tag },
                     ]),
                 {
                   // Computed from the players' and substitutes' own ranks (SPEC N-16).
-                  label: "Team-Rang",
+                  label: t.teamRank,
                   value: (
                     <span className="flex flex-col items-end gap-0.5">
                       <span>
@@ -166,7 +165,7 @@ export default async function TeamPage() {
                         {team.rankedCount > 0 ? (
                           <span className="text-muted-foreground">
                             {" "}
-                            · aus {team.rankedCount} {team.rankedCount === 1 ? "Rang" : "Rängen"}
+                            · {t.rankedFrom(team.rankedCount)}
                           </span>
                         ) : null}
                       </span>
@@ -175,14 +174,14 @@ export default async function TeamPage() {
                           href="/account"
                           className="text-[13px] text-foreground underline underline-offset-2"
                         >
-                          Rang angeben
+                          {t.addRank}
                         </Link>
                       ) : null}
                     </span>
                   ),
                 },
-                { label: "Spiel", value: GAME_LABELS[team.game] ?? team.game },
-                { label: "Hochschulen", value: formatUniversities(team.universities, locale) },
+                { label: t.game, value: GAME_LABELS[team.game] ?? team.game },
+                { label: t.universities, value: formatUniversities(team.universities, locale) },
               ].map((row) => (
                 <div
                   key={row.label}
@@ -194,24 +193,17 @@ export default async function TeamPage() {
               ))}
             </dl>
             <div className="flex flex-col gap-2 border-t border-border pt-4">
-              <span className="text-[14px] font-medium">Team-ID</span>
+              <span className="text-[14px] font-medium">{t.teamId}</span>
               <CopyValue value={team.id} />
-              <p className="text-[13px] text-muted-foreground">
-                Nenn sie uns, wenn du dich für euer Team beim Support meldest.
-              </p>
+              <p className="text-[13px] text-muted-foreground">{t.teamIdHint}</p>
             </div>
           </section>
 
           {manage ? (
             <section className={`${cardClass} gap-4`}>
               <div className="flex flex-col gap-1">
-                <h2 className="type-h2">Logos</h2>
-                <p className="text-[13px] text-pretty text-muted-foreground">
-                  PNG oder WebP mit durchsichtigem Hintergrund, max. 2 MB. Durchsichtige Ränder
-                  schneiden wir ab, damit das Logo die Fläche füllt. Die Seite zeigt das Logo, das
-                  zum hellen oder dunklen Modus passt; fehlt eins, steht das andere auf einem
-                  passenden Kästchen.
-                </p>
+                <h2 className="type-h2">{t.logos}</h2>
+                <p className="text-[13px] text-pretty text-muted-foreground">{t.logosHint}</p>
               </div>
               {LOGO_BACKGROUNDS.map((background) => {
                 const hasLogo = team.logo?.backgrounds.includes(background) ?? false;
@@ -226,12 +218,12 @@ export default async function TeamPage() {
                       {hasLogo ? (
                         <ActionForm
                           action={removeTeamLogoAction}
-                          submitLabel="Entfernen"
+                          submitLabel={t.removeLogo}
                           variant="ghost"
                           size="sm"
                           className="flex flex-col"
                           submitClassName="-ml-4"
-                          confirmText={`${LOGO_BACKGROUND_LABELS[locale][background]} wirklich entfernen?`}
+                          confirmText={t.removeLogoConfirm[background]}
                         >
                           <input type="hidden" name="teamId" value={team.id} />
                           <input type="hidden" name="background" value={background} />
@@ -248,21 +240,19 @@ export default async function TeamPage() {
         <div className="flex min-w-0 flex-col gap-8 md:gap-6">
           {manage ? (
             <section className={`${cardClass} gap-3`}>
-              <h2 className="type-h2">Interne Links</h2>
-              <span className="text-[14px] font-medium">Einladungslink</span>
-              <p className="text-[14px] text-pretty text-muted-foreground">
-                Teile ihn in eurem Team-Discord. Erneuerst du ihn, funktioniert der alte nicht mehr.
-              </p>
+              <h2 className="type-h2">{t.internalLinks}</h2>
+              <span className="text-[14px] font-medium">{t.inviteLink}</span>
+              <p className="text-[14px] text-pretty text-muted-foreground">{t.inviteLinkHint}</p>
               {inviteUrl ? (
                 <CopyValue value={inviteUrl} display={inviteUrl.replace(/^https?:\/\//, "")} />
               ) : null}
               <ActionForm
                 action={regenerateInviteAction}
-                submitLabel="Link erneuern"
+                submitLabel={t.renewLink}
                 variant="link"
                 size="bare"
                 submitClassName="min-h-10"
-                confirmText="Neuen Link erzeugen? Der alte funktioniert dann nicht mehr."
+                confirmText={t.renewLinkConfirm}
               >
                 <input type="hidden" name="teamId" value={team.id} />
               </ActionForm>
@@ -271,13 +261,13 @@ export default async function TeamPage() {
 
           <section className={`${cardClass} gap-4`}>
             <div className="flex flex-col gap-1">
-              <h2 className="type-h2">Externe Links</h2>
+              <h2 className="type-h2">{t.externalLinks}</h2>
               <p className="text-[13px] text-pretty text-muted-foreground">
                 {manage
-                  ? "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Nur https-Links zur jeweiligen Plattform; ein leeres Feld entfernt den Link."
+                  ? t.externalLinksHint.captain
                   : team.banned
-                    ? "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. In einem gesperrten Team lassen sie sich nicht ändern."
-                    : "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Ändern kann sie euer Captain."}
+                    ? t.externalLinksHint.banned
+                    : t.externalLinksHint.member}
               </p>
             </div>
             {manage ? (
@@ -286,7 +276,7 @@ export default async function TeamPage() {
                 // (normalized) addresses rather than what was typed.
                 key={team.links.map((link) => link.url).join(" ")}
                 action={updateTeamLinksAction}
-                submitLabel="Links speichern"
+                submitLabel={t.saveLinks}
                 className="flex flex-col gap-4"
               >
                 <input type="hidden" name="teamId" value={team.id} />
@@ -315,7 +305,7 @@ export default async function TeamPage() {
                 ))}
               </ActionForm>
             ) : team.links.length === 0 ? (
-              <p className="text-[14px] text-muted-foreground">Noch keine Links.</p>
+              <p className="text-[14px] text-muted-foreground">{t.noLinks}</p>
             ) : (
               <ul className="flex flex-col">
                 {team.links.map((link) => (
@@ -343,31 +333,24 @@ export default async function TeamPage() {
         {team.isCaptain && !soleMember ? (
           team.banned ? (
             // A banned team cannot hand over the role (SPEC P0-10); the note above says what goes.
-            <p className="text-[14px] text-pretty text-muted-foreground">
-              Als letztes Mitglied kannst du das gesperrte Team auflösen.
-            </p>
+            <p className="text-[14px] text-pretty text-muted-foreground">{t.bannedLastMember}</p>
           ) : (
             <p className="text-[14px] text-pretty text-muted-foreground">
-              Als Captain kannst du das Team erst verlassen, wenn du die Captain-Rolle übertragen
-              hast (im Tab{" "}
-              <Link href="/team/members" className="text-foreground underline underline-offset-2">
-                Mitglieder
-              </Link>
-              ).
+              {t.captainLeaveNote((label) => (
+                <Link href="/team/members" className="text-foreground underline underline-offset-2">
+                  {label}
+                </Link>
+              ))}
             </p>
           )
         ) : (
           <ActionForm
             action={leaveTeamAction}
-            submitLabel={team.isCaptain ? "Team auflösen und verlassen" : "Team verlassen"}
+            submitLabel={team.isCaptain ? t.dissolveAndLeave : t.leave}
             variant="destructive"
             size="sm"
             submitClassName="border-border-strong"
-            confirmText={
-              team.isCaptain
-                ? "Du bist das einzige Mitglied. Das Team wird aufgelöst. Fortfahren?"
-                : "Team wirklich verlassen?"
-            }
+            confirmText={team.isCaptain ? t.dissolveConfirm : t.leaveConfirm}
           >
             <input type="hidden" name="teamId" value={team.id} />
           </ActionForm>
@@ -375,9 +358,9 @@ export default async function TeamPage() {
 
         {me && me.status !== "VERIFIED" && me.needsVerification ? (
           <p className="text-[14px] text-muted-foreground">
-            Noch nicht verifiziert?{" "}
+            {t.notVerified}{" "}
             <Link href="/verify" className="text-foreground underline underline-offset-2">
-              Zur Verifizierung
+              {t.toVerification}
             </Link>
           </p>
         ) : null}

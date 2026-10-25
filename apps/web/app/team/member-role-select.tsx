@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState, useState, useSyncExternalStore } from "react";
+import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { type ActionState, initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
+import { memberRoleSelectMessages } from "@/i18n/team-client";
 
 type Props = {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
@@ -24,6 +26,7 @@ const noSubscription = () => () => {};
  * this by the saved role, so it starts over after a change.
  */
 export function MemberRoleSelect({ action, teamId, memberId, memberName, role, options }: Props) {
+  const t = useMessages(memberRoleSelectMessages);
   const [state, formAction, pending] = useActionState(action, initialActionState);
   const [selected, setSelected] = useState(role);
   const hydrated = useSyncExternalStore(
@@ -44,7 +47,7 @@ export function MemberRoleSelect({ action, teamId, memberId, memberName, role, o
           name="role"
           value={selected}
           onValueChange={(value) => setSelected(value ?? role)}
-          aria-label={`Rolle von ${memberName}`}
+          aria-label={t.roleOf(memberName)}
           className="min-h-10 w-auto py-1.5"
           options={options}
         />
@@ -56,7 +59,7 @@ export function MemberRoleSelect({ action, teamId, memberId, memberName, role, o
             disabled={pending}
             className="min-h-10 px-2.5 text-[14px] text-foreground"
           >
-            Speichern
+            {t.save}
           </Button>
         ) : null}
       </div>

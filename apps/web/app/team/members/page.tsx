@@ -1,4 +1,10 @@
-import { MEMBER_ROLES, MEMBER_ROLE_LABELS, formatBerlinDate, getMyTeam } from "@uni-scrims/core";
+import {
+  MEMBER_ROLES,
+  MEMBER_ROLE_LABELS,
+  formatBerlinDate,
+  getMyTeam,
+  userDisplayName,
+} from "@uni-scrims/core";
 import { cn } from "cn";
 import { redirect } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
@@ -12,7 +18,8 @@ import { removeMemberAction, setMemberRoleAction, transferCaptainAction } from "
 import { MemberRoleSelect } from "../member-role-select";
 import { TeamHeader } from "../team-tabs";
 import { RolesTable } from "./roles-table";
-import { getLocale } from "@/lib/locale";
+import { getLocale, getMessages } from "@/lib/locale";
+import { teamMembersMessages } from "@/i18n/team";
 import type { Locale } from "@uni-scrims/core/config/locale";
 
 function roleOptions(locale: Locale) {
@@ -23,18 +30,19 @@ const memberActionClass = "min-h-10 px-2.5 text-[14px]";
 const cellLabel = "type-label text-muted-foreground md:hidden";
 const cellClass = "flex flex-col gap-1 md:table-cell md:px-3 md:py-3 md:align-middle";
 
-const STATUS = {
-  VERIFIED: { label: "Verifiziert", className: "text-success" },
-  PENDING: { label: "In Prüfung", className: "text-warning" },
-  UNVERIFIED: { label: "Nicht verifiziert", className: "text-muted-foreground" },
+const STATUS_CLASS = {
+  VERIFIED: "text-success",
+  PENDING: "text-warning",
+  UNVERIFIED: "text-muted-foreground",
   // Members who need none (getMyTeam: coaches who are not captain, SPEC N-1).
-  NOT_NEEDED: { label: "Nicht nötig", className: "text-faint" },
+  NOT_NEEDED: "text-faint",
 };
 
 export default async function TeamMembersPage() {
   const user = await requirePageUser("/team/members");
   const team = await getMyTeam(user.id);
   const locale = await getLocale();
+  const t = await getMessages(teamMembersMessages);
   if (!team) redirect("/team");
   const manage = team.isCaptain && !team.banned;
 
@@ -43,11 +51,17 @@ export default async function TeamMembersPage() {
       <TeamHeader team={team} current="/team/members" />
 
       <section className="flex flex-col gap-3">
-        <h2 className="type-h2">Mitglieder</h2>
+        <h2 className="type-h2">{t.heading}</h2>
         <table className="w-full text-[14px] max-md:block">
           <thead className="max-md:hidden">
             <tr className="border-b border-border text-left">
-              {["Mitglied", "Rolle", "Rang", "Beigetreten", "Status"].map((heading) => (
+              {[
+                t.columns.member,
+                t.columns.role,
+                t.columns.rank,
+                t.columns.joined,
+                t.columns.status,
+              ].map((heading) => (
                 <th
                   key={heading}
                   scope="col"
@@ -58,7 +72,7 @@ export default async function TeamMembersPage() {
               ))}
               {manage ? (
                 <th scope="col" className="px-3 py-2.5">
-                  <span className="sr-only">Aktionen</span>
+                  <span className="sr-only">{t.actions}</span>
                 </th>
               ) : null}
             </tr>
@@ -67,8 +81,10 @@ export default async function TeamMembersPage() {
             {team.members.map((member) => {
               const status =
                 !member.needsVerification && member.status !== "VERIFIED"
-                  ? STATUS.NOT_NEEDED
-                  : STATUS[member.status];
+                  ? "NOT_NEEDED"
+                  : member.status;
+              // The placeholder of a new or deleted account in the page's language.
+              const name = userDisplayName(member.name, locale);
               return (
                 <tr
                   key={member.id}
@@ -77,18 +93,18 @@ export default async function TeamMembersPage() {
                   <td className="col-span-6 md:px-3 md:py-3 md:align-middle">
                     <div className="flex min-w-0 items-center gap-3">
                       <UserAvatar
-                        user={member}
+                        user={{ ...member, name }}
                         className="size-10 text-[12px] text-muted-foreground"
                       />
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="font-label font-semibold break-all">{member.name}</span>
+                        <span className="font-label font-semibold break-all">{name}</span>
                         {member.isCaptain ? (
                           <Badge variant="accent" className="h-[22px] px-2 text-[12px]">
-                            Captain
+                            {t.captain}
                           </Badge>
                         ) : null}
                         {member.id === user.id ? (
-                          <span className="text-[13px] text-faint">Du</span>
+                          <span className="text-[13px] text-faint">{t.you}</span>
                         ) : null}
                       </div>
                     </div>
@@ -96,14 +112,14 @@ export default async function TeamMembersPage() {
                   {/* Two values per row; the captain's select needs a whole row, and so does the
                       status then, which is too long for a third of a phone's width. */}
                   <td className={cn(cellClass, manage ? "col-span-6" : "col-span-3")}>
-                    <span className={cellLabel}>Rolle</span>
+                    <span className={cellLabel}>{t.columns.role}</span>
                     {manage ? (
                       <MemberRoleSelect
                         key={`${member.id}-${member.role}`}
                         action={setMemberRoleAction}
                         teamId={team.id}
                         memberId={member.id}
-                        memberName={member.name}
+                        memberName={name}
                         role={member.role}
                         options={roleOptions(locale)}
                       />
@@ -113,18 +129,18 @@ export default async function TeamMembersPage() {
                   </td>
                   {/* Only the own team sees each member's rank (SPEC N-16). */}
                   <td className={cn(cellClass, "col-span-3")}>
-                    <span className={cellLabel}>Rang</span>
+                    <span className={cellLabel}>{t.columns.rank}</span>
                     <RankLabel rank={member.rank} />
                   </td>
                   <td className={cn(cellClass, "col-span-3")}>
-                    <span className={cellLabel}>Beigetreten</span>
+                    <span className={cellLabel}>{t.columns.joined}</span>
                     <span className="tabular-nums">
                       {formatBerlinDate(member.joinedAt, locale)}
                     </span>
                   </td>
                   <td className={cn(cellClass, manage ? "col-span-6" : "col-span-3")}>
-                    <span className={cellLabel}>Status</span>
-                    <StatusDot className={status.className}>{status.label}</StatusDot>
+                    <span className={cellLabel}>{t.columns.status}</span>
+                    <StatusDot className={STATUS_CLASS[status]}>{t.status[status]}</StatusDot>
                   </td>
                   {manage ? (
                     <td className="col-span-6 md:px-3 md:py-3 md:text-right md:align-middle">
@@ -132,22 +148,22 @@ export default async function TeamMembersPage() {
                         <div className="-ml-2.5 flex flex-wrap gap-1 md:ml-0 md:justify-end">
                           <ActionForm
                             action={transferCaptainAction}
-                            submitLabel="Zum Captain"
+                            submitLabel={t.makeCaptain}
                             variant="ghost"
                             size="bare"
                             submitClassName={memberActionClass}
-                            confirmText={`${member.name} zum Captain machen? Du bist danach normales Mitglied.`}
+                            confirmText={t.makeCaptainConfirm(name)}
                           >
                             <input type="hidden" name="teamId" value={team.id} />
                             <input type="hidden" name="memberId" value={member.id} />
                           </ActionForm>
                           <ActionForm
                             action={removeMemberAction}
-                            submitLabel="Entfernen"
+                            submitLabel={t.remove}
                             variant="ghost"
                             size="bare"
                             submitClassName={`${memberActionClass} not-disabled:hover:bg-destructive-soft not-disabled:hover:text-destructive-text`}
-                            confirmText={`${member.name} aus dem Team entfernen?`}
+                            confirmText={t.removeConfirm(name)}
                           >
                             <input type="hidden" name="teamId" value={team.id} />
                             <input type="hidden" name="memberId" value={member.id} />

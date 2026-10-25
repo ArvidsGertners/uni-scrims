@@ -10,7 +10,8 @@ import { formatUniversities } from "@/lib/scrim-format";
 import { getSessionUserId, loginUrl, requirePageUser } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { joinTeamAction, switchTeamAction } from "../../team/actions";
-import { getLocale, getText } from "@/lib/locale";
+import { getLocale, getMessages, getText } from "@/lib/locale";
+import { joinPageMessages } from "@/i18n/team";
 
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -18,17 +19,16 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   // Visitors without a session go to the login and come back here (ARCHITECTURE §7).
   if (!(await getSessionUserId())) redirect(loginUrl(path));
   const user = await requirePageUser(path);
+  const t = await getMessages(joinPageMessages);
 
   const team = await getTeamByInviteCode(user.id, code);
   if (!team) {
     return (
       <PageMain className="gap-7">
         <div className="flex flex-col gap-2.5">
-          <span className="type-label text-muted-foreground">Einladung</span>
-          <h1 className="type-h1">Dieser Link ist ungültig</h1>
-          <p className="text-pretty text-muted-foreground">
-            Frag deinen Captain nach einem neuen Einladungslink.
-          </p>
+          <span className="type-label text-muted-foreground">{t.invitation}</span>
+          <h1 className="type-h1">{t.invalidHeading}</h1>
+          <p className="text-pretty text-muted-foreground">{t.invalidHint}</p>
         </div>
       </PageMain>
     );
@@ -42,30 +42,30 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   const linkClass = "font-semibold underline underline-offset-2";
   return (
     <PageMain className="gap-7">
-      <span className="type-label text-muted-foreground">Einladung</span>
+      <span className="type-label text-muted-foreground">{t.invitation}</span>
       <div className="flex items-center gap-4">
         <TeamAvatar team={team} size="lg" />
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="type-h1">{team.name}</h1>
           <span className="text-[14px] text-muted-foreground">
-            {formatUniversities(team.universities, locale)} · Teamrang{" "}
-            <RankLabel rank={team.rank} /> · {team.memberCount} Mitglieder
+            {formatUniversities(team.universities, locale)} · {t.teamRank}{" "}
+            <RankLabel rank={team.rank} /> · {t.members(team.memberCount)}
           </span>
         </div>
       </div>
       {member?.active ? (
         <Alert variant="success">
           <span>
-            Du bist schon in diesem Team.{" "}
+            {t.alreadyMember}{" "}
             <Link href="/team" className={linkClass}>
-              Zum Team
+              {t.toTeam}
             </Link>
           </span>
         </Alert>
       ) : member ? (
         <div className="flex flex-col gap-3">
           <Alert variant="success">
-            <span>Du bist schon in diesem Team.</span>
+            <span>{t.alreadyMember}</span>
           </Alert>
           <form action={switchTeamAction.bind(null, team.id, null)}>
             <Button
@@ -74,7 +74,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
               size="lg"
               className="h-auto w-full py-2 whitespace-normal"
             >
-              Zu {team.name} wechseln
+              {t.switchTo(team.name)}
             </Button>
           </form>
         </div>
@@ -83,21 +83,16 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
           <span>
             {text(own.limitProblem)}{" "}
             <Link href="/support#mehr-teams" className={linkClass}>
-              Mehr Teams beantragen
+              {t.requestMoreTeams}
             </Link>
           </span>
         </Alert>
       ) : team.full ? (
         <Alert>
-          <span>Das Team ist voll.</span>
+          <span>{t.full}</span>
         </Alert>
       ) : (
-        <ActionForm
-          action={joinTeamAction}
-          submitLabel="Team beitreten"
-          size="lg"
-          submitClassName="w-full"
-        >
+        <ActionForm action={joinTeamAction} submitLabel={t.join} size="lg" submitClassName="w-full">
           <input type="hidden" name="code" value={code} />
         </ActionForm>
       )}

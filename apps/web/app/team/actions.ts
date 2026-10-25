@@ -22,6 +22,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
 import { setFlash } from "@/lib/flash";
+import { teamActionMessages } from "@/i18n/team";
+import { getMessages } from "@/lib/locale";
 import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
@@ -52,7 +54,7 @@ export async function createTeamAction(_state: ActionState, formData: FormData) 
     teamName = (await createTeam({ ...input, userId, now: new Date() })).name;
   });
   if (!state.done) return state;
-  await setFlash(`Willkommen bei ${teamName}`);
+  await setFlash((await getMessages(teamActionMessages)).welcome(teamName));
   await finish(state);
   // The new team is the active one (SPEC N-17); from /team/new back to the team page.
   redirect("/team");
@@ -80,7 +82,9 @@ export async function setTeamLogoAction(_state: ActionState, formData: FormData)
   const background = logoBackgroundSchema.safeParse(formField(formData, "background"));
   const file = z.instanceof(File).safeParse(formData.get("logo"));
   if (!teamId.success || !background.success) return invalidInput();
-  if (!file.success || file.data.size === 0) return { error: "Bitte wähle ein Bild aus." };
+  if (!file.success || file.data.size === 0) {
+    return { error: (await getMessages(teamActionMessages)).chooseImage };
+  }
   if (!(await allowAttempt("logo"))) return rateLimited();
   return finish(
     await runAction(async () => {
@@ -139,7 +143,7 @@ export async function updateTeamLinksAction(_state: ActionState, formData: FormD
   const state = await runAction(async () => {
     await updateTeamLinks({ userId, teamId: teamId.data, links: links.data, now: new Date() });
   });
-  if (state.done) await setFlash("Links gespeichert");
+  if (state.done) await setFlash((await getMessages(teamActionMessages)).linksSaved);
   return finish(state);
 }
 
@@ -211,7 +215,8 @@ export async function leaveTeamAction(_state: ActionState, formData: FormData) {
     ({ dissolved } = await leaveTeam({ userId, teamId: teamId.data, now: new Date() }));
   });
   if (state.done) {
-    await setFlash(dissolved ? "Du hast das Team aufgelöst" : "Du hast das Team verlassen");
+    const t = await getMessages(teamActionMessages);
+    await setFlash(dissolved ? t.dissolved : t.left);
   }
   return finish(state);
 }
@@ -225,7 +230,7 @@ export async function joinTeamAction(_state: ActionState, formData: FormData) {
     teamName = (await joinTeam({ userId, inviteCode: code.data, now: new Date() })).name;
   });
   if (!state.done) return state;
-  await setFlash(`Willkommen bei ${teamName}`);
+  await setFlash((await getMessages(teamActionMessages)).welcome(teamName));
   // redirect() throws, so it must stay outside runAction. The joined team is the active one now.
   revalidatePath("/", "layout");
   redirect("/team");

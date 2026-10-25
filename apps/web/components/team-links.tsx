@@ -9,6 +9,7 @@ import {
   YouTubeIcon,
 } from "@/components/brand-icons";
 import { GlobeIcon } from "@/components/icons";
+import { teamLinksMessages } from "@/i18n/team";
 import { getMessages } from "@/lib/locale";
 
 const ICONS: Record<TeamLinkPlatform, (props: { size?: number }) => React.ReactNode> = {
@@ -53,10 +54,11 @@ export async function TeamLinks({
 }) {
   if (links.length === 0) return null;
   const platforms = await getMessages(TEAM_LINK_TEXTS);
+  const t = await getMessages(teamLinksMessages);
   return (
     <ul className={cn("flex flex-wrap items-center", className)}>
       {links.map((link) => {
-        const label = `${platforms[link.platform].label} von ${teamName}`;
+        const label = t.linkLabel(platforms[link.platform].label, teamName);
         return (
           <li key={link.platform}>
             <a

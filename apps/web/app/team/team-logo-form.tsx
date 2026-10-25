@@ -3,7 +3,9 @@
 import { MAX_LOGO_BYTES } from "@uni-scrims/core/config/uploads";
 import type { LogoBackground } from "@uni-scrims/db";
 import { useActionState, useRef, useState } from "react";
+import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { teamLogoFormMessages } from "@/i18n/team-client";
 import { type ActionState, initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
 import { setTeamLogoAction } from "./actions";
@@ -21,6 +23,7 @@ export function TeamLogoForm({
   background: LogoBackground;
   hasLogo: boolean;
 }) {
+  const t = useMessages(teamLogoFormMessages);
   const [fileName, setFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, action, pending] = useActionState(
@@ -48,12 +51,12 @@ export function TeamLogoForm({
         const picked = new FormData(event.currentTarget).get("logo");
         if (!(picked instanceof File) || picked.size === 0) {
           event.preventDefault();
-          setFileError("Bitte wähle ein Bild aus.");
+          setFileError(t.chooseImage);
           return;
         }
         if (picked.size > MAX_LOGO_BYTES) {
           event.preventDefault();
-          setFileError("Die Datei ist größer als 2 MB.");
+          setFileError(t.tooLarge);
           return;
         }
         setFileError(null);
@@ -85,15 +88,15 @@ export function TeamLogoForm({
           disabled={pending}
           onClick={() => inputRef.current?.click()}
         >
-          {hasLogo ? "Anderes Bild wählen" : "Bild wählen"}
+          {hasLogo ? t.pickOther : t.pick}
         </Button>
         <span className="min-w-0 truncate text-[14px] text-muted-foreground">
-          {fileName ?? "Keine Datei gewählt"}
+          {fileName ?? t.noFile}
         </span>
       </div>
       {fileName ? (
         <Button type="submit" size="sm" disabled={pending} className="self-start">
-          Logo hochladen
+          {t.upload}
         </Button>
       ) : null}
       {error ? (
