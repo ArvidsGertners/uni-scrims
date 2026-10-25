@@ -1,9 +1,10 @@
-import { getNavTeam } from "@uni-scrims/core";
+import { getNavTeam, userDisplayName } from "@uni-scrims/core";
 import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
 import type { AppNavData } from "@/components/app-nav";
 import { adminUrl, isAdminHost } from "./admin-url.ts";
+import { getLocale } from "./locale.ts";
 import { getSignedInUser } from "./session.ts";
 
 /**
@@ -48,11 +49,13 @@ export const siteChrome = cache(async () => {
 export async function siteNav(): Promise<AppNavData | null> {
   const { user, active, teams, teamUnavailable, adminHost } = await siteChrome();
   if (!user || adminHost) return null;
+  const locale = await getLocale();
   return {
     full: active,
     account: {
       id: user.id,
-      name: user.name,
+      // "Neues Konto" until Discord is linked, shown in the page's language (§5.21).
+      name: userDisplayName(user.name, locale),
       avatarVersion: user.avatarVersion,
       unverified: active && !user.verifiedAt,
     },

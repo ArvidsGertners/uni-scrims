@@ -29,7 +29,7 @@ export default async function TeamLimitsPage() {
                 {t.status(
                   request.teamCount,
                   request.teamLimit,
-                  formatDateTime(request.createdAt, locale),
+                  formatDateTime(request.createdAt, locale, { suffix: true }),
                 )}
               </p>
             </CardHeader>

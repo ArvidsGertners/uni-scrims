@@ -16,7 +16,7 @@ const de = {
     REJECTED: "Abgelehnt",
     WITHDRAWN: "Zurückgezogen",
   } as Record<AppStatus, string>,
-  /** After a date with time from formatDateTime. */
+  /** After a date with time from formatDateTime, where a page asks for it. */
   timeSuffix: " Uhr",
   /** What the number of cases of a success metric counts. */
   caseNouns: {

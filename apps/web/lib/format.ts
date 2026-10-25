@@ -3,8 +3,15 @@ import { formatMessages } from "../i18n/format.ts";
 
 const dateTimes = new Map<Locale, Intl.DateTimeFormat>();
 
-/** Date and time in Europe/Berlin (ARCHITECTURE §4), with "Uhr" in German (§5.21). */
-export function formatDateTime(date: Date, locale: Locale): string {
+/**
+ * Date and time in Europe/Berlin (ARCHITECTURE §4). `suffix` adds "Uhr" in German, where a page
+ * showed it before Phase 22; English has none (§5.21).
+ */
+export function formatDateTime(
+  date: Date,
+  locale: Locale,
+  { suffix = false }: { suffix?: boolean } = {},
+): string {
   let format = dateTimes.get(locale);
   if (!format) {
     format = new Intl.DateTimeFormat(INTL_LOCALES[locale], {
@@ -14,7 +21,7 @@ export function formatDateTime(date: Date, locale: Locale): string {
     });
     dateTimes.set(locale, format);
   }
-  return format.format(date) + formatMessages[locale].timeSuffix;
+  return format.format(date) + (suffix ? formatMessages[locale].timeSuffix : "");
 }
 
 /** Initials for round user avatars: the first two letters or digits of the Discord name. */

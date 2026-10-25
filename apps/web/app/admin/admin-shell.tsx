@@ -128,8 +128,9 @@ export async function AdminShell({
   const areas = AREAS.filter((area) => staffArea(viewer.staffRole, area.area));
   // The legal texts concern admins; reviewers only see their queue (as before Phase 14).
   const legalConcernsViewer = staffArea(viewer.staffRole, "admin");
-  const missingLegal = legalConcernsViewer ? await missingLegalPages() : [];
-  const missingEnglishLegal = legalConcernsViewer ? await missingLegalPages(process.env, "en") : [];
+  const [missingLegal, missingEnglishLegal] = legalConcernsViewer
+    ? await Promise.all([missingLegalPages(), missingLegalPages(process.env, "en")])
+    : [[], []];
   const flash = await readFlash();
   const locale = await getLocale();
   const t = await getMessages(adminShellMessages);

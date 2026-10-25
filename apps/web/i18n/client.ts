@@ -5,7 +5,13 @@
 import { dictionary } from "@uni-scrims/core/config/locale";
 import type { ReactNode } from "react";
 
-export const localeSwitcherMessages = dictionary({ language: "Sprache" }, { language: "Language" });
+export const localeSwitcherMessages = dictionary(
+  {
+    language: "Sprache",
+    failed: "Die Sprache konnte nicht gespeichert werden. Bitte versuch es erneut.",
+  },
+  { language: "Language", failed: "The language couldn't be saved. Please try again." },
+);
 
 /** The navigation of the site (§5.15, §5.16, SPEC N-17): sidebar and menu below 1024 px. */
 export const appNavMessages = dictionary(

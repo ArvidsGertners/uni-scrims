@@ -63,7 +63,12 @@ export function LocaleSwitcher({
         <MenuRadioGroup
           value={locale}
           onValueChange={(value: string) => {
-            if (value !== locale) startTransition(() => setLocaleAction(value));
+            if (value === locale) return;
+            startTransition(async () => {
+              // Like signing out: an alert, as the menu has no place for a message.
+              const saved = await setLocaleAction(value).catch(() => false);
+              if (!saved) window.alert(t.failed);
+            });
           }}
         >
           {LOCALES.map((option) => (

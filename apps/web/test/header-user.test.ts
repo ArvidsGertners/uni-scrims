@@ -3,10 +3,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
 vi.mock("../lib/session.ts", () => session);
-const core = vi.hoisted(() => ({ getNavTeam: vi.fn() }));
+const core = vi.hoisted(() => ({
+  getNavTeam: vi.fn(),
+  userDisplayName: (name: string, locale: string) =>
+    locale === "en" && name === "Neues Konto" ? "New account" : name,
+}));
 vi.mock("@uni-scrims/core", () => core);
-const request = vi.hoisted(() => ({ host: "uniscrims.test" }));
-vi.mock("next/headers", () => ({ headers: async () => new Headers({ host: request.host }) }));
+const request = vi.hoisted(() => ({ host: "uniscrims.test", language: "de" }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ host: request.host, "accept-language": request.language }),
+  cookies: async () => ({ get: () => undefined }),
+}));
 
 const { headerUser, siteChrome, siteNav } = await import("../lib/header-user.ts");
 
@@ -16,6 +23,7 @@ afterEach(() => {
   session.getSignedInUser.mockReset();
   core.getNavTeam.mockReset();
   request.host = "uniscrims.test";
+  request.language = "de";
 });
 
 describe("headerUser", () => {
@@ -116,6 +124,17 @@ describe("siteNav (§5.16)", () => {
     vi.stubEnv("BETTER_AUTH_URL", "https://uniscrims.test");
     vi.stubEnv("ADMIN_URL", "https://admin.uniscrims.test");
     await expect(siteNav()).resolves.toMatchObject({ adminUrl: "https://admin.uniscrims.test/" });
+  });
+
+  it("shows the name of a new account in the page's language (§5.21)", async () => {
+    session.getSignedInUser.mockResolvedValue({
+      ...staff,
+      name: "Neues Konto",
+      setupStep: "LINK_DISCORD",
+    });
+    await expect(siteNav()).resolves.toMatchObject({ account: { name: "Neues Konto" } });
+    request.language = "en-GB";
+    await expect(siteNav()).resolves.toMatchObject({ account: { name: "New account" } });
   });
 
   it("passes the active team, all own teams and whether another one fits (SPEC N-17)", async () => {

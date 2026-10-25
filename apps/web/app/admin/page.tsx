@@ -15,7 +15,7 @@ export default async function AdminOverviewPage() {
   const locale = await getLocale();
   const t = await getMessages(adminOverviewMessages);
   const lastSeen = (heartbeatAt: Date | null) =>
-    heartbeatAt ? t.lastSeen(formatDateTime(heartbeatAt, locale)) : t.noHeartbeat;
+    heartbeatAt ? t.lastSeen(formatDateTime(heartbeatAt, locale, { suffix: true })) : t.noHeartbeat;
 
   return (
     <AdminShell overview={overview} current="/">
@@ -28,7 +28,7 @@ export default async function AdminOverviewPage() {
           tone={queue.pending > 0 ? "text-warning" : undefined}
         >
           {queue.oldestAt
-            ? t.oldestWaiting(formatDateTime(queue.oldestAt, locale))
+            ? t.oldestWaiting(formatDateTime(queue.oldestAt, locale, { suffix: true }))
             : t.nothingToReview}
         </StatTile>
         {/* core returns null where the role does not see an area (§5.14). */}

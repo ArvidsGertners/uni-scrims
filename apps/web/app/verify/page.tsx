@@ -61,7 +61,10 @@ export default async function VerifyPage({
                   value: <StatusDot className="text-success">{t.verified}</StatusDot>,
                 },
                 { label: t.university, value: university ?? "–" },
-                { label: t.verifiedSince, value: formatDateTime(verifiedAt, locale) },
+                {
+                  label: t.verifiedSince,
+                  value: formatDateTime(verifiedAt, locale, { suffix: true }),
+                },
               ]}
             />
             <div className="flex flex-wrap gap-2.5">
@@ -89,7 +92,10 @@ export default async function VerifyPage({
                   value: <StatusDot className="text-warning">{t.pending}</StatusDot>,
                 },
                 { label: t.university, value: latest.university ?? "–" },
-                { label: t.submitted, value: formatDateTime(latest.createdAt, locale) },
+                {
+                  label: t.submitted,
+                  value: formatDateTime(latest.createdAt, locale, { suffix: true }),
+                },
               ]}
             />
             <Link
