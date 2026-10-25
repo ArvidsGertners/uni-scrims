@@ -65,7 +65,12 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
             <span>Du bist schon in diesem Team.</span>
           </Alert>
           <form action={switchTeamAction.bind(null, team.id, null)}>
-            <Button type="submit" variant="outline" size="lg" className="w-full">
+            <Button
+              type="submit"
+              variant="outline"
+              size="lg"
+              className="h-auto w-full py-2 whitespace-normal"
+            >
               Zu {team.name} wechseln
             </Button>
           </form>

@@ -141,14 +141,17 @@ function EntryLink({
   );
 }
 
+/** Decoration, as in SidebarEntryContent: the team's name stands next to it. */
 function TeamIcon({ team, small }: { team: NavTeam; small?: boolean }) {
   return (
-    <TeamAvatar
-      team={team}
-      size="sm"
-      own
-      className={small ? "size-6 rounded-[6px] text-[8px]" : "size-8 rounded-[7px] text-[9px]"}
-    />
+    <span aria-hidden className="flex shrink-0">
+      <TeamAvatar
+        team={team}
+        size="sm"
+        own
+        className={small ? "size-6 rounded-[6px] text-[8px]" : "size-8 rounded-[7px] text-[9px]"}
+      />
+    </span>
   );
 }
 

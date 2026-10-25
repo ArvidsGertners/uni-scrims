@@ -20,7 +20,13 @@ export function SwitchTeamHint({
       <div className="flex flex-col gap-3">
         <span>{children}</span>
         <form action={switchTeamAction.bind(null, team.id, returnTo)}>
-          <Button type="submit" variant="outline" size="sm">
+          {/* Long team names wrap instead of leaving the box on phones. */}
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            className="h-auto max-w-full py-2 text-left whitespace-normal"
+          >
             Zu {team.name} wechseln
           </Button>
         </form>
