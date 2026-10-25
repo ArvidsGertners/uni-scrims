@@ -2,6 +2,8 @@ import { RANK_LABELS } from "@uni-scrims/core";
 import type { Rank } from "@uni-scrims/db";
 import { cn } from "cn";
 import type { StaticImageData } from "next/image";
+import { rankMessages } from "@/i18n/chrome";
+import { getMessages } from "@/lib/locale";
 import ascendant from "@/assets/ranks/ascendant.png";
 import bronze from "@/assets/ranks/bronze.png";
 import diamond from "@/assets/ranks/diamond.png";
@@ -42,12 +44,13 @@ export function RankIcon({ rank, className }: { rank: Rank | null; className?: s
   );
 }
 
-/** Icon and name, kept on one line; without a rank "Ohne Rang". */
-export function RankLabel({ rank }: { rank: Rank | null }) {
+/** Icon and name, kept on one line; without a rank "Unranked" (rank names are the same in English). */
+export async function RankLabel({ rank }: { rank: Rank | null }) {
+  const t = await getMessages(rankMessages);
   return (
     <span className="whitespace-nowrap">
       <RankIcon rank={rank} className="mr-[0.3em]" />
-      {rank ? RANK_LABELS[rank] : "Ohne Rang"}
+      {rank ? RANK_LABELS[rank] : t.unranked}
     </span>
   );
 }

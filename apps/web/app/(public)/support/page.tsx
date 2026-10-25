@@ -7,9 +7,10 @@ import { ExternalLinkIcon, MessageSquareIcon } from "@/components/icons";
 import { PageMain } from "@/components/page-main";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { supportMessages } from "@/i18n/public";
 import { siteChrome } from "@/lib/header-user";
 import { submitTeamLimitRequestAction } from "./actions";
-import { getLocale, getText } from "@/lib/locale";
+import { getLocale, getMessages, getText } from "@/lib/locale";
 
 const cardClass = "flex flex-col gap-3 rounded-lg border border-border bg-card p-5";
 
@@ -22,24 +23,22 @@ export default async function SupportPage() {
   // The request for more teams only for active accounts (SPEC N-17); visitors see the rest.
   const { user, active } = await siteChrome();
   const teamLimit = user && active ? await getTeamLimitStatus(user.id) : null;
+  const t = await getMessages(supportMessages);
 
   return (
     <PageMain className="gap-7">
       <div className="flex flex-col gap-2.5">
-        <h1 className="type-h1">Support</h1>
-        <p className="text-pretty text-muted-foreground">
-          Fragen, Probleme oder Feedback? So erreichst du uns. Geht es um dein Konto, nenn uns deine
-          Profil-ID aus den Einstellungen.
-        </p>
+        <h1 className="type-h1">{t.title}</h1>
+        <p className="text-pretty text-muted-foreground">{t.lead}</p>
       </div>
 
       {discordUrl || email ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {discordUrl ? (
             <section className={cardClass}>
-              <h2 className="type-h2">Discord</h2>
+              <h2 className="type-h2">{t.discord}</h2>
               <p className="flex-1 text-[14px] text-pretty text-muted-foreground">
-                Auf dem Uni-Scrims-Server erreichst du uns und die anderen Teams.
+                {t.discordText}
               </p>
               <a
                 href={discordUrl}
@@ -48,18 +47,15 @@ export default async function SupportPage() {
                 className={buttonVariants({ variant: "outline", className: "self-start" })}
               >
                 <MessageSquareIcon size={17} />
-                Zum Discord-Server
+                {t.discordLink}
                 <ExternalLinkIcon size={15} />
               </a>
             </section>
           ) : null}
           {email ? (
             <section className={cardClass}>
-              <h2 className="type-h2">E-Mail</h2>
-              <p className="flex-1 text-[14px] text-pretty text-muted-foreground">
-                Für alles, was nicht öffentlich sein soll, etwa Fragen zu deinem Konto oder deinen
-                Daten.
-              </p>
+              <h2 className="type-h2">{t.email}</h2>
+              <p className="flex-1 text-[14px] text-pretty text-muted-foreground">{t.emailText}</p>
               <a
                 href={`mailto:${email}`}
                 className="self-start font-semibold break-all text-accent-text underline underline-offset-2"
@@ -71,11 +67,11 @@ export default async function SupportPage() {
         </div>
       ) : (
         <p>
-          Unsere Kontaktdaten stehen im{" "}
-          <Link href="/impressum" className="font-semibold underline underline-offset-2">
-            Impressum
-          </Link>
-          .
+          {t.contactInImpressum((label) => (
+            <Link href="/impressum" className="font-semibold underline underline-offset-2">
+              {label}
+            </Link>
+          ))}
         </p>
       )}
 
@@ -84,7 +80,7 @@ export default async function SupportPage() {
   );
 }
 
-/** „Mehr Teams beantragen“ (SPEC N-17): the count, the state of the latest request, the form. */
+/** Requesting more teams (SPEC N-17): the count, the state of the latest request, the form. */
 async function TeamLimitCard({
   status,
 }: {
@@ -92,34 +88,33 @@ async function TeamLimitCard({
 }) {
   const text = await getText();
   const locale = await getLocale();
+  const t = await getMessages(supportMessages);
   const { latest } = status;
   return (
     <section id="mehr-teams" className={`${cardClass} scroll-mt-24`}>
-      <h2 className="type-h2">Mehr Teams beantragen</h2>
+      <h2 className="type-h2">{t.teamLimitTitle}</h2>
       <p className="text-[14px] text-pretty text-muted-foreground">
-        Du bist in {status.teamCount} von {status.teamLimit} Teams. Brauchst du mehr, etwa weil du
-        mehrere Teams betreust, schreib kurz, wofür. Ein Admin entscheidet; den Stand siehst du
-        hier.
+        {t.teamLimitText(status.teamCount, status.teamLimit)}
       </p>
       {latest?.status === "PENDING" ? (
         <Alert>
-          <span>Dein Antrag vom {formatBerlinDate(latest.createdAt, locale)} ist in Prüfung.</span>
+          <span>{t.pending(formatBerlinDate(latest.createdAt, locale))}</span>
         </Alert>
       ) : (
         <>
           {latest?.status === "APPROVED" ? (
             <Alert variant="success">
               <span>
-                Angenommen am {formatBerlinDate(latest.decidedAt ?? latest.createdAt, locale)}: Du
-                kannst jetzt in bis zu {latest.newLimit} Teams sein.
+                {t.approved(
+                  formatBerlinDate(latest.decidedAt ?? latest.createdAt, locale),
+                  // Always set on approved requests; the current limit just in case.
+                  latest.newLimit ?? status.teamLimit,
+                )}
               </span>
             </Alert>
           ) : latest?.status === "REJECTED" ? (
             <Alert>
-              <span>
-                Dein Antrag vom {formatBerlinDate(latest.createdAt, locale)} wurde abgelehnt. Du
-                kannst einen neuen stellen.
-              </span>
+              <span>{t.rejected(formatBerlinDate(latest.createdAt, locale))}</span>
             </Alert>
           ) : null}
           {status.requestProblem ? (
@@ -127,19 +122,19 @@ async function TeamLimitCard({
           ) : (
             <ActionForm
               action={submitTeamLimitRequestAction}
-              submitLabel="Antrag senden"
+              submitLabel={t.submit}
               variant="outline"
               size="sm"
               className="flex flex-col gap-3"
             >
               <CountedTextarea
-                label="Begründung"
+                label={t.reason}
                 name="reason"
                 maxLength={TEAM_LIMIT_REASON_MAX}
                 optional={false}
                 required
                 rows={3}
-                placeholder="Zum Beispiel: Ich betreue die Teams unserer Hochschule."
+                placeholder={t.reasonPlaceholder}
               />
             </ActionForm>
           )}

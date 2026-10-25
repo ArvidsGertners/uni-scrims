@@ -24,6 +24,9 @@ TODO: Hoster, Speicherort; Webserver-Logs (IP-Adresse, User-Agent) 14 Tage, Anwe
 ## Benachrichtigungen
 TODO: werden 30 Tage nach dem Versand, dem letzten Zustellversuch bzw. der Absage gelöscht
 
+## Sprache
+TODO: Browsersprache (Accept-Language) wird gelesen, nicht gespeichert; Cookie „locale“ (de/en, ein Jahr) nur bei eigener Wahl; mit Konto die Sprache am Konto (in der Datenauskunft, gelöscht mit dem Konto)
+
 ## Mindestalter
 TODO: 16 Jahre
 

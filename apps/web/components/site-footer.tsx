@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { footerMessages } from "@/i18n/chrome";
 import { siteChrome } from "@/lib/header-user";
+import { getMessages } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
 export async function SiteFooter() {
   // Full width where there is a sidebar (§5.14, §5.15), narrow like the pages elsewhere.
   const { user, adminHost } = await siteChrome();
+  const t = await getMessages(footerMessages);
   const wide = user !== null || adminHost;
   return (
     <footer className="border-t border-border">
@@ -16,14 +19,14 @@ export async function SiteFooter() {
       >
         <div className="flex gap-5">
           <Link href="/impressum" className="text-muted-foreground hover:text-foreground">
-            Impressum
+            {t.impressum}
           </Link>
           <Link href="/datenschutz" className="text-muted-foreground hover:text-foreground">
-            Datenschutz
+            {t.privacy}
           </Link>
           {/* For everyone, also when signing in does not work (SPEC N-13). */}
           <Link href="/support" className="text-muted-foreground hover:text-foreground">
-            Support
+            {t.support}
           </Link>
         </div>
       </div>

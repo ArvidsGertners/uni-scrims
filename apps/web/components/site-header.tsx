@@ -5,11 +5,13 @@ import { DiscordBanner } from "@/components/discord-banner";
 import { MobileMenu } from "@/components/app-nav";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
+import { headerMessages } from "@/i18n/chrome";
 import { mainUrl } from "@/lib/admin-url";
 import { siteChrome, siteNav } from "@/lib/header-user";
+import { getMessages } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
-function Logo({
+async function Logo({
   href,
   theme,
   admin = false,
@@ -18,6 +20,7 @@ function Logo({
   theme: ThemePreference;
   admin?: boolean;
 }) {
+  const t = await getMessages(headerMessages);
   return (
     // gap-3: the clear space of BRAND.md, one chevron arm of the 28 px logo.
     <Link href={href} className="flex items-center gap-3 text-foreground">
@@ -26,7 +29,7 @@ function Logo({
         <>
           <BrandLogo theme={theme} className="max-[480px]:hidden" />
           <BrandLogo variant="icon" theme={theme} className="min-[480px]:hidden" />
-          <span className="type-label leading-none text-muted-foreground">Admin</span>
+          <span className="type-label leading-none text-muted-foreground">{t.admin}</span>
         </>
       ) : (
         <BrandLogo theme={theme} />
@@ -39,7 +42,8 @@ function Logo({
  * Header of the admin host (§5.13): no player navigation and no Discord banner. Full width like the
  * dashboard (§5.14, §5.15); from 1024 px the sidebar holds the logout, where a page has one.
  */
-function AdminHeader({ signedIn, theme }: { signedIn: boolean; theme: ThemePreference }) {
+async function AdminHeader({ signedIn, theme }: { signedIn: boolean; theme: ThemePreference }) {
+  const t = await getMessages(headerMessages);
   return (
     // Sticky like the header of the site, so the sidebar sits below it either way (§5.14).
     <header className="sticky top-0 z-30 border-b border-border bg-background">
@@ -51,7 +55,7 @@ function AdminHeader({ signedIn, theme }: { signedIn: boolean; theme: ThemePrefe
             href={mainUrl("/scrims")}
             className="type-btn flex h-9 items-center px-2.5 text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-foreground max-[359px]:px-1.5"
           >
-            Zur Seite
+            {t.toSite}
           </a>
           {signedIn ? (
             <LogoutButton

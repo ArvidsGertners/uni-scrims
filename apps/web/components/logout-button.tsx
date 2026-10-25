@@ -1,6 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useMessages } from "@/components/locale-provider";
+import { logoutMessages } from "@/i18n/client";
 import { authClient } from "@/lib/auth-client";
 
 /**
@@ -9,10 +11,11 @@ import { authClient } from "@/lib/auth-client";
  */
 export function useLogout(redirectTo?: string) {
   const router = useRouter();
+  const t = useMessages(logoutMessages);
   return async () => {
     const { error } = await authClient.signOut();
     if (error) {
-      window.alert("Abmelden hat nicht geklappt. Bitte versuch es erneut.");
+      window.alert(t.failed);
       return;
     }
     if (redirectTo) {
@@ -32,9 +35,10 @@ export function LogoutButton({
   redirectTo?: string;
 }) {
   const logout = useLogout(redirectTo);
+  const t = useMessages(logoutMessages);
   return (
     <button type="button" className={className} onClick={logout}>
-      Abmelden
+      {t.signOut}
     </button>
   );
 }

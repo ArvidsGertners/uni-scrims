@@ -20,6 +20,7 @@ import {
   UsersIcon,
   XIcon,
 } from "@/components/icons";
+import { useMessages } from "@/components/locale-provider";
 import { useLogout } from "@/components/logout-button";
 import { SidebarFrame } from "@/components/sidebar-frame";
 import { SidebarEntryContent, SidebarLink, sidebarEntryClass } from "@/components/sidebar-link";
@@ -34,17 +35,20 @@ import {
 } from "@/components/ui/menu";
 import { UserAvatar } from "@/components/user-avatar";
 import { WarningDot } from "@/components/warning-dot";
+import { appNavMessages } from "@/i18n/client";
+
+type NavMessages = (typeof appNavMessages)["de"];
 
 /** What the navigation of the site shows (§5.15), from siteChrome. */
 export type AppNavData = {
-  /** Banned users and incomplete accounts only get Konto (ARCHITECTURE §7, §5.8). */
+  /** Banned users and incomplete accounts only get the account (ARCHITECTURE §7, §5.8). */
   full: boolean;
   account: { id: string; name: string; avatarVersion: number | null; unverified: boolean };
   /** The active team (SPEC N-17), null without a team. */
   team: NavTeam | null;
   /** All own teams by name, for the team menu (SPEC N-17). */
   teams: NavTeam[];
-  /** Below the team limit: „Neues Team erstellen“ is offered, else „Mehr Teams beantragen“. */
+  /** Below the team limit: creating a new team is offered, else requesting more teams. */
   canAddTeam: boolean;
   /** The team query failed: a neutral entry instead of claiming there is no team. */
   teamUnavailable: boolean;
@@ -66,7 +70,7 @@ type Entry = {
   leading: ReactNode;
 };
 
-/** The items of the account menu before Abmelden (§5.16), for both navigations. */
+/** The items of the account menu before signing out (§5.16), for both navigations. */
 type AccountItem = {
   key: string;
   href: string;
@@ -81,13 +85,13 @@ function inSection(sections: string[], pathname: string): boolean {
   return sections.includes(`/${pathname.split("/")[1] ?? ""}`);
 }
 
-function entries(nav: AppNavData) {
+function entries(nav: AppNavData, t: NavMessages) {
   if (!nav.full) return { top: [], team: null };
   const team: Entry = {
     key: "team",
     href: "/team",
-    label: nav.team?.name ?? "Team",
-    sub: nav.team ? "Team" : nav.teamUnavailable ? undefined : "Gründen oder beitreten",
+    label: nav.team?.name ?? t.team,
+    sub: nav.team ? t.team : nav.teamUnavailable ? undefined : t.createOrJoin,
     sections: TEAM_SECTIONS,
     leading: nav.team ? (
       <TeamIcon team={nav.team} />
@@ -100,26 +104,26 @@ function entries(nav: AppNavData) {
   const scrims: Entry = {
     key: "scrims",
     href: "/scrims",
-    label: "Scrims",
+    label: t.scrims,
     sections: ["/scrims", "/requests"],
     leading: <LayersIcon size={17} />,
   };
   return { top: [scrims], team };
 }
 
-function accountItems(nav: AppNavData): AccountItem[] {
+function accountItems(nav: AppNavData, t: NavMessages): AccountItem[] {
   return [
     {
       key: "settings",
       href: "/account",
-      label: "Einstellungen",
+      label: t.settings,
       icon: SettingsIcon,
       sections: ["/account", "/verify"],
     },
     {
       key: "support",
       href: "/support",
-      label: "Support",
+      label: t.support,
       icon: HelpCircleIcon,
       sections: ["/support"],
     },
@@ -128,7 +132,7 @@ function accountItems(nav: AppNavData): AccountItem[] {
           {
             key: "admin",
             href: nav.adminUrl,
-            label: "Admin-Bereich",
+            label: t.adminArea,
             icon: ShieldCheckIcon,
             sections: [],
             external: true,
@@ -187,6 +191,7 @@ function useSwitchTeam() {
  * team page, the others switching to it; then founding or, at the limit, asking for more teams.
  */
 function TeamMenu({ nav, entry, pathname }: { nav: AppNavData; entry: Entry; pathname: string }) {
+  const t = useMessages(appNavMessages);
   const switchTeam = useSwitchTeam();
   const active = inSection(entry.sections, pathname);
   return (
@@ -214,7 +219,7 @@ function TeamMenu({ nav, entry, pathname }: { nav: AppNavData; entry: Entry; pat
               <TeamIcon team={team} small />
               <span className="min-w-0 flex-1 truncate">{team.name}</span>
               <CheckIcon size={16} strokeWidth={2.5} className="text-accent-text" />
-              <span className="sr-only">(aktiv)</span>
+              <span className="sr-only">{t.active}</span>
             </MenuLinkItem>
           ) : (
             <MenuItem key={team.id} onClick={() => switchTeam(team.id)}>
@@ -227,7 +232,7 @@ function TeamMenu({ nav, entry, pathname }: { nav: AppNavData; entry: Entry; pat
         {nav.canAddTeam ? (
           <MenuLinkItem render={<Link href="/team/new" />}>
             <PlusIcon size={16} />
-            Neues Team erstellen
+            {t.createTeam}
           </MenuLinkItem>
         ) : (
           <>
@@ -236,10 +241,10 @@ function TeamMenu({ nav, entry, pathname }: { nav: AppNavData; entry: Entry; pat
               className="cursor-default text-faint data-highlighted:bg-transparent"
             >
               <PlusIcon size={16} />
-              Neues Team erstellen
+              {t.createTeam}
             </MenuItem>
             <MenuLinkItem render={<Link href="/support#mehr-teams" />}>
-              Mehr Teams beantragen
+              {t.requestMoreTeams}
             </MenuLinkItem>
           </>
         )}
@@ -248,13 +253,14 @@ function TeamMenu({ nav, entry, pathname }: { nav: AppNavData; entry: Entry; pat
   );
 }
 
-/** Profile picture, name and "Konto" with the warning dot: the account in both navigations. */
+/** Profile picture, name and "Account" with the warning dot: the account in both navigations. */
 function AccountContent({ nav, trailing }: { nav: AppNavData; trailing?: ReactNode }) {
+  const t = useMessages(appNavMessages);
   return (
     <SidebarEntryContent
       leading={<UserAvatar user={nav.account} className="size-8 text-[10px]" />}
       label={nav.account.name}
-      sub="Konto"
+      sub={t.account}
       trailing={
         <>
           {nav.account.unverified ? <WarningDot /> : null}
@@ -267,10 +273,11 @@ function AccountContent({ nav, trailing }: { nav: AppNavData; trailing?: ReactNo
 
 const externalIcon = <ExternalLinkIcon size={15} className="text-muted-foreground" />;
 
-/** Konto as a menu from 1024 px (§5.16): settings, support, admin area, logout; opens upwards. */
+/** The account menu from 1024 px (§5.16): settings, support, admin area, logout; opens upwards. */
 function AccountMenu({ nav, pathname }: { nav: AppNavData; pathname: string }) {
+  const t = useMessages(appNavMessages);
   const logout = useLogout();
-  const items = accountItems(nav);
+  const items = accountItems(nav, t);
   const active = items.some((item) => inSection(item.sections, pathname));
   return (
     <MenuRoot>
@@ -306,22 +313,23 @@ function AccountMenu({ nav, pathname }: { nav: AppNavData; pathname: string }) {
         <MenuSeparator />
         <MenuItem onClick={logout}>
           <LogOutIcon size={16} />
-          Abmelden
+          {t.signOut}
         </MenuItem>
       </MenuPopup>
     </MenuRoot>
   );
 }
 
-/** From 1024 px: Scrims on top, Team and Konto at the bottom (SidebarFrame). */
+/** From 1024 px: Scrims on top, team and account at the bottom (SidebarFrame). */
 export function AppSidebar({ nav }: { nav: AppNavData }) {
+  const t = useMessages(appNavMessages);
   const pathname = usePathname();
-  const { top, team } = entries(nav);
+  const { top, team } = entries(nav, t);
   return (
     <SidebarFrame
       top={
         top.length > 0 ? (
-          <nav aria-label="Hauptmenü" className="flex flex-col gap-0.5">
+          <nav aria-label={t.mainMenu} className="flex flex-col gap-0.5">
             {top.map((entry) => (
               <EntryLink key={entry.key} entry={entry} pathname={pathname} />
             ))}
@@ -329,7 +337,7 @@ export function AppSidebar({ nav }: { nav: AppNavData }) {
         ) : null
       }
       bottom={
-        <nav aria-label="Team und Konto" className="flex flex-col gap-1">
+        <nav aria-label={t.teamAndAccount} className="flex flex-col gap-1">
           {team && nav.teams.length > 0 ? (
             <TeamMenu nav={nav} entry={team} pathname={pathname} />
           ) : team ? (
@@ -344,6 +352,7 @@ export function AppSidebar({ nav }: { nav: AppNavData }) {
 
 /** Below 1024 px: the menu button opens the same entries in the same order. */
 export function MobileMenu({ nav }: { nav: AppNavData }) {
+  const t = useMessages(appNavMessages);
   const pathname = usePathname();
   // The menu belongs to the page it was opened on, so navigating closes it.
   const [openOn, setOpenOn] = useState<string | null>(null);
@@ -351,7 +360,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
   const close = () => setOpenOn(null);
   const logout = useLogout();
   const switchTeam = useSwitchTeam();
-  const { top, team } = entries(nav);
+  const { top, team } = entries(nav, t);
   const itemClass = "min-h-14 px-3.5 text-[16px]";
   const subItemClass = "min-h-12 pl-[3.25rem] text-[15px]";
   // Icon (17 px) and gap (10 px) in front, so the label lines up with subItemClass.
@@ -364,7 +373,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
     <>
       <button
         type="button"
-        aria-label="Menü"
+        aria-label={t.menu}
         aria-expanded={open}
         aria-controls="mobile-menu"
         onClick={() => setOpenOn(open ? null : pathname)}
@@ -385,7 +394,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
         >
           {top.length > 0 ? (
             <>
-              <nav aria-label="Hauptmenü" className="flex flex-col gap-1">
+              <nav aria-label={t.mainMenu} className="flex flex-col gap-1">
                 {top.map((entry) => (
                   <EntryLink
                     key={entry.key}
@@ -399,7 +408,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
               <div className="my-2 h-px bg-border" />
             </>
           ) : null}
-          <nav aria-label="Team und Konto" className="flex flex-col gap-1">
+          <nav aria-label={t.teamAndAccount} className="flex flex-col gap-1">
             {team && nav.teams.length > 0 ? (
               // The entries of the team menu as a list (SPEC N-17).
               <>
@@ -411,7 +420,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
                       active={inSection(TEAM_SECTIONS, pathname)}
                       leading={<TeamIcon team={item} />}
                       label={item.name}
-                      sub="Aktives Team"
+                      sub={t.activeTeam}
                       trailing={<CheckIcon size={16} strokeWidth={2.5} />}
                       className={itemClass}
                       onClick={close}
@@ -432,7 +441,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
                       <SidebarEntryContent
                         leading={<TeamIcon team={item} />}
                         label={item.name}
-                        sub="Wechseln"
+                        sub={t.switchTeam}
                       />
                     </button>
                   ),
@@ -441,7 +450,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
                   <SidebarLink
                     href="/team/new"
                     active={pathname === "/team/new"}
-                    label="Neues Team erstellen"
+                    label={t.createTeam}
                     className={subItemClass}
                     onClick={close}
                   />
@@ -449,7 +458,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
                   <SidebarLink
                     href="/support#mehr-teams"
                     active={false}
-                    label="Mehr Teams beantragen"
+                    label={t.requestMoreTeams}
                     className={subItemClass}
                     onClick={close}
                   />
@@ -467,7 +476,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
             >
               <AccountContent nav={nav} />
             </div>
-            {accountItems(nav).map((item) =>
+            {accountItems(nav, t).map((item) =>
               item.external ? (
                 <a
                   key={item.key}
@@ -504,7 +513,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
                 cn(iconSubItemClass, "w-full cursor-pointer text-left"),
               )}
             >
-              <SidebarEntryContent leading={<LogOutIcon size={17} />} label="Abmelden" />
+              <SidebarEntryContent leading={<LogOutIcon size={17} />} label={t.signOut} />
             </button>
           </nav>
         </div>

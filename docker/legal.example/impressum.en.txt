@@ -1,0 +1,9 @@
+TODO: English version of impressum.txt. Say that the German version is the binding one.
+
+## Information according to § 5 DDG
+TODO: first and last name
+TODO: street and house number
+TODO: postcode and town
+
+## Contact
+TODO: email address

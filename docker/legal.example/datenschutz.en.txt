@@ -1,0 +1,10 @@
+TODO: English version of datenschutz.txt, with the same sections. Say that only the German version is legally binding, and that the data export (a JSON file) uses German field names.
+
+## Controller
+TODO: name, address, email
+
+## Language
+TODO: as in the German version: Accept-Language is read and not stored; the cookie "locale" (de/en, one year) only on an explicit choice; signed in, the language on the account
+
+## Your rights
+TODO: access (Art. 15), rectification, erasure, complaint to a supervisory authority

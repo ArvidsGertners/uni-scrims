@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CopyIcon } from "@/components/icons";
+import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { copyValueMessages } from "@/i18n/client";
 
 /**
- * A value with "Kopieren", which reads "Kopiert" for 2 s (design handoff): the invite link, the
+ * A value with "Copy", which reads "Copied" for 2 s (design handoff): the invite link, the
  * profile ID (§5.16). Without clipboard access the value is selected to copy by hand.
  */
 export function CopyValue({ value, display = value }: { value: string; display?: string }) {
+  const t = useMessages(copyValueMessages);
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   const text = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -38,12 +41,12 @@ export function CopyValue({ value, display = value }: { value: string; display?:
           }}
         >
           <CopyIcon strokeWidth={2.2} />
-          {state === "copied" ? "Kopiert" : "Kopieren"}
+          {state === "copied" ? t.copied : t.copy}
         </Button>
       </div>
       {state === "failed" ? (
         <p role="status" className="text-[13px] text-muted-foreground">
-          Kopieren ging nicht. Der Text ist markiert, kopier ihn bitte selbst.
+          {t.failed}
         </p>
       ) : null}
     </div>

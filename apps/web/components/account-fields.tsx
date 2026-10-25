@@ -1,18 +1,24 @@
-// Also used by the client login form, so only the import-free config of core.
+"use client";
+
+// A client component for its texts (§5.21), as the client login form uses it too; so only the
+// import-free config of core.
 import { PASSWORD_MIN, REAL_NAME_MAX } from "@uni-scrims/core/config/account";
 import Link from "next/link";
+import { useMessages } from "@/components/locale-provider";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { accountFieldsMessages } from "@/i18n/client";
 
-/** First and last name as on the certificate (SPEC N-3); server component, no client code. */
+/** First and last name as on the certificate (SPEC N-3). */
 export function RealNameFields({
   defaults,
 }: {
   defaults?: { firstName: string; lastName: string };
 }) {
+  const t = useMessages(accountFieldsMessages);
   return (
     <div className="grid gap-[18px] sm:grid-cols-2">
-      <Field label="Vorname">
+      <Field label={t.firstName}>
         <Input
           name="firstName"
           required
@@ -21,7 +27,7 @@ export function RealNameFields({
           defaultValue={defaults?.firstName}
         />
       </Field>
-      <Field label="Nachname">
+      <Field label={t.lastName}>
         <Input
           name="lastName"
           required
@@ -34,15 +40,10 @@ export function RealNameFields({
   );
 }
 
-export function EmailField({
-  label = "E-Mail-Adresse",
-  name = "email",
-}: {
-  label?: string;
-  name?: string;
-}) {
+export function EmailField({ label, name = "email" }: { label?: string; name?: string }) {
+  const t = useMessages(accountFieldsMessages);
   return (
-    <Field label={label}>
+    <Field label={label ?? t.email}>
       <Input name={name} type="email" required autoComplete="email" />
     </Field>
   );
@@ -50,7 +51,7 @@ export function EmailField({
 
 /** `autoComplete` tells password managers whether to fill in or to suggest a new password. */
 export function PasswordField({
-  label = "Passwort",
+  label,
   name = "password",
   autoComplete,
   hint,
@@ -60,9 +61,13 @@ export function PasswordField({
   autoComplete: "new-password" | "current-password";
   hint?: React.ReactNode;
 }) {
+  const t = useMessages(accountFieldsMessages);
   const isNew = autoComplete === "new-password";
   return (
-    <Field label={label} hint={hint ?? (isNew ? `mindestens ${PASSWORD_MIN} Zeichen` : undefined)}>
+    <Field
+      label={label ?? t.password}
+      hint={hint ?? (isNew ? t.minLength(PASSWORD_MIN) : undefined)}
+    >
       <Input
         name={name}
         type="password"
@@ -76,6 +81,7 @@ export function PasswordField({
 
 /** The age and privacy confirmation of SPEC P0-1, since Phase 7 at the registration (N-3). */
 export function ConsentCheckbox() {
+  const t = useMessages(accountFieldsMessages);
   return (
     <label className="flex items-start gap-2.5 text-[14px]">
       <input
@@ -85,11 +91,16 @@ export function ConsentCheckbox() {
         className="mt-0.5 size-4 shrink-0 accent-primary"
       />
       <span>
-        Ich bin mindestens 16 Jahre alt und habe die{" "}
-        <Link href="/datenschutz" className="underline underline-offset-2" target="_blank">
-          Datenschutzerklärung
-        </Link>{" "}
-        gelesen.
+        {t.consent((label) => (
+          <Link
+            key="link"
+            href="/datenschutz"
+            className="underline underline-offset-2"
+            target="_blank"
+          >
+            {label}
+          </Link>
+        ))}
       </span>
     </label>
   );

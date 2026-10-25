@@ -13,4 +13,11 @@ export async function register(): Promise<void> {
       `Legal texts missing in LEGAL_DIR or still containing TODO: ${missing.join(", ")}`,
     );
   }
+  // English versions (§5.21): without them the English pages show the German text.
+  const missingEnglish = await missingLegalPages(process.env, "en");
+  if (missingEnglish.length > 0) {
+    console.error(
+      `English legal texts missing in LEGAL_DIR or still containing TODO: ${missingEnglish.map((page) => `${page}.en.txt`).join(", ")}`,
+    );
+  }
 }

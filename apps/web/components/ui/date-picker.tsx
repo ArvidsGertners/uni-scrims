@@ -4,34 +4,13 @@ import { type KeyboardEvent, useLayoutEffect, useRef, useState } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { cn } from "cn";
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { useMessages } from "@/components/locale-provider";
 import { controlClass } from "@/components/ui/input";
+import { type CalendarDay, datePickerMessages } from "@/i18n/client";
 
 // Dates are Berlin calendar days as "YYYY-MM-DD", like the native date input sent them. The math
-// runs on UTC midnights, so no time zone or daylight saving shift can move a day.
-const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-const WEEKDAYS_LONG = [
-  "Montag",
-  "Dienstag",
-  "Mittwoch",
-  "Donnerstag",
-  "Freitag",
-  "Samstag",
-  "Sonntag",
-];
-const MONTHS = [
-  "Januar",
-  "Februar",
-  "März",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
-];
+// runs on UTC midnights, so no time zone or daylight saving shift can move a day. Names of days and
+// months come from the dictionary, not from Intl (§5.21).
 
 function toUtc(day: string): Date {
   const [year, month, date] = day.split("-").map(Number);
@@ -62,15 +41,15 @@ function weekdayIndex(day: string): number {
   return (toUtc(day).getUTCDay() + 6) % 7;
 }
 
-/** "Sa, 07.11.2026", as on the request cards. */
-function formatDay(day: string): string {
-  const [year, month, date] = day.split("-");
-  return `${WEEKDAYS[weekdayIndex(day)]}, ${date}.${month}.${year}`;
-}
-
-function formatDayLong(day: string): string {
+/** The parts of a day for the formats of the dictionary. */
+function calendarDay(day: string): CalendarDay {
   const date = toUtc(day);
-  return `${WEEKDAYS_LONG[weekdayIndex(day)]}, ${date.getUTCDate()}. ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    date: date.getUTCDate(),
+    weekday: weekdayIndex(day),
+  };
 }
 
 function berlinToday(): string {
@@ -98,7 +77,7 @@ type DatePickerProps = {
   required?: boolean;
   /** Shown while no day is chosen. */
   placeholder?: string;
-  /** Offers "Löschen" in the calendar, for optional dates. */
+  /** Offers clearing the day in the calendar, for optional dates. */
   clearable?: boolean;
 };
 
@@ -111,9 +90,10 @@ function DatePicker({
   defaultValue = null,
   min,
   required,
-  placeholder = "Datum wählen",
+  placeholder,
   clearable,
 }: DatePickerProps) {
+  const t = useMessages(datePickerMessages);
   const [value, setValue] = useState<string | null>(defaultValue || null);
   const [open, setOpen] = useState(false);
   // The day with keyboard focus in the calendar; its month is the one shown.
@@ -184,7 +164,7 @@ function DatePicker({
           )}
         >
           <span className={cn("min-w-0 flex-1 truncate", !value && "text-muted-foreground")}>
-            {value ? formatDay(value) : placeholder}
+            {value ? t.day(calendarDay(value)) : (placeholder ?? t.placeholder)}
           </span>
           <CalendarIcon size={18} className="text-muted-foreground" />
         </Popover.Trigger>
@@ -205,7 +185,7 @@ function DatePicker({
                   <div className="mb-2 flex items-center justify-between">
                     <button
                       type="button"
-                      aria-label="Vorheriger Monat"
+                      aria-label={t.previousMonth}
                       disabled={!canGoBack}
                       onClick={() => setFocused(clamp(addMonths(focused, -1)))}
                       className="flex size-11 cursor-pointer items-center justify-center rounded-[6px] text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
@@ -213,11 +193,11 @@ function DatePicker({
                       <ChevronLeftIcon size={18} />
                     </button>
                     <Popover.Title className="text-[15px] font-semibold" aria-live="polite">
-                      {MONTHS[month.getUTCMonth()]} {month.getUTCFullYear()}
+                      {t.months[month.getUTCMonth()]} {month.getUTCFullYear()}
                     </Popover.Title>
                     <button
                       type="button"
-                      aria-label="Nächster Monat"
+                      aria-label={t.nextMonth}
                       onClick={() => setFocused(addMonths(focused, 1))}
                       className="flex size-11 cursor-pointer items-center justify-center rounded-[6px] text-muted-foreground hover:bg-secondary hover:text-foreground"
                     >
@@ -226,15 +206,15 @@ function DatePicker({
                   </div>
                   <div
                     role="grid"
-                    aria-label={`${MONTHS[month.getUTCMonth()]} ${month.getUTCFullYear()}`}
+                    aria-label={`${t.months[month.getUTCMonth()]} ${month.getUTCFullYear()}`}
                     onKeyDown={onGridKeyDown}
                   >
                     <div role="row" className="grid grid-cols-7">
-                      {WEEKDAYS.map((weekday, index) => (
+                      {t.weekdays.map((weekday, index) => (
                         <span
                           key={weekday}
                           role="columnheader"
-                          aria-label={WEEKDAYS_LONG[index]}
+                          aria-label={t.weekdaysLong[index]}
                           className="flex h-8 items-center justify-center text-[12px] font-medium text-faint"
                         >
                           {weekday}
@@ -254,7 +234,7 @@ function DatePicker({
                                 ref={day === focused ? focusedRef : undefined}
                                 tabIndex={day === focused ? 0 : -1}
                                 disabled={!allowed(day)}
-                                aria-label={formatDayLong(day)}
+                                aria-label={t.dayLong(calendarDay(day))}
                                 aria-current={day === today ? "date" : undefined}
                                 onClick={() => choose(day)}
                                 className={cn(
@@ -279,7 +259,7 @@ function DatePicker({
                         onClick={() => choose(null)}
                         className="min-h-10 cursor-pointer rounded-[6px] px-2.5 text-[14px] text-muted-foreground hover:bg-secondary hover:text-foreground"
                       >
-                        Löschen
+                        {t.clear}
                       </button>
                     ) : (
                       <span />
@@ -290,7 +270,7 @@ function DatePicker({
                         onClick={() => choose(today)}
                         className="min-h-10 cursor-pointer rounded-[6px] px-2.5 text-[14px] font-medium hover:bg-secondary"
                       >
-                        Heute
+                        {t.today}
                       </button>
                     ) : null}
                   </div>

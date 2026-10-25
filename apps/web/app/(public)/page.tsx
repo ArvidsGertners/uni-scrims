@@ -3,7 +3,9 @@ import { LandingHero } from "@/components/landing-hero";
 import { LoginNote } from "@/components/login-note";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { landingMessages } from "@/i18n/public";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/callback-url";
+import { getMessages } from "@/lib/locale";
 import { getSignedInUser } from "@/lib/session";
 
 export default async function LandingPage({
@@ -13,6 +15,7 @@ export default async function LandingPage({
 }) {
   const { gesperrt, geloescht } = await searchParams;
   const loggedIn = (await getSignedInUser()) !== null;
+  const t = await getMessages(landingMessages);
   const linkClass = "font-semibold underline underline-offset-2";
 
   return (
@@ -21,16 +24,16 @@ export default async function LandingPage({
         gesperrt ? (
           <Alert>
             <span>
-              Dein Konto ist gesperrt. Du kannst es unter{" "}
-              <Link href="/account" className={linkClass}>
-                Einstellungen
-              </Link>{" "}
-              löschen.
+              {t.bannedNotice((label) => (
+                <Link href="/account" className={linkClass}>
+                  {label}
+                </Link>
+              ))}
             </span>
           </Alert>
         ) : geloescht ? (
           <Alert variant="success">
-            <span>Dein Konto wurde gelöscht.</span>
+            <span>{t.deletedNotice}</span>
           </Alert>
         ) : null
       }
@@ -38,7 +41,7 @@ export default async function LandingPage({
     >
       {gesperrt ? null : loggedIn ? (
         <Link href="/scrims" className={buttonVariants({ size: "xl", className: "max-sm:w-full" })}>
-          Zum Board
+          {t.toBoard}
         </Link>
       ) : (
         <div className="flex w-full flex-wrap gap-3">
@@ -46,7 +49,7 @@ export default async function LandingPage({
             href="/register"
             className={buttonVariants({ size: "xl", className: "max-sm:w-full" })}
           >
-            Konto erstellen
+            {t.createAccount}
           </Link>
           <Link
             href={`/login?callbackURL=${encodeURIComponent(DEFAULT_AFTER_LOGIN)}`}
@@ -56,7 +59,7 @@ export default async function LandingPage({
               className: "max-sm:w-full",
             })}
           >
-            Anmelden
+            {t.signIn}
           </Link>
         </div>
       )}

@@ -2,7 +2,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { missingLegalPages, parseLegalText, readLegalPage } from "../lib/legal.ts";
+import {
+  missingLegalPages,
+  parseLegalText,
+  readLegalPage,
+  readShownLegalPage,
+} from "../lib/legal.ts";
 
 describe("parseLegalText", () => {
   it("reads headings, paragraphs with line breaks and lists", () => {
@@ -83,5 +88,41 @@ describe("readLegalPage", () => {
     ]);
     await writeFile(path.join(dir, "datenschutz.txt"), "## Rechte\n- TODO: Auskunft");
     await expect(missingLegalPages({ LEGAL_DIR: dir })).resolves.toEqual(["datenschutz"]);
+  });
+
+  it("reads the English version and falls back to the German text (§5.21)", async () => {
+    const english = await mkdtemp(path.join(tmpdir(), "uni-scrims-legal-en-"));
+    try {
+      await writeFile(path.join(english, "impressum.txt"), "## Angaben\nText");
+      const env = { LEGAL_DIR: english };
+      await expect(readShownLegalPage("impressum", "en", env)).resolves.toEqual({
+        blocks: [
+          { type: "heading", text: "Angaben" },
+          { type: "paragraph", lines: ["Text"] },
+        ],
+        locale: "de",
+      });
+      await expect(missingLegalPages(env, "en")).resolves.toEqual(["impressum", "datenschutz"]);
+      // A copied scaffold still counts as missing and does not replace the German text.
+      await writeFile(path.join(english, "impressum.en.txt"), "## Details\nTODO: name");
+      await expect(readShownLegalPage("impressum", "en", env)).resolves.toMatchObject({
+        locale: "de",
+      });
+      await writeFile(path.join(english, "impressum.en.txt"), "## Details\nName");
+      await expect(readShownLegalPage("impressum", "en", env)).resolves.toEqual({
+        blocks: [
+          { type: "heading", text: "Details" },
+          { type: "paragraph", lines: ["Name"] },
+        ],
+        locale: "en",
+      });
+      await expect(readShownLegalPage("impressum", "de", env)).resolves.toMatchObject({
+        locale: "de",
+        blocks: [{ type: "heading", text: "Angaben" }, expect.anything()],
+      });
+      await expect(missingLegalPages(env, "en")).resolves.toEqual(["datenschutz"]);
+    } finally {
+      await rm(english, { recursive: true, force: true });
+    }
   });
 });

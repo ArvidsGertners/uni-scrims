@@ -3,7 +3,9 @@
 import { submitTeamLimitRequest } from "@uni-scrims/core";
 import { revalidatePath } from "next/cache";
 import { type ActionState, formField, runAction } from "@/lib/action";
+import { supportMessages } from "@/i18n/public";
 import { setFlash } from "@/lib/flash";
+import { getMessages } from "@/lib/locale";
 import { getSessionUserId } from "@/lib/session";
 
 /** „Mehr Teams beantragen“ (SPEC N-17); core checks the account, the reason and one open request. */
@@ -16,7 +18,7 @@ export async function submitTeamLimitRequestAction(
   const state = await runAction(async () => {
     await submitTeamLimitRequest({ userId, reason, now: new Date() });
   });
-  if (state.done) await setFlash("Antrag gesendet");
+  if (state.done) await setFlash((await getMessages(supportMessages)).sent);
   revalidatePath("/support");
   return state;
 }
