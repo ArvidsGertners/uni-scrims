@@ -58,7 +58,9 @@ describe("localeFromHeaders (§5.22)", () => {
     expect(
       localeFromHeaders(new Headers({ cookie: "locale=fr", "accept-language": "en-GB" })),
     ).toBe("en");
-    expect(localeFromHeaders(new Headers({ cookie: "other=en" }))).toBe("de");
-    expect(localeFromHeaders(new Headers())).toBe("de");
+    expect(localeFromHeaders(new Headers({ "accept-language": "fr" }))).toBe("de");
+    // Neither cookie nor Accept-Language, like a link scanner: nothing to adopt.
+    expect(localeFromHeaders(new Headers({ cookie: "other=en" }))).toBeNull();
+    expect(localeFromHeaders(new Headers())).toBeNull();
   });
 });

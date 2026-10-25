@@ -17,7 +17,7 @@ export function requestDeleted(
   return {
     title: t.requestDeleted.title,
     description: t.requestDeleted.description(team(message.payload.teamName, f)),
-    fields: [startField(message.payload.startsAt, message.locale, t)],
+    fields: [startField(message.payload.startsAt, message.locale)],
     link: boardLink(t),
   };
 }

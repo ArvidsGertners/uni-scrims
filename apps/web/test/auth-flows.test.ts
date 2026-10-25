@@ -192,8 +192,8 @@ describe("registration (check 1)", () => {
 
   it("gives an account without a language the page's at the next sign-in (§5.22)", async () => {
     const { user } = await confirmedUser();
-    // The confirmation link came without Accept-Language and stored German; an old account has none.
-    await prisma.user.update({ where: { id: user.id }, data: { locale: null } });
+    // The confirmation link came without cookie and Accept-Language: nothing was adopted.
+    expect(user.locale).toBeNull();
     const english = new Headers({ "accept-language": "en-GB,en;q=0.9" });
     await auth.api.signInEmail({
       body: { email: user.email, password: "lang-genug1" },

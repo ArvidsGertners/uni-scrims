@@ -189,9 +189,10 @@ export const auth = betterAuth({
         // code, Discord and the confirmation link all come with headers. Never stops a sign-in.
         after: async (session, ctx) => {
           const headers = ctx?.headers ?? ctx?.request?.headers;
-          if (!headers) return;
+          const locale = headers ? localeFromHeaders(headers) : null;
+          if (!locale) return;
           try {
-            await adoptLocale({ userId: session.userId, locale: localeFromHeaders(headers) });
+            await adoptLocale({ userId: session.userId, locale });
           } catch (error) {
             console.error("Could not store the language of a sign-in", error);
           }

@@ -35,23 +35,26 @@ export function resolveLocale(input: {
   return preferredLocale(input.acceptLanguage) ?? DEFAULT_LOCALE;
 }
 
-/** The language cookie (§5.21) from a Cookie header; set only by setLocaleAction. */
+/** The language chosen in this browser (§5.21); set only by setLocaleAction. */
+export const LOCALE_COOKIE = "locale";
+
+/** The language cookie from a Cookie header. */
 function localeCookie(cookieHeader: string | null): string | undefined {
   for (const pair of cookieHeader?.split(";") ?? []) {
     const [name, value] = pair.trim().split("=");
-    if (name === "locale") return value;
+    if (name === LOCALE_COOKIE) return value;
   }
   return undefined;
 }
 
 /**
  * The language a request shows without an account's choice: the cookie, then Accept-Language, then
- * German. For sign-ins of accounts that have no language yet (§5.22).
+ * German. For sign-ins of accounts that have no language yet (§5.22). Null when the request carries
+ * neither, like a link scanner: nothing tells what a person would see.
  */
-export function localeFromHeaders(headers: Headers): Locale {
-  return resolveLocale({
-    account: null,
-    cookie: localeCookie(headers.get("cookie")),
-    acceptLanguage: headers.get("accept-language"),
-  });
+export function localeFromHeaders(headers: Headers): Locale | null {
+  const cookie = localeCookie(headers.get("cookie"));
+  const acceptLanguage = headers.get("accept-language");
+  if (cookie === undefined && !acceptLanguage) return null;
+  return resolveLocale({ account: null, cookie, acceptLanguage });
 }

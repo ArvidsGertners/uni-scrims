@@ -16,7 +16,7 @@ import {
   type RESTPostAPIChannelMessageJSONBody,
   escapeMarkdown,
 } from "discord.js";
-import type { BotMessages } from "../i18n/messages.ts";
+import { BOT_MESSAGES, type BotMessages } from "../i18n/messages.ts";
 
 export type MessageOf<T extends NotifType> = Extract<OutboxMessage, { type: T }>;
 
@@ -77,8 +77,12 @@ export function team(name: string, f: TextFormat): string {
   return f.strong(f.text(name));
 }
 
-export function startField(startsAt: string, locale: Locale, t: BotMessages) {
-  return { name: t.fields.start, value: describeStart(new Date(startsAt), locale) };
+/** The start in a language; the field name and the date always agree. */
+export function startField(startsAt: string, locale: Locale) {
+  return {
+    name: BOT_MESSAGES[locale].fields.start,
+    value: describeStart(new Date(startsAt), locale),
+  };
 }
 
 type ScrimMessage = MessageOf<
@@ -93,7 +97,7 @@ type ScrimMessage = MessageOf<
 export function scrimFields(message: ScrimMessage, f: TextFormat, t: BotMessages) {
   const { locale } = message;
   const fields = [
-    startField(message.payload.startsAt, locale, t),
+    startField(message.payload.startsAt, locale),
     { name: t.fields.format, value: SCRIM_FORMAT_LABELS[locale][message.payload.format] },
   ];
   const captain = message.opponentCaptain;

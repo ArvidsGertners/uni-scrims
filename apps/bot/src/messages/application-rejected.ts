@@ -17,7 +17,7 @@ export function applicationRejected(
   return {
     title: t.applicationRejected.title,
     description: t.applicationRejected.description(team(message.payload.teamName, f)),
-    fields: [startField(message.payload.startsAt, message.locale, t)],
+    fields: [startField(message.payload.startsAt, message.locale)],
     link: boardLink(t),
   };
 }

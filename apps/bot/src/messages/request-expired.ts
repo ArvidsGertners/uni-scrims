@@ -17,7 +17,7 @@ export function requestExpired(
   return {
     title: t.requestExpired.title,
     description: t.requestExpired.description(team(message.payload.teamName, f)),
-    fields: [startField(message.payload.startsAt, message.locale, t)],
+    fields: [startField(message.payload.startsAt, message.locale)],
     link: boardLink(t),
   };
 }

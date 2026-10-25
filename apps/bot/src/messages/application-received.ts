@@ -10,7 +10,7 @@ export function applicationReceived(
   return {
     title: t.applicationReceived.title,
     description: t.applicationReceived.description(team(message.payload.teamName, f)),
-    fields: [startField(message.payload.startsAt, message.locale, t)],
+    fields: [startField(message.payload.startsAt, message.locale)],
     link: { label: t.links.view, path: `/requests/${message.requestId}` },
   };
 }

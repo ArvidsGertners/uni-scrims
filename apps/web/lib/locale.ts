@@ -2,11 +2,10 @@ import { type Message, renderMessage } from "@uni-scrims/core";
 import type { Locale, Localized } from "@uni-scrims/core/config/locale";
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
-import { resolveLocale } from "./accept-language.ts";
+import { LOCALE_COOKIE, resolveLocale } from "./accept-language.ts";
 import { headerUser } from "./header-user.ts";
 
-/** The language chosen in this browser (§5.21); set only by setLocaleAction. */
-export const LOCALE_COOKIE = "locale";
+export { LOCALE_COOKIE } from "./accept-language.ts";
 
 /** The language of this request (§5.21), once per request. */
 export const getLocale = cache(async (): Promise<Locale> => {
