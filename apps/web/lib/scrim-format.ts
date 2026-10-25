@@ -16,6 +16,11 @@ export function formatRankRange(rankMin: Rank, rankMax: Rank): string {
     : `${RANK_LABELS[rankMin]} – ${RANK_LABELS[rankMax]}`;
 }
 
+/** The computed team rank (SPEC N-16); a team without ranks is "Ohne Rang". */
+export function formatTeamRank(rank: Rank | null): string {
+  return rank ? RANK_LABELS[rank] : "Ohne Rang";
+}
+
 export function formatFormat(format: ScrimFormat): string {
   return SCRIM_FORMAT_LABELS[format];
 }

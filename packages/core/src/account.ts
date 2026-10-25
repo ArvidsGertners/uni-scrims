@@ -10,8 +10,15 @@ import {
   isCaptainOf,
   requireAccountUser,
   requireActiveAccountUser,
+  requireUser,
 } from "./permissions.ts";
-import { emailSchema, parseInput, realNameSchema, themePreferenceSchema } from "./schemas.ts";
+import {
+  emailSchema,
+  parseInput,
+  playerRankSchema,
+  realNameSchema,
+  themePreferenceSchema,
+} from "./schemas.ts";
 import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, retirementRequestIds } from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
 import { avatarVersion } from "./users.ts";
@@ -91,6 +98,8 @@ export async function getAccount(userId: string) {
     email: user.firstName ? user.email : null,
     hasDiscord: discordId !== null,
     hasPassword: credential !== null,
+    /** The own rank, self-declared (SPEC N-16). */
+    rank: user.rank,
     canEditName: !!user.firstName && !realNameLocked(user, latestStatus === VerifStatus.PENDING),
     /** Student status for the account page: the verified university, else the latest request's. */
     verification: user.verifiedAt
@@ -203,6 +212,17 @@ export async function setThemePreference(input: { userId: string; theme: string 
   const theme = parseInput(themePreferenceSchema, input.theme);
   // updateMany: a deletion that commits meanwhile has reset the row, which then stays as it is.
   await prisma.user.updateMany({ where: notDeletedUserWhere(user.id), data: { theme } });
+}
+
+/**
+ * The own rank (SPEC N-16, §5.19): active, complete accounts only, as it only counts in a team.
+ * No lock: the team rank is computed when read, and being out of range is only a hint.
+ */
+export async function setPlayerRank(input: { userId: string; rank: string }): Promise<void> {
+  const user = await requireUser(input.userId);
+  const rank = parseInput(playerRankSchema, input.rank);
+  // As setThemePreference: a deletion that commits meanwhile has reset the row and keeps it so.
+  await prisma.user.updateMany({ where: notDeletedUserWhere(user.id), data: { rank } });
 }
 
 /**

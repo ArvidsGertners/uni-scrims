@@ -82,6 +82,8 @@ async function fullAccount() {
       avatarUpdatedAt: NOW,
       avatar: { create: { data: new Uint8Array([4, 5, 6]) } },
       theme: "DARK",
+      // Above the others' Gold: the team rank stays Gold (4 × Gold + Diamond).
+      rank: "DIAMOND",
       notificationPreferences: { create: { type: "SCRIM_BOOKED", email: true } },
     },
   });
@@ -184,7 +186,6 @@ async function fullAccount() {
       id: uid(),
       name: "Altes Team",
       tag: "ALT",
-      rank: "SILVER",
       captainId: user.id,
       createdAt: new Date(NOW.getTime() - 48 * HOUR),
       dissolvedAt: new Date(NOW.getTime() - 24 * HOUR),
@@ -223,6 +224,7 @@ describe("exportAccountData", () => {
       zweiFaktorFehlversuche: 2,
       zweiFaktorGesperrtBis: null,
       design: "Dunkel",
+      rang: "Diamond",
     });
     expect(data.anmeldung).toMatchObject({
       discordId: user.discordId,
@@ -442,6 +444,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     twoFactorEnabled: SHOWN,
     avatarUpdatedAt: SHOWN,
     theme: SHOWN,
+    rank: SHOWN,
   },
   UserAvatar: { userId: KEY, data: SHOWN },
   Session: {
@@ -507,7 +510,6 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     name: SHOWN,
     nameNormalized: "aus dem Namen abgeleitet",
     tag: SHOWN,
-    rank: SHOWN,
     game: TEAM,
     captainId: SHOWN,
     inviteCode: TEAM,

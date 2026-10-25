@@ -163,6 +163,8 @@ model User {
   avatarUpdatedAt  DateTime?       @db.Timestamptz(3)
   // Phase 17 (§5.16): light or dark for this account on every device.
   theme            ThemePreference @default(SYSTEM)
+  // Phase 20 (§5.19): self-declared Valorant rank, null = none; the team rank is computed from it.
+  rank             Rank?
 
   avatar                  UserAvatar?
   notificationPreferences NotificationPreference[]
@@ -299,7 +301,6 @@ model Team {
   nameNormalized   String?   @unique
   // 2–5 characters, not unique.
   tag              String
-  rank             Rank
   game             String    @default("valorant")
   // Single source of truth for the captain role; intentionally not unique.
   captainId        String

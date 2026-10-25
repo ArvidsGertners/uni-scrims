@@ -34,6 +34,7 @@ export function deletedUserData(userId: string) {
     twoFactorEnabled: false,
     avatarUpdatedAt: null,
     theme: "SYSTEM",
+    rank: null,
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
 

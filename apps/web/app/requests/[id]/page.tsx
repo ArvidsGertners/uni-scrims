@@ -1,6 +1,5 @@
 import {
   APPLICATION_MESSAGE_MAX,
-  RANK_LABELS,
   describeStartTime,
   formatWeekdayDate,
   getRequestDetail,
@@ -25,6 +24,7 @@ import {
   formatMaps,
   formatRankRange,
   formatReliability,
+  formatTeamRank,
   formatUniversities,
 } from "@/lib/scrim-format";
 import {
@@ -59,7 +59,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     { label: "Format", value: formatFormat(request.format) },
     { label: "Maps", value: formatMaps(request.maps) },
     { label: "Rang", value: formatRankRange(request.rankMin, request.rankMax) },
-    { label: "Teamrang", value: RANK_LABELS[team.rank] },
+    { label: "Teamrang", value: formatTeamRank(team.rank) },
   ];
   const ownApplication = request.ownApplication;
   const hasActions = Boolean(request.apply || ownApplication || request.applications);
@@ -296,7 +296,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       ) : null}
                     </div>
                     <p className="text-[13px] text-muted-foreground">
-                      Teamrang {RANK_LABELS[application.team.rank]} ·{" "}
+                      Teamrang {formatTeamRank(application.team.rank)} ·{" "}
                       {formatReliability(application.team.reliability)}
                     </p>
                     {application.outOfRange ? (

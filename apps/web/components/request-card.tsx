@@ -1,5 +1,5 @@
 import type { TeamCardData } from "@uni-scrims/core";
-import { describeStartTime, RANK_LABELS } from "@uni-scrims/core";
+import { describeStartTime } from "@uni-scrims/core";
 import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
 import { CheckIcon, ChevronRightIcon, ClockIcon, LayersIcon, MapPinIcon } from "@/components/icons";
@@ -11,6 +11,7 @@ import {
   formatMaps,
   formatRankRange,
   formatReliability,
+  formatTeamRank,
   formatUniversities,
 } from "@/lib/scrim-format";
 
@@ -67,7 +68,7 @@ export function RequestCard({ request }: Props) {
           </span>
         </div>
         <p className="text-[13px] text-muted-foreground">
-          Teamrang {RANK_LABELS[team.rank]} · {formatReliability(team.reliability)}
+          Teamrang {formatTeamRank(team.rank)} · {formatReliability(team.reliability)}
         </p>
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3.5">

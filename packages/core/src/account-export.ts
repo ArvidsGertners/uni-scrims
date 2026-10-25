@@ -19,7 +19,7 @@ import {
 } from "./labels.ts";
 import { parseNotificationPayload } from "./notifications.ts";
 import { isCaptainOf, requireAccountUser } from "./permissions.ts";
-import { RANK_LABELS } from "./ranks.ts";
+import { RANK_LABELS, loadTeamRank } from "./ranks.ts";
 import { TEAM_LINK_PLATFORMS, teamLinksSelect } from "./team-links.ts";
 import { DISCORD_PROVIDER } from "./users.ts";
 import { uploadExists } from "./verification.ts";
@@ -143,9 +143,9 @@ export async function exportAccountData(input: {
           joinedAt: true,
           team: {
             select: {
+              id: true,
               name: true,
               tag: true,
-              rank: true,
               bannedAt: true,
               captainId: true,
               dissolvedAt: true,
@@ -158,6 +158,7 @@ export async function exportAccountData(input: {
         },
       });
       const team = membership && !membership.team.dissolvedAt ? membership.team : null;
+      const teamRankValue = team ? await loadTeamRank(team.id, tx) : null;
       const dissolvedTeams = await tx.team.findMany({
         where: { captainId: user.id, dissolvedAt: { not: null } },
         orderBy: { createdAt: "asc" },
@@ -268,6 +269,8 @@ export async function exportAccountData(input: {
           zweiFaktorFehlversuche: twoFactor?.failedVerificationCount ?? null,
           zweiFaktorGesperrtBis: twoFactor?.lockedUntil ?? null,
           design: THEME_LABELS[user.theme],
+          // Self-declared (SPEC N-16).
+          rang: user.rank && RANK_LABELS[user.rank],
         },
         anmeldung: {
           discordId: discord?.accountId ?? null,
@@ -310,7 +313,8 @@ export async function exportAccountData(input: {
             ? {
                 name: team.name,
                 kürzel: team.tag,
-                rang: RANK_LABELS[team.rank],
+                // Computed like everywhere (SPEC N-16); null without any rank.
+                rang: teamRankValue && RANK_LABELS[teamRankValue],
                 gesperrtAm: team.bannedAt,
                 // The image itself is team data without personal reference (SPEC N-6).
                 // The last change to either logo (SPEC N-6, N-7).

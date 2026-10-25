@@ -85,7 +85,7 @@ function expectOnlyDomainErrors(results: PromiseSettledResult<unknown>[]) {
 }
 
 function team(name: string) {
-  return { name: `${name} ${uid().slice(0, 12)}`, tag: "RACE", rank: "GOLD" as const };
+  return { name: `${name} ${uid().slice(0, 12)}`, tag: "RACE" };
 }
 
 const upload = (userId: string) =>

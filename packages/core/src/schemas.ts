@@ -31,7 +31,6 @@ export const teamInputSchema = z.object({
     .trim()
     .min(TEAM_TAG_MIN, `Das Kürzel braucht ${TEAM_TAG_MIN} bis ${TEAM_TAG_MAX} Zeichen.`)
     .max(TEAM_TAG_MAX, `Das Kürzel braucht ${TEAM_TAG_MIN} bis ${TEAM_TAG_MAX} Zeichen.`),
-  rank: z.enum(Rank, "Bitte wähle einen Rang."),
 });
 
 export type TeamInput = z.infer<typeof teamInputSchema>;
@@ -64,6 +63,11 @@ export const teamLinksSchema = z.object({
 export type TeamLinksInput = z.input<typeof teamLinksSchema>;
 
 export const memberRoleSchema = z.enum(MemberRole, "Bitte wähle eine Rolle.");
+
+/** The own rank in the settings (Phase 20, §5.19); empty means none. */
+export const playerRankSchema = z
+  .union([z.enum(Rank), z.literal("")], "Bitte wähle einen Rang.")
+  .transform((rank) => rank || null);
 
 /** The design of the own account (Phase 17, §5.16). */
 export const themePreferenceSchema = z.enum(ThemePreference, "Bitte wähle ein Design.");

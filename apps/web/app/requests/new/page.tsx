@@ -83,7 +83,8 @@ export default async function NewRequestPage() {
   );
 }
 
-function RequestForm({ defaultRank }: { defaultRank: Rank }) {
+/** The range starts at the team rank, without one at Iron to Radiant (SPEC N-16). */
+function RequestForm({ defaultRank }: { defaultRank: Rank | null }) {
   const rankOptions = RANKS.map((rank) => ({ value: rank, label: RANK_LABELS[rank] }));
   return (
     <ActionForm
@@ -153,7 +154,7 @@ function RequestForm({ defaultRank }: { defaultRank: Rank }) {
             name="rankMin"
             aria-label="Rang von"
             required
-            defaultValue={defaultRank}
+            defaultValue={defaultRank ?? RANKS[0]}
             options={rankOptions}
           />
           <span className="text-faint">bis</span>
@@ -161,7 +162,7 @@ function RequestForm({ defaultRank }: { defaultRank: Rank }) {
             name="rankMax"
             aria-label="Rang bis"
             required
-            defaultValue={defaultRank}
+            defaultValue={defaultRank ?? RANKS[RANKS.length - 1]}
             options={rankOptions}
           />
         </div>

@@ -1,11 +1,11 @@
-import { RANK_LABELS, getMyTeam, getTeamByInviteCode } from "@uni-scrims/core";
+import { getMyTeam, getTeamByInviteCode } from "@uni-scrims/core";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { PageMain } from "@/components/page-main";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Alert } from "@/components/ui/alert";
-import { formatUniversities } from "@/lib/scrim-format";
+import { formatTeamRank, formatUniversities } from "@/lib/scrim-format";
 import { getSessionUserId, loginUrl, requirePageUser } from "@/lib/session";
 import { joinTeamAction } from "../../team/actions";
 
@@ -41,7 +41,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="type-h1">{team.name}</h1>
           <span className="text-[14px] text-muted-foreground">
-            {formatUniversities(team.universities)} · Teamrang {RANK_LABELS[team.rank]} ·{" "}
+            {formatUniversities(team.universities)} · Teamrang {formatTeamRank(team.rank)} ·{" "}
             {team.memberCount} Mitglieder
           </span>
         </div>

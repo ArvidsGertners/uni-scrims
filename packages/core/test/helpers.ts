@@ -24,6 +24,8 @@ export async function createUser(
     /** A staff role with 2FA set up, unless twoFactor is false (§5.9). */
     staffRole?: StaffRole;
     twoFactor?: boolean;
+    /** The own rank (SPEC N-16), none by default. */
+    rank?: Rank | null;
   } = {},
 ) {
   const id = uid();
@@ -40,6 +42,7 @@ export async function createUser(
       bannedAt: options.banned ? NOW : null,
       staffRole: options.staffRole ?? null,
       twoFactorEnabled: !!options.staffRole && options.twoFactor !== false,
+      rank: options.rank ?? null,
     },
   });
   await prisma.account.create({
@@ -76,17 +79,21 @@ export async function createSession(userId: string) {
   });
 }
 
-/** Team with the captain as first member and `extraMembers` further members. */
+/**
+ * Team with the captain as first member and `extraMembers` further members. All of them have
+ * `rank` as their own rank (Gold by default, null for none), so the team rank is `rank` (SPEC N-16).
+ */
 export async function createTeamWithMembers(
   options: {
     verifiedCaptain?: boolean;
     extraMembers?: number;
     verifiedMembers?: boolean;
     banned?: boolean;
-    rank?: Rank;
+    rank?: Rank | null;
   } = {},
 ) {
-  const captain = await createUser({ verified: options.verifiedCaptain ?? true });
+  const rank = options.rank === undefined ? Rank.GOLD : options.rank;
+  const captain = await createUser({ verified: options.verifiedCaptain ?? true, rank });
   const id = uid();
   const team = await prisma.team.create({
     data: {
@@ -94,7 +101,6 @@ export async function createTeamWithMembers(
       name: `Team ${id.slice(0, 18)}`,
       nameNormalized: `team ${id.slice(0, 18)}`,
       tag: "TST",
-      rank: options.rank ?? Rank.GOLD,
       captainId: captain.id,
       inviteCode: id.replaceAll("-", "").slice(0, 12),
       bannedAt: options.banned ? NOW : null,
@@ -104,7 +110,7 @@ export async function createTeamWithMembers(
   await prisma.teamMember.create({ data: { teamId: id, userId: captain.id, joinedAt: NOW } });
   const members = [];
   for (let i = 0; i < (options.extraMembers ?? 0); i++) {
-    const member = await createUser({ verified: options.verifiedMembers ?? true });
+    const member = await createUser({ verified: options.verifiedMembers ?? true, rank });
     await prisma.teamMember.create({ data: { teamId: id, userId: member.id, joinedAt: NOW } });
     members.push(member);
   }
@@ -114,7 +120,9 @@ export async function createTeamWithMembers(
 const HOUR = 60 * 60 * 1000;
 
 /** Ready to play: verified captain plus 4 verified members. */
-export async function createReadyTeam(options: { rank?: Rank; verifiedCaptain?: boolean } = {}) {
+export async function createReadyTeam(
+  options: { rank?: Rank | null; verifiedCaptain?: boolean } = {},
+) {
   return createTeamWithMembers({ extraMembers: 4, ...options });
 }
 

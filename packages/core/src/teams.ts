@@ -13,6 +13,7 @@ import {
   requireOwnCaptain,
   requireUser,
 } from "./permissions.ts";
+import { teamRank, teamRankSummary } from "./ranks.ts";
 import { countReadyMembers, isReadyCount, isTeamActive, isVerifiedMember } from "./readiness.ts";
 import { closeOpenRequest, openRequestWhere } from "./requests.ts";
 import {
@@ -73,7 +74,6 @@ export async function createTeam(input: TeamInput & { userId: string; now: Date 
           name: data.name,
           nameNormalized: normalizeTeamName(data.name),
           tag: data.tag,
-          rank: data.rank,
           captainId: user.id,
           inviteCode: generateInviteCode(),
           createdAt: input.now,
@@ -109,7 +109,6 @@ export async function updateTeam(input: TeamInput & { userId: string; teamId: st
           name: data.name,
           nameNormalized: normalizeTeamName(data.name),
           tag: data.tag,
-          rank: data.rank,
         },
       });
     });
@@ -491,6 +490,7 @@ const memberSelect = {
     select: {
       id: true,
       name: true,
+      rank: true,
       avatarUpdatedAt: true,
       verifiedAt: true,
       universityOther: true,
@@ -524,6 +524,8 @@ export async function getMyTeam(userId: string) {
     isCaptain: isCaptainOf(member, team),
     // Coaches need no verification (SPEC N-1); a coach as captain still does for scrim actions.
     needsVerification: member.id === team.captainId || role !== MemberRole.COACH,
+    // Only the own team sees the members' own ranks (SPEC N-16).
+    rank: member.rank,
     status: isVerifiedMember(member)
       ? ("VERIFIED" as const)
       : member.pendingVerification
@@ -536,7 +538,8 @@ export async function getMyTeam(userId: string) {
     id: team.id,
     name: team.name,
     tag: team.tag,
-    rank: team.rank,
+    // Computed from the players and substitutes with a rank (SPEC N-16).
+    ...teamRankSummary(memberRows),
     game: team.game,
     logo,
     links: toTeamLinks(team),
@@ -567,7 +570,7 @@ export async function getTeamByInviteCode(userId: string, inviteCode: string) {
     id: team.id,
     name: team.name,
     tag: team.tag,
-    rank: team.rank,
+    rank: teamRank(team.members),
     logo: teamLogoInfo(team),
     memberCount: team.members.length,
     full: team.members.length >= MAX_TEAM_MEMBERS,

@@ -9,6 +9,7 @@ import {
   requireActiveAccountUser,
   resolveUploadDir,
   setNotificationPreferences,
+  setPlayerRank,
   setThemePreference,
   updateRealName,
 } from "@uni-scrims/core";
@@ -49,6 +50,22 @@ export async function setThemeAction(
     await setThemePreference({ userId, theme: String(formField(formData, "theme") ?? "") });
   });
   if (state.error) return state;
+  revalidatePath("/", "layout");
+  return state;
+}
+
+/** The own rank (SPEC N-16); "NONE" from the select means no rank. */
+export async function setPlayerRankAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const userId = (await getSessionUserId()) ?? "";
+  const value = String(formField(formData, "rank") ?? "");
+  const state = await runAction(async () => {
+    await setPlayerRank({ userId, rank: value === "NONE" ? "" : value });
+  });
+  if (state.done) await setFlash("Rang gespeichert");
+  // The team rank shows on the team page and the cards of other teams.
   revalidatePath("/", "layout");
   return state;
 }

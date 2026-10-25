@@ -15,7 +15,7 @@ import {
   updateTeam,
   updateTeamLinks,
 } from "@uni-scrims/core";
-import type { MemberRole, Rank } from "@uni-scrims/db";
+import type { MemberRole } from "@uni-scrims/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -24,16 +24,15 @@ import { setFlash } from "@/lib/flash";
 import { RATE_LIMITED, allowAttempt } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
-// Shape check only; the content rules (lengths, rank) live in core's teamInputSchema.
-const teamFields = z.object({ name: z.string(), tag: z.string(), rank: z.string() });
+// Shape check only; the content rules (lengths) live in core's teamInputSchema.
+const teamFields = z.object({ name: z.string(), tag: z.string() });
 
 function teamInput(formData: FormData) {
   const parsed = teamFields.safeParse({
     name: formField(formData, "name"),
     tag: formField(formData, "tag"),
-    rank: formField(formData, "rank"),
   });
-  return parsed.success ? { ...parsed.data, rank: parsed.data.rank as Rank } : null;
+  return parsed.success ? parsed.data : null;
 }
 
 async function finish(state: ActionState): Promise<ActionState> {

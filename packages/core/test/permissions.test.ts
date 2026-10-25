@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import { MemberRole, Rank, StaffRole, prisma } from "@uni-scrims/db";
+import { MemberRole, StaffRole, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   banTeam,
@@ -133,7 +133,6 @@ describe("requireCaptain / requireActingCaptain", () => {
           teamId,
           name: "Fremd",
           tag: "FR",
-          rank: Rank.GOLD,
         }),
       ).rejects.toMatchObject(NOT_IN_TEAM);
     }

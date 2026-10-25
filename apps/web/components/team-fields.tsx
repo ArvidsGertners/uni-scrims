@@ -1,11 +1,12 @@
-import { RANK_LABELS, RANKS, TEAM_NAME_MAX, TEAM_TAG_MAX, TEAM_TAG_MIN } from "@uni-scrims/core";
-import type { Rank } from "@uni-scrims/db";
+import { TEAM_NAME_MAX, TEAM_TAG_MAX, TEAM_TAG_MIN } from "@uni-scrims/core";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 
-/** Name, tag and rank inputs, shared by create and edit (server component). */
-export function TeamFields({ defaults }: { defaults?: { name: string; tag: string; rank: Rank } }) {
+/**
+ * Name and tag inputs, shared by create and edit (server component). No rank since Phase 20: it is
+ * computed from the players' own ranks (SPEC N-16).
+ */
+export function TeamFields({ defaults }: { defaults?: { name: string; tag: string } }) {
   return (
     <>
       <Field label="Teamname">
@@ -26,15 +27,6 @@ export function TeamFields({ defaults }: { defaults?: { name: string; tag: strin
           placeholder="MAV"
           defaultValue={defaults?.tag}
           className="font-label uppercase"
-        />
-      </Field>
-      <Field label="Team-Rang">
-        <Select
-          name="rank"
-          required
-          defaultValue={defaults?.rank ?? null}
-          placeholder="Bitte wählen …"
-          options={RANKS.map((rank) => ({ value: rank, label: RANK_LABELS[rank] }))}
         />
       </Field>
     </>

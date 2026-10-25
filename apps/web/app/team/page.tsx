@@ -6,7 +6,6 @@ import {
   LOGO_BACKGROUNDS,
   LOGO_BACKGROUND_LABELS,
   MAX_TEAM_MEMBERS,
-  RANK_LABELS,
   READY_MEMBER_COUNT,
   describeStartDay,
   describeStartTime,
@@ -24,7 +23,12 @@ import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
-import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
+import {
+  formatFormat,
+  formatReliabilityDetails,
+  formatTeamRank,
+  formatUniversities,
+} from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import {
   createTeamAction,
@@ -169,7 +173,7 @@ export default async function TeamPage() {
                 className="flex flex-col gap-[18px]"
               >
                 <input type="hidden" name="teamId" value={team.id} />
-                <TeamFields defaults={{ name: team.name, tag: team.tag, rank: team.rank }} />
+                <TeamFields defaults={{ name: team.name, tag: team.tag }} />
               </ActionForm>
             ) : null}
             <dl className="flex flex-col border-t border-border text-[14px]">
@@ -179,8 +183,32 @@ export default async function TeamPage() {
                   : [
                       { label: "Name", value: team.name },
                       { label: "Kürzel", value: team.tag },
-                      { label: "Team-Rang", value: RANK_LABELS[team.rank] },
                     ]),
+                {
+                  // Computed from the players' and substitutes' own ranks (SPEC N-16).
+                  label: "Team-Rang",
+                  value: (
+                    <span className="flex flex-col items-end gap-0.5">
+                      <span>
+                        {formatTeamRank(team.rank)}
+                        {team.rankedCount > 0 ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · aus {team.rankedCount} {team.rankedCount === 1 ? "Rang" : "Rängen"}
+                          </span>
+                        ) : null}
+                      </span>
+                      {me && me.role !== "COACH" && me.rank === null ? (
+                        <Link
+                          href="/account"
+                          className="text-[13px] text-foreground underline underline-offset-2"
+                        >
+                          Rang angeben
+                        </Link>
+                      ) : null}
+                    </span>
+                  ),
+                },
                 { label: "Spiel", value: GAME_LABELS[team.game] ?? team.game },
                 { label: "Hochschulen", value: formatUniversities(team.universities) },
               ].map((row) => (

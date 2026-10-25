@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
-import { Prisma, Rank, prisma } from "../src/index.ts";
+import { Prisma, prisma } from "../src/index.ts";
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -19,7 +19,7 @@ describe("prisma client", () => {
       data: { id: suffix, name: "Captain", email: `${suffix}@users.uniscrims.invalid` },
     });
     const createdAt = new Date("2026-01-01T12:00:00Z");
-    const team = { tag: "TST", rank: Rank.GOLD, captainId: captain.id, createdAt };
+    const team = { tag: "TST", captainId: captain.id, createdAt };
     const nameNormalized = `test-${suffix}`;
     await prisma.team.create({ data: { ...team, name: `Test-${suffix}`, nameNormalized } });
 

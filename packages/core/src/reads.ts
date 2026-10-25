@@ -10,7 +10,14 @@ import {
   requireUser,
   teamReadyProblem,
 } from "./permissions.ts";
-import { RANKS, isRankInRange, rankValue } from "./ranks.ts";
+import {
+  RANKS,
+  isOutsideRange,
+  loadTeamRank,
+  rankValue,
+  teamRank,
+  teamRankMemberSelect,
+} from "./ranks.ts";
 import { activeTeamWhere, hasReadyMembers, isTeamActive, isTeamReady } from "./readiness.ts";
 import {
   applicantTeamProblem,
@@ -105,13 +112,17 @@ const teamCardSelect = {
   id: true,
   name: true,
   tag: true,
-  rank: true,
   ...teamLogoSelect,
   members: {
     select: {
-      role: true,
+      ...teamRankMemberSelect,
       user: {
-        select: { verifiedAt: true, universityOther: true, university: { select: { name: true } } },
+        select: {
+          verifiedAt: true,
+          universityOther: true,
+          university: { select: { name: true } },
+          ...teamRankMemberSelect.user.select,
+        },
       },
     },
   },
@@ -123,7 +134,8 @@ export type TeamCardData = {
   id: string;
   name: string;
   tag: string;
-  rank: Rank;
+  /** Computed from the members' own ranks; null without any (SPEC N-16). */
+  rank: Rank | null;
   /** The team's logos for their URLs; null without logo (§5.11). */
   logo: TeamLogoInfo | null;
   universities: { shown: string[]; more: number };
@@ -135,7 +147,7 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
     id: team.id,
     name: team.name,
     tag: team.tag,
-    rank: team.rank,
+    rank: teamRank(team.members),
     logo: teamLogoInfo(team),
     universities: teamUniversities(team.members),
     reliability: reliabilities.get(team.id)!,
@@ -149,8 +161,8 @@ export type BoardInput = {
   /** Berlin calendar date "YYYY-MM-DD"; invalid values are ignored. */
   date?: string | null;
   /**
-   * Requests whose range contains one of these ranks. Default (missing or empty): own team rank;
-   * "ALL" = no rank filter.
+   * Requests whose range contains one of these ranks. Default (missing or empty): own team rank,
+   * without one no rank filter (SPEC N-16); "ALL" = no rank filter.
    */
   ranks?: readonly Rank[] | "ALL" | null;
   now: Date;
@@ -160,6 +172,7 @@ export type BoardInput = {
 export async function getBoard(input: BoardInput) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
+  const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
   const chosen = input.ranks;
   // In rank order, without duplicates; empty = all ranks.
   const ranks =
@@ -167,8 +180,8 @@ export async function getBoard(input: BoardInput) {
       ? []
       : chosen?.length
         ? RANKS.filter((rank) => chosen.includes(rank))
-        : ownTeam
-          ? [ownTeam.rank]
+        : ownRank
+          ? [ownRank]
           : [];
   const date = input.date && isValidDateString(input.date) ? input.date : null;
   const range = date ? berlinDayRange(date) : null;
@@ -229,7 +242,7 @@ export async function getBoard(input: BoardInput) {
 
   return {
     ownTeam: ownTeam
-      ? { id: ownTeam.id, rank: ownTeam.rank, isCaptain: isCaptainOf(user, ownTeam) }
+      ? { id: ownTeam.id, rank: ownRank, isCaptain: isCaptainOf(user, ownTeam) }
       : null,
     filter: { date, ranks },
     requests: requests.map(toCard),
@@ -250,7 +263,8 @@ export async function getRequestForm(input: { userId: string; now: Date }) {
   if (!ownTeam) return null;
   const problems = await requestPostingProblems(user, ownTeam, input.now, prisma);
   return {
-    rank: ownTeam.rank,
+    /** The range of a new request starts at it, without one at Iron to Radiant (SPEC N-16). */
+    rank: await loadTeamRank(ownTeam.id),
     problems: problems.map(({ kind, message }) => ({ kind, message })),
   };
 }
@@ -287,6 +301,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   if (!request || !isTeamActive(request.team)) return null;
 
   const ownTeam = await findOwnTeam(user.id);
+  const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
   const isOwner = ownTeam?.id === request.teamId;
   const showApplications = canSeeApplications(ownTeam?.id, request);
   // Only one of the two ever runs: the creating team sees all applications, others their own.
@@ -362,8 +377,8 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     remove,
     /** Shown once for all pending applications; problems of the applicant team are per application. */
     confirm,
-    /** Own team rank outside the requested range: allowed, with a hint (SPEC P0-5). */
-    outOfRange: ownTeam ? !isRankInRange(ownTeam.rank, request.rankMin, request.rankMax) : false,
+    /** Own team rank outside the requested range: allowed, with a hint (SPEC P0-5, N-16). */
+    outOfRange: isOutsideRange(ownRank, request),
     ownApplication,
     applications: showApplications
       ? applications.map((application) => ({
@@ -371,7 +386,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
           status: application.status,
           message: application.message,
           createdAt: application.createdAt,
-          outOfRange: !isRankInRange(application.team.rank, request.rankMin, request.rankMax),
+          outOfRange: isOutsideRange(teamRank(application.team.members), request),
           team: {
             ...toTeamCard(application.team, reliabilities),
             links: toTeamLinks(application.team),

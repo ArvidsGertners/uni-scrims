@@ -15,7 +15,8 @@ type SeedTeam = {
   id: string;
   name: string;
   tag: string;
-  rank: Rank;
+  /** The members' own ranks; the team rank is computed from them (Phase 20). */
+  memberRanks: Rank[];
   universitySlug: string;
   discordIdPrefix: string;
 };
@@ -25,7 +26,8 @@ const seedTeams: SeedTeam[] = [
     id: "seed-team-alpha",
     name: "Seed Team Alpha",
     tag: "ALPH",
-    rank: Rank.GOLD,
+    // Average Gold.
+    memberRanks: [Rank.GOLD, Rank.GOLD, Rank.SILVER, Rank.PLATINUM, Rank.GOLD],
     universitySlug: "dhbw-stuttgart",
     discordIdPrefix: "10000000000000000",
   },
@@ -33,7 +35,8 @@ const seedTeams: SeedTeam[] = [
     id: "seed-team-beta",
     name: "Seed Team Beta",
     tag: "BETA",
-    rank: Rank.PLATINUM,
+    // Average Platinum.
+    memberRanks: [Rank.PLATINUM, Rank.DIAMOND, Rank.PLATINUM, Rank.GOLD, Rank.PLATINUM],
     universitySlug: "kit-karlsruhe",
     discordIdPrefix: "20000000000000000",
   },
@@ -72,6 +75,7 @@ async function seedTeam(team: SeedTeam, now: Date): Promise<void> {
       lastName: `${team.tag} ${i}`,
       email: `${userId}@seed.uniscrims.invalid`,
       emailVerified: true,
+      rank: team.memberRanks[i - 1] ?? null,
     };
     await prisma.user.upsert({
       where: { id: userId },
@@ -105,7 +109,6 @@ async function seedTeam(team: SeedTeam, now: Date): Promise<void> {
       name: team.name,
       nameNormalized: team.name.trim().toLowerCase(),
       tag: team.tag,
-      rank: team.rank,
       captainId,
       createdAt: now,
       inviteCode: inviteCode(),

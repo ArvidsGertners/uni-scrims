@@ -381,7 +381,6 @@ describe("deleteAccount", () => {
         userId: founder.id,
         name: host.team.name,
         tag: "NEU",
-        rank: host.team.rank,
         now: NOW,
       }),
     ).resolves.toBeTruthy();

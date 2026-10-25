@@ -1,4 +1,10 @@
-import { MEMBER_ROLES, MEMBER_ROLE_LABELS, formatBerlinDate, getMyTeam } from "@uni-scrims/core";
+import {
+  MEMBER_ROLES,
+  MEMBER_ROLE_LABELS,
+  RANK_LABELS,
+  formatBerlinDate,
+  getMyTeam,
+} from "@uni-scrims/core";
 import { cn } from "cn";
 import { redirect } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
@@ -44,7 +50,7 @@ export default async function TeamMembersPage() {
         <table className="w-full text-[14px] max-md:block">
           <thead className="max-md:hidden">
             <tr className="border-b border-border text-left">
-              {["Mitglied", "Rolle", "Beigetreten", "Status"].map((heading) => (
+              {["Mitglied", "Rolle", "Rang", "Beigetreten", "Status"].map((heading) => (
                 <th
                   key={heading}
                   scope="col"
@@ -106,6 +112,11 @@ export default async function TeamMembersPage() {
                     ) : (
                       <span>{MEMBER_ROLE_LABELS[member.role]}</span>
                     )}
+                  </td>
+                  {/* Only the own team sees each member's rank (SPEC N-16). */}
+                  <td className={cellClass}>
+                    <span className={cellLabel}>Rang</span>
+                    <span>{member.rank ? RANK_LABELS[member.rank] : "–"}</span>
                   </td>
                   <td className={cellClass}>
                     <span className={cellLabel}>Beigetreten</span>

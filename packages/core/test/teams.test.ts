@@ -1,4 +1,4 @@
-import { MemberRole, Rank, prisma } from "@uni-scrims/db";
+import { MemberRole, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   MAX_TEAM_MEMBERS,
@@ -29,7 +29,7 @@ function teamName(): string {
 }
 
 async function newTeam(userId: string, name = teamName()) {
-  return createTeam({ userId, name, tag: "ABC", rank: Rank.GOLD, now: NOW });
+  return createTeam({ userId, name, tag: "ABC", now: NOW });
 }
 
 describe("createTeam", () => {
@@ -61,7 +61,7 @@ describe("createTeam", () => {
 
   it("validates tag length and name", async () => {
     const user = await createUser();
-    const base = { userId: user.id, name: teamName(), rank: Rank.GOLD, now: NOW };
+    const base = { userId: user.id, name: teamName(), now: NOW };
     await expect(createTeam({ ...base, tag: "A" })).rejects.toMatchObject({ code: "INVALID" });
     await expect(createTeam({ ...base, tag: "ABCDEF" })).rejects.toMatchObject({ code: "INVALID" });
     await expect(createTeam({ ...base, tag: "AB", name: " " })).rejects.toMatchObject({
@@ -77,7 +77,7 @@ describe("createTeam", () => {
 });
 
 describe("captain actions", () => {
-  it("updates name, tag and rank", async () => {
+  it("updates name and tag; the rank is not chosen any more (SPEC N-16)", async () => {
     const { team, captain } = await createTeamWithMembers({ verifiedCaptain: false });
     const name = teamName();
     const updated = await updateTeam({
@@ -85,14 +85,15 @@ describe("captain actions", () => {
       teamId: team.id,
       name,
       tag: "NEW",
-      rank: Rank.RADIANT,
+      ...({ rank: "RADIANT" } as object),
     });
-    expect(updated).toMatchObject({ name, nameNormalized: name.toLowerCase(), rank: Rank.RADIANT });
+    expect(updated).toMatchObject({ name, nameNormalized: name.toLowerCase(), tag: "NEW" });
+    expect(updated).not.toHaveProperty("rank");
   });
 
   it("rejects updates by non-captains and to taken names", async () => {
     const { team, members } = await createTeamWithMembers({ extraMembers: 1 });
-    const input = { teamId: team.id, name: teamName(), tag: "ABC", rank: Rank.GOLD };
+    const input = { teamId: team.id, name: teamName(), tag: "ABC" };
     await expect(updateTeam({ ...input, userId: members[0]!.id })).rejects.toMatchObject({
       code: "FORBIDDEN",
     });

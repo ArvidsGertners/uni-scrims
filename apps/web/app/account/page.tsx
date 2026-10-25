@@ -1,4 +1,4 @@
-import { THEME_LABELS, getAccount } from "@uni-scrims/core";
+import { RANKS, RANK_LABELS, THEME_LABELS, getAccount } from "@uni-scrims/core";
 import { ThemePreference } from "@uni-scrims/db";
 import { cn } from "cn";
 import Link from "next/link";
@@ -13,12 +13,14 @@ import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { requirePageAccountUser, setupUrl } from "@/lib/session";
 import {
   changeEmailAction,
   changePasswordAction,
   handOverCaptainAction,
+  setPlayerRankAction,
   updateRealNameAction,
 } from "./actions";
 import { AccountTabs } from "./account-tabs";
@@ -31,6 +33,13 @@ const THEME_OPTIONS = Object.values(ThemePreference).map((value) => ({
   value,
   label: THEME_LABELS[value],
 }));
+
+/** The select needs a value for "none"; the action sends it to core as empty. */
+const NO_RANK = "NONE";
+const RANK_OPTIONS = [
+  { value: NO_RANK, label: "Kein Rang" },
+  ...RANKS.map((rank) => ({ value: rank, label: RANK_LABELS[rank] })),
+];
 
 // The verification belongs to Konto (SPEC N-9): status here, the upload on /verify.
 const VERIFICATION_LABELS = {
@@ -146,6 +155,30 @@ export default async function AccountPage({
               „System“ folgt der Einstellung deines Geräts. Deine Wahl gilt auf allen Geräten.
             </p>
           </div>
+          {/* Only active, complete accounts set a rank: it only counts in a team (SPEC N-16). */}
+          {account.banned || account.setupStep ? null : (
+            <div className="flex max-w-xl flex-col gap-2 border-t border-border pt-4">
+              <ActionForm
+                action={setPlayerRankAction}
+                submitLabel="Rang speichern"
+                variant="outline"
+                size="sm"
+                className="flex flex-col gap-3"
+              >
+                <Field label="Dein Rang">
+                  <Select
+                    name="rank"
+                    defaultValue={account.rank ?? NO_RANK}
+                    options={RANK_OPTIONS}
+                  />
+                </Field>
+              </ActionForm>
+              <p className="text-[13px] text-pretty text-muted-foreground">
+                Selbst angegeben. Als Spieler oder Ersatzspieler zählt er für euren Team-Rang; dein
+                Team sieht ihn, alle anderen nur den Team-Rang.
+              </p>
+            </div>
+          )}
         </section>
         <DetailRows
           className="px-5 pt-4 pb-1 lg:col-start-1"

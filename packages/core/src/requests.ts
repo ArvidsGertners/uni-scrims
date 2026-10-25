@@ -29,7 +29,7 @@ import {
   requireTeamReady,
   teamReadyProblem,
 } from "./permissions.ts";
-import { isRankInRange } from "./ranks.ts";
+import { isOutsideRange, loadTeamRank } from "./ranks.ts";
 import {
   type RequestInput,
   applicationMessageSchema,
@@ -301,7 +301,7 @@ export async function applyToRequest(input: {
       // Outside the rank range is allowed; the UI shows a hint (SPEC P0-5).
       return {
         application,
-        outOfRange: !isRankInRange(team.rank, request.rankMin, request.rankMax),
+        outOfRange: isOutsideRange(await loadTeamRank(team.id, tx), request),
       };
     });
   } catch (error) {

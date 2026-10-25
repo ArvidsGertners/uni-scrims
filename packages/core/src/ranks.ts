@@ -1,4 +1,5 @@
-import { Rank } from "@uni-scrims/db";
+import { MemberRole, Rank, prisma } from "@uni-scrims/db";
+import type { Db } from "./db.ts";
 
 /** Valorant ranks in order (value 1–9, ARCHITECTURE §4). */
 export const RANKS: readonly Rank[] = [
@@ -35,4 +36,52 @@ export function rankValue(rank: Rank): number {
 export function isRankInRange(rank: Rank, rankMin: Rank, rankMax: Rank): boolean {
   const value = rankValue(rank);
   return rankValue(rankMin) <= value && value <= rankValue(rankMax);
+}
+
+/**
+ * A team rank outside a request's range: allowed, with a hint (SPEC P0-5). A team without a rank
+ * is never outside (SPEC N-16).
+ */
+export function isOutsideRange(
+  rank: Rank | null,
+  range: { rankMin: Rank; rankMax: Rank },
+): boolean {
+  return rank !== null && !isRankInRange(rank, range.rankMin, range.rankMax);
+}
+
+// ─── Team rank (Phase 20, §5.19) ──────────────────────────────────────────────
+
+/** What the team rank needs of each member; part of the reads that show it. */
+export const teamRankMemberSelect = {
+  role: true,
+  user: { select: { rank: true } },
+} as const;
+
+type RankedMember = { role: MemberRole; user: { rank: Rank | null } };
+
+/**
+ * The team rank, computed when read: the average of the players' and substitutes' own ranks
+ * (verified or not; coaches never), rounded half up; null if none of them has a rank.
+ */
+export function teamRankSummary(members: readonly RankedMember[]): {
+  rank: Rank | null;
+  rankedCount: number;
+} {
+  const values = members
+    .filter((member) => member.role !== MemberRole.COACH && member.user.rank !== null)
+    .map((member) => rankValue(member.user.rank!));
+  if (values.length === 0) return { rank: null, rankedCount: 0 };
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return { rank: RANKS[Math.floor(average + 0.5) - 1]!, rankedCount: values.length };
+}
+
+export function teamRank(members: readonly RankedMember[]): Rank | null {
+  return teamRankSummary(members).rank;
+}
+
+/** teamRank for a team that is not loaded with its members (the own team from findOwnTeam). */
+export async function loadTeamRank(teamId: string, db: Db = prisma): Promise<Rank | null> {
+  return teamRank(
+    await db.teamMember.findMany({ where: { teamId }, select: teamRankMemberSelect }),
+  );
 }
