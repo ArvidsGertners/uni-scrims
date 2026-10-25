@@ -1,6 +1,7 @@
 import type { NotifType } from "@uni-scrims/db";
+import type { BotMessages } from "../i18n/messages.ts";
 import {
-  BOARD_LINK,
+  boardLink,
   type MessageOf,
   type MessageParts,
   startField,
@@ -11,11 +12,12 @@ import {
 export function applicationRejected(
   message: MessageOf<typeof NotifType.APPLICATION_REJECTED>,
   f: TextFormat,
+  t: BotMessages,
 ): MessageParts {
   return {
-    title: "Bewerbung abgelehnt",
-    description: `${team(message.payload.teamName, f)} hat ein anderes Team bestätigt.`,
-    fields: [startField(message.payload.startsAt)],
-    link: BOARD_LINK,
+    title: t.applicationRejected.title,
+    description: t.applicationRejected.description(team(message.payload.teamName, f)),
+    fields: [startField(message.payload.startsAt, message.locale, t)],
+    link: boardLink(t),
   };
 }

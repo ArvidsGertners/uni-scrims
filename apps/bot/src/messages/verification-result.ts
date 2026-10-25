@@ -1,23 +1,27 @@
+import { rejectReasonText } from "@uni-scrims/core";
 import type { NotifType } from "@uni-scrims/db";
+import type { BotMessages } from "../i18n/messages.ts";
 import { type MessageOf, type MessageParts, type TextFormat } from "./common.ts";
 
 export function verificationResult(
   message: MessageOf<typeof NotifType.VERIFICATION_RESULT>,
   f: TextFormat,
+  t: BotMessages,
 ): MessageParts {
   const { approved, rejectReason } = message.payload;
   if (approved) {
     return {
-      title: "Verifizierung freigegeben",
-      description: "Deine Immatrikulationsbescheinigung wurde geprüft. Du bist jetzt verifiziert.",
-      link: { label: "Status ansehen", path: "/verify" },
+      title: t.verificationApproved.title,
+      description: t.verificationApproved.description,
+      link: { label: t.links.viewStatus, path: "/verify" },
     };
   }
+  // The fixed reasons of core are stored in German and shown in the message's language (§5.22).
+  const reason = rejectReason ? rejectReasonText(rejectReason, message.locale) : null;
   return {
-    title: "Verifizierung abgelehnt",
-    description:
-      "Deine Immatrikulationsbescheinigung wurde abgelehnt. Du kannst eine neue hochladen.",
-    fields: rejectReason ? [{ name: "Grund", value: f.text(rejectReason) }] : [],
-    link: { label: "Neu hochladen", path: "/verify" },
+    title: t.verificationRejected.title,
+    description: t.verificationRejected.description,
+    fields: reason ? [{ name: t.fields.reason, value: f.text(reason) }] : [],
+    link: { label: t.links.uploadAgain, path: "/verify" },
   };
 }

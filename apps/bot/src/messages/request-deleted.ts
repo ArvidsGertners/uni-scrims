@@ -1,6 +1,7 @@
 import type { NotifType } from "@uni-scrims/db";
+import type { BotMessages } from "../i18n/messages.ts";
 import {
-  BOARD_LINK,
+  boardLink,
   type MessageOf,
   type MessageParts,
   startField,
@@ -11,11 +12,12 @@ import {
 export function requestDeleted(
   message: MessageOf<typeof NotifType.REQUEST_DELETED>,
   f: TextFormat,
+  t: BotMessages,
 ): MessageParts {
   return {
-    title: "Anfrage gelöscht",
-    description: `Die Anfrage von ${team(message.payload.teamName, f)}, auf die ihr euch beworben habt, wurde gelöscht.`,
-    fields: [startField(message.payload.startsAt)],
-    link: BOARD_LINK,
+    title: t.requestDeleted.title,
+    description: t.requestDeleted.description(team(message.payload.teamName, f)),
+    fields: [startField(message.payload.startsAt, message.locale, t)],
+    link: boardLink(t),
   };
 }

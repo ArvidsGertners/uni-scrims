@@ -1,7 +1,7 @@
 import { describeStart } from "@uni-scrims/core";
 import type { NotifType } from "@uni-scrims/db";
+import type { BotMessages } from "../i18n/messages.ts";
 import {
-  MESSAGE_LOCALE,
   type MessageOf,
   type MessageParts,
   scrimFields,
@@ -13,18 +13,19 @@ import {
 export function feedbackPrompt(
   message: MessageOf<typeof NotifType.FEEDBACK_PROMPT>,
   f: TextFormat,
+  t: BotMessages,
 ): MessageParts {
-  const fields = scrimFields(message, f);
+  const fields = scrimFields(message, f, t);
   if (message.feedbackDeadline) {
     fields.push({
-      name: "Feedback bis",
-      value: describeStart(message.feedbackDeadline, MESSAGE_LOCALE),
+      name: t.fields.feedbackUntil,
+      value: describeStart(message.feedbackDeadline, message.locale),
     });
   }
   return {
-    title: "Wie lief euer Scrim?",
-    description: `Gebt auf der Scrim-Seite an, ob der Scrim gegen ${team(message.payload.opponentTeamName, f)} stattgefunden hat. Pro Team zählt eine Antwort.`,
+    title: t.feedbackPrompt.title,
+    description: t.feedbackPrompt.description(team(message.payload.opponentTeamName, f)),
     fields,
-    link: scrimLink(message, "Feedback geben"),
+    link: scrimLink(message, t.links.giveFeedback),
   };
 }

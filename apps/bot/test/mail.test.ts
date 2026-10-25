@@ -68,4 +68,19 @@ describe("buildMail", () => {
     expect(mail.subject).toBe("Verifizierung abgelehnt");
     expect(mail.text).toContain("Grund: Name fehlt");
   });
+
+  it("writes the mail in the recipient's language (§5.22)", () => {
+    const mail = buildMail(
+      { ...sample(NotifType.SCRIM_BOOKED), locale: "en" } as OutboxMessage,
+      "ana@example.org",
+      BASE_URL,
+    );
+    expect(mail.subject).toBe("Scrim booked");
+    expect(mail.text).toMatch(/^Hi,\n\n/);
+    expect(mail.text).toContain("Opposing captain: captain_b\n");
+    expect(mail.text).toContain("View scrim: https://scrims.example/scrims/scrim-1");
+    expect(mail.text).toContain(
+      "because “Scrim booked” is switched on for email in your settings. You can change that here: https://scrims.example/account/notifications",
+    );
+  });
 });

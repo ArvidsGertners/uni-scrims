@@ -153,3 +153,65 @@ describe("buildMessage", () => {
     expect(buildMessage(message, BASE_URL).content).toBe("[an: Team \\*A\\*]");
   });
 });
+
+/** German in an English message: umlauts, ß, the German opening quote or common German words. */
+const GERMAN =
+  /[äöüÄÖÜß„]|\b(und|der|die|das|nicht|mit|für|euer|eure|ihr|Uhr|Gegnerischer|ansehen|Zum)\b/;
+
+describe("buildMessage in English (§5.22)", () => {
+  const english = <T extends NotifType>(
+    type: T,
+    overrides: Partial<Omit<MessageOf<T>, "type">> = {},
+  ) => sample(type, { locale: "en", ...overrides } as Partial<Omit<MessageOf<T>, "type">>);
+
+  it.each(Object.values(NotifType))("writes %s in English", (type) => {
+    // A team name without German words, so only the message text is checked.
+    const message = english(type);
+    const body = buildMessage(
+      {
+        ...message,
+        payload: JSON.parse(JSON.stringify(message.payload).replaceAll("Die Bären", "Team A")),
+      } as OutboxMessage,
+      BASE_URL,
+    );
+    const embed = body.embeds![0]!;
+    const row = body.components![0] as { components: { label: string }[] };
+    const button = row.components[0]!;
+    const texts = [
+      embed.title,
+      embed.description,
+      button.label,
+      ...(embed.fields ?? []).flatMap((field) => [field.name, field.value]),
+    ];
+    for (const text of texts) expect(text, `${type}: ${text}`).not.toMatch(GERMAN);
+  });
+
+  it("shows start, format and the opponent's captain in English", () => {
+    expect(embedOf(english(NotifType.SCRIM_BOOKED)).fields).toEqual([
+      { name: "Start", value: "Thu 22 Oct 2026, 20:00" },
+      { name: "Format", value: "BO3" },
+      { name: "Opposing captain", value: "captain\\_b (<@222>)" },
+    ]);
+    const deleted = english(NotifType.REMINDER_1H, {
+      opponentCaptain: { name: "Gelöschter Nutzer", discordId: null },
+    });
+    expect(embedOf(deleted).fields).toContainEqual({
+      name: "Opposing captain",
+      value: "Deleted user",
+    });
+  });
+
+  it("translates the fixed rejection reasons of core, not a reviewer's own text", () => {
+    const fixed = english(NotifType.VERIFICATION_RESULT, {
+      payload: { approved: false, rejectReason: "Prüfung nicht rechtzeitig erfolgt" },
+    });
+    expect(embedOf(fixed)).toMatchObject({
+      title: "Verification rejected",
+      fields: [{ name: "Reason", value: "Not reviewed in time" }],
+    });
+    const own = english(NotifType.VERIFICATION_RESULT, {
+      payload: { approved: false, rejectReason: "Name passt nicht" },
+    });
+    expect(embedOf(own).fields).toEqual([{ name: "Reason", value: "Name passt nicht" }]);
+  });
+});

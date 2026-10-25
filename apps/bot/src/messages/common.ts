@@ -1,6 +1,12 @@
 // Shared parts of the bot messages (ARCHITECTURE §6.1). Every message is an embed with one link
 // button into the web app; nobody is pinged, and user text is escaped (SPEC P0-7).
-import { type OutboxMessage, SCRIM_FORMAT_LABELS, describeStart } from "@uni-scrims/core";
+import {
+  type OutboxMessage,
+  SCRIM_FORMAT_LABELS,
+  describeStart,
+  userDisplayName,
+} from "@uni-scrims/core";
+import type { Locale } from "@uni-scrims/core/config/locale";
 import type { NotifType } from "@uni-scrims/db";
 import {
   ActionRowBuilder,
@@ -10,6 +16,7 @@ import {
   type RESTPostAPIChannelMessageJSONBody,
   escapeMarkdown,
 } from "discord.js";
+import type { BotMessages } from "../i18n/messages.ts";
 
 export type MessageOf<T extends NotifType> = Extract<OutboxMessage, { type: T }>;
 
@@ -70,11 +77,8 @@ export function team(name: string, f: TextFormat): string {
   return f.strong(f.text(name));
 }
 
-/** The bot writes German until Phase 23 brings the recipient's language (§5.21). */
-export const MESSAGE_LOCALE = "de";
-
-export function startField(startsAt: string) {
-  return { name: "Start", value: describeStart(new Date(startsAt), MESSAGE_LOCALE) };
+export function startField(startsAt: string, locale: Locale, t: BotMessages) {
+  return { name: t.fields.start, value: describeStart(new Date(startsAt), locale) };
 }
 
 type ScrimMessage = MessageOf<
@@ -86,23 +90,28 @@ type ScrimMessage = MessageOf<
 >;
 
 /** Start, format and the opponent's current captain with name and mention (§6.1). */
-export function scrimFields(message: ScrimMessage, f: TextFormat) {
+export function scrimFields(message: ScrimMessage, f: TextFormat, t: BotMessages) {
+  const { locale } = message;
   const fields = [
-    startField(message.payload.startsAt),
-    { name: "Format", value: SCRIM_FORMAT_LABELS[MESSAGE_LOCALE][message.payload.format] },
+    startField(message.payload.startsAt, locale, t),
+    { name: t.fields.format, value: SCRIM_FORMAT_LABELS[locale][message.payload.format] },
   ];
   const captain = message.opponentCaptain;
   if (captain) {
-    fields.push({ name: "Gegnerischer Captain", value: f.person(captain.name, captain.discordId) });
+    // A deleted captain is stored as "Gelöschter Nutzer"; shown in the message's language (§5.22).
+    const name = userDisplayName(captain.name, locale);
+    fields.push({ name: t.fields.opponentCaptain, value: f.person(name, captain.discordId) });
   }
   return fields;
 }
 
-export function scrimLink(message: ScrimMessage, label = "Scrim ansehen") {
+export function scrimLink(message: ScrimMessage, label: string) {
   return { label, path: `/scrims/${message.scrimId}` };
 }
 
-export const BOARD_LINK = { label: "Zum Board", path: "/scrims" };
+export function boardLink(t: BotMessages) {
+  return { label: t.links.board, path: "/scrims" };
+}
 
 export function render(message: OutboxMessage, parts: MessageParts, baseUrl: string): MessageBody {
   const embed = new EmbedBuilder()

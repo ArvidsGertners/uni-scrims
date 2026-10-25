@@ -1,4 +1,5 @@
 import type { NotifType } from "@uni-scrims/db";
+import type { BotMessages } from "../i18n/messages.ts";
 import {
   type MessageOf,
   type MessageParts,
@@ -11,11 +12,12 @@ import {
 export function reminder1h(
   message: MessageOf<typeof NotifType.REMINDER_1H>,
   f: TextFormat,
+  t: BotMessages,
 ): MessageParts {
   return {
-    title: "Euer Scrim beginnt bald",
-    description: `Gleich spielt ihr gegen ${team(message.payload.opponentTeamName, f)}.`,
-    fields: scrimFields(message, f),
-    link: scrimLink(message),
+    title: t.reminder1h.title,
+    description: t.reminder1h.description(team(message.payload.opponentTeamName, f)),
+    fields: scrimFields(message, f, t),
+    link: scrimLink(message, t.links.viewScrim),
   };
 }
