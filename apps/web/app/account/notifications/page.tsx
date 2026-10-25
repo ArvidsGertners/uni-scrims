@@ -1,9 +1,15 @@
-import { deliverableEmail, getNotificationPreferences } from "@uni-scrims/core";
+import {
+  NOTIFICATION_CATEGORY_TITLES,
+  NOTIFICATION_SETTING_LABELS,
+  deliverableEmail,
+  getNotificationPreferences,
+} from "@uni-scrims/core";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
 import { PageMain } from "@/components/page-main";
 import { requirePageUser } from "@/lib/session";
 import { AccountTabs } from "../account-tabs";
 import { NotificationForm, type NotificationFormCategory } from "./notification-form";
+import { getLocale } from "@/lib/locale";
 
 const HINTS = {
   SELF: null,
@@ -16,12 +22,13 @@ export default async function NotificationsPage() {
   const user = await requirePageUser("/account/notifications");
   const settings = await getNotificationPreferences(user.id);
   const email = deliverableEmail(user);
+  const locale = await getLocale();
   const categories: NotificationFormCategory[] = settings.categories.map((category) => ({
     key: category.key,
-    title: category.title,
+    title: NOTIFICATION_CATEGORY_TITLES[locale][category.key],
     types: category.types.map((item) => ({
       type: item.type,
-      label: item.label,
+      label: NOTIFICATION_SETTING_LABELS[locale][item.type],
       hint: HINTS[item.audience],
       discord: item.discord,
       email: item.email,

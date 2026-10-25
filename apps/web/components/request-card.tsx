@@ -7,12 +7,13 @@ import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  APPLICATION_STATUS_LABELS,
   formatFormat,
   formatMaps,
   formatReliability,
   formatUniversities,
 } from "@/lib/scrim-format";
+import { getLocale } from "@/lib/locale";
+import { formatMessages } from "@/i18n/format";
 
 type Props = {
   request: {
@@ -34,8 +35,9 @@ function applicationCountLabel(count: number): string {
 }
 
 /** Board card (design handoff, card A); the whole card links to the request. */
-export function RequestCard({ request }: Props) {
+export async function RequestCard({ request }: Props) {
   const { team } = request;
+  const locale = await getLocale();
   return (
     <Link
       href={`/requests/${request.id}`}
@@ -46,16 +48,16 @@ export function RequestCard({ request }: Props) {
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-[16px] font-semibold">{team.name}</span>
           <span className="truncate text-[13px] text-muted-foreground">
-            {formatUniversities(team.universities)}
+            {formatUniversities(team.universities, locale)}
           </span>
         </div>
-        <Badge variant="outline">{formatFormat(request.format)}</Badge>
+        <Badge variant="outline">{formatFormat(request.format, locale)}</Badge>
       </div>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-x-[18px] gap-y-2 text-[14px] text-muted-foreground">
           <span className="flex items-center gap-1.5 text-foreground">
             <ClockIcon />
-            {describeStartTime(request.startsAt)}
+            {describeStartTime(request.startsAt, locale)}
           </span>
           {/* The rank icons take the place of a generic icon here. */}
           <span>
@@ -63,11 +65,11 @@ export function RequestCard({ request }: Props) {
           </span>
           <span className="flex items-center gap-1.5">
             <MapPinIcon />
-            {formatMaps(request.maps)}
+            {formatMaps(request.maps, locale)}
           </span>
         </div>
         <p className="text-[13px] text-muted-foreground">
-          Teamrang <RankLabel rank={team.rank} /> · {formatReliability(team.reliability)}
+          Teamrang <RankLabel rank={team.rank} /> · {formatReliability(team.reliability, locale)}
         </p>
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3.5">
@@ -79,7 +81,7 @@ export function RequestCard({ request }: Props) {
               Beworben
             </Badge>
           ) : request.ownApplicationStatus ? (
-            <Badge>{APPLICATION_STATUS_LABELS[request.ownApplicationStatus]}</Badge>
+            <Badge>{formatMessages[locale].applicationStatus[request.ownApplicationStatus]}</Badge>
           ) : null}
           <span className="text-[13px] text-muted-foreground">
             {applicationCountLabel(request.applicationCount)}

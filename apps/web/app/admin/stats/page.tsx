@@ -1,4 +1,5 @@
 import {
+  METRIC_TEXTS,
   type MetricResult,
   STATS_WINDOW_DAYS,
   type SuccessMetric,
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCases, formatMetricValue, formatThreshold } from "@/lib/metric-format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
+import { getLocale } from "@/lib/locale";
 
 const GROUPS = [
   { group: "early", title: "Frühindikatoren", hint: "für die ersten 4 Wochen" },
@@ -22,7 +24,7 @@ function Status({ result }: { result: MetricResult }) {
   return <Badge variant="warning">Ziel verfehlt</Badge>;
 }
 
-function ResultRow({
+async function ResultRow({
   label,
   metric,
   result,
@@ -31,31 +33,37 @@ function ResultRow({
   metric: SuccessMetric;
   result: MetricResult;
 }) {
+  const locale = await getLocale();
   return (
     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
       <span className="text-[13px] text-muted-foreground sm:w-32 sm:shrink-0">{label}</span>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="font-display text-[22px] leading-none [font-weight:var(--display-weight)]">
-          {result.value === null ? "–" : formatMetricValue(metric.unit, result.value)}
+          {result.value === null ? "–" : formatMetricValue(metric.unit, result.value, locale)}
         </span>
-        <span className="text-[13px] text-muted-foreground">{formatCases(metric.key, result)}</span>
+        <span className="text-[13px] text-muted-foreground">
+          {formatCases(metric.key, result, locale)}
+        </span>
         <Status result={result} />
       </div>
     </div>
   );
 }
 
-function MetricCard({ metric }: { metric: SuccessMetric }) {
+async function MetricCard({ metric }: { metric: SuccessMetric }) {
+  const locale = await getLocale();
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-[14px]">
       <div className="flex flex-col gap-1">
-        <h3 className="font-semibold">{metric.label}</h3>
-        <p className="text-[13px] text-pretty text-muted-foreground">{metric.description}</p>
+        <h3 className="font-semibold">{METRIC_TEXTS[locale][metric.key].label}</h3>
+        <p className="text-[13px] text-pretty text-muted-foreground">
+          {METRIC_TEXTS[locale][metric.key].description}
+        </p>
         <p className="text-[13px]">
-          Ziel {formatThreshold(metric.unit, metric.goal, metric.target)}
+          Ziel {formatThreshold(metric.unit, metric.goal, metric.target, locale)}
           {metric.stretch === null
             ? null
-            : ` · Stretch ${formatThreshold(metric.unit, metric.goal, metric.stretch)}`}
+            : ` · Stretch ${formatThreshold(metric.unit, metric.goal, metric.stretch, locale)}`}
         </p>
       </div>
       {metric.snapshot ? (

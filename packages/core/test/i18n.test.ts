@@ -4,7 +4,32 @@ import { z } from "zod";
 import { LOCALES } from "../config/locale.ts";
 import { MESSAGES } from "../src/i18n/messages.ts";
 import {
+  AUTO_REJECT_REASON,
+  DELETED_USER_NAME,
   DomainError,
+  FEEDBACK_OUTCOME_LABELS,
+  LOCALE_LABELS,
+  LOGO_BACKGROUND_LABELS,
+  MEMBER_ROLE_LABELS,
+  METRIC_TEXTS,
+  NEW_ACCOUNT_NAME,
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CATEGORY_TITLES,
+  NOTIFICATION_CHANNEL_LABELS,
+  NOTIFICATION_SETTING_LABELS,
+  NOTIFICATION_TYPE_LABELS,
+  NOTIF_STATUS_LABELS,
+  REQUEST_STATUS_LABELS,
+  SCRIM_FORMAT_LABELS,
+  SCRIM_STATUS_LABELS,
+  STAFF_ROLE_LABELS,
+  TEAM_LIMIT_STATUS_LABELS,
+  TEAM_LINK_TEXTS,
+  THEME_LABELS,
+  VERIF_STATUS_LABELS,
+  notificationSettingLabel,
+  rejectReasonText,
+  userDisplayName,
   type MessageKey,
   type MessageParams,
   isMessageKey,
@@ -110,5 +135,62 @@ describe("parseInput", () => {
     expect(isMessageKey("teamNameTaken")).toBe(true);
     expect(isMessageKey("toString")).toBe(false);
     expect(isMessageKey("Ungültige Eingabe.")).toBe(false);
+  });
+});
+
+/** Every string inside a dictionary entry, recursively. */
+function texts(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (value && typeof value === "object") return Object.values(value).flatMap(texts);
+  return [];
+}
+
+describe("labels and texts of core", () => {
+  const dictionaries = {
+    FEEDBACK_OUTCOME_LABELS,
+    LOCALE_LABELS,
+    LOGO_BACKGROUND_LABELS,
+    MEMBER_ROLE_LABELS,
+    METRIC_TEXTS,
+    NOTIFICATION_CATEGORY_TITLES,
+    NOTIFICATION_CHANNEL_LABELS,
+    NOTIFICATION_SETTING_LABELS,
+    NOTIFICATION_TYPE_LABELS,
+    NOTIF_STATUS_LABELS,
+    REQUEST_STATUS_LABELS,
+    SCRIM_FORMAT_LABELS,
+    SCRIM_STATUS_LABELS,
+    STAFF_ROLE_LABELS,
+    TEAM_LIMIT_STATUS_LABELS,
+    TEAM_LINK_TEXTS,
+    THEME_LABELS,
+    VERIF_STATUS_LABELS,
+  };
+
+  it("has no German in English", () => {
+    for (const [name, dictionary] of Object.entries(dictionaries)) {
+      for (const text of texts(dictionary.en)) expect(text, name).not.toMatch(GERMAN);
+    }
+  });
+
+  it("names every notification type of the settings in both languages", () => {
+    for (const category of NOTIFICATION_CATEGORIES) {
+      for (const { type } of category.types) {
+        expect(notificationSettingLabel(type, "de")).toMatch(/\S/);
+        expect(notificationSettingLabel(type, "en")).toMatch(/\S/);
+      }
+    }
+  });
+});
+
+describe("texts stored in the database", () => {
+  it("shows the placeholders and fixed reasons translated, everything else as stored", () => {
+    expect(userDisplayName(DELETED_USER_NAME, "en")).toBe("Deleted user");
+    expect(userDisplayName(NEW_ACCOUNT_NAME, "en")).toBe("New account");
+    expect(userDisplayName(NEW_ACCOUNT_NAME, "de")).toBe("Neues Konto");
+    expect(userDisplayName("ana.muster", "en")).toBe("ana.muster");
+    expect(rejectReasonText(AUTO_REJECT_REASON, "en")).toBe("Not reviewed in time");
+    expect(rejectReasonText("Bescheinigung unleserlich", "en")).toBe("Bescheinigung unleserlich");
+    expect(rejectReasonText("toString", "en")).toBe("toString");
   });
 });

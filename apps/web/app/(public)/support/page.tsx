@@ -9,7 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { siteChrome } from "@/lib/header-user";
 import { submitTeamLimitRequestAction } from "./actions";
-import { getText } from "@/lib/locale";
+import { getLocale, getText } from "@/lib/locale";
 
 const cardClass = "flex flex-col gap-3 rounded-lg border border-border bg-card p-5";
 
@@ -91,6 +91,7 @@ async function TeamLimitCard({
   status: Awaited<ReturnType<typeof getTeamLimitStatus>>;
 }) {
   const text = await getText();
+  const locale = await getLocale();
   const { latest } = status;
   return (
     <section id="mehr-teams" className={`${cardClass} scroll-mt-24`}>
@@ -102,22 +103,22 @@ async function TeamLimitCard({
       </p>
       {latest?.status === "PENDING" ? (
         <Alert>
-          <span>Dein Antrag vom {formatBerlinDate(latest.createdAt)} ist in Prüfung.</span>
+          <span>Dein Antrag vom {formatBerlinDate(latest.createdAt, locale)} ist in Prüfung.</span>
         </Alert>
       ) : (
         <>
           {latest?.status === "APPROVED" ? (
             <Alert variant="success">
               <span>
-                Angenommen am {formatBerlinDate(latest.decidedAt ?? latest.createdAt)}: Du kannst
-                jetzt in bis zu {latest.newLimit} Teams sein.
+                Angenommen am {formatBerlinDate(latest.decidedAt ?? latest.createdAt, locale)}: Du
+                kannst jetzt in bis zu {latest.newLimit} Teams sein.
               </span>
             </Alert>
           ) : latest?.status === "REJECTED" ? (
             <Alert>
               <span>
-                Dein Antrag vom {formatBerlinDate(latest.createdAt)} wurde abgelehnt. Du kannst
-                einen neuen stellen.
+                Dein Antrag vom {formatBerlinDate(latest.createdAt, locale)} wurde abgelehnt. Du
+                kannst einen neuen stellen.
               </span>
             </Alert>
           ) : null}

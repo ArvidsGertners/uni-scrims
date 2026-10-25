@@ -24,7 +24,7 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { requirePageUser } from "@/lib/session";
 import { createRequestAction } from "../actions";
-import { getText } from "@/lib/locale";
+import { getLocale, getText } from "@/lib/locale";
 
 /** Where each reason can be fixed; a ban is final, so it gets no link. */
 const PROBLEM_LINKS: Partial<Record<ProblemKind, { href: string; label: string }>> = {
@@ -88,13 +88,14 @@ export default async function NewRequestPage() {
 }
 
 /** The range starts where core says: the team rank, without one Iron to Radiant (SPEC N-16). */
-function RequestForm({
+async function RequestForm({
   teamId,
   range,
 }: {
   teamId: string;
   range: { rankMin: Rank; rankMax: Rank };
 }) {
+  const locale = await getLocale();
   const rankOptions = RANKS.map((rank) => ({
     value: rank,
     label: RANK_LABELS[rank],
@@ -140,9 +141,9 @@ function RequestForm({
           required
           defaultValue={null}
           placeholder="Bitte wählen …"
-          options={(Object.keys(SCRIM_FORMAT_LABELS) as ScrimFormat[]).map((format) => ({
+          options={(Object.keys(SCRIM_FORMAT_LABELS[locale]) as ScrimFormat[]).map((format) => ({
             value: format,
-            label: SCRIM_FORMAT_LABELS[format],
+            label: SCRIM_FORMAT_LABELS[locale][format],
           }))}
         />
       </Field>

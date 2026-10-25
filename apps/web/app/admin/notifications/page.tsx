@@ -4,10 +4,12 @@ import { formatDateTime } from "@/lib/format";
 import { NOTIFICATION_CHANNEL_LABELS, NOTIFICATION_TYPE_LABELS } from "@/lib/scrim-format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
+import { getLocale } from "@/lib/locale";
 
 export default async function FailedNotificationsPage() {
   const { staff: admin, overview } = await requireAdminShellPage("/notifications", "admin");
   const { entries: failed, total } = await listFailedNotifications(admin.id);
+  const locale = await getLocale();
 
   return (
     <AdminShell overview={overview} current="/notifications">
@@ -29,11 +31,13 @@ export default async function FailedNotificationsPage() {
             className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-[14px]"
           >
             <p className="font-medium">
-              {NOTIFICATION_TYPE_LABELS[entry.type]} · {NOTIFICATION_CHANNEL_LABELS[entry.channel]}
+              {NOTIFICATION_TYPE_LABELS[locale][entry.type]} ·{" "}
+              {NOTIFICATION_CHANNEL_LABELS[locale][entry.channel]}
             </p>
             <p>
-              An: {entry.targetName ?? "unbekannt"} · erstellt {formatDateTime(entry.createdAt)} ·
-              letzter Versuch {formatDateTime(entry.scheduledFor)} · {entry.attempts} Fehlversuche
+              An: {entry.targetName ?? "unbekannt"} · erstellt{" "}
+              {formatDateTime(entry.createdAt, locale)} · letzter Versuch{" "}
+              {formatDateTime(entry.scheduledFor, locale)} · {entry.attempts} Fehlversuche
             </p>
             {entry.lastError ? (
               <p className="font-mono text-[13px] break-all text-muted-foreground">

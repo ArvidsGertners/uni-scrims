@@ -32,13 +32,15 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
 import { requirePageUser } from "@/lib/session";
 import {
-  APPLICATION_STATUS_LABELS,
   SCRIM_STATUS_LABELS,
   formatFormat,
   formatMaps,
   formatUniversities,
 } from "@/lib/scrim-format";
 import { RankFilter } from "./rank-filter";
+import { getLocale } from "@/lib/locale";
+import { formatMessages } from "@/i18n/format";
+import type { Locale } from "@uni-scrims/core/config/locale";
 
 type Board = Awaited<ReturnType<typeof getBoard>>;
 type MyScrims = Awaited<ReturnType<typeof getMyScrims>>;
@@ -98,13 +100,14 @@ function requestCountLabel(count: number): string {
 }
 
 /** Requests by Berlin calendar day of their start; the list is sorted by start already. */
-function groupByDay<T extends { startsAt: Date }>(requests: T[]) {
+function groupByDay<T extends { startsAt: Date }>(requests: T[], locale: Locale) {
   const groups: { day: string; title: string; requests: T[] }[] = [];
   for (const request of requests) {
     const day = toBerlinDateString(request.startsAt);
     const last = groups.at(-1);
     if (last?.day === day) last.requests.push(request);
-    else groups.push({ day, title: formatDayHeading(request.startsAt), requests: [request] });
+    else
+      groups.push({ day, title: formatDayHeading(request.startsAt, locale), requests: [request] });
   }
   return groups;
 }
@@ -222,7 +225,8 @@ export default async function ScrimsPage({
 }
 
 /** Open requests of other teams with the filters of SPEC P0-4; the own ones are in "Anfragen". */
-function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequests: boolean }) {
+async function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequests: boolean }) {
+  const locale = await getLocale();
   const filtered = board.filter.date !== null || board.filter.ranks.length > 0;
   return (
     <>
@@ -285,7 +289,7 @@ function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequests: boo
             : "Seid das erste Team auf dem Board. Andere Uni-Teams können sich dann bei euch bewerben."}
         </EmptyState>
       ) : (
-        groupByDay(board.requests).map((group) => (
+        groupByDay(board.requests, locale).map((group) => (
           <ListGroup
             key={group.day}
             title={group.title}
@@ -301,7 +305,8 @@ function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequests: boo
   );
 }
 
-function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
+async function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
+  const locale = await getLocale();
   return (
     <div className={cn(CARD_COLUMNS, "gap-6")}>
       {mine.upcoming.map((scrim) => (
@@ -315,7 +320,9 @@ function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
                 <BadgeDot />
                 Bestätigt
               </Badge>
-              <span className="font-label text-[13px]">{describeStartShort(scrim.startsAt)}</span>
+              <span className="font-label text-[13px]">
+                {describeStartShort(scrim.startsAt, locale)}
+              </span>
             </div>
             <div className="flex items-center gap-3.5">
               <div className="flex shrink-0 items-center">
@@ -333,7 +340,8 @@ function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="type-h2 group-hover:underline">gegen {scrim.opponent.name}</span>
                 <span className="text-[13px] text-muted-foreground">
-                  {formatUniversities(scrim.opponent.universities)} · {formatFormat(scrim.format)} ·{" "}
+                  {formatUniversities(scrim.opponent.universities, locale)} ·{" "}
+                  {formatFormat(scrim.format, locale)} ·{" "}
                   <RankRangeLabel rankMin={scrim.rankMin} rankMax={scrim.rankMax} />
                 </span>
               </div>
@@ -350,7 +358,8 @@ function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam }) {
   );
 }
 
-function Requests({ mine }: { mine: MyScrims }) {
+async function Requests({ mine }: { mine: MyScrims }) {
+  const locale = await getLocale();
   return (
     <div className={cn(CARD_COLUMNS, "gap-6")}>
       {mine.requests.map((request) => (
@@ -361,11 +370,11 @@ function Requests({ mine }: { mine: MyScrims }) {
         >
           <div className="flex items-start justify-between gap-2.5">
             <div className="flex flex-col gap-0.5">
-              <span className="type-h2">{describeStartShort(request.startsAt)}</span>
+              <span className="type-h2">{describeStartShort(request.startsAt, locale)}</span>
               <span className="text-[13px] text-muted-foreground">
-                {formatFormat(request.format)} ·{" "}
+                {formatFormat(request.format, locale)} ·{" "}
                 <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} /> ·{" "}
-                {formatMaps(request.maps)}
+                {formatMaps(request.maps, locale)}
               </span>
             </div>
             <Badge variant="accent">Offen</Badge>
@@ -385,7 +394,8 @@ function Requests({ mine }: { mine: MyScrims }) {
   );
 }
 
-function Applications({ mine }: { mine: MyScrims }) {
+async function Applications({ mine }: { mine: MyScrims }) {
+  const locale = await getLocale();
   return (
     <div className={cn(CARD_COLUMNS, "gap-2.5")}>
       {mine.applications.map((application) => (
@@ -394,7 +404,8 @@ function Applications({ mine }: { mine: MyScrims }) {
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="font-semibold">{application.team.name}</span>
             <span className="text-[13px] text-muted-foreground">
-              {describeStartShort(application.startsAt)} · {formatFormat(application.format)}
+              {describeStartShort(application.startsAt, locale)} ·{" "}
+              {formatFormat(application.format, locale)}
             </span>
           </div>
           {application.status === "PENDING" ? (
@@ -403,7 +414,7 @@ function Applications({ mine }: { mine: MyScrims }) {
               Ausstehend
             </Badge>
           ) : (
-            <Badge>{APPLICATION_STATUS_LABELS[application.status]}</Badge>
+            <Badge>{formatMessages[locale].applicationStatus[application.status]}</Badge>
           )}
         </Link>
       ))}
@@ -411,7 +422,8 @@ function Applications({ mine }: { mine: MyScrims }) {
   );
 }
 
-function Past({ mine }: { mine: MyScrims }) {
+async function Past({ mine }: { mine: MyScrims }) {
+  const locale = await getLocale();
   return (
     <div className={cn(CARD_COLUMNS, "gap-2.5")}>
       {mine.past.map((scrim) => (
@@ -420,8 +432,10 @@ function Past({ mine }: { mine: MyScrims }) {
           <div className="flex min-w-[140px] flex-1 flex-col">
             <span className="font-semibold">gegen {scrim.opponent.name}</span>
             <span className="text-[13px] text-muted-foreground">
-              {describeStartShort(scrim.startsAt)} · {formatFormat(scrim.format)}
-              {scrim.status === "SCHEDULED" ? "" : ` · ${SCRIM_STATUS_LABELS[scrim.status]}`}
+              {describeStartShort(scrim.startsAt, locale)} · {formatFormat(scrim.format, locale)}
+              {scrim.status === "SCHEDULED"
+                ? ""
+                : ` · ${SCRIM_STATUS_LABELS[locale][scrim.status]}`}
             </span>
           </div>
           {scrim.canGiveFeedback ? (

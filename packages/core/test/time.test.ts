@@ -71,11 +71,11 @@ describe("dates", () => {
 
 describe("describeStart", () => {
   it("shows date and time in Berlin", () => {
-    expect(describeStart(new Date("2026-10-22T18:00:00Z"))).toBe("Do, 22.10.2026, 20:00 Uhr");
+    expect(describeStart(new Date("2026-10-22T18:00:00Z"), "de")).toBe("Do, 22.10.2026, 20:00 Uhr");
   });
 
   it("marks starts after midnight as night", () => {
-    expect(describeStart(new Date("2026-10-21T23:00:00Z"))).toBe(
+    expect(describeStart(new Date("2026-10-21T23:00:00Z"), "de")).toBe(
       "Do, 22.10.2026, 01:00 Uhr (Nacht auf Do, 22.10.)",
     );
   });
@@ -83,11 +83,11 @@ describe("describeStart", () => {
 
 describe("describeStartTime", () => {
   it("shows the time in Berlin", () => {
-    expect(describeStartTime(new Date("2026-10-22T18:00:00Z"))).toBe("20:00 Uhr");
+    expect(describeStartTime(new Date("2026-10-22T18:00:00Z"), "de")).toBe("20:00 Uhr");
   });
 
   it("marks starts after midnight as night", () => {
-    expect(describeStartTime(new Date("2026-10-21T23:00:00Z"))).toBe(
+    expect(describeStartTime(new Date("2026-10-21T23:00:00Z"), "de")).toBe(
       "01:00 Uhr (Nacht auf Do, 22.10.)",
     );
   });
@@ -95,37 +95,37 @@ describe("describeStartTime", () => {
 
 describe("formatDayHeading", () => {
   it("names the Berlin calendar day", () => {
-    expect(formatDayHeading(new Date("2026-10-29T23:30:00Z"))).toBe("Freitag, 30. Oktober");
-    expect(formatDayHeading(new Date("2026-11-01T12:00:00Z"))).toBe("Sonntag, 1. November");
+    expect(formatDayHeading(new Date("2026-10-29T23:30:00Z"), "de")).toBe("Freitag, 30. Oktober");
+    expect(formatDayHeading(new Date("2026-11-01T12:00:00Z"), "de")).toBe("Sonntag, 1. November");
   });
 });
 
 describe("formatWeekdayDate", () => {
   it("names weekday and date in Berlin", () => {
-    expect(formatWeekdayDate(new Date("2026-10-29T23:30:00Z"))).toBe("Freitag, 30.10.");
+    expect(formatWeekdayDate(new Date("2026-10-29T23:30:00Z"), "de")).toBe("Freitag, 30.10.");
   });
 });
 
 describe("formatBerlinDate", () => {
   it("is the Berlin calendar date with the year", () => {
-    expect(formatBerlinDate(new Date("2026-10-22T18:00:00Z"))).toBe("22.10.2026");
+    expect(formatBerlinDate(new Date("2026-10-22T18:00:00Z"), "de")).toBe("22.10.2026");
     // 00:30 Berlin time on New Year's Day.
-    expect(formatBerlinDate(new Date("2026-12-31T23:30:00Z"))).toBe("01.01.2027");
+    expect(formatBerlinDate(new Date("2026-12-31T23:30:00Z"), "de")).toBe("01.01.2027");
   });
 });
 
 describe("describeStartDay", () => {
   it("is the Berlin calendar day of the start, also after midnight", () => {
-    expect(describeStartDay(new Date("2026-10-22T18:00:00Z"))).toBe("Do 22.10.");
+    expect(describeStartDay(new Date("2026-10-22T18:00:00Z"), "de")).toBe("Do 22.10.");
     // 00:30 Berlin time on Friday.
-    expect(describeStartDay(new Date("2026-10-22T22:30:00Z"))).toBe("Fr 23.10.");
+    expect(describeStartDay(new Date("2026-10-22T22:30:00Z"), "de")).toBe("Fr 23.10.");
   });
 });
 
 describe("describeStartShort", () => {
   it("shows weekday, date and time in Berlin, with the night suffix", () => {
-    expect(describeStartShort(new Date("2026-10-22T18:00:00Z"))).toBe("Do 22.10. · 20:00");
-    expect(describeStartShort(new Date("2026-10-21T23:00:00Z"))).toBe(
+    expect(describeStartShort(new Date("2026-10-22T18:00:00Z"), "de")).toBe("Do 22.10. · 20:00");
+    expect(describeStartShort(new Date("2026-10-21T23:00:00Z"), "de")).toBe(
       "Do 22.10. · 01:00 (Nacht auf Do, 22.10.)",
     );
   });
@@ -133,10 +133,55 @@ describe("describeStartShort", () => {
 
 describe("semesterLabel", () => {
   it("names winter and summer semesters", () => {
-    expect(semesterLabel(new Date("2026-10-23T12:00:00Z"))).toBe("WiSe 2026/27");
-    expect(semesterLabel(new Date("2027-03-31T12:00:00Z"))).toBe("WiSe 2026/27");
-    expect(semesterLabel(new Date("2027-04-01T12:00:00Z"))).toBe("SoSe 2027");
+    expect(semesterLabel(new Date("2026-10-23T12:00:00Z"), "de")).toBe("WiSe 2026/27");
+    expect(semesterLabel(new Date("2027-03-31T12:00:00Z"), "de")).toBe("WiSe 2026/27");
+    expect(semesterLabel(new Date("2027-04-01T12:00:00Z"), "de")).toBe("SoSe 2027");
     // Berlin time: 1 October already starts at 22:00 UTC the day before.
-    expect(semesterLabel(new Date("2027-09-30T22:30:00Z"))).toBe("WiSe 2027/28");
+    expect(semesterLabel(new Date("2027-09-30T22:30:00Z"), "de")).toBe("WiSe 2027/28");
+  });
+});
+
+describe("English formats (§5.21)", () => {
+  it("shows starts day first with the 24-hour clock, in Berlin time", () => {
+    expect(describeStart(new Date("2026-10-22T18:00:00Z"), "en")).toBe("Thu 22 Oct 2026, 20:00");
+    expect(describeStartTime(new Date("2026-10-22T18:00:00Z"), "en")).toBe("20:00");
+    expect(describeStartShort(new Date("2026-10-22T18:00:00Z"), "en")).toBe("Thu 22 Oct · 20:00");
+    expect(describeStartDay(new Date("2026-10-22T22:30:00Z"), "en")).toBe("Fri 23 Oct");
+  });
+
+  it("names the night with the day before", () => {
+    expect(describeStart(new Date("2026-10-21T23:00:00Z"), "en")).toBe(
+      "Thu 22 Oct 2026, 01:00 (night of Wed to Thu 22 Oct)",
+    );
+    expect(describeStartTime(new Date("2026-10-21T23:00:00Z"), "en")).toBe(
+      "01:00 (night of Wed to Thu 22 Oct)",
+    );
+  });
+
+  it("takes the day before in the Berlin calendar, also around the clock changes", () => {
+    // 00:30 summer time on the Monday after the change in March.
+    expect(describeStartShort(new Date("2026-03-29T22:30:00Z"), "en")).toBe(
+      "Mon 30 Mar · 00:30 (night of Sun to Mon 30 Mar)",
+    );
+    // 01:00 winter time on the day of the change in March, before 02:00.
+    expect(describeStartShort(new Date("2026-03-29T00:00:00Z"), "en")).toBe(
+      "Sun 29 Mar · 01:00 (night of Sat to Sun 29 Mar)",
+    );
+    // 00:30 winter time on the Monday after the change in October.
+    expect(describeStartShort(new Date("2026-10-25T23:30:00Z"), "en")).toBe(
+      "Mon 26 Oct · 00:30 (night of Sun to Mon 26 Oct)",
+    );
+  });
+
+  it("writes dates and headings without numeric months", () => {
+    expect(formatDayHeading(new Date("2026-10-29T23:30:00Z"), "en")).toBe("Friday 30 October");
+    expect(formatWeekdayDate(new Date("2026-10-29T23:30:00Z"), "en")).toBe("Friday 30 Oct");
+    expect(formatBerlinDate(new Date("2026-10-22T18:00:00Z"), "en")).toBe("22 Oct 2026");
+    expect(formatBerlinDate(new Date("2026-12-31T23:30:00Z"), "en")).toBe("1 Jan 2027");
+  });
+
+  it("names the semesters", () => {
+    expect(semesterLabel(new Date("2026-10-23T12:00:00Z"), "en")).toBe("Winter 2026/27");
+    expect(semesterLabel(new Date("2027-04-01T12:00:00Z"), "en")).toBe("Summer 2027");
   });
 });

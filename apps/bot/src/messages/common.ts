@@ -70,8 +70,11 @@ export function team(name: string, f: TextFormat): string {
   return f.strong(f.text(name));
 }
 
+/** The bot writes German until Phase 23 brings the recipient's language (§5.21). */
+export const MESSAGE_LOCALE = "de";
+
 export function startField(startsAt: string) {
-  return { name: "Start", value: describeStart(new Date(startsAt)) };
+  return { name: "Start", value: describeStart(new Date(startsAt), MESSAGE_LOCALE) };
 }
 
 type ScrimMessage = MessageOf<
@@ -86,7 +89,7 @@ type ScrimMessage = MessageOf<
 export function scrimFields(message: ScrimMessage, f: TextFormat) {
   const fields = [
     startField(message.payload.startsAt),
-    { name: "Format", value: SCRIM_FORMAT_LABELS[message.payload.format] },
+    { name: "Format", value: SCRIM_FORMAT_LABELS[MESSAGE_LOCALE][message.payload.format] },
   ];
   const captain = message.opponentCaptain;
   if (captain) {

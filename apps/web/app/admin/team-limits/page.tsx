@@ -5,11 +5,13 @@ import { formatDateTime } from "@/lib/format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { TeamLimitForm } from "./team-limit-form";
+import { getLocale } from "@/lib/locale";
 
 /** Requests for more teams (SPEC N-17), the oldest first; admins and the operator decide. */
 export default async function TeamLimitsPage() {
   const { staff: admin, overview } = await requireAdminShellPage("/team-limits", "admin");
   const requests = await listTeamLimitRequests(admin.id);
+  const locale = await getLocale();
 
   return (
     <AdminShell overview={overview} current="/team-limits">
@@ -27,7 +29,7 @@ export default async function TeamLimitsPage() {
               <CardTitle>{request.userName}</CardTitle>
               <p className="text-[14px] text-muted-foreground">
                 In {request.teamCount} von {request.teamLimit} Teams · beantragt am{" "}
-                {formatDateTime(request.createdAt)} Uhr
+                {formatDateTime(request.createdAt, locale)}
               </p>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">

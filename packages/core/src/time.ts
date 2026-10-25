@@ -1,8 +1,9 @@
 // Start times of requests in Europe/Berlin (SPEC P0-4, ARCHITECTURE §5.3).
 // Input is a Berlin calendar date and wall-clock time; core converts to UTC. No time logic in the browser.
 import { TZDate, tz } from "@date-fns/tz";
-import { format } from "date-fns";
-import { de } from "date-fns/locale";
+import { format, subDays } from "date-fns";
+import { de, enGB } from "date-fns/locale";
+import type { Locale } from "../config/locale.ts";
 
 export const TIME_ZONE = "Europe/Berlin";
 
@@ -73,59 +74,96 @@ export function berlinDayRange(date: string): { from: Date; to: Date } {
 }
 
 const berlin = { locale: de, in: tz(TIME_ZONE) };
+const DATE_LOCALES = { de, en: enGB } as const;
+
+/** Formats in Berlin time in the given language (§5.21); English as en-GB, day first and 24 h. */
+function berlinFormat(date: Date, pattern: string, locale: Locale): string {
+  return format(date, pattern, { locale: DATE_LOCALES[locale], in: tz(TIME_ZONE) });
+}
+
+/** The display formats per language (§5.21); English without a numeric date, which the US reads month first. */
+const FORMATS = {
+  de: {
+    date: "dd.MM.yyyy",
+    start: "EEEEEE, dd.MM.yyyy, HH:mm 'Uhr'",
+    time: "HH:mm 'Uhr'",
+    short: "EEEEEE dd.MM. '·' HH:mm",
+    day: "EEEEEE dd.MM.",
+    weekdayDate: "EEEE, dd.MM.",
+    dayHeading: "EEEE, d. MMMM",
+  },
+  en: {
+    date: "d MMM yyyy",
+    start: "EEE d MMM yyyy, HH:mm",
+    time: "HH:mm",
+    short: "EEE d MMM '·' HH:mm",
+    day: "EEE d MMM",
+    weekdayDate: "EEEE d MMM",
+    dayHeading: "EEEE d MMMM",
+  },
+} satisfies Record<Locale, Record<string, string>>;
 
 /** Berlin calendar date of an instant as "YYYY-MM-DD". */
 export function toBerlinDateString(date: Date): string {
   return format(date, "yyyy-MM-dd", berlin);
 }
 
-/** German display of a Berlin calendar date, e.g. "22.10.2026" (joined, team members). */
-export function formatBerlinDate(date: Date): string {
-  return format(date, "dd.MM.yyyy", berlin);
+/** A Berlin calendar date, e.g. "22.10.2026" / "22 Oct 2026" (joined, team members). */
+export function formatBerlinDate(date: Date, locale: Locale): string {
+  return berlinFormat(date, FORMATS[locale].date, locale);
 }
 
-/** " (Nacht auf Do, 22.10.)" for starts after midnight, so nobody shows up a day late (SPEC P0-4). */
-function nightSuffix(startsAt: Date): string {
+/**
+ * " (Nacht auf Do, 22.10.)" / " (night of Wed to Thu 22 Oct)" for starts after midnight, so nobody
+ * shows up a day late (SPEC P0-4). The day before is a Berlin calendar day, also across DST.
+ */
+function nightSuffix(startsAt: Date, locale: Locale): string {
   const hour = Number(format(startsAt, "H", berlin));
   if (hour > LAST_NIGHT_HOUR) return "";
-  return ` (Nacht auf ${format(startsAt, "EEEEEE, dd.MM.", berlin)})`;
+  if (locale === "en") {
+    const before = subDays(startsAt, 1, { in: tz(TIME_ZONE) });
+    return ` (night of ${berlinFormat(before, "EEE", locale)} to ${berlinFormat(startsAt, "EEE d MMM", locale)})`;
+  }
+  return ` (Nacht auf ${berlinFormat(startsAt, "EEEEEE, dd.MM.", locale)})`;
 }
 
-/** German display of a start time, e.g. "Do, 22.10.2026, 20:00 Uhr", with the night suffix. */
-export function describeStart(startsAt: Date): string {
-  return format(startsAt, "EEEEEE, dd.MM.yyyy, HH:mm 'Uhr'", berlin) + nightSuffix(startsAt);
+/** A start time, e.g. "Do, 22.10.2026, 20:00 Uhr" / "Thu 22 Oct 2026, 20:00", with the night suffix. */
+export function describeStart(startsAt: Date, locale: Locale): string {
+  return berlinFormat(startsAt, FORMATS[locale].start, locale) + nightSuffix(startsAt, locale);
 }
 
-/** Time only, e.g. "20:00 Uhr", with the night suffix; for lists grouped by day. */
-export function describeStartTime(startsAt: Date): string {
-  return format(startsAt, "HH:mm 'Uhr'", berlin) + nightSuffix(startsAt);
+/** Time only, e.g. "20:00 Uhr" / "20:00", with the night suffix; for lists grouped by day. */
+export function describeStartTime(startsAt: Date, locale: Locale): string {
+  return berlinFormat(startsAt, FORMATS[locale].time, locale) + nightSuffix(startsAt, locale);
 }
 
-/** Compact start for lists, e.g. "Do 22.10. · 20:00", with the night suffix. */
-export function describeStartShort(startsAt: Date): string {
-  return format(startsAt, "EEEEEE dd.MM. '·' HH:mm", berlin) + nightSuffix(startsAt);
+/** Compact start for lists, e.g. "Do 22.10. · 20:00" / "Thu 22 Oct · 20:00", with the night suffix. */
+export function describeStartShort(startsAt: Date, locale: Locale): string {
+  return berlinFormat(startsAt, FORMATS[locale].short, locale) + nightSuffix(startsAt, locale);
 }
 
-/** Day of the start only, e.g. "Do 22.10."; the time with describeStartTime (team page tile). */
-export function describeStartDay(startsAt: Date): string {
-  return format(startsAt, "EEEEEE dd.MM.", berlin);
+/** Day of the start only, e.g. "Do 22.10." / "Thu 22 Oct"; the time with describeStartTime. */
+export function describeStartDay(startsAt: Date, locale: Locale): string {
+  return berlinFormat(startsAt, FORMATS[locale].day, locale);
 }
 
-/** Weekday and date in Berlin, e.g. "Donnerstag, 22.10.". */
-export function formatWeekdayDate(date: Date): string {
-  return format(date, "EEEE, dd.MM.", berlin);
+/** Weekday and date in Berlin, e.g. "Donnerstag, 22.10." / "Thursday 22 Oct". */
+export function formatWeekdayDate(date: Date, locale: Locale): string {
+  return berlinFormat(date, FORMATS[locale].weekdayDate, locale);
 }
 
 /** The current semester in Germany: winter from October to March, summer from April. */
-export function semesterLabel(now: Date): string {
+export function semesterLabel(now: Date, locale: Locale): string {
   const year = Number(format(now, "yyyy", berlin));
   const month = Number(format(now, "M", berlin));
-  if (month >= 10) return `WiSe ${year}/${String(year + 1).slice(2)}`;
-  if (month <= 3) return `WiSe ${year - 1}/${String(year).slice(2)}`;
-  return `SoSe ${year}`;
+  const winter = locale === "en" ? "Winter" : "WiSe";
+  const summer = locale === "en" ? "Summer" : "SoSe";
+  if (month >= 10) return `${winter} ${year}/${String(year + 1).slice(2)}`;
+  if (month <= 3) return `${winter} ${year - 1}/${String(year).slice(2)}`;
+  return `${summer} ${year}`;
 }
 
-/** Heading of a Berlin calendar day, e.g. "Donnerstag, 22. Oktober". */
-export function formatDayHeading(date: Date): string {
-  return format(date, "EEEE, d. MMMM", berlin);
+/** Heading of a Berlin calendar day, e.g. "Donnerstag, 22. Oktober" / "Thursday 22 October". */
+export function formatDayHeading(date: Date, locale: Locale): string {
+  return berlinFormat(date, FORMATS[locale].dayHeading, locale);
 }

@@ -18,7 +18,7 @@ import {
   TEAM_LIMIT_STATUS_LABELS,
   THEME_LABELS,
   VERIF_STATUS_LABELS,
-} from "./labels.ts";
+} from "./i18n/labels.ts";
 import { parseNotificationPayload } from "./notifications.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { RANK_LABELS, loadTeamRank } from "./ranks.ts";
@@ -46,7 +46,7 @@ function notificationContent(type: NotifType, payload: Prisma.JsonValue) {
     if (parsed) {
       return {
         ergebnis:
-          VERIF_STATUS_LABELS[parsed.approved ? VerifStatus.APPROVED : VerifStatus.REJECTED],
+          VERIF_STATUS_LABELS.de[parsed.approved ? VerifStatus.APPROVED : VerifStatus.REJECTED],
         ablehnungsgrund: parsed.rejectReason,
       };
     }
@@ -280,13 +280,13 @@ export async function exportAccountData(input: {
           gesperrtAm: user.bannedAt,
           hubBeitrittGescheitertAm: user.hubJoinFailedAt,
           dmGescheitertAm: user.dmFailedAt,
-          rolle: user.staffRole ? STAFF_ROLE_LABELS[user.staffRole] : null,
+          rolle: user.staffRole ? STAFF_ROLE_LABELS.de[user.staffRole] : null,
           zweiFaktorEingerichtet: user.twoFactorEnabled,
           zweiFaktorFehlversuche: twoFactor?.failedVerificationCount ?? null,
           zweiFaktorGesperrtBis: twoFactor?.lockedUntil ?? null,
-          design: THEME_LABELS[user.theme],
+          design: THEME_LABELS.de[user.theme],
           // Null until the account chose one (SPEC N-18).
-          sprache: user.locale && LOCALE_LABELS[user.locale],
+          sprache: user.locale && LOCALE_LABELS.de[user.locale],
           // Self-declared (SPEC N-16).
           rang: user.rank && RANK_LABELS[user.rank],
         },
@@ -311,7 +311,7 @@ export async function exportAccountData(input: {
         })),
         prüfungen: reviews.map((review, index) => ({
           hochgeladenAm: review.createdAt,
-          status: VERIF_STATUS_LABELS[review.status],
+          status: VERIF_STATUS_LABELS.de[review.status],
           entschiedenAm: review.decidedAt,
           entschieden:
             review.status === VerifStatus.PENDING
@@ -337,13 +337,13 @@ export async function exportAccountData(input: {
             // The image itself is team data without personal reference (SPEC N-6).
             // The last change to either logo (SPEC N-6, N-7).
             logosGeändertAm: team.logoUpdatedAt,
-            logos: team.logos.map((logo) => LOGO_BACKGROUND_LABELS[logo.background]),
+            logos: team.logos.map((logo) => LOGO_BACKGROUND_LABELS.de[logo.background]),
             // Per platform the address or null (SPEC N-15).
             externeLinks: Object.fromEntries(
               TEAM_LINK_PLATFORMS.map((platform) => [platform.key, team[platform.field]]),
             ),
             linksGeändertAm: team.linksUpdatedAt,
-            rolle: MEMBER_ROLE_LABELS[role],
+            rolle: MEMBER_ROLE_LABELS.de[role],
             captain: isCaptainOf(user, team),
             beigetretenAm: joinedAt,
           };
@@ -354,7 +354,7 @@ export async function exportAccountData(input: {
         teamAnträge: teamLimitRequests.map((request) => ({
           gestelltAm: request.createdAt,
           begründung: request.reason,
-          status: TEAM_LIMIT_STATUS_LABELS[request.status],
+          status: TEAM_LIMIT_STATUS_LABELS.de[request.status],
           neuesLimit: request.newLimit,
           // Only when, never who decided.
           entschiedenAm: request.decidedAt,
@@ -369,12 +369,12 @@ export async function exportAccountData(input: {
           team: request.team.name,
           erstelltAm: request.createdAt,
           startAm: request.startsAt,
-          format: SCRIM_FORMAT_LABELS[request.format],
+          format: SCRIM_FORMAT_LABELS.de[request.format],
           rangVon: RANK_LABELS[request.rankMin],
           rangBis: RANK_LABELS[request.rankMax],
           maps: request.maps,
           notiz: request.note,
-          status: REQUEST_STATUS_LABELS[request.status],
+          status: REQUEST_STATUS_LABELS.de[request.status],
         })),
         feedback: feedback.map((entry) => ({
           team: teamName(entry.teamId),
@@ -384,17 +384,17 @@ export async function exportAccountData(input: {
               : entry.scrim.hostTeamId,
           ),
           scrimStartAm: entry.scrim.startsAt,
-          antwort: FEEDBACK_OUTCOME_LABELS[entry.outcome],
+          antwort: FEEDBACK_OUTCOME_LABELS.de[entry.outcome],
           sterne: entry.rating,
           abgegebenAm: entry.createdAt,
         })),
         nachrichten: notifications.map((notification) => ({
-          art: NOTIFICATION_TYPE_LABELS[notification.type],
+          art: NOTIFICATION_TYPE_LABELS.de[notification.type],
           // Since Phase 18 also the person's copies of team notifications (§5.17).
-          kanal: NOTIFICATION_CHANNEL_LABELS[notification.channel],
+          kanal: NOTIFICATION_CHANNEL_LABELS.de[notification.channel],
           team: notification.targetTeam?.name ?? null,
           inhalt: notificationContent(notification.type, notification.payload),
-          status: NOTIF_STATUS_LABELS[notification.status],
+          status: NOTIF_STATUS_LABELS.de[notification.status],
           erstelltAm: notification.createdAt,
           geplantAm: notification.scheduledFor,
           zustellversuche: notification.attempts,
@@ -402,23 +402,23 @@ export async function exportAccountData(input: {
           gesendetAm: notification.sentAt,
         })),
         benachrichtigungen: preferences.map((preference) => ({
-          art: NOTIFICATION_TYPE_LABELS[preference.type],
+          art: NOTIFICATION_TYPE_LABELS.de[preference.type],
           discord: settingLabel(preference.discord),
           eMail: settingLabel(preference.email),
         })),
         verwaltung: {
           prüfungen: decidedReviews.map((review) => ({
             entschiedenAm: review.decidedAt,
-            ergebnis: VERIF_STATUS_LABELS[review.status],
+            ergebnis: VERIF_STATUS_LABELS.de[review.status],
           })),
           streitfälle: resolvedDisputes.map((scrim) => ({
             entschiedenAm: scrim.resolvedAt,
-            ergebnis: SCRIM_STATUS_LABELS[scrim.status],
+            ergebnis: SCRIM_STATUS_LABELS.de[scrim.status],
           })),
           // Since Phase 21; without the person who asked (SPEC N-17).
           teamAnträge: decidedTeamLimits.map((request) => ({
             entschiedenAm: request.decidedAt,
-            ergebnis: TEAM_LIMIT_STATUS_LABELS[request.status],
+            ergebnis: TEAM_LIMIT_STATUS_LABELS.de[request.status],
           })),
         },
       };

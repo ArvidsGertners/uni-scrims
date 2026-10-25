@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { DecisionForm } from "../decision-form";
+import { getLocale } from "@/lib/locale";
 
 // Fixed checklist from SPEC P0-2, with the name check of N-3.
 const CHECKLIST = [
@@ -20,6 +21,7 @@ export default async function AdminPage() {
   // Layout and page render in parallel, so the page checks too.
   const { staff: admin, overview } = await requireAdminShellPage("/queue", "queue");
   const queue = await listPendingVerifications(admin.id, resolveUploadDir());
+  const locale = await getLocale();
   const universities = queue.some((request) => !request.university) ? await listUniversities() : [];
 
   return (
@@ -49,7 +51,7 @@ export default async function AdminPage() {
                   </div>
                 </div>
                 <p className="text-[14px] text-muted-foreground">
-                  Hochgeladen am {formatDateTime(request.createdAt)} ·{" "}
+                  Hochgeladen am {formatDateTime(request.createdAt, locale)} ·{" "}
                   {request.university
                     ? `${request.university.name} (${request.university.city})`
                     : `Andere: ${request.universityOther}`}{" "}

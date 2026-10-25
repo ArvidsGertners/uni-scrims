@@ -1,6 +1,7 @@
 import { describeStart } from "@uni-scrims/core";
 import type { NotifType } from "@uni-scrims/db";
 import {
+  MESSAGE_LOCALE,
   type MessageOf,
   type MessageParts,
   scrimFields,
@@ -15,7 +16,10 @@ export function feedbackPrompt(
 ): MessageParts {
   const fields = scrimFields(message, f);
   if (message.feedbackDeadline) {
-    fields.push({ name: "Feedback bis", value: describeStart(message.feedbackDeadline) });
+    fields.push({
+      name: "Feedback bis",
+      value: describeStart(message.feedbackDeadline, MESSAGE_LOCALE),
+    });
   }
   return {
     title: "Wie lief euer Scrim?",

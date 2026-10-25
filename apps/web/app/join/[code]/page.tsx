@@ -10,7 +10,7 @@ import { formatUniversities } from "@/lib/scrim-format";
 import { getSessionUserId, loginUrl, requirePageUser } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { joinTeamAction, switchTeamAction } from "../../team/actions";
-import { getText } from "@/lib/locale";
+import { getLocale, getText } from "@/lib/locale";
 
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -37,6 +37,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   // All own teams since Phase 21 (SPEC N-17): joining works up to the team limit.
   const own = await getNavTeam(user.id);
   const text = await getText();
+  const locale = await getLocale();
   const member = own.teams.find((ownTeam) => ownTeam.id === team.id);
   const linkClass = "font-semibold underline underline-offset-2";
   return (
@@ -47,8 +48,8 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="type-h1">{team.name}</h1>
           <span className="text-[14px] text-muted-foreground">
-            {formatUniversities(team.universities)} · Teamrang <RankLabel rank={team.rank} /> ·{" "}
-            {team.memberCount} Mitglieder
+            {formatUniversities(team.universities, locale)} · Teamrang{" "}
+            <RankLabel rank={team.rank} /> · {team.memberCount} Mitglieder
           </span>
         </div>
       </div>

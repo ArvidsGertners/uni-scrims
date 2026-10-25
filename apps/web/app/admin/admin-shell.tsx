@@ -27,6 +27,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { adminHref, mainUrl, sharedCookieDomain } from "@/lib/admin-url";
 import { readFlash } from "@/lib/flash";
 import { missingLegalPages } from "@/lib/legal";
+import { getLocale } from "@/lib/locale";
 
 export type AdminOverview = Awaited<ReturnType<typeof getAdminOverview>>;
 export type AdminPath = `/${string}`;
@@ -125,6 +126,7 @@ export async function AdminShell({
   // The legal texts concern admins; reviewers only see their queue (as before Phase 14).
   const missingLegal = staffArea(viewer.staffRole, "admin") ? await missingLegalPages() : [];
   const flash = await readFlash();
+  const locale = await getLocale();
 
   return (
     // Like the site (§5.15): the sidebar at the left edge, the content filling the rest.
@@ -160,7 +162,7 @@ export async function AdminShell({
               <div className="flex min-w-0 flex-col">
                 <span className="truncate font-label text-[14px] font-semibold">{viewer.name}</span>
                 <span className="text-[13px] text-muted-foreground">
-                  {STAFF_ROLE_LABELS[viewer.staffRole]}
+                  {STAFF_ROLE_LABELS[locale][viewer.staffRole]}
                 </span>
               </div>
             </div>

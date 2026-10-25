@@ -9,13 +9,9 @@ import { lockUser } from "./locks.ts";
 import { requireReviewer, requireUser } from "./permissions.ts";
 import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./uploads.ts";
 import { avatarVersion } from "./users.ts";
+import { AUTO_REJECT_REASON, BAN_REJECT_REASON, LEGACY_REJECT_REASON } from "./i18n/stored.ts";
 
-export const AUTO_REJECT_REASON = "Prüfung nicht rechtzeitig erfolgt";
-/** banUser closes a pending request with this reason and without a message. */
-export const BAN_REJECT_REASON = "Konto gesperrt";
-/** Accounts from before Phase 7 verify again with their real name (SPEC N-3). */
-export const LEGACY_REJECT_REASON =
-  "Bitte vervollständige dein Konto und lade die Bescheinigung erneut hoch.";
+export { AUTO_REJECT_REASON, BAN_REJECT_REASON, LEGACY_REJECT_REASON };
 /** Files in the upload directory without a database row are deleted after this age. */
 export const ORPHAN_FILE_AGE_MS = 24 * 60 * 60 * 1000;
 export const MAX_UNIVERSITY_OTHER_LENGTH = 200;

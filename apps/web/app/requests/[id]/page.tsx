@@ -20,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePageUser } from "@/lib/session";
 import {
-  APPLICATION_STATUS_LABELS,
   REQUEST_STATUS_LABELS,
   formatFormat,
   formatMaps,
@@ -33,7 +32,8 @@ import {
   deleteRequestAction,
   withdrawApplicationAction,
 } from "../actions";
-import { getText } from "@/lib/locale";
+import { getLocale, getText } from "@/lib/locale";
+import { formatMessages } from "@/i18n/format";
 
 const NEXT_STEPS = [
   "Das Team sieht eure Bewerbung und nimmt ein Team an.",
@@ -46,6 +46,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const user = await requirePageUser(`/requests/${id}`);
   const request = await getRequestDetail({ userId: user.id, requestId: id, now: new Date() });
   const text = await getText();
+  const locale = await getLocale();
   if (!request) notFound();
 
   const { team } = request;
@@ -54,12 +55,12 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     ? null
     : request.status === "OPEN"
       ? "Abgelaufen"
-      : REQUEST_STATUS_LABELS[request.status];
+      : REQUEST_STATUS_LABELS[locale][request.status];
   const details = [
-    { label: "Datum", value: formatWeekdayDate(request.startsAt) },
-    { label: "Uhrzeit", value: describeStartTime(request.startsAt) },
-    { label: "Format", value: formatFormat(request.format) },
-    { label: "Maps", value: formatMaps(request.maps) },
+    { label: "Datum", value: formatWeekdayDate(request.startsAt, locale) },
+    { label: "Uhrzeit", value: describeStartTime(request.startsAt, locale) },
+    { label: "Format", value: formatFormat(request.format, locale) },
+    { label: "Maps", value: formatMaps(request.maps, locale) },
     {
       label: "Rang",
       value: <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} />,
@@ -93,11 +94,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             <TeamLinks teamName={team.name} links={team.links} />
           </div>
           <span className="flex flex-wrap items-center gap-2 text-[14px] text-muted-foreground">
-            {formatUniversities(team.universities)}
+            {formatUniversities(team.universities, locale)}
             {status ? <Badge className="h-[22px] px-2 text-[12px]">{status}</Badge> : null}
           </span>
           <span className="text-[13px] text-muted-foreground">
-            {formatReliability(team.reliability)}
+            {formatReliability(team.reliability, locale)}
           </span>
         </div>
       </div>
@@ -299,7 +300,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                           />
                         </div>
                         <span className="text-[13px] text-muted-foreground">
-                          {formatUniversities(application.team.universities)}
+                          {formatUniversities(application.team.universities, locale)}
                         </span>
                       </div>
                       {application.status === "ACCEPTED" ? (
@@ -308,13 +309,13 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                         </span>
                       ) : application.status !== "PENDING" ? (
                         <span className="shrink-0 text-[13px] text-faint">
-                          {APPLICATION_STATUS_LABELS[application.status]}
+                          {formatMessages[locale].applicationStatus[application.status]}
                         </span>
                       ) : null}
                     </div>
                     <p className="text-[13px] text-muted-foreground">
                       Teamrang <RankLabel rank={application.team.rank} /> ·{" "}
-                      {formatReliability(application.team.reliability)}
+                      {formatReliability(application.team.reliability, locale)}
                     </p>
                     {application.outOfRange ? (
                       <p className="text-[13px] text-warning">Teamrang außerhalb des Bereichs</p>

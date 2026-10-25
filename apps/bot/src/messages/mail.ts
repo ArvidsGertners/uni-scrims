@@ -6,7 +6,7 @@ import {
   notificationSettingLabel,
 } from "@uni-scrims/core";
 import type { Mail } from "@uni-scrims/core/mail";
-import { mailFormat } from "./common.ts";
+import { MESSAGE_LOCALE, mailFormat } from "./common.ts";
 import { messageParts } from "./index.ts";
 
 /** The subject is the fixed title of the type, never user text. */
@@ -20,7 +20,7 @@ export function buildMail(message: OutboxMessage, to: string, baseUrl: string): 
     "",
     `${parts.link.label}: ${new URL(parts.link.path, baseUrl).toString()}`,
     "",
-    `Du bekommst diese Mail, weil „${notificationSettingLabel(message.type)}“ in deinen Einstellungen per E-Mail eingeschaltet ist. Ändern kannst du das hier: ${new URL(NOTIFICATION_SETTINGS_PATH, baseUrl).toString()}`,
+    `Du bekommst diese Mail, weil „${notificationSettingLabel(message.type, MESSAGE_LOCALE)}“ in deinen Einstellungen per E-Mail eingeschaltet ist. Ändern kannst du das hier: ${new URL(NOTIFICATION_SETTINGS_PATH, baseUrl).toString()}`,
     "",
     "Uni Scrims",
   );

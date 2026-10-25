@@ -1,7 +1,9 @@
 // Notification settings per person (SPEC N-14, ARCHITECTURE §5.17): Discord and mail per type,
 // with defaults that keep the behaviour from before Phase 18.
 import { NotifType, prisma } from "@uni-scrims/db";
+import type { Locale } from "../config/locale.ts";
 import type { Db } from "./db.ts";
+import { NOTIFICATION_SETTING_LABELS } from "./i18n/notification-settings.ts";
 import { lockUser } from "./locks.ts";
 import { findOwnTeams, isCaptainOf, requireUser } from "./permissions.ts";
 import { notificationPreferencesSchema, parseInput } from "./schemas.ts";
@@ -14,50 +16,42 @@ export type ChannelSettings = { discord: boolean; email: boolean };
 
 type StoredChannels = { discord: boolean | null; email: boolean | null };
 
-/** The categories of the settings page, every type in exactly one of them, in this order. */
+export type NotificationCategoryKey = "verification" | "requests" | "scrims" | "team";
+
+/**
+ * The categories of the settings page, every type in exactly one of them, in this order. Titles and
+ * labels: i18n/notification-settings.ts.
+ */
 export const NOTIFICATION_CATEGORIES: {
-  key: string;
-  title: string;
-  types: { type: NotifType; label: string; audience: NotificationAudience }[];
+  key: NotificationCategoryKey;
+  types: { type: NotifType; audience: NotificationAudience }[];
 }[] = [
   {
     key: "verification",
-    title: "Verifizierung",
-    types: [
-      { type: NotifType.VERIFICATION_RESULT, label: "Ergebnis der Prüfung", audience: "SELF" },
-    ],
+    types: [{ type: NotifType.VERIFICATION_RESULT, audience: "SELF" }],
   },
   {
     key: "requests",
-    title: "Anfragen und Bewerbungen",
     types: [
-      { type: NotifType.APPLICATION_RECEIVED, label: "Bewerbung erhalten", audience: "CAPTAIN" },
-      { type: NotifType.APPLICATION_REJECTED, label: "Bewerbung abgelehnt", audience: "CAPTAIN" },
-      { type: NotifType.REQUEST_DELETED, label: "Anfrage gelöscht", audience: "CAPTAIN" },
-      { type: NotifType.REQUEST_EXPIRED, label: "Anfrage abgelaufen", audience: "CAPTAIN" },
+      { type: NotifType.APPLICATION_RECEIVED, audience: "CAPTAIN" },
+      { type: NotifType.APPLICATION_REJECTED, audience: "CAPTAIN" },
+      { type: NotifType.REQUEST_DELETED, audience: "CAPTAIN" },
+      { type: NotifType.REQUEST_EXPIRED, audience: "CAPTAIN" },
     ],
   },
   {
     key: "scrims",
-    title: "Scrims",
     types: [
-      { type: NotifType.SCRIM_BOOKED, label: "Scrim gebucht", audience: "TEAM" },
-      { type: NotifType.SCRIM_CANCELLED, label: "Scrim abgesagt", audience: "TEAM" },
-      { type: NotifType.REMINDER_24H, label: "Erinnerung 24 Stunden vorher", audience: "TEAM" },
-      { type: NotifType.REMINDER_1H, label: "Erinnerung 1 Stunde vorher", audience: "TEAM" },
-      { type: NotifType.FEEDBACK_PROMPT, label: "Bitte um Feedback", audience: "TEAM" },
+      { type: NotifType.SCRIM_BOOKED, audience: "TEAM" },
+      { type: NotifType.SCRIM_CANCELLED, audience: "TEAM" },
+      { type: NotifType.REMINDER_24H, audience: "TEAM" },
+      { type: NotifType.REMINDER_1H, audience: "TEAM" },
+      { type: NotifType.FEEDBACK_PROMPT, audience: "TEAM" },
     ],
   },
   {
     key: "team",
-    title: "Team",
-    types: [
-      {
-        type: NotifType.CHANNEL_BROKEN,
-        label: "Team-Channel nicht mehr verknüpft",
-        audience: "CAPTAIN",
-      },
-    ],
+    types: [{ type: NotifType.CHANNEL_BROKEN, audience: "CAPTAIN" }],
   },
 ];
 
@@ -70,8 +64,8 @@ export function notificationAudience(type: NotifType): NotificationAudience {
 }
 
 /** The label of a type on the settings page and in the mail that it switches. */
-export function notificationSettingLabel(type: NotifType): string {
-  return SETTINGS.get(type)!.label;
+export function notificationSettingLabel(type: NotifType, locale: Locale): string {
+  return NOTIFICATION_SETTING_LABELS[locale][type];
 }
 
 /** Where a mail says it can be switched off. */
@@ -125,7 +119,6 @@ export async function getNotificationPreferences(userId: string) {
     mixedRoles,
     categories: NOTIFICATION_CATEGORIES.map((category) => ({
       key: category.key,
-      title: category.title,
       types: category.types.map((item) => {
         const row = byType.get(item.type);
         return {

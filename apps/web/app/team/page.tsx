@@ -36,7 +36,7 @@ import {
 import { NewTeamForms } from "./new-team-forms";
 import { TeamLogoForm } from "./team-logo-form";
 import { TeamHeader } from "./team-tabs";
-import { getMessages } from "@/lib/locale";
+import { getLocale, getMessages } from "@/lib/locale";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 
@@ -45,6 +45,7 @@ export default async function TeamPage() {
   const team = await getTeamDashboard({ userId: user.id, now: new Date() });
   const baseUrl = process.env.BETTER_AUTH_URL ?? "";
   const platforms = await getMessages(TEAM_LINK_TEXTS);
+  const locale = await getLocale();
 
   if (!team) {
     return (
@@ -95,17 +96,17 @@ export default async function TeamPage() {
               : `Noch ${missing} bis ${READY_MEMBER_COUNT}`}
           </StatTile>
           <StatTile label="Gespielt" value={team.reliability.played}>
-            {formatReliabilityDetails(team.reliability)}
+            {formatReliabilityDetails(team.reliability, locale)}
           </StatTile>
           {team.nextScrim ? (
             <StatTile
               href={`/scrims/${team.nextScrim.id}`}
               label="Nächstes Scrim"
-              value={describeStartDay(team.nextScrim.startsAt)}
+              value={describeStartDay(team.nextScrim.startsAt, locale)}
               valueClassName="text-[28px]"
             >
-              {describeStartTime(team.nextScrim.startsAt)} · gegen {team.nextScrim.opponent.name} ·{" "}
-              {formatFormat(team.nextScrim.format)}
+              {describeStartTime(team.nextScrim.startsAt, locale)} · gegen{" "}
+              {team.nextScrim.opponent.name} · {formatFormat(team.nextScrim.format, locale)}
             </StatTile>
           ) : (
             <StatTile href="/scrims" label="Nächstes Scrim" value="–" valueClassName="text-faint">
@@ -181,7 +182,7 @@ export default async function TeamPage() {
                   ),
                 },
                 { label: "Spiel", value: GAME_LABELS[team.game] ?? team.game },
-                { label: "Hochschulen", value: formatUniversities(team.universities) },
+                { label: "Hochschulen", value: formatUniversities(team.universities, locale) },
               ].map((row) => (
                 <div
                   key={row.label}
@@ -219,7 +220,7 @@ export default async function TeamPage() {
                     <TeamLogoPreview team={team} background={background} />
                     <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                       <span className="text-[14px] font-medium">
-                        {LOGO_BACKGROUND_LABELS[background]}
+                        {LOGO_BACKGROUND_LABELS[locale][background]}
                       </span>
                       <TeamLogoForm teamId={team.id} background={background} hasLogo={hasLogo} />
                       {hasLogo ? (
@@ -230,7 +231,7 @@ export default async function TeamPage() {
                           size="sm"
                           className="flex flex-col"
                           submitClassName="-ml-4"
-                          confirmText={`${LOGO_BACKGROUND_LABELS[background]} wirklich entfernen?`}
+                          confirmText={`${LOGO_BACKGROUND_LABELS[locale][background]} wirklich entfernen?`}
                         >
                           <input type="hidden" name="teamId" value={team.id} />
                           <input type="hidden" name="background" value={background} />

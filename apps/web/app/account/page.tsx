@@ -28,14 +28,17 @@ import { switchTeamAction } from "../team/actions";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 import { ThemeForm } from "./theme-form";
-import { getText } from "@/lib/locale";
+import { getLocale, getText } from "@/lib/locale";
+import type { Locale } from "@uni-scrims/core/config/locale";
 
 const cardClass = "flex flex-col gap-4 rounded-lg border border-border bg-card p-5";
 
-const THEME_OPTIONS = Object.values(ThemePreference).map((value) => ({
-  value,
-  label: THEME_LABELS[value],
-}));
+function themeOptions(locale: Locale) {
+  return Object.values(ThemePreference).map((value) => ({
+    value,
+    label: THEME_LABELS[locale][value],
+  }));
+}
 
 /** The select needs a value for "none"; the action sends it to core as empty. */
 const NO_RANK = "NONE";
@@ -81,6 +84,7 @@ export default async function AccountPage({
   const user = await requirePageAccountUser("/account");
   const account = await getAccount(user.id);
   const text = await getText();
+  const locale = await getLocale();
   const verification = VERIFICATION_LABELS[account.verification.status];
 
   const consequences = [
@@ -156,7 +160,7 @@ export default async function AccountPage({
           </div>
           <div className="flex max-w-xl flex-col gap-2 border-t border-border pt-4">
             <span className="text-[14px] font-medium">Design</span>
-            <ThemeForm current={user.theme} options={THEME_OPTIONS} />
+            <ThemeForm current={user.theme} options={themeOptions(locale)} />
             <p className="text-[13px] text-muted-foreground">
               „System“ folgt der Einstellung deines Geräts. Deine Wahl gilt auf allen Geräten.
             </p>

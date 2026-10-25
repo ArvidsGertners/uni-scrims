@@ -1,8 +1,10 @@
 import { type Reliability, SCRIM_FORMAT_LABELS } from "@uni-scrims/core";
-import type { AppStatus, ScrimFormat } from "@uni-scrims/db";
+import { INTL_LOCALES, type Locale } from "@uni-scrims/core/config/locale";
+import type { ScrimFormat } from "@uni-scrims/db";
+import { formatMessages } from "../i18n/format.ts";
 
 // Moved to core for the data export (Phase 9, the channels in Phase 18); the pages keep importing
-// them from here.
+// them from here. Since Phase 22 one map per language (§5.21).
 export {
   NOTIFICATION_CHANNEL_LABELS,
   NOTIFICATION_TYPE_LABELS,
@@ -10,42 +12,39 @@ export {
   SCRIM_STATUS_LABELS,
 } from "@uni-scrims/core";
 
-export function formatFormat(format: ScrimFormat): string {
-  return SCRIM_FORMAT_LABELS[format];
+export function formatFormat(format: ScrimFormat, locale: Locale): string {
+  return SCRIM_FORMAT_LABELS[locale][format];
 }
 
-export function formatMaps(maps: string[]): string {
-  return maps.length > 0 ? maps.join(" · ") : "Freie Wahl";
+export function formatMaps(maps: string[], locale: Locale): string {
+  return maps.length > 0 ? maps.join(" · ") : formatMessages[locale].anyMap;
 }
 
 /** Everything after "gespielt", for the team page tile that shows the played count large. */
-export function formatReliabilityDetails(reliability: Reliability): string {
-  const parts = [
-    `${reliability.noShows} ${reliability.noShows === 1 ? "No-Show" : "No-Shows"}`,
-    `${reliability.lateCancels} kurzfristige ${reliability.lateCancels === 1 ? "Absage" : "Absagen"}`,
-  ];
+export function formatReliabilityDetails(reliability: Reliability, locale: Locale): string {
+  const t = formatMessages[locale];
+  const parts = [t.noShows(reliability.noShows), t.lateCancels(reliability.lateCancels)];
   if (reliability.avgRating !== null) {
-    parts.push(
-      `Ø ${reliability.avgRating.toLocaleString("de-DE", { maximumFractionDigits: 1, minimumFractionDigits: 1 })} ★`,
-    );
+    const rating = reliability.avgRating.toLocaleString(INTL_LOCALES[locale], {
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 1,
+    });
+    parts.push(`Ø ${rating} ★`);
   }
   return parts.join(" · ");
 }
 
 /** "3 gespielt · 1 No-Show · 0 kurzfristige Absagen · Ø 4,2 ★" */
-export function formatReliability(reliability: Reliability): string {
-  return `${reliability.played} gespielt · ${formatReliabilityDetails(reliability)}`;
+export function formatReliability(reliability: Reliability, locale: Locale): string {
+  const played = formatMessages[locale].played(reliability.played);
+  return `${played} · ${formatReliabilityDetails(reliability, locale)}`;
 }
 
-export function formatUniversities(universities: { shown: string[]; more: number }): string {
+export function formatUniversities(
+  universities: { shown: string[]; more: number },
+  locale: Locale,
+): string {
   return universities.shown.length > 0
     ? universities.shown.join(", ") + (universities.more > 0 ? ` +${universities.more}` : "")
-    : "Noch keine verifizierten Mitglieder";
+    : formatMessages[locale].noVerifiedMembers;
 }
-
-export const APPLICATION_STATUS_LABELS: Record<AppStatus, string> = {
-  PENDING: "Offen",
-  ACCEPTED: "Bestätigt",
-  REJECTED: "Abgelehnt",
-  WITHDRAWN: "Zurückgezogen",
-};

@@ -18,6 +18,7 @@ import { adminHref } from "@/lib/admin-url";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { resetStaffTwoFactorAction, setStaffRoleAction } from "./actions";
+import { getLocale } from "@/lib/locale";
 
 const cardClass = "flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-[14px]";
 
@@ -31,13 +32,14 @@ type Person = {
   twoFactorEnabled: boolean;
 };
 
-function PersonLine({ person }: { person: Person }) {
+async function PersonLine({ person }: { person: Person }) {
+  const locale = await getLocale();
   return (
     <div className="flex flex-col gap-0.5">
       <p className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{person.name}</span>
         {person.staffRole ? (
-          <Badge variant="accent">{STAFF_ROLE_LABELS[person.staffRole]}</Badge>
+          <Badge variant="accent">{STAFF_ROLE_LABELS[locale][person.staffRole]}</Badge>
         ) : null}
         {person.staffRole ? (
           person.twoFactorEnabled ? (
@@ -55,7 +57,8 @@ function PersonLine({ person }: { person: Person }) {
 }
 
 /** Role select with the roles the operator gives; "none" removes it. */
-function RoleForm({ person }: { person: Person }) {
+async function RoleForm({ person }: { person: Person }) {
+  const locale = await getLocale();
   return (
     <ActionForm
       action={setStaffRoleAction}
@@ -74,7 +77,7 @@ function RoleForm({ person }: { person: Person }) {
         options={[
           ...ASSIGNABLE_STAFF_ROLES.map((role) => ({
             value: role,
-            label: STAFF_ROLE_LABELS[role],
+            label: STAFF_ROLE_LABELS[locale][role],
           })),
           ...(person.staffRole ? [{ value: "none", label: "Keine Rolle" }] : []),
         ]}

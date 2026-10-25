@@ -1,12 +1,20 @@
-const dateTime = new Intl.DateTimeFormat("de-DE", {
-  timeZone: "Europe/Berlin",
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+import { INTL_LOCALES, type Locale } from "@uni-scrims/core/config/locale";
+import { formatMessages } from "../i18n/format.ts";
 
-/** Display in Europe/Berlin (ARCHITECTURE §4). */
-export function formatDateTime(date: Date): string {
-  return dateTime.format(date);
+const dateTimes = new Map<Locale, Intl.DateTimeFormat>();
+
+/** Date and time in Europe/Berlin (ARCHITECTURE §4), with "Uhr" in German (§5.21). */
+export function formatDateTime(date: Date, locale: Locale): string {
+  let format = dateTimes.get(locale);
+  if (!format) {
+    format = new Intl.DateTimeFormat(INTL_LOCALES[locale], {
+      timeZone: "Europe/Berlin",
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    dateTimes.set(locale, format);
+  }
+  return format.format(date) + formatMessages[locale].timeSuffix;
 }
 
 /** Initials for round user avatars: the first two letters or digits of the Discord name. */

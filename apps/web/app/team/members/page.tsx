@@ -12,11 +12,12 @@ import { removeMemberAction, setMemberRoleAction, transferCaptainAction } from "
 import { MemberRoleSelect } from "../member-role-select";
 import { TeamHeader } from "../team-tabs";
 import { RolesTable } from "./roles-table";
+import { getLocale } from "@/lib/locale";
+import type { Locale } from "@uni-scrims/core/config/locale";
 
-const ROLE_OPTIONS = MEMBER_ROLES.map((role) => ({
-  value: role,
-  label: MEMBER_ROLE_LABELS[role],
-}));
+function roleOptions(locale: Locale) {
+  return MEMBER_ROLES.map((role) => ({ value: role, label: MEMBER_ROLE_LABELS[locale][role] }));
+}
 const memberActionClass = "min-h-10 px-2.5 text-[14px]";
 /** Label of a cell; below 768 px each row is a block, so every value says what it is. */
 const cellLabel = "type-label text-muted-foreground md:hidden";
@@ -33,6 +34,7 @@ const STATUS = {
 export default async function TeamMembersPage() {
   const user = await requirePageUser("/team/members");
   const team = await getMyTeam(user.id);
+  const locale = await getLocale();
   if (!team) redirect("/team");
   const manage = team.isCaptain && !team.banned;
 
@@ -103,10 +105,10 @@ export default async function TeamMembersPage() {
                         memberId={member.id}
                         memberName={member.name}
                         role={member.role}
-                        options={ROLE_OPTIONS}
+                        options={roleOptions(locale)}
                       />
                     ) : (
-                      <span>{MEMBER_ROLE_LABELS[member.role]}</span>
+                      <span>{MEMBER_ROLE_LABELS[locale][member.role]}</span>
                     )}
                   </td>
                   {/* Only the own team sees each member's rank (SPEC N-16). */}
@@ -116,7 +118,9 @@ export default async function TeamMembersPage() {
                   </td>
                   <td className={cn(cellClass, "col-span-3")}>
                     <span className={cellLabel}>Beigetreten</span>
-                    <span className="tabular-nums">{formatBerlinDate(member.joinedAt)}</span>
+                    <span className="tabular-nums">
+                      {formatBerlinDate(member.joinedAt, locale)}
+                    </span>
                   </td>
                   <td className={cn(cellClass, manage ? "col-span-6" : "col-span-3")}>
                     <span className={cellLabel}>Status</span>

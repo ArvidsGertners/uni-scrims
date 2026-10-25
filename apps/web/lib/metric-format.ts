@@ -1,13 +1,27 @@
 import type { MetricKey, MetricResult, MetricUnit } from "@uni-scrims/core";
+import { INTL_LOCALES, type Locale, type Localized } from "@uni-scrims/core/config/locale";
+import { formatMessages } from "../i18n/format.ts";
 
 const HOUR = 60 * 60 * 1000;
 
-const decimal = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
-const rating = new Intl.NumberFormat("de-DE", {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-const percent = new Intl.NumberFormat("de-DE", { style: "percent", maximumFractionDigits: 1 });
+function numberFormats(locale: Locale) {
+  return {
+    decimal: new Intl.NumberFormat(INTL_LOCALES[locale], { maximumFractionDigits: 1 }),
+    rating: new Intl.NumberFormat(INTL_LOCALES[locale], {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }),
+    percent: new Intl.NumberFormat(INTL_LOCALES[locale], {
+      style: "percent",
+      maximumFractionDigits: 1,
+    }),
+  };
+}
+
+const FORMATS: Localized<ReturnType<typeof numberFormats>> = {
+  de: numberFormats("de"),
+  en: numberFormats("en"),
+};
 
 /**
  * Rounded down to `step`, the precision shown. The goals of SPEC §8 lie on that grid, so a shown
@@ -20,7 +34,8 @@ function floorTo(value: number, step: number): number {
 }
 
 /** A metric value or threshold in its unit (SPEC §8): teams, hours, percent or stars. */
-export function formatMetricValue(unit: MetricUnit, value: number): string {
+export function formatMetricValue(unit: MetricUnit, value: number, locale: Locale): string {
+  const { decimal, percent, rating } = FORMATS[locale];
   switch (unit) {
     case "count":
       return String(value);
@@ -36,27 +51,21 @@ export function formatMetricValue(unit: MetricUnit, value: number): string {
 }
 
 /** "≥ 50 %" or "< 24 h", as the targets read in SPEC §8. */
-export function formatThreshold(unit: MetricUnit, goal: "atLeast" | "below", value: number) {
-  return `${goal === "atLeast" ? "≥" : "<"} ${formatMetricValue(unit, value)}`;
+export function formatThreshold(
+  unit: MetricUnit,
+  goal: "atLeast" | "below",
+  value: number,
+  locale: Locale,
+) {
+  return `${goal === "atLeast" ? "≥" : "<"} ${formatMetricValue(unit, value, locale)}`;
 }
 
-/** What the number of cases counts, per metric. */
-const CASE_NOUNS: Record<MetricKey, [one: string, many: string]> = {
-  readyTeams: ["aktiven Team", "aktiven Teams"],
-  reviewTime: ["Prüfung", "Prüfungen"],
-  confirmationRate: ["Anfrage", "Anfragen"],
-  timeToBooking: ["Buchung", "Buchungen"],
-  showUpRate: ["Scrim", "Scrims"],
-  feedbackRate: ["ausgewerteten Scrim", "ausgewerteten Scrims"],
-  activeTeams: ["spielbereiten Team", "spielbereiten Teams"],
-  noShowRate: ["Scrim", "Scrims"],
-  averageRating: ["Bewertung", "Bewertungen"],
-};
-
-export function formatCases(key: MetricKey, result: MetricResult): string {
-  const [one, many] = CASE_NOUNS[key];
+/** "aus 3 Prüfungen" / "from 3 reviews", or "von 4 aktiven Teams" for the snapshots. */
+export function formatCases(key: MetricKey, result: MetricResult, locale: Locale): string {
+  const t = formatMessages[locale];
+  const [one, many] = t.caseNouns[key];
   const noun = result.cases === 1 ? one : many;
   return key === "readyTeams" || key === "activeTeams"
-    ? `von ${result.cases} ${noun}`
-    : `aus ${result.cases} ${noun}`;
+    ? t.casesOf(result.cases, noun)
+    : t.casesFrom(result.cases, noun);
 }

@@ -22,12 +22,15 @@ import { SCRIM_STATUS_LABELS, formatFormat, formatMaps } from "@/lib/scrim-forma
 import { requirePageUser } from "@/lib/session";
 import { cancelScrimAction } from "../actions";
 import { FeedbackForm } from "./feedback-form";
-import { getText } from "@/lib/locale";
+import { getLocale, getText } from "@/lib/locale";
+import type { Locale } from "@uni-scrims/core/config/locale";
 
-const OUTCOMES = (Object.keys(FEEDBACK_OUTCOME_LABELS) as FeedbackOutcome[]).map((value) => ({
-  value,
-  label: FEEDBACK_OUTCOME_LABELS[value],
-}));
+function outcomes(locale: Locale) {
+  return (Object.keys(FEEDBACK_OUTCOME_LABELS[locale]) as FeedbackOutcome[]).map((value) => ({
+    value,
+    label: FEEDBACK_OUTCOME_LABELS[locale][value],
+  }));
+}
 const RATINGS = Array.from({ length: RATING_MAX - RATING_MIN + 1 }, (_, i) => RATING_MIN + i);
 
 export default async function ScrimPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,6 +38,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   const user = await requirePageUser(`/scrims/${id}`);
   const scrim = await getScrimDetail({ userId: user.id, scrimId: id, now: new Date() });
   const text = await getText();
+  const locale = await getLocale();
   if (!scrim) {
     // Played by another own team (SPEC N-17): offer to switch instead of "not found".
     const otherTeam = await getOtherOwnScrimTeam({ userId: user.id, scrimId: id });
@@ -49,7 +53,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const when = `${describeStartShort(scrim.startsAt)} · ${formatFormat(scrim.format)}`;
+  const when = `${describeStartShort(scrim.startsAt, locale)} · ${formatFormat(scrim.format, locale)}`;
 
   // Feedback due: the page is the feedback screen of the design handoff.
   if (scrim.canGiveFeedback) {
@@ -61,13 +65,13 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
           <h1 className="type-h1">Wie war das Scrim gegen {scrim.opponent.name}?</h1>
           <p className="text-pretty text-muted-foreground">
             Pro Team eine Antwort, danach nicht mehr änderbar. Möglich bis{" "}
-            {formatDateTime(scrim.feedbackDeadline)}.
+            {formatDateTime(scrim.feedbackDeadline, locale)}.
           </p>
         </div>
         <FeedbackForm
           scrimId={scrim.id}
           teamId={scrim.ownTeam.id}
-          outcomes={OUTCOMES}
+          outcomes={outcomes(locale)}
           ratings={RATINGS}
         />
       </PageMain>
@@ -102,7 +106,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
         </div>
         <span className="flex flex-wrap items-center gap-2 text-[14px] text-muted-foreground">
           <Badge variant={scrim.status === "SCHEDULED" ? "success" : "neutral"}>
-            {SCRIM_STATUS_LABELS[scrim.status]}
+            {SCRIM_STATUS_LABELS[locale][scrim.status]}
           </Badge>
           {result}
         </span>
@@ -119,7 +123,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
 
           <div className="flex flex-col gap-2">
             <span className="type-label text-muted-foreground">Maps</span>
-            <p>{formatMaps(scrim.maps)}</p>
+            <p>{formatMaps(scrim.maps, locale)}</p>
             <p className="text-[14px] text-muted-foreground">
               {scrim.isHost ? "Ihr habt die Anfrage gestellt." : "Ihr habt euch beworben."}
             </p>
@@ -138,7 +142,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
             {scrim.ownFeedback ? (
               <Alert variant="success">
                 <span>
-                  Feedback gegeben: {FEEDBACK_OUTCOME_LABELS[scrim.ownFeedback.outcome]}
+                  Feedback gegeben: {FEEDBACK_OUTCOME_LABELS[locale][scrim.ownFeedback.outcome]}
                   {scrim.ownFeedback.rating ? ` · ${"★".repeat(scrim.ownFeedback.rating)}` : ""}
                 </span>
               </Alert>

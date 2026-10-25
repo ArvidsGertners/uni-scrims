@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format";
 import { requirePageUser } from "@/lib/session";
 import { AccountTabs } from "../account/account-tabs";
 import { VerificationForm } from "./verification-form";
+import { getLocale } from "@/lib/locale";
 
 // A tab of the settings (SPEC N-11, N-13): the page title is Einstellungen, the state below it.
 function Headline({ title, children }: { title: string; children: string }) {
@@ -28,6 +29,7 @@ export default async function VerifyPage({
   const user = await requirePageUser("/verify");
   const { neu } = await searchParams;
   const { verifiedAt, university, latest } = await getVerificationStatus(user.id);
+  const locale = await getLocale();
   const rejected = latest?.status === VerifStatus.REJECTED;
 
   return (
@@ -54,7 +56,7 @@ export default async function VerifyPage({
                   value: <StatusDot className="text-success">Verifiziert</StatusDot>,
                 },
                 { label: "Hochschule", value: university ?? "–" },
-                { label: "Verifiziert seit", value: `${formatDateTime(verifiedAt)} Uhr` },
+                { label: "Verifiziert seit", value: formatDateTime(verifiedAt, locale) },
               ]}
             />
             <div className="flex flex-wrap gap-2.5">
@@ -84,7 +86,7 @@ export default async function VerifyPage({
                   value: <StatusDot className="text-warning">In Prüfung</StatusDot>,
                 },
                 { label: "Hochschule", value: latest.university ?? "–" },
-                { label: "Eingereicht", value: `${formatDateTime(latest.createdAt)} Uhr` },
+                { label: "Eingereicht", value: formatDateTime(latest.createdAt, locale) },
               ]}
             />
             <Link
@@ -126,7 +128,7 @@ export default async function VerifyPage({
               universities={await listUniversities()}
               checks={[
                 "Dein Name ist gut lesbar",
-                `Aktuelles Semester (${semesterLabel(new Date())})`,
+                `Aktuelles Semester (${semesterLabel(new Date(), locale)})`,
                 "Name der Hochschule ist sichtbar",
               ]}
             />

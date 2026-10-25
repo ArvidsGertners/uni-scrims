@@ -1,11 +1,12 @@
 import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { fromDbLocale } from "./i18n/locale.ts";
+import { DELETED_USER_NAME, NEW_ACCOUNT_NAME } from "./i18n/stored.ts";
 import { isReservedEmail } from "./schemas.ts";
 
 export const DISCORD_PROVIDER = "discord";
 
-export const DELETED_USER_NAME = "Gelöschter Nutzer";
+export { DELETED_USER_NAME, NEW_ACCOUNT_NAME };
 
 const DELETED_EMAIL_PREFIX = "deleted-";
 
@@ -83,9 +84,6 @@ export async function finishInterruptedDeletions(): Promise<number> {
   for (const { id } of users) await restoreDeletedUser(id);
   return users.length;
 }
-
-/** Shown until Discord is linked, never the real name (§5.8). */
-export const NEW_ACCOUNT_NAME = "Neues Konto";
 
 /** The placeholder email Better Auth needs for a Discord profile without one (§5.1). */
 export function discordPlaceholderEmail(discordId: string): string {

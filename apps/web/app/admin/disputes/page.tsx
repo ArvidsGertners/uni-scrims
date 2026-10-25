@@ -5,10 +5,12 @@ import { formatFormat } from "@/lib/scrim-format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "../admin-shell";
 import { DisputeForm } from "./dispute-form";
+import { getLocale } from "@/lib/locale";
+import type { Locale } from "@uni-scrims/core/config/locale";
 
 type Side = Awaited<ReturnType<typeof listDisputes>>[number]["host"];
 
-function Answer({ side }: { side: Side }) {
+function Answer({ side, locale }: { side: Side; locale: Locale }) {
   return (
     <li>
       <span className="font-medium">{side.name}</span>{" "}
@@ -16,7 +18,7 @@ function Answer({ side }: { side: Side }) {
       {side.captainName}
       <br />
       {side.feedback
-        ? `${FEEDBACK_OUTCOME_LABELS[side.feedback.outcome]}${side.feedback.rating ? ` · ${"★".repeat(side.feedback.rating)}` : ""}`
+        ? `${FEEDBACK_OUTCOME_LABELS[locale][side.feedback.outcome]}${side.feedback.rating ? ` · ${"★".repeat(side.feedback.rating)}` : ""}`
         : "Keine Antwort"}
     </li>
   );
@@ -25,6 +27,7 @@ function Answer({ side }: { side: Side }) {
 export default async function DisputesPage() {
   const { staff: admin, overview } = await requireAdminShellPage("/disputes", "admin");
   const disputes = await listDisputes(admin.id);
+  const locale = await getLocale();
 
   return (
     <AdminShell overview={overview} current="/disputes">
@@ -38,13 +41,13 @@ export default async function DisputesPage() {
                 {dispute.host.name} gegen {dispute.guest.name}
               </CardTitle>
               <p className="text-[14px] text-muted-foreground">
-                {describeStart(dispute.startsAt)} · {formatFormat(dispute.format)}
+                {describeStart(dispute.startsAt, locale)} · {formatFormat(dispute.format, locale)}
               </p>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <ul className="flex flex-col gap-2 text-[14px]">
-                <Answer side={dispute.host} />
-                <Answer side={dispute.guest} />
+                <Answer locale={locale} side={dispute.host} />
+                <Answer locale={locale} side={dispute.guest} />
               </ul>
               <DisputeForm scrimId={dispute.id} host={dispute.host} guest={dispute.guest} />
             </CardContent>

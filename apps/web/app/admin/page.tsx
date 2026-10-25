@@ -3,19 +3,22 @@ import { adminHref } from "@/lib/admin-url";
 import { formatDateTime } from "@/lib/format";
 import { requireAdminShellPage } from "@/lib/session";
 import { AdminShell } from "./admin-shell";
+import { getLocale } from "@/lib/locale";
+import type { Locale } from "@uni-scrims/core/config/locale";
 
 const BOT_LOOPS = [
   { loop: "sweeper", label: "Zeitsteuerung" },
   { loop: "outbox", label: "Versand" },
 ] as const;
 
-const lastSeen = (heartbeatAt: Date | null) =>
-  heartbeatAt ? `zuletzt ${formatDateTime(heartbeatAt)} Uhr` : "noch kein Lebenszeichen";
+const lastSeen = (heartbeatAt: Date | null, locale: Locale) =>
+  heartbeatAt ? `zuletzt ${formatDateTime(heartbeatAt, locale)}` : "noch kein Lebenszeichen";
 
 /** Start page of the admin area (SPEC N-10): what waits, by role. */
 export default async function AdminOverviewPage() {
   const { overview } = await requireAdminShellPage("/", "queue");
   const { queue, disputes, failedNotifications, bot, teamLimitRequests } = overview;
+  const locale = await getLocale();
 
   return (
     <AdminShell overview={overview} current="/">
@@ -28,7 +31,7 @@ export default async function AdminOverviewPage() {
           tone={queue.pending > 0 ? "text-warning" : undefined}
         >
           {queue.oldestAt
-            ? `Älteste wartet seit ${formatDateTime(queue.oldestAt)} Uhr`
+            ? `Älteste wartet seit ${formatDateTime(queue.oldestAt, locale)}`
             : "Nichts zu prüfen"}
         </StatTile>
         {/* core returns null where the role does not see an area (§5.14). */}
@@ -72,7 +75,7 @@ export default async function AdminOverviewPage() {
             {BOT_LOOPS.map(({ loop, label }) => (
               <span key={loop} className="block">
                 {label}: {bot.loops[loop].online ? "läuft" : "steht"},{" "}
-                {lastSeen(bot.loops[loop].heartbeatAt)}
+                {lastSeen(bot.loops[loop].heartbeatAt, locale)}
               </span>
             ))}
           </StatTile>
