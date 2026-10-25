@@ -3,13 +3,16 @@ import { describe, expect, it } from "vitest";
 import { setupCommand, setupErrorText } from "../src/commands/setup.ts";
 
 describe("/setup", () => {
-  it("has one required text channel option and only works on servers", () => {
+  it("has a required text channel, an optional team with suggestions, and only works on servers", () => {
     expect(setupCommand.toJSON()).toMatchObject({
       name: "setup",
       // 0 = guild context only.
       contexts: [0],
-      // 7 = channel option, 0 = text channel.
-      options: [{ name: "channel", type: 7, required: true, channel_types: [0] }],
+      // 7 = channel option, 0 = text channel; 3 = string option (SPEC N-17).
+      options: [
+        { name: "channel", type: 7, required: true, channel_types: [0] },
+        { name: "team", type: 3, required: false, autocomplete: true },
+      ],
     });
   });
 

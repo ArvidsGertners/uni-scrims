@@ -1,7 +1,14 @@
-// /setup (ARCHITECTURE §6.4): links the server and a text channel with the caller's team. Besides the
-// link buttons this is the bot's only interaction (SPEC P0-7). Who may do it is decided in core.
-import { type DomainError, isDomainError, linkTeamChannel } from "@uni-scrims/core";
+// /setup (ARCHITECTURE §6.4): links the server and a text channel with one of the caller's teams.
+// Besides the link buttons this is the bot's only interaction (SPEC P0-7), with suggestions for its
+// team option (SPEC N-17). Who may do it is decided in core.
 import {
+  type DomainError,
+  isDomainError,
+  linkTeamChannel,
+  listCaptainTeamsForDiscordUser,
+} from "@uni-scrims/core";
+import {
+  type AutocompleteInteraction,
   ChannelType,
   type ChatInputCommandInteraction,
   EmbedBuilder,
@@ -22,7 +29,42 @@ export const setupCommand = new SlashCommandBuilder()
       .setDescription("Hier landen Buchungen, Absagen, Reminder und Feedback-Hinweise")
       .addChannelTypes(ChannelType.GuildText)
       .setRequired(true),
+  )
+  // Only needed for captains of several teams (SPEC N-17).
+  .addStringOption((option) =>
+    option
+      .setName("team")
+      .setDescription("Welches Team, wenn du Captain mehrerer Teams bist")
+      .setAutocomplete(true),
   );
+
+/** Discord allows at most 100 characters per suggestion name. */
+const MAX_CHOICE_NAME = 100;
+
+/** Suggestions for the team option: the caller's teams as captain that are not banned. */
+export async function handleSetupAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
+  const teams = await listCaptainTeamsForDiscordUser(
+    interaction.user.id,
+    interaction.options.getFocused(),
+  );
+  await interaction.respond(
+    teams.map((team) => ({ name: team.name.slice(0, MAX_CHOICE_NAME), value: team.id })),
+  );
+}
+
+/**
+ * The option holds a suggested team's ID, or what the user typed without picking a suggestion: then
+ * the team with that name. Anything else goes to core as it is, which refuses it.
+ */
+async function chosenTeamId(discordUserId: string, value: string | null): Promise<string | null> {
+  if (!value) return null;
+  const teams = await listCaptainTeamsForDiscordUser(discordUserId, "");
+  const name = value.trim().toLowerCase();
+  const team =
+    teams.find((candidate) => candidate.id === value) ??
+    teams.find((candidate) => candidate.name.toLowerCase() === name);
+  return team?.id ?? value;
+}
 
 /** What the bot needs in the channel to post embeds. */
 const REQUIRED_PERMISSIONS = [
@@ -66,6 +108,7 @@ export async function handleSetup(
       discordUserId: interaction.user.id,
       guildId: interaction.guildId,
       channelId: channel.id,
+      teamId: await chosenTeamId(interaction.user.id, interaction.options.getString("team")),
     });
   } catch (error) {
     if (isDomainError(error)) return reply(setupErrorText(error, baseUrl));

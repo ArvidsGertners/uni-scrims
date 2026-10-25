@@ -2,7 +2,7 @@
 import "./env.ts";
 import { setTimeout as sleep } from "node:timers/promises";
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
-import { handleSetup, setupCommand } from "./commands/setup.ts";
+import { handleSetup, handleSetupAutocomplete, setupCommand } from "./commands/setup.ts";
 import { createDeliver } from "./outbox/deliver.ts";
 import { runOutboxLoop } from "./outbox/loop.ts";
 import { runSweeperLoop } from "./sweeper/loop.ts";
@@ -54,8 +54,16 @@ client.once(Events.ClientReady, (ready) => {
     .catch((error: unknown) => console.error("Could not register /setup", error));
 });
 
-// /setup is the only interaction; buttons in bot messages are links into the web app.
+// /setup is the only interaction, with suggestions for its team option; buttons in bot messages are
+// links into the web app.
 client.on(Events.InteractionCreate, (interaction) => {
+  if (interaction.isAutocomplete() && interaction.commandName === setupCommand.name) {
+    handleSetupAutocomplete(interaction).catch((error: unknown) => {
+      // Without an answer Discord shows no suggestions; the command itself still works.
+      console.error("/setup suggestions failed", error);
+    });
+    return;
+  }
   if (!interaction.isChatInputCommand() || interaction.commandName !== setupCommand.name) return;
   handleSetup(interaction, baseUrl).catch(async (error: unknown) => {
     console.error("/setup failed", error);
