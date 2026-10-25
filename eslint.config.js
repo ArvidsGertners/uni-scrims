@@ -49,4 +49,62 @@ export default tseslint.config(
     extends: [...nextCoreWebVitals, ...nextTypescript],
     settings: { next: { rootDir: "apps/web" } },
   },
+  // UI text only from the dictionaries (ARCHITECTURE §5.21): no text in JSX besides punctuation and
+  // names, and no strings that look German outside the dictionaries. The data export is German by
+  // design; mails and Discord messages follow in Phase 23.
+  {
+    files: ["apps/web/app/**/*.tsx", "apps/web/components/**/*.tsx"],
+    rules: {
+      "react/jsx-no-literals": [
+        "error",
+        {
+          allowedStrings: [
+            "·",
+            "–",
+            "—",
+            "…",
+            "(",
+            ")",
+            ":",
+            ",",
+            ".",
+            "/",
+            "+",
+            "×",
+            "★",
+            "Ø",
+            "[",
+            "]",
+            "?",
+            "%",
+            "|",
+            "Uni Scrims",
+            "Discord",
+            "Valorant",
+            "Riot Games",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/web/{app,components,lib}/**/*.{ts,tsx}", "packages/core/src/**/*.ts"],
+    ignores: [
+      "apps/web/i18n/**",
+      "packages/core/src/i18n/**",
+      "packages/core/src/account-export.ts",
+      "apps/web/lib/mail.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...["Literal[value=/[äöüÄÖÜß„]/]", "TemplateElement[value.raw=/[äöüÄÖÜß„]/]"].map(
+          (selector) => ({
+            selector,
+            message: "German text belongs in a dictionary (apps/web/i18n, core/src/i18n, §5.21).",
+          }),
+        ),
+      ],
+    },
+  },
 );
