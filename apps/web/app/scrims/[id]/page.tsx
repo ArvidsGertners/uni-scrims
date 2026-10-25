@@ -22,7 +22,8 @@ import { SCRIM_STATUS_LABELS, formatFormat, formatMaps } from "@/lib/scrim-forma
 import { requirePageUser } from "@/lib/session";
 import { cancelScrimAction } from "../actions";
 import { FeedbackForm } from "./feedback-form";
-import { getLocale, getText } from "@/lib/locale";
+import { getLocale, getMessages, getText } from "@/lib/locale";
+import { scrimDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
 import type { Locale } from "@uni-scrims/core/config/locale";
 
 function outcomes(locale: Locale) {
@@ -39,15 +40,17 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   const scrim = await getScrimDetail({ userId: user.id, scrimId: id, now: new Date() });
   const text = await getText();
   const locale = await getLocale();
+  const t = await getMessages(scrimDetailMessages);
+  const shared = await getMessages(scrimSharedMessages);
   if (!scrim) {
     // Played by another own team (SPEC N-17): offer to switch instead of "not found".
     const otherTeam = await getOtherOwnScrimTeam({ userId: user.id, scrimId: id });
     if (!otherTeam) notFound();
     return (
       <PageMain className="gap-7">
-        <BackLink href="/scrims?tab=anstehend">Scrims</BackLink>
+        <BackLink href="/scrims?tab=anstehend">{t.scrims}</BackLink>
         <SwitchTeamHint team={otherTeam} returnTo={`/scrims/${id}`}>
-          Dieser Scrim gehört zu deinem Team {otherTeam.name}.
+          {t.otherOwnTeam(otherTeam.name)}
         </SwitchTeamHint>
       </PageMain>
     );
@@ -59,13 +62,14 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   if (scrim.canGiveFeedback) {
     return (
       <PageMain className="gap-7">
-        <BackLink href="/scrims?tab=vergangen">Scrims</BackLink>
+        <BackLink href="/scrims?tab=vergangen">{t.scrims}</BackLink>
         <div className="flex flex-col gap-2.5">
-          <span className="type-label text-muted-foreground">Feedback · {when}</span>
-          <h1 className="type-h1">Wie war das Scrim gegen {scrim.opponent.name}?</h1>
+          <span className="type-label text-muted-foreground">
+            {t.feedback} · {when}
+          </span>
+          <h1 className="type-h1">{t.feedbackTitle(scrim.opponent.name)}</h1>
           <p className="text-pretty text-muted-foreground">
-            Pro Team eine Antwort, danach nicht mehr änderbar. Möglich bis{" "}
-            {formatDateTime(scrim.feedbackDeadline, locale)}.
+            {t.feedbackIntro(formatDateTime(scrim.feedbackDeadline, locale))}
           </p>
         </div>
         <FeedbackForm
@@ -81,11 +85,11 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   const result = (() => {
     switch (scrim.status) {
       case "CANCELLED":
-        return `Abgesagt ${scrim.cancelledByUs ? "von euch" : "vom Gegner"}${scrim.lateCancel ? " (kurzfristig)" : ""}.`;
+        return t.cancelled(scrim.cancelledByUs, scrim.lateCancel);
       case "NO_SHOW":
-        return `No-Show von ${scrim.noShow === "US" ? scrim.ownTeam.name : scrim.opponent.name}.`;
+        return t.noShow(scrim.noShow === "US" ? scrim.ownTeam.name : scrim.opponent.name);
       case "DISPUTED":
-        return "Streitfall, der Admin entscheidet.";
+        return t.disputed;
       default:
         return null;
     }
@@ -95,13 +99,15 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
     <PageMain width="wide" className="gap-7">
       {/* Upcoming scrims are exactly the cancellable ones (getMyScrims). */}
       <BackLink href={`/scrims?tab=${scrim.cancellable ? "anstehend" : "vergangen"}`}>
-        Scrims
+        {t.scrims}
       </BackLink>
       <div className="flex flex-col gap-2.5">
-        <span className="type-label text-muted-foreground">Scrim · {when}</span>
+        <span className="type-label text-muted-foreground">
+          {t.scrim} · {when}
+        </span>
         {/* The opponent's external links next to its name (SPEC N-15). */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <h1 className="min-w-0 type-h1 break-words">gegen {scrim.opponent.name}</h1>
+          <h1 className="min-w-0 type-h1 break-words">{shared.versus(scrim.opponent.name)}</h1>
           <TeamLinks teamName={scrim.opponent.name} links={scrim.opponent.links} />
         </div>
         <span className="flex flex-wrap items-center gap-2 text-[14px] text-muted-foreground">
@@ -122,27 +128,29 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
           />
 
           <div className="flex flex-col gap-2">
-            <span className="type-label text-muted-foreground">Maps</span>
+            <span className="type-label text-muted-foreground">{shared.maps}</span>
             <p>{formatMaps(scrim.maps, locale)}</p>
             <p className="text-[14px] text-muted-foreground">
-              {scrim.isHost ? "Ihr habt die Anfrage gestellt." : "Ihr habt euch beworben."}
+              {scrim.isHost ? t.youRequested : t.youApplied}
             </p>
           </div>
 
           {scrim.note ? (
             <div className="flex flex-col gap-2">
-              <span className="type-label text-muted-foreground">Notiz zur Anfrage</span>
-              <p className="text-[16px] text-pretty whitespace-pre-line">„{scrim.note}“</p>
+              <span className="type-label text-muted-foreground">{t.requestNote}</span>
+              <p className="text-[16px] text-pretty whitespace-pre-line">
+                {shared.quoted(scrim.note)}
+              </p>
             </div>
           ) : null}
         </div>
         <div className="flex min-w-0 flex-col gap-7">
           <section className="flex flex-col gap-2.5">
-            <h2 className="type-h2">Feedback</h2>
+            <h2 className="type-h2">{t.feedback}</h2>
             {scrim.ownFeedback ? (
               <Alert variant="success">
                 <span>
-                  Feedback gegeben: {FEEDBACK_OUTCOME_LABELS[locale][scrim.ownFeedback.outcome]}
+                  {t.feedbackGiven(FEEDBACK_OUTCOME_LABELS[locale][scrim.ownFeedback.outcome])}
                   {scrim.ownFeedback.rating ? ` · ${"★".repeat(scrim.ownFeedback.rating)}` : ""}
                 </span>
               </Alert>
@@ -155,25 +163,19 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
 
           {scrim.cancellable ? (
             <section className="flex flex-col gap-2.5">
-              <h2 className="type-h2">Scrim absagen</h2>
+              <h2 className="type-h2">{t.cancelScrim}</h2>
               {scrim.canCancel ? (
                 <>
                   <p className="text-[14px] text-pretty text-muted-foreground">
-                    {scrim.cancelWouldBeLate
-                      ? "Weniger als 24 Stunden vor Start: Die Absage zählt als kurzfristig."
-                      : "Möglich bis zum Start. Das andere Team bekommt eine Discord-Nachricht."}
+                    {scrim.cancelWouldBeLate ? t.cancelWouldBeLate : t.cancelPossible}
                   </p>
                   <ActionForm
                     action={cancelScrimAction}
-                    submitLabel="Scrim absagen"
+                    submitLabel={t.cancelScrim}
                     variant="destructive"
                     size="sm"
                     className="mt-1.5 flex flex-col gap-3"
-                    confirmText={
-                      scrim.cancelWouldBeLate
-                        ? "Scrim absagen? Die Absage zählt als kurzfristig."
-                        : "Scrim absagen?"
-                    }
+                    confirmText={scrim.cancelWouldBeLate ? t.confirmLateCancel : t.confirmCancel}
                   >
                     <input type="hidden" name="scrimId" value={scrim.id} />
                     {/* The team the page was shown for (§5.20). */}

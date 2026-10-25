@@ -2,9 +2,11 @@
 
 import type { FeedbackOutcome } from "@uni-scrims/db";
 import { type ReactNode, useActionState, useState } from "react";
+import { useMessages } from "@/components/locale-provider";
 import { ToggleOption } from "@/components/toggle-option";
 import { Button } from "@/components/ui/button";
 import { initialActionState } from "@/lib/action-state";
+import { feedbackFormMessages } from "@/i18n/scrims-client";
 import { submitKeepingValues } from "@/lib/submit-form";
 import { submitFeedbackAction } from "../actions";
 
@@ -42,6 +44,7 @@ function Question({
  * disabled until everything needed is answered.
  */
 export function FeedbackForm({ scrimId, teamId, outcomes, ratings }: Props) {
+  const t = useMessages(feedbackFormMessages);
   const [state, action, pending] = useActionState(submitFeedbackAction, initialActionState);
   const [outcome, setOutcome] = useState<FeedbackOutcome | null>(null);
   const [rating, setRating] = useState<number | null>(null);
@@ -52,7 +55,7 @@ export function FeedbackForm({ scrimId, teamId, outcomes, ratings }: Props) {
       action={action}
       className="flex flex-col gap-7"
       onSubmit={(event) => {
-        if (!window.confirm("Antwort abschicken? Sie lässt sich danach nicht mehr ändern.")) {
+        if (!window.confirm(t.confirm)) {
           event.preventDefault();
           return;
         }
@@ -61,7 +64,7 @@ export function FeedbackForm({ scrimId, teamId, outcomes, ratings }: Props) {
     >
       <input type="hidden" name="scrimId" value={scrimId} />
       <input type="hidden" name="teamId" value={teamId} />
-      <Question number="01" title="Hat das Scrim stattgefunden?">
+      <Question number="01" title={t.tookPlace}>
         <div className="grid gap-2 sm:grid-cols-3">
           {outcomes.map(({ value, label }) => (
             <ToggleOption
@@ -81,7 +84,7 @@ export function FeedbackForm({ scrimId, teamId, outcomes, ratings }: Props) {
         </div>
       </Question>
       {outcome === "PLAYED" ? (
-        <Question number="02" title="Wie bewertet ihr das Team?">
+        <Question number="02" title={t.rating}>
           <div className="grid grid-cols-5 gap-2">
             {ratings.map((value) => (
               <ToggleOption
@@ -99,7 +102,7 @@ export function FeedbackForm({ scrimId, teamId, outcomes, ratings }: Props) {
       ) : null}
       <div className="flex flex-col gap-2">
         <Button type="submit" size="lg" className="w-full" disabled={!ready || pending}>
-          Feedback senden
+          {t.submit}
         </Button>
         {state.error ? (
           <p role="alert" className="text-[14px] text-destructive-text">

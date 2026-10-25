@@ -6,7 +6,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
+import { scrimActionMessages } from "@/i18n/scrims";
 import { setFlash } from "@/lib/flash";
+import { getMessages } from "@/lib/locale";
 import { getSessionUserId } from "@/lib/session";
 
 async function finish(scrimId: string, state: ActionState): Promise<ActionState> {
@@ -65,6 +67,7 @@ export async function submitFeedbackAction(_state: ActionState, formData: FormDa
   );
   if (!state.done) return state;
   // redirect() throws, so it must stay outside runAction.
-  await setFlash("Danke für dein Feedback!");
+  const t = await getMessages(scrimActionMessages);
+  await setFlash(t.feedbackThanks);
   redirect("/scrims?tab=vergangen");
 }

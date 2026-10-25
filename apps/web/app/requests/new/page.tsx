@@ -24,45 +24,54 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { requirePageUser } from "@/lib/session";
 import { createRequestAction } from "../actions";
-import { getLocale, getText } from "@/lib/locale";
+import { getLocale, getMessages, getText } from "@/lib/locale";
+import { newRequestMessages, scrimSharedMessages } from "@/i18n/scrims";
 
 /** Where each reason can be fixed; a ban is final, so it gets no link. */
-const PROBLEM_LINKS: Partial<Record<ProblemKind, { href: string; label: string }>> = {
-  NOT_CAPTAIN: { href: "/team", label: "Wer ist euer Captain?" },
-  CAPTAIN_NOT_VERIFIED: { href: "/verify", label: "Zur Verifizierung" },
-  TEAM_NOT_READY: { href: "/team", label: "Zum Team" },
-  REQUEST_LIMIT: { href: "/scrims?tab=anfragen", label: "Zu euren Anfragen" },
-};
+function problemLinks(
+  t: (typeof newRequestMessages)["de"],
+): Partial<Record<ProblemKind, { href: string; label: string }>> {
+  return {
+    NOT_CAPTAIN: { href: "/team", label: t.problemLinks.notCaptain },
+    CAPTAIN_NOT_VERIFIED: { href: "/verify", label: t.problemLinks.captainNotVerified },
+    TEAM_NOT_READY: { href: "/team", label: t.problemLinks.teamNotReady },
+    REQUEST_LIMIT: { href: "/scrims?tab=anfragen", label: t.problemLinks.requestLimit },
+  };
+}
 
 export default async function NewRequestPage() {
   const user = await requirePageUser("/requests/new");
   const form = await getRequestForm({ userId: user.id, now: new Date() });
   const text = await getText();
+  const t = await getMessages(newRequestMessages);
+  const shared = await getMessages(scrimSharedMessages);
+  const links = problemLinks(t);
 
   return (
     <PageMain className="gap-7">
-      <BackLink href="/scrims">Zurück zum Board</BackLink>
+      <BackLink href="/scrims">{shared.backToBoard}</BackLink>
       <div className="flex flex-col gap-2.5">
-        <h1 className="type-h1">Scrim-Anfrage erstellen</h1>
+        <h1 className="type-h1">{t.title}</h1>
         <p className="text-pretty text-muted-foreground">
-          {form ? `Für ${form.teamName}: ` : null}Deine Anfrage erscheint sofort auf dem Board. Ihr
-          entscheidet, welches Team ihr annehmt.
+          {form ? t.forTeam(form.teamName) : null}
+          {t.intro}
         </p>
       </div>
       {!form ? (
         <Alert>
           <span>
-            Du bist in keinem Team.{" "}
-            <Link href="/team" className="font-semibold underline underline-offset-2">
-              Team gründen oder beitreten
-            </Link>
+            {shared.noTeam((label) => (
+              <Link href="/team" className="font-semibold underline underline-offset-2">
+                {label}
+              </Link>
+            ))}
           </span>
         </Alert>
       ) : form.problems.length > 0 ? (
         // The reasons core's createRequest would reject with (§7), shown before the form.
         <div className="flex flex-col gap-2.5">
           {form.problems.map(({ kind, text: problem }) => {
-            const link = PROBLEM_LINKS[kind];
+            const link = links[kind];
             return (
               <Alert key={kind}>
                 <span>
@@ -96,6 +105,8 @@ async function RequestForm({
   range: { rankMin: Rank; rankMax: Rank };
 }) {
   const locale = await getLocale();
+  const t = await getMessages(newRequestMessages);
+  const shared = await getMessages(scrimSharedMessages);
   const rankOptions = RANKS.map((rank) => ({
     value: rank,
     label: RANK_LABELS[rank],
@@ -104,13 +115,13 @@ async function RequestForm({
   return (
     <ActionForm
       action={createRequestAction}
-      submitLabel="Anfrage veröffentlichen"
+      submitLabel={t.publish}
       size="lg"
       submitClassName="mt-1.5 w-full"
       className="flex flex-col gap-[22px]"
       footer={
         <Link href="/scrims" className={buttonVariants({ variant: "ghost", className: "mt-0.5" })}>
-          Abbrechen
+          {t.cancel}
         </Link>
       }
     >
@@ -118,29 +129,26 @@ async function RequestForm({
       <input type="hidden" name="teamId" value={teamId} />
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Datum">
+          <Field label={shared.date}>
             <DatePicker name="date" required min={toBerlinDateString(new Date())} />
           </Field>
-          <Field label="Uhrzeit">
+          <Field label={shared.time}>
             <Select
               name="time"
               required
               defaultValue="20:00"
-              options={START_TIME_SLOTS.map((slot) => ({ value: slot, label: `${slot} Uhr` }))}
+              options={START_TIME_SLOTS.map((slot) => ({ value: slot, label: t.timeOption(slot) }))}
             />
           </Field>
         </div>
-        <p className="text-[13px] text-pretty text-muted-foreground">
-          Uhrzeiten in deutscher Zeit. Für Starts nach Mitternacht (00:00–01:45) das Datum des
-          Folgetags wählen, z. B. Mittwoch 01:00 für die Nacht von Dienstag auf Mittwoch.
-        </p>
+        <p className="text-[13px] text-pretty text-muted-foreground">{t.timeHint}</p>
       </div>
-      <Field label="Format">
+      <Field label={shared.format}>
         <Select
           name="format"
           required
           defaultValue={null}
-          placeholder="Bitte wählen …"
+          placeholder={t.pleaseChoose}
           options={(Object.keys(SCRIM_FORMAT_LABELS[locale]) as ScrimFormat[]).map((format) => ({
             value: format,
             label: SCRIM_FORMAT_LABELS[locale][format],
@@ -149,7 +157,8 @@ async function RequestForm({
       </Field>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 flex w-full justify-between text-[14px] font-medium">
-          Maps<span className="font-normal text-faint">optional · sonst freie Wahl</span>
+          {shared.maps}
+          <span className="font-normal text-faint">{t.mapsHint}</span>
         </legend>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {MAP_POOL.map((map) => (
@@ -165,19 +174,19 @@ async function RequestForm({
         </div>
       </fieldset>
       <div className="flex flex-col gap-2">
-        <span className="text-[14px] font-medium">Rangbereich</span>
+        <span className="text-[14px] font-medium">{t.rankRange}</span>
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5">
           <Select
             name="rankMin"
-            aria-label="Rang von"
+            aria-label={t.rankFrom}
             required
             defaultValue={range.rankMin}
             options={rankOptions}
           />
-          <span className="text-faint">bis</span>
+          <span className="text-faint">{t.to}</span>
           <Select
             name="rankMax"
-            aria-label="Rang bis"
+            aria-label={t.rankTo}
             required
             defaultValue={range.rankMax}
             options={rankOptions}
@@ -185,11 +194,11 @@ async function RequestForm({
         </div>
       </div>
       <CountedTextarea
-        label="Notiz"
+        label={t.note}
         name="note"
         maxLength={REQUEST_NOTE_MAX}
         rows={3}
-        placeholder="Was sollten andere Teams wissen?"
+        placeholder={t.notePlaceholder}
       />
     </ActionForm>
   );

@@ -12,8 +12,9 @@ import {
   formatReliability,
   formatUniversities,
 } from "@/lib/scrim-format";
-import { getLocale } from "@/lib/locale";
+import { getLocale, getMessages } from "@/lib/locale";
 import { formatMessages } from "@/i18n/format";
+import { requestCardMessages, scrimSharedMessages } from "@/i18n/scrims";
 
 type Props = {
   request: {
@@ -29,15 +30,12 @@ type Props = {
   };
 };
 
-function applicationCountLabel(count: number): string {
-  if (count === 0) return "Noch keine Bewerbungen";
-  return count === 1 ? "1 Bewerbung" : `${count} Bewerbungen`;
-}
-
 /** Board card (design handoff, card A); the whole card links to the request. */
 export async function RequestCard({ request }: Props) {
   const { team } = request;
   const locale = await getLocale();
+  const t = await getMessages(requestCardMessages);
+  const shared = await getMessages(scrimSharedMessages);
   return (
     <Link
       href={`/requests/${request.id}`}
@@ -69,7 +67,8 @@ export async function RequestCard({ request }: Props) {
           </span>
         </div>
         <p className="text-[13px] text-muted-foreground">
-          Teamrang <RankLabel rank={team.rank} /> · {formatReliability(team.reliability, locale)}
+          {shared.teamRank} <RankLabel rank={team.rank} /> ·{" "}
+          {formatReliability(team.reliability, locale)}
         </p>
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3.5">
@@ -78,17 +77,17 @@ export async function RequestCard({ request }: Props) {
           {request.ownApplicationStatus === "PENDING" ? (
             <Badge variant="accent">
               <CheckIcon size={14} strokeWidth={3} />
-              Beworben
+              {t.applied}
             </Badge>
           ) : request.ownApplicationStatus ? (
             <Badge>{formatMessages[locale].applicationStatus[request.ownApplicationStatus]}</Badge>
           ) : null}
           <span className="text-[13px] text-muted-foreground">
-            {applicationCountLabel(request.applicationCount)}
+            {t.applicationCount(request.applicationCount)}
           </span>
         </div>
         <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
-          Ansehen
+          {shared.view}
           <ChevronRightIcon strokeWidth={2.5} />
         </span>
       </div>

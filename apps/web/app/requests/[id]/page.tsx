@@ -32,14 +32,9 @@ import {
   deleteRequestAction,
   withdrawApplicationAction,
 } from "../actions";
-import { getLocale, getText } from "@/lib/locale";
+import { getLocale, getMessages, getText } from "@/lib/locale";
 import { formatMessages } from "@/i18n/format";
-
-const NEXT_STEPS = [
-  "Das Team sieht eure Bewerbung und nimmt ein Team an.",
-  "Bei einer Zusage bekommst du eine Discord-Nachricht.",
-  "Die Lobby klärt ihr direkt auf Discord.",
-];
+import { requestDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
 
 export default async function RequestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,6 +42,8 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const request = await getRequestDetail({ userId: user.id, requestId: id, now: new Date() });
   const text = await getText();
   const locale = await getLocale();
+  const t = await getMessages(requestDetailMessages);
+  const shared = await getMessages(scrimSharedMessages);
   if (!request) notFound();
 
   const { team } = request;
@@ -54,18 +51,18 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const status = request.open
     ? null
     : request.status === "OPEN"
-      ? "Abgelaufen"
+      ? t.expired
       : REQUEST_STATUS_LABELS[locale][request.status];
   const details = [
-    { label: "Datum", value: formatWeekdayDate(request.startsAt, locale) },
-    { label: "Uhrzeit", value: describeStartTime(request.startsAt, locale) },
-    { label: "Format", value: formatFormat(request.format, locale) },
-    { label: "Maps", value: formatMaps(request.maps, locale) },
+    { label: shared.date, value: formatWeekdayDate(request.startsAt, locale) },
+    { label: shared.time, value: describeStartTime(request.startsAt, locale) },
+    { label: shared.format, value: formatFormat(request.format, locale) },
+    { label: shared.maps, value: formatMaps(request.maps, locale) },
     {
-      label: "Rang",
+      label: t.rank,
       value: <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} />,
     },
-    { label: "Teamrang", value: <RankLabel rank={team.rank} /> },
+    { label: shared.teamRank, value: <RankLabel rank={team.rank} /> },
   ];
   const ownApplication = request.ownApplication;
   const hasActions = Boolean(request.apply || ownApplication || request.applications);
@@ -74,14 +71,13 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     <PageMain width="wide" className="gap-7">
       {/* The own requests are in the Anfragen tab, not on the board (SPEC N-9). */}
       {ownRequest ? (
-        <BackLink href="/scrims?tab=anfragen">Zurück zu euren Anfragen</BackLink>
+        <BackLink href="/scrims?tab=anfragen">{t.backToOwnRequests}</BackLink>
       ) : (
-        <BackLink href="/scrims">Zurück zum Board</BackLink>
+        <BackLink href="/scrims">{shared.backToBoard}</BackLink>
       )}
       {request.otherOwnTeam ? (
         <SwitchTeamHint team={request.otherOwnTeam} returnTo={`/requests/${request.id}`}>
-          Diese Anfrage gehört zu deinem Team {request.otherOwnTeam.name}. Die Bewerbungen siehst du
-          als {request.otherOwnTeam.name}.
+          {t.otherOwnTeam(request.otherOwnTeam.name)}
         </SwitchTeamHint>
       ) : null}
 
@@ -128,8 +124,10 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
 
           {request.note ? (
             <div className="flex flex-col gap-2">
-              <span className="type-label text-muted-foreground">Notiz vom Team</span>
-              <p className="text-[16px] text-pretty whitespace-pre-line">„{request.note}“</p>
+              <span className="type-label text-muted-foreground">{t.teamNote}</span>
+              <p className="text-[16px] text-pretty whitespace-pre-line">
+                {shared.quoted(request.note)}
+              </p>
             </div>
           ) : null}
 
@@ -142,7 +140,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                 className: "self-start",
               })}
             >
-              Zum gebuchten Scrim
+              {t.toBookedScrim}
             </Link>
           ) : null}
         </div>
@@ -151,25 +149,25 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             {request.apply ? (
               <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                 <div className="flex flex-col gap-1">
-                  <h2 className="type-h2">Bewerben</h2>
+                  <h2 className="type-h2">{t.apply}</h2>
                   {request.applyAs ? (
                     <span className="text-[14px] text-muted-foreground">
-                      Du bewirbst dich als{" "}
-                      <span className="font-semibold text-foreground">{request.applyAs.name}</span>{" "}
-                      · {request.applyAs.memberCount} Mitglieder
+                      {t.applyingAs(
+                        <span className="font-semibold text-foreground">
+                          {request.applyAs.name}
+                        </span>,
+                        request.applyAs.memberCount,
+                      )}
                     </span>
                   ) : null}
                 </div>
                 {request.outOfRange ? (
-                  <p className="text-[14px] text-pretty text-warning">
-                    Euer Team-Rang liegt außerhalb des gewünschten Bereichs. Ihr könnt euch trotzdem
-                    bewerben, das Team entscheidet.
-                  </p>
+                  <p className="text-[14px] text-pretty text-warning">{t.outOfRange}</p>
                 ) : null}
                 {request.apply.problem === null ? (
                   <ActionForm
                     action={applyAction}
-                    submitLabel="Jetzt bewerben"
+                    submitLabel={t.applyNow}
                     size="lg"
                     submitClassName="w-full"
                     className="flex flex-col gap-4"
@@ -179,11 +177,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     <input type="hidden" name="teamId" value={request.actingTeamId ?? ""} />
                     <input type="hidden" name="teamName" value={team.name} />
                     <CountedTextarea
-                      label={`Nachricht an ${team.name}`}
+                      label={t.messageTo(team.name)}
                       name="message"
                       maxLength={APPLICATION_MESSAGE_MAX}
                       rows={3}
-                      placeholder="z. B. Wir sind Gold 3 bis Platinum 2 und können ab 18:30."
+                      placeholder={t.messagePlaceholder}
                     />
                   </ActionForm>
                 ) : (
@@ -209,36 +207,36 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                   <div className="flex flex-col gap-0.5">
                     <span className="font-semibold">
                       {ownApplication.status === "PENDING"
-                        ? "Bewerbung gesendet"
+                        ? t.applicationSent
                         : ownApplication.status === "ACCEPTED"
-                          ? "Bewerbung angenommen"
+                          ? t.applicationAccepted
                           : ownApplication.status === "REJECTED"
-                            ? "Bewerbung abgelehnt"
-                            : "Bewerbung zurückgezogen"}
+                            ? t.applicationRejected
+                            : t.applicationWithdrawn}
                     </span>
                     <span className="text-[14px] text-pretty text-muted-foreground">
                       {ownApplication.status === "PENDING"
-                        ? `${team.name} sieht jetzt eure Bewerbung. Bei einer Zusage bekommst du eine Discord-Nachricht.`
+                        ? t.sentText(team.name)
                         : ownApplication.status === "ACCEPTED"
-                          ? "Der Scrim ist gebucht. Die Lobby klärt ihr direkt auf Discord."
+                          ? t.acceptedText
                           : ownApplication.status === "REJECTED"
-                            ? "Diese Bewerbung wurde nicht angenommen."
-                            : "Auf diese Anfrage könnt ihr euch nicht erneut bewerben."}
+                            ? t.rejectedText
+                            : t.withdrawnText}
                     </span>
                   </div>
                 </div>
                 {ownApplication.message ? (
                   <p className="text-[14px] whitespace-pre-line text-muted-foreground">
-                    „{ownApplication.message}“
+                    {shared.quoted(ownApplication.message)}
                   </p>
                 ) : null}
                 {request.withdraw?.problem === null ? (
                   <ActionForm
                     action={withdrawApplicationAction}
-                    submitLabel="Bewerbung zurückziehen"
+                    submitLabel={t.withdrawApplication}
                     variant="outline"
                     size="sm"
-                    confirmText="Bewerbung zurückziehen? Ihr könnt euch danach nicht erneut auf diese Anfrage bewerben."
+                    confirmText={t.confirmWithdrawApplication}
                   >
                     <input type="hidden" name="requestId" value={request.id} />
                     <input type="hidden" name="applicationId" value={ownApplication.id} />
@@ -253,9 +251,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
 
             {request.apply || ownApplication?.status === "PENDING" ? (
               <div className="flex flex-col gap-3.5">
-                <span className="type-label text-muted-foreground">So geht&apos;s weiter</span>
+                <span className="type-label text-muted-foreground">{t.nextStepsTitle}</span>
                 <ol className="flex flex-col gap-3.5">
-                  {NEXT_STEPS.map((step, index) => (
+                  {t.nextSteps.map((step, index) => (
                     <li key={step} className="flex items-baseline gap-3.5">
                       <span className="shrink-0 font-label text-[13px] font-bold text-accent-text">
                         {String(index + 1).padStart(2, "0")}
@@ -270,17 +268,16 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             {request.applications ? (
               <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                 <h2 className="type-label text-muted-foreground">
-                  Bewerbungen ({request.applications.length})
+                  {shared.applicationsWithCount(request.applications.length)}
                 </h2>
                 {request.applications.length === 0 ? (
                   <p className="text-[14px] text-pretty text-muted-foreground">
-                    Noch keine Bewerbungen. Du bekommst eine Discord-Nachricht, sobald sich ein Team
-                    bewirbt.
+                    {t.noApplications}
                   </p>
                 ) : null}
                 {request.confirm?.problem ? (
                   <p className="text-[14px] text-pretty text-muted-foreground">
-                    Annehmen geht gerade nicht: {text(request.confirm.problem)}
+                    {t.cannotAccept(text(request.confirm.problem))}
                   </p>
                 ) : null}
                 {request.applications.map((application) => (
@@ -305,7 +302,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       </div>
                       {application.status === "ACCEPTED" ? (
                         <span className="shrink-0 text-[13px] font-semibold text-success">
-                          Angenommen
+                          {t.accepted}
                         </span>
                       ) : application.status !== "PENDING" ? (
                         <span className="shrink-0 text-[13px] text-faint">
@@ -314,15 +311,15 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       ) : null}
                     </div>
                     <p className="text-[13px] text-muted-foreground">
-                      Teamrang <RankLabel rank={application.team.rank} /> ·{" "}
+                      {shared.teamRank} <RankLabel rank={application.team.rank} /> ·{" "}
                       {formatReliability(application.team.reliability, locale)}
                     </p>
                     {application.outOfRange ? (
-                      <p className="text-[13px] text-warning">Teamrang außerhalb des Bereichs</p>
+                      <p className="text-[13px] text-warning">{t.rankOutOfRange}</p>
                     ) : null}
                     {application.message ? (
                       <p className="text-[14px] whitespace-pre-line text-muted-foreground">
-                        „{application.message}“
+                        {shared.quoted(application.message)}
                       </p>
                     ) : null}
                     {application.teamProblem ? (
@@ -333,9 +330,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     {application.canConfirm ? (
                       <ActionForm
                         action={confirmApplicationAction}
-                        submitLabel="Annehmen"
+                        submitLabel={t.accept}
                         size="sm"
-                        confirmText={`Scrim mit ${application.team.name} buchen? Alle anderen Bewerbungen werden abgelehnt.`}
+                        confirmText={t.confirmAccept(application.team.name)}
                       >
                         <input type="hidden" name="requestId" value={request.id} />
                         <input type="hidden" name="applicationId" value={application.id} />
@@ -348,11 +345,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                   request.remove.problem === null ? (
                     <ActionForm
                       action={deleteRequestAction}
-                      submitLabel="Anfrage zurückziehen"
+                      submitLabel={t.withdrawRequest}
                       variant="link"
                       size="bare"
                       submitClassName="min-h-10"
-                      confirmText="Anfrage zurückziehen? Offene Bewerbungen werden abgelehnt."
+                      confirmText={t.confirmWithdrawRequest}
                     >
                       <input type="hidden" name="requestId" value={request.id} />
                     </ActionForm>

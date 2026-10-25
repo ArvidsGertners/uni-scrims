@@ -13,7 +13,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
+import { requestActionMessages } from "@/i18n/scrims";
 import { setFlash } from "@/lib/flash";
+import { getMessages } from "@/lib/locale";
 import { getSessionUserId } from "@/lib/session";
 
 // Shape checks only; the content rules live in core's schemas.
@@ -57,7 +59,8 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
   if (!state.done) return state;
   // redirect() throws, so it must stay outside runAction.
   revalidatePath("/scrims");
-  await setFlash("Anfrage ist jetzt auf dem Board");
+  const t = await getMessages(requestActionMessages);
+  await setFlash(t.requestCreated);
   redirect("/scrims?tab=anfragen");
 }
 
@@ -70,7 +73,8 @@ export async function deleteRequestAction(_state: ActionState, formData: FormDat
   });
   if (!state.done) return state;
   revalidatePath("/scrims");
-  await setFlash("Anfrage zurückgezogen");
+  const t = await getMessages(requestActionMessages);
+  await setFlash(t.requestWithdrawn);
   redirect("/scrims?tab=anfragen");
 }
 
@@ -97,7 +101,8 @@ export async function applyAction(_state: ActionState, formData: FormData) {
     await applyToRequest({ userId, teamId, requestId, message, now: new Date() });
   });
   if (state.done) {
-    await setFlash(teamName ? `Bewerbung an ${teamName} gesendet` : "Bewerbung gesendet");
+    const t = await getMessages(requestActionMessages);
+    await setFlash(t.applicationSent(teamName));
   }
   revalidatePath(`/requests/${requestId}`);
   return state;
@@ -147,6 +152,7 @@ export async function confirmApplicationAction(_state: ActionState, formData: Fo
     return state;
   }
   revalidatePath("/scrims");
-  await setFlash(`${teamName ?? "Team"} angenommen – beide Teams bekommen eine Discord-Nachricht.`);
+  const t = await getMessages(requestActionMessages);
+  await setFlash(t.applicationAccepted(teamName));
   redirect(`/scrims/${scrimId}`);
 }
