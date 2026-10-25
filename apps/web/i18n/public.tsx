@@ -5,14 +5,25 @@ import type { ReactNode } from "react";
 
 type LinkRender = (label: string) => ReactNode;
 
-/** The landing page with its hero (SPEC N-3). */
+/**
+ * The landing page (docs/design_handoff_landing_page, hero B). The board preview uses made-up
+ * teams; their universities are translated, as they are not real ones.
+ */
 export const landingMessages = dictionary(
   {
     eyebrow: "Valorant-Scrims für Hochschulteams",
-    title: "Scrims gegen andere Uni-Teams. Ohne Suchen in zehn Discords.",
+    title: "Scrims gegen andere Uni-Teams.",
+    titleMuted: "Ohne Suchen in zehn Discords.",
     lead: "Postet eure Anfrage aufs Board, bewerbt euch bei anderen Teams und klärt die Lobby direkt auf Discord.",
     studentsOnly: "Nur für eingeschriebene Studierende deutscher Hochschulen.",
+    preview: {
+      south: "Uni Süd",
+      west: "HS West",
+      east: "TU Ost",
+      central: "HS Mitte",
+    },
     howItWorks: "So funktioniert's",
+    stepsTitle: "In drei Schritten zum ersten Scrim.",
     steps: [
       {
         title: "Konto anlegen, Discord verknüpfen",
@@ -20,13 +31,78 @@ export const landingMessages = dictionary(
       },
       {
         title: "Studierendenstatus bestätigen",
-        text: "Lade deine Immatrikulationsbescheinigung hoch. Wir prüfen sie von Hand.",
+        text: "Lade deine Immatrikulationsbescheinigung hoch. Wir prüfen sie von Hand und löschen sie danach.",
       },
       {
         title: "Team bilden, Scrims spielen",
-        text: "Mindestens 5 verifizierte Spieler, höchstens 10 Mitglieder pro Team. Anfragen posten, bewerben und nach dem Match kurz Feedback geben.",
+        text: "Mindestens 5 verifizierte Spieler, höchstens 10 Mitglieder pro Team.",
       },
     ],
+    discord: "Discord",
+    linked: "Verknüpft",
+    certificateFile: "Immatrikulation.pdf",
+    inReview: "In Prüfung",
+    verifiedCount: (count: number) => `${count} verifiziert`,
+    maxCount: (count: number) => `max. ${count}`,
+    features: "Funktionen",
+    featuresTitle: "Alles, was ein Scrim braucht.",
+    board: {
+      title: "Scrim-Board",
+      text: "Offene Anfragen anderer Uni-Teams mit Datum, Startzeit (deutsche Zeit), Format, Maps und Rang-Range.",
+      rankInRange: "Rang im Bereich",
+    },
+    applications: {
+      title: "Anfragen und Bewerbungen",
+      text: "Postet eine Anfrage, andere Teams bewerben sich. Der Captain nimmt ein Team an, alle anderen werden automatisch benachrichtigt.",
+    },
+    bot: {
+      title: "Discord-Bot",
+      text: "DMs und Posts im Discord-Channel eures Teams: Bewerbungen, Zusagen, Absagen, Reminder 24 h und 1 h vorher und die Bitte um Feedback.",
+      newApplication: "Neue Bewerbung",
+      booked: "Bestätigt",
+      reminder: "Reminder",
+      feedback: "Feedback",
+    },
+    reliability: "Verbindlichkeit",
+    reliabilityTitle: "No-Shows werden",
+    reliabilityAccent: "sichtbar.",
+    reliabilityText:
+      "Nach jedem Scrim sagen beide Teams, ob er stattgefunden hat. Am Team stehen gespielte Scrims, No-Shows und kurzfristige Absagen.",
+    played: "Gespielt",
+    noShows: "No-Shows",
+    lateCancels: "Kurzfr. Absagen",
+    sampleNote: "Beispielteam, ausgedachte Werte",
+    faq: "FAQ",
+    faqTitle: "Häufige Fragen",
+    faqMore: (link: LinkRender) => <>Noch was offen? Schreib uns über den {link("Support")}.</>,
+    questions: [
+      {
+        question: "Wer kann mitmachen?",
+        answer:
+          "Alle ab 16, die an einer deutschen Hochschule eingeschrieben sind. Du lädst deine Immatrikulationsbescheinigung hoch, sie wird von Hand geprüft und direkt danach gelöscht.",
+      },
+      {
+        question: "Brauche ich Discord?",
+        answer:
+          "Ja. Du verknüpfst Discord nach der Registrierung. Bewerbungen, Zusagen und Reminder kommen per Discord-DM, auf Wunsch zusätzlich per E-Mail. Die Lobby klärt ihr direkt auf Discord.",
+      },
+      {
+        question: "Ist das kostenlos?",
+        answer:
+          "Ja. Uni Scrims ist ein privates, nicht-kommerzielles Studierendenprojekt: keine Werbung, keine bezahlten Funktionen, kein Tracking.",
+      },
+      {
+        question: "Was passiert, wenn ein Team nicht auftaucht?",
+        answer:
+          "Nach jedem Scrim sagen beide Teams, ob er stattgefunden hat. Am Team stehen gespielte Scrims, No-Shows und kurzfristige Absagen.",
+      },
+      {
+        question: "Können Spieler aus verschiedenen Hochschulen in einem Team sein?",
+        answer:
+          "Ja. Gemischte Teams sind erlaubt, solange alle verifiziert studieren. Mindestens 5 verifizierte Spieler, höchstens 10 Mitglieder pro Team.",
+      },
+    ],
+    ctaTitle: "Euer nächster Scrim wartet schon.",
     bannedNotice: (link: LinkRender) => (
       <>Dein Konto ist gesperrt. Du kannst es unter {link("Einstellungen")} löschen.</>
     ),
@@ -37,10 +113,18 @@ export const landingMessages = dictionary(
   },
   {
     eyebrow: "Valorant scrims for university teams",
-    title: "Scrims against other uni teams. Without searching ten Discords.",
+    title: "Scrims against other uni teams.",
+    titleMuted: "Without searching ten Discords.",
     lead: "Post your request on the board, apply to other teams and sort out the lobby directly on Discord.",
     studentsOnly: "Only for enrolled students of German universities.",
+    preview: {
+      south: "Uni South",
+      west: "UAS West",
+      east: "TU East",
+      central: "UAS Central",
+    },
     howItWorks: "How it works",
+    stepsTitle: "Three steps to your first scrim.",
     steps: [
       {
         title: "Create an account, link Discord",
@@ -48,13 +132,78 @@ export const landingMessages = dictionary(
       },
       {
         title: "Confirm your student status",
-        text: "Upload your enrolment certificate. We review it by hand.",
+        text: "Upload your enrolment certificate. We review it by hand and delete it afterwards.",
       },
       {
         title: "Build a team, play scrims",
-        text: "At least 5 verified players, at most 10 members per team. Post requests, apply and give quick feedback after the match.",
+        text: "At least 5 verified players, at most 10 members per team.",
       },
     ],
+    discord: "Discord",
+    linked: "Linked",
+    certificateFile: "Enrolment.pdf",
+    inReview: "In review",
+    verifiedCount: (count) => `${count} verified`,
+    maxCount: (count) => `max. ${count}`,
+    features: "Features",
+    featuresTitle: "Everything a scrim needs.",
+    board: {
+      title: "Scrim board",
+      text: "Open requests from other uni teams with date, start time (German time), format, maps and rank range.",
+      rankInRange: "Rank in range",
+    },
+    applications: {
+      title: "Requests and applications",
+      text: "Post a request, other teams apply. The captain accepts one team, all others are notified automatically.",
+    },
+    bot: {
+      title: "Discord bot",
+      text: "DMs and posts in your team's Discord channel: applications, confirmations, cancellations, reminders 24 h and 1 h before, and the request for feedback.",
+      newApplication: "New application",
+      booked: "Confirmed",
+      reminder: "Reminder",
+      feedback: "Feedback",
+    },
+    reliability: "Reliability",
+    reliabilityTitle: "No-shows become",
+    reliabilityAccent: "visible.",
+    reliabilityText:
+      "After every scrim, both teams say whether it took place. The team shows played scrims, no-shows and late cancellations.",
+    played: "Played",
+    noShows: "No-shows",
+    lateCancels: "Late cancels",
+    sampleNote: "Example team, made-up numbers",
+    faq: "FAQ",
+    faqTitle: "Frequently asked questions",
+    faqMore: (link) => <>Anything else? Write to us through {link("Support")}.</>,
+    questions: [
+      {
+        question: "Who can join?",
+        answer:
+          "Anyone aged 16 or over who is enrolled at a German university. You upload your enrolment certificate; it is reviewed by hand and deleted right afterwards.",
+      },
+      {
+        question: "Do I need Discord?",
+        answer:
+          "Yes. You link Discord after registering. Applications, confirmations and reminders come as Discord DMs, and by email too if you like. You sort out the lobby directly on Discord.",
+      },
+      {
+        question: "Is it free?",
+        answer:
+          "Yes. Uni Scrims is a private, non-commercial student project: no ads, no paid features, no tracking.",
+      },
+      {
+        question: "What happens if a team doesn't show up?",
+        answer:
+          "After every scrim, both teams say whether it took place. The team shows played scrims, no-shows and late cancellations.",
+      },
+      {
+        question: "Can players from different universities be in one team?",
+        answer:
+          "Yes. Mixed teams are allowed as long as everyone is a verified student. At least 5 verified players, at most 10 members per team.",
+      },
+    ],
+    ctaTitle: "Your next scrim is already waiting.",
     bannedNotice: (link) => (
       <>Your account is banned. You can delete it under {link("Settings")}.</>
     ),

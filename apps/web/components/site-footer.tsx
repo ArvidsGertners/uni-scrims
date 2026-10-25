@@ -14,7 +14,9 @@ export async function SiteFooter() {
       <div
         className={cn(
           "flex flex-wrap justify-between gap-x-6 gap-y-3 px-5 pt-6 pb-8 text-[13px] text-faint sm:px-8",
-          !wide && "mx-auto max-w-3xl",
+          // The landing page is wider (data-landing, §7).
+          !wide &&
+            "mx-auto max-w-3xl [body:has([data-landing])_&]:max-w-[1120px] sm:[body:has([data-landing])_&]:px-5",
         )}
       >
         <div className="flex gap-5">

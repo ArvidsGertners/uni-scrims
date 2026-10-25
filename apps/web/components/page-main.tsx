@@ -5,10 +5,12 @@ import { sharedCookieDomain } from "@/lib/admin-url";
 import { readFlash } from "@/lib/flash";
 
 // Narrow: the 768 px column of the design handoff, centred (forms, signed-out pages). Wide: the
-// same below 1024 px, from there the whole content column next to the sidebar (§5.15).
+// same below 1024 px, from there the whole content column next to the sidebar (§5.15). Full: no
+// column, the page sets its own (the landing page with its full-width backgrounds).
 const WIDTH = {
   narrow: "mx-auto max-w-3xl px-5 sm:px-8",
   wide: "mx-auto max-w-3xl px-5 sm:px-8 lg:mx-0 lg:max-w-none xl:px-10",
+  full: "",
 };
 
 /**

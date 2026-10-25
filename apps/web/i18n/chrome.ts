@@ -16,10 +16,13 @@ export const headerMessages = dictionary(
     admin: "Admin",
     /** From the admin host to the main host. */
     toSite: "Zur Seite",
+    /** Signed out, only on the landing page. */
+    signIn: "Anmelden",
   },
   {
     admin: "Admin",
     toSite: "Go to site",
+    signIn: "Sign in",
   },
 );
 

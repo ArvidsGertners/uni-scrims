@@ -7,6 +7,7 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
 import { headerMessages } from "@/i18n/chrome";
 import { mainUrl } from "@/lib/admin-url";
+import { DEFAULT_AFTER_LOGIN } from "@/lib/callback-url";
 import { siteChrome, siteNav } from "@/lib/header-user";
 import { getMessages } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ export async function SiteHeader() {
   // The navigation is the sidebar from 1024 px and the menu below (§5.15). Signed in, the header is
   // full width with the logo above the sidebar.
   const nav = await siteNav();
+  const t = await getMessages(headerMessages);
 
   return (
     <>
@@ -84,7 +86,9 @@ export async function SiteHeader() {
         <div
           className={cn(
             "flex h-16 items-center justify-between gap-3 px-5 sm:px-8",
-            !user && "mx-auto max-w-3xl",
+            // Signed out the column of the page; the landing page is wider (data-landing, §7).
+            !user &&
+              "mx-auto max-w-3xl [body:has([data-landing])_&]:max-w-[1120px] sm:[body:has([data-landing])_&]:px-5",
           )}
         >
           <Logo href={active ? "/scrims" : "/"} theme={theme} />
@@ -92,6 +96,16 @@ export async function SiteHeader() {
           <div className="flex items-center gap-2">
             <LocaleSwitcher className="h-11" />
             {nav ? <MobileMenu nav={nav} /> : null}
+            {user ? null : (
+              // Only on the landing page, from 375 px (below, the logo needs the room; the hero has
+              // the same link right below).
+              <Link
+                href={`/login?callbackURL=${encodeURIComponent(DEFAULT_AFTER_LOGIN)}`}
+                className="type-btn hidden h-9 items-center rounded-sm border border-border-strong px-3 text-[13px] font-semibold whitespace-nowrap text-muted-foreground hover:border-muted-foreground hover:text-foreground min-[375px]:[body:has([data-landing])_&]:flex"
+              >
+                {t.signIn}
+              </Link>
+            )}
           </div>
         </div>
       </header>
