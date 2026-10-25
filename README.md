@@ -232,7 +232,7 @@ Jeder, der Discord verknüpft, landet automatisch im Hub (§5.1). Damit er dort 
    - Sicherheit: Verifizierungsstufe **niedrig** lassen und **kein Regel-Screening** einschalten, sonst bekommen per `guilds.join` beigetretene Nutzer keine DMs (Punkt 3 unter „Discord-Einrichtung“). Die Community-Funktion von Discord ist nicht nötig.
 8. Die Texte unten in `#willkommen` und `#regeln` posten.
 
-Moderation: Wer im Hub gekickt oder gebannt wird, bekommt keine DMs mehr; die Website zeigt ihm dann den Hinweis zu blockierten DMs. Für Sperren auf der Plattform gibt es den Admin-Bereich.
+Moderation: Ein Kick hält nur bis zur nächsten Anmeldung über Discord, denn dabei tritt das Konto dem Hub wieder bei (§5.1). Dauerhaft wirkt nur ein Bann im Hub; dann bekommt die Person keine DMs mehr, und die Website zeigt ihr den Hinweis zum gescheiterten Beitritt. Für Sperren auf der Plattform gibt es den Admin-Bereich.
 
 **`#willkommen`**
 

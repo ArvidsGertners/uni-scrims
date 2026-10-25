@@ -54,7 +54,7 @@ export const accountMailMessages = dictionary(de, {
       "address, you can ignore this email.",
     preheader:
       "One click and your address for Uni Scrims is confirmed. The link is valid for 24 hours.",
-    lead: "please confirm your email address for Uni Scrims with this link.",
+    lead: "Please confirm your email address for Uni Scrims with this link.",
     button: "Confirm email address",
     validity: "Link valid for 24 hours",
     ignore:
@@ -68,7 +68,7 @@ export const accountMailMessages = dictionary(de, {
       "didn't request this, ignore this email; your password stays as it is.",
     preheader: "Use this link to set a new password. The link is valid for 1 hour.",
     lead:
-      "use this link to set a new password for Uni Scrims. Afterwards you'll be signed out on " +
+      "Use this link to set a new password for Uni Scrims. Afterwards you'll be signed out on " +
       "all devices.",
     button: "Set new password",
     validity: "Link valid for 1 hour",

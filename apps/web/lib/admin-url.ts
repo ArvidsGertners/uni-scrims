@@ -4,9 +4,9 @@
 
 type AdminPath = `/${string}`;
 
-/** The main host from BETTER_AUTH_URL, e.g. for absolute links in mails. */
+/** The main host from BETTER_AUTH_URL (unset or empty: local), e.g. for absolute links in mails. */
 export function mainBaseURL(): URL {
-  return new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000");
+  return new URL(process.env.BETTER_AUTH_URL || "http://localhost:3000");
 }
 
 /** The admin origin, or null without ADMIN_URL; throws if it is no subdomain of BETTER_AUTH_URL. */

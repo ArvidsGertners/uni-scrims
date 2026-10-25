@@ -14,6 +14,9 @@ const ESCAPES: Record<string, string> = {
   "'": "&#39;",
 };
 
+// After the preheader, so inbox previews don't go on with the heading (the subject once more).
+const PREHEADER_FILL = "&zwnj;&nbsp;".repeat(90);
+
 /** Every value goes into the template escaped, the link above all. */
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ESCAPES[char]!);
@@ -70,7 +73,7 @@ export function accountMailHtml(parts: AccountMailParts): string {
 </style>
 </head>
 <body style="margin:0;padding:0;background-color:#0E1116;">
-<span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;max-height:0;max-width:0;overflow:hidden;mso-hide:all;">${e.preheader}</span>
+<span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;max-height:0;max-width:0;overflow:hidden;mso-hide:all;">${e.preheader}${PREHEADER_FILL}</span>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#0E1116" style="background-color:#0E1116;">
 <tr><td align="center" style="padding:40px 12px;">
 <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"><tr><td><![endif]-->
