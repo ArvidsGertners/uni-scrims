@@ -3,6 +3,8 @@
 import type { ThemePreference } from "@uni-scrims/db";
 import { cn } from "cn";
 import { useActionState } from "react";
+import { useMessages } from "@/components/locale-provider";
+import { themeFormMessages } from "@/i18n/account-client";
 import { initialActionState } from "@/lib/action-state";
 import { setThemeAction } from "./actions";
 
@@ -18,11 +20,12 @@ export function ThemeForm({
   options: { value: ThemePreference; label: string }[];
 }) {
   const [state, formAction, pending] = useActionState(setThemeAction, initialActionState);
+  const t = useMessages(themeFormMessages);
   return (
     <form action={formAction} className="flex flex-col gap-2">
       <div
         role="group"
-        aria-label="Design"
+        aria-label={t.label}
         className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-background p-1"
       >
         {options.map((option) => (

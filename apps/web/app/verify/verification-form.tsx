@@ -1,13 +1,16 @@
 "use client";
 
+import { INTL_LOCALES, type Locale } from "@uni-scrims/core/config/locale";
 import { MAX_UPLOAD_BYTES } from "@uni-scrims/core/config/uploads";
 import { cn } from "cn";
 import { useActionState, useRef, useState } from "react";
 import { CheckIcon, FileIcon, ShieldCheckIcon, UploadIcon } from "@/components/icons";
+import { useLocale, useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { verificationFormMessages } from "@/i18n/account-client";
 import { initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
 import { submitVerificationAction } from "./actions";
@@ -15,10 +18,10 @@ import { OTHER_UNIVERSITY } from "./constants";
 
 type University = { id: string; name: string; city: string };
 
-function formatSize(bytes: number): string {
+function formatSize(bytes: number, locale: Locale): string {
   return bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
-    : `${(bytes / 1024 / 1024).toLocaleString("de-DE", { maximumFractionDigits: 1 })} MB`;
+    : `${(bytes / 1024 / 1024).toLocaleString(INTL_LOCALES[locale], { maximumFractionDigits: 1 })} MB`;
 }
 
 /** Upload screen of the design handoff: university, drop zone, hints, privacy note (SPEC P0-2). */
@@ -31,6 +34,8 @@ export function VerificationForm({
   checks: string[];
 }) {
   const [state, action, pending] = useActionState(submitVerificationAction, initialActionState);
+  const locale = useLocale();
+  const t = useMessages(verificationFormMessages);
   const [university, setUniversity] = useState<string | null>(null);
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -53,7 +58,7 @@ export function VerificationForm({
         const picked = new FormData(event.currentTarget).get("file");
         if (picked instanceof File && picked.size > MAX_UPLOAD_BYTES) {
           event.preventDefault();
-          setSizeError("Die Datei ist größer als 5 MB.");
+          setSizeError(t.fileTooLarge);
           return;
         }
         setSizeError(null);
@@ -62,21 +67,21 @@ export function VerificationForm({
       }}
     >
       <div className="flex flex-col gap-4">
-        <Field label="Hochschule">
+        <Field label={t.university}>
           <Select
             name="university"
             required
             value={university}
             onValueChange={setUniversity}
-            placeholder="Bitte wählen …"
+            placeholder={t.choose}
             options={[
               ...universities.map((uni) => ({ value: uni.id, label: `${uni.name} (${uni.city})` })),
-              { value: OTHER_UNIVERSITY, label: "Andere Hochschule …" },
+              { value: OTHER_UNIVERSITY, label: t.otherUniversity },
             ]}
           />
         </Field>
         {university === OTHER_UNIVERSITY ? (
-          <Field label="Name und Ort deiner Hochschule">
+          <Field label={t.otherUniversityName}>
             <Input name="universityOther" required maxLength={200} />
           </Field>
         ) : null}
@@ -100,7 +105,9 @@ export function VerificationForm({
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[14px] font-semibold">{file.name}</span>
-            <span className="text-[13px] text-muted-foreground">{formatSize(file.size)}</span>
+            <span className="text-[13px] text-muted-foreground">
+              {formatSize(file.size, locale)}
+            </span>
           </div>
           <Button
             variant="ghost"
@@ -111,7 +118,7 @@ export function VerificationForm({
               pick(null);
             }}
           >
-            Entfernen
+            {t.remove}
           </Button>
         </div>
       ) : (
@@ -138,13 +145,13 @@ export function VerificationForm({
           <span className="flex size-[52px] items-center justify-center rounded-lg bg-accent-soft text-accent-text">
             <UploadIcon size={24} />
           </span>
-          <span className="text-[16px] font-semibold">Datei auswählen</span>
-          <span className="text-[13px] text-faint">PDF, JPG oder PNG · max. 5 MB</span>
+          <span className="text-[16px] font-semibold">{t.chooseFile}</span>
+          <span className="text-[13px] text-faint">{t.fileTypes}</span>
         </label>
       )}
 
       <div className="flex flex-col gap-2.5">
-        <span className="type-label text-muted-foreground">Darauf achten wir</span>
+        <span className="type-label text-muted-foreground">{t.checksTitle}</span>
         {checks.map((check) => (
           <span key={check} className="flex items-center gap-2.5 text-[15px]">
             <CheckIcon strokeWidth={3} className="text-success" />
@@ -157,13 +164,8 @@ export function VerificationForm({
         <ShieldCheckIcon size={20} className="text-success" />
         <div className="flex flex-col gap-2.5">
           <div className="flex flex-col gap-0.5">
-            <span className="text-[14px] font-semibold">Was mit deinem Dokument passiert</span>
-            <span className="text-[14px] text-pretty text-muted-foreground">
-              Wir nutzen deine Bescheinigung nur, um zu prüfen, ob du studierst. Die Datei sehen nur
-              Admins. Sie wird direkt nach der Prüfung gelöscht, spätestens nach 14 Tagen. Danach
-              speichern wir nur Status, Hochschule, Dateityp, Dateigröße, einen Ablehnungsgrund, die
-              Zeitpunkte und wer geprüft hat.
-            </span>
+            <span className="text-[14px] font-semibold">{t.privacyTitle}</span>
+            <span className="text-[14px] text-pretty text-muted-foreground">{t.privacyText}</span>
           </div>
           <label className="flex items-start gap-2.5 text-[14px]">
             <input
@@ -172,14 +174,14 @@ export function VerificationForm({
               required
               className="mt-0.5 size-4 accent-primary"
             />
-            Ich habe diese Hinweise gelesen.
+            {t.consent}
           </label>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
         <Button type="submit" size="lg" className="w-full" disabled={!file || pending}>
-          {pending ? "Wird hochgeladen …" : "Zur Prüfung einreichen"}
+          {pending ? t.uploading : t.submit}
         </Button>
         {error ? (
           <p role="alert" className="text-[14px] text-destructive-text">

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { type ActionState, runAction } from "@/lib/action";
 import { getSessionUserId } from "@/lib/session";
+import { getMessages } from "@/lib/locale";
+import { verifyActionMessages } from "@/i18n/account";
 import { OTHER_UNIVERSITY } from "./constants";
 
 const schema = z.object({
@@ -27,9 +29,7 @@ export async function submitVerificationAction(
     file: formData.get("file"),
   });
   if (!parsed.success) {
-    return {
-      error: "Bitte wähle deine Hochschule, lade eine Datei hoch und bestätige den Hinweis.",
-    };
+    return { error: (await getMessages(verifyActionMessages)).invalidForm };
   }
   const { university, universityOther, file } = parsed.data;
   const other = university === OTHER_UNIVERSITY;

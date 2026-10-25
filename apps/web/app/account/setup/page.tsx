@@ -7,16 +7,16 @@ import { DiscordButton } from "@/components/discord-button";
 import { PageMain } from "@/components/page-main";
 import { Alert } from "@/components/ui/alert";
 import { safeCallbackURL } from "@/lib/callback-url";
+import { setupPageMessages } from "@/i18n/account";
+import { getMessages } from "@/lib/locale";
 import { requirePageAccountUser, setupUrl } from "@/lib/session";
 import { completeAccountAction, resendVerificationAction } from "./actions";
 
 const cardClass = "flex flex-col gap-[18px] rounded-lg border border-border bg-card p-5";
 
 /** Errors the Discord link sends back as ?error= (ARCHITECTURE §5.8). */
-function linkError(code: string): string {
-  return code.includes("already_linked")
-    ? "Dieses Discord-Konto gehört schon zu einem anderen Uni-Scrims-Konto."
-    : "Das Verknüpfen hat nicht geklappt. Bitte versuch es erneut.";
+function linkError(code: string, t: { discordAlreadyLinked: string; discordLinkFailed: string }) {
+  return code.includes("already_linked") ? t.discordAlreadyLinked : t.discordLinkFailed;
 }
 
 /** What an account still lacks, one step at a time (SPEC N-3, ARCHITECTURE §5.8). */
@@ -31,29 +31,23 @@ export default async function AccountSetupPage({
   if (user.bannedAt) redirect("/account");
   const account = await getAccount(user.id);
   if (!account.setupStep) redirect(callbackURL);
+  const t = await getMessages(setupPageMessages);
 
   return (
     <PageMain className="gap-7">
       {account.setupStep === "COMPLETE_ACCOUNT" ? (
         <>
           <div className="flex flex-col gap-2.5">
-            <h1 className="type-h1">Konto vervollständigen</h1>
-            <p className="text-pretty text-muted-foreground">
-              Ab jetzt meldest du dich mit E-Mail und Passwort an; Discord bleibt verknüpft. Deinen
-              Namen vergleichen unsere Prüfer mit deiner Immatrikulationsbescheinigung, deshalb so
-              wie dort. Teams und Gegner sehen weiter nur deinen Discord-Namen.
-            </p>
+            <h1 className="type-h1">{t.completeTitle}</h1>
+            <p className="text-pretty text-muted-foreground">{t.completeText}</p>
           </div>
           <Alert>
-            <span>
-              Deine bisherige Verifizierung gilt danach nicht mehr: Lade deine Bescheinigung bitte
-              neu hoch, damit wir sie mit deinem Namen abgleichen können.
-            </span>
+            <span>{t.completeNotice}</span>
           </Alert>
           <section className={cardClass}>
             <ActionForm
               action={completeAccountAction}
-              submitLabel="Speichern und Link schicken"
+              submitLabel={t.completeSubmit}
               size="lg"
               submitClassName="w-full"
               className="flex flex-col gap-[18px]"
@@ -68,20 +62,19 @@ export default async function AccountSetupPage({
       ) : account.setupStep === "VERIFY_EMAIL" ? (
         <>
           <div className="flex flex-col gap-2.5">
-            <h1 className="type-h1">Bestätige deine E-Mail-Adresse</h1>
+            <h1 className="type-h1">{t.verifyEmailTitle}</h1>
             <p className="text-pretty text-muted-foreground">
-              Wir haben dir einen Link an {account.email} geschickt. Er ist 24 Stunden gültig. Keine
-              Mail bekommen? Schau im Spam-Ordner nach.
+              {t.verifyEmailText(account.email ?? "")}
             </p>
           </div>
           {typeof params.error === "string" ? (
             <Alert>
-              <span>Der Link ist ungültig oder abgelaufen. Lass dir einen neuen schicken.</span>
+              <span>{t.verifyEmailLinkInvalid}</span>
             </Alert>
           ) : null}
           <ActionForm
             action={resendVerificationAction}
-            submitLabel="Link noch einmal schicken"
+            submitLabel={t.resendLink}
             variant="outline"
             size="sm"
           >
@@ -91,16 +84,12 @@ export default async function AccountSetupPage({
       ) : (
         <>
           <div className="flex flex-col gap-2.5">
-            <h1 className="type-h1">Discord verknüpfen</h1>
-            <p className="text-pretty text-muted-foreground">
-              Über Discord bekommst du Bewerbungen, Zusagen und Reminder, und gegnerische Captains
-              finden dich dort. Dabei wirst du automatisch dem Uni-Scrims-Discord-Server
-              hinzugefügt; nur so kann unser Bot dir Nachrichten schicken.
-            </p>
+            <h1 className="type-h1">{t.discordTitle}</h1>
+            <p className="text-pretty text-muted-foreground">{t.discordText}</p>
           </div>
           {typeof params.error === "string" ? (
             <Alert>
-              <span>{linkError(params.error)}</span>
+              <span>{linkError(params.error, t)}</span>
             </Alert>
           ) : null}
           <DiscordButton
@@ -108,16 +97,16 @@ export default async function AccountSetupPage({
             callbackURL={callbackURL}
             errorCallbackURL={setupUrl(callbackURL)}
           >
-            Discord verknüpfen
+            {t.linkDiscord}
           </DiscordButton>
         </>
       )}
       <p className="text-[14px] text-muted-foreground">
-        Abmelden geht über das Konto-Menü, dein Konto löschen unter{" "}
-        <Link href="/account" className="text-foreground underline underline-offset-2">
-          Einstellungen
-        </Link>
-        .
+        {t.signOutOrDelete((label) => (
+          <Link href="/account" className="text-foreground underline underline-offset-2">
+            {label}
+          </Link>
+        ))}
       </p>
     </PageMain>
   );

@@ -2,7 +2,9 @@
 
 import type { NotifType } from "@uni-scrims/db";
 import { useActionState } from "react";
+import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { notificationFormMessages } from "@/i18n/account-client";
 import { initialActionState } from "@/lib/action-state";
 import { type NotificationChannelField, notificationFieldName } from "@/lib/notification-form";
 import { submitKeepingValues } from "@/lib/submit-form";
@@ -21,10 +23,7 @@ export type NotificationFormCategory = {
   }[];
 };
 
-const CHANNELS: { field: NotificationChannelField; label: string }[] = [
-  { field: "discord", label: "Discord" },
-  { field: "email", label: "E-Mail" },
-];
+const CHANNELS: NotificationChannelField[] = ["discord", "email"];
 
 /** One card per category, a Discord and a mail box per type (SPEC N-14); works without JavaScript. */
 export function NotificationForm({
@@ -36,6 +35,7 @@ export function NotificationForm({
   isCaptain: boolean;
 }) {
   const [state, formAction, pending] = useActionState(saveNotificationsAction, initialActionState);
+  const t = useMessages(notificationFormMessages);
   return (
     <form
       action={formAction}
@@ -57,8 +57,8 @@ export function NotificationForm({
             >
               <span className="type-label text-muted-foreground">{category.title}</span>
               {CHANNELS.map((channel) => (
-                <span key={channel.field} className="text-center text-[12px] text-muted-foreground">
-                  {channel.label}
+                <span key={channel} className="text-center text-[12px] text-muted-foreground">
+                  {t.channels[channel]}
                 </span>
               ))}
             </div>
@@ -74,12 +74,12 @@ export function NotificationForm({
                   ) : null}
                 </span>
                 {CHANNELS.map((channel) => (
-                  <label key={channel.field} className="flex min-h-11 items-center justify-center">
+                  <label key={channel} className="flex min-h-11 items-center justify-center">
                     <input
                       type="checkbox"
-                      name={notificationFieldName(channel.field, item.type)}
-                      defaultChecked={item[channel.field]}
-                      aria-label={`${item.label} per ${channel.label}`}
+                      name={notificationFieldName(channel, item.type)}
+                      defaultChecked={item[channel]}
+                      aria-label={t.checkbox(item.label, t.channels[channel])}
                       className="size-5 cursor-pointer accent-primary"
                     />
                   </label>
@@ -91,7 +91,7 @@ export function NotificationForm({
       </div>
       <div className="flex flex-col gap-2">
         <Button type="submit" disabled={pending} className="self-start px-6">
-          Speichern
+          {t.save}
         </Button>
         {state.error ? (
           <p role="alert" className="text-[14px] text-destructive-text">

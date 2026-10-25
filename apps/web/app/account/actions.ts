@@ -23,6 +23,8 @@ import { setFlash } from "@/lib/flash";
 import { parseNotificationForm } from "@/lib/notification-form";
 import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
+import { getMessages } from "@/lib/locale";
+import { accountActionMessages } from "@/i18n/account";
 
 export async function deleteAccountAction(
   _state: ActionState,
@@ -30,7 +32,7 @@ export async function deleteAccountAction(
 ): Promise<ActionState> {
   const userId = (await getSessionUserId()) ?? "";
   if (formField(formData, "confirm") !== "on") {
-    return { error: "Bitte bestätige, dass du dein Konto löschen willst." };
+    return { error: (await getMessages(accountActionMessages)).confirmDeletion };
   }
   const state = await runAction(async () => {
     await deleteAccount({ userId, uploadDir: resolveUploadDir(), now: new Date() });
@@ -65,7 +67,7 @@ export async function setPlayerRankAction(
     await setPlayerRank({ userId, rank: value === "NONE" ? "" : value });
   });
   if (state.error) return state;
-  await setFlash("Rang gespeichert");
+  await setFlash((await getMessages(accountActionMessages)).rankSaved);
   // The team rank shows on the team page and the cards of other teams.
   revalidatePath("/", "layout");
   return state;
@@ -86,7 +88,7 @@ export async function saveNotificationsAction(
     });
   });
   if (state.error) return state;
-  await setFlash("Benachrichtigungen gespeichert");
+  await setFlash((await getMessages(accountActionMessages)).notificationsSaved);
   // The layout too: switching Discord off everywhere can take the DM banner away (§5.1).
   revalidatePath("/", "layout");
   return state;
@@ -106,7 +108,7 @@ export async function updateRealNameAction(
     });
   });
   if (state.error) return state;
-  await setFlash("Name gespeichert");
+  await setFlash((await getMessages(accountActionMessages)).nameSaved);
   revalidatePath("/account");
   return state;
 }
@@ -128,7 +130,7 @@ export async function changeEmailAction(
     });
   });
   if (state.error) return state;
-  await setFlash("Wir haben dir einen Link an die neue Adresse geschickt");
+  await setFlash((await getMessages(accountActionMessages)).emailLinkSent);
   revalidatePath("/account");
   return state;
 }
@@ -154,7 +156,7 @@ export async function changePasswordAction(
     });
   });
   if (state.error) return state;
-  await setFlash("Passwort geändert");
+  await setFlash((await getMessages(accountActionMessages)).passwordChanged);
   revalidatePath("/account");
   return state;
 }
@@ -173,7 +175,7 @@ export async function handOverCaptainAction(
     });
   });
   if (state.error) return state;
-  await setFlash("Captain-Rolle übertragen");
+  await setFlash((await getMessages(accountActionMessages)).captainHandedOver);
   revalidatePath("/account");
   return state;
 }

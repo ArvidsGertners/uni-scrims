@@ -7,6 +7,8 @@ import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { safeCallbackURL } from "@/lib/callback-url";
 import { setFlash } from "@/lib/flash";
+import { setupActionMessages } from "@/i18n/account";
+import { getMessages } from "@/lib/locale";
 import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId, setupUrl } from "@/lib/session";
 
@@ -58,6 +60,6 @@ export async function resendVerificationAction(
     });
   });
   if (state.error) return state;
-  await setFlash("Wir haben dir den Link noch einmal geschickt");
+  await setFlash((await getMessages(setupActionMessages)).linkSentAgain);
   redirect(setupUrl(callbackURL));
 }

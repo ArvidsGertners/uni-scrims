@@ -1,4 +1,4 @@
-import { RANKS, RANK_LABELS, THEME_LABELS, getAccount } from "@uni-scrims/core";
+import { RANKS, RANK_LABELS, THEME_LABELS, getAccount, userDisplayName } from "@uni-scrims/core";
 import { ThemePreference } from "@uni-scrims/db";
 import { cn } from "cn";
 import Link from "next/link";
@@ -28,8 +28,9 @@ import { switchTeamAction } from "../team/actions";
 import { AccountTabs } from "./account-tabs";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 import { ThemeForm } from "./theme-form";
-import { getLocale, getText } from "@/lib/locale";
+import { getLocale, getMessages, getText } from "@/lib/locale";
 import type { Locale } from "@uni-scrims/core/config/locale";
+import { accountPageMessages } from "@/i18n/account";
 
 const cardClass = "flex flex-col gap-4 rounded-lg border border-border bg-card p-5";
 
@@ -42,36 +43,24 @@ function themeOptions(locale: Locale) {
 
 /** The select needs a value for "none"; the action sends it to core as empty. */
 const NO_RANK = "NONE";
-const RANK_OPTIONS = [
-  { value: NO_RANK, label: "Kein Rang", icon: <RankIcon rank={null} /> },
-  ...RANKS.map((rank) => ({
-    value: rank,
-    label: RANK_LABELS[rank],
-    icon: <RankIcon rank={rank} />,
-  })),
-];
+function rankOptions(noRank: string) {
+  return [
+    { value: NO_RANK, label: noRank, icon: <RankIcon rank={null} /> },
+    ...RANKS.map((rank) => ({
+      value: rank,
+      label: RANK_LABELS[rank],
+      icon: <RankIcon rank={rank} />,
+    })),
+  ];
+}
 
-// The verification belongs to Konto (SPEC N-9): status here, the upload on /verify.
-const VERIFICATION_LABELS = {
-  VERIFIED: { label: "Verifiziert", className: "text-success", action: "Details", primary: false },
-  PENDING: {
-    label: "In Prüfung",
-    className: "text-warning",
-    action: "Status ansehen",
-    primary: false,
-  },
-  REJECTED: {
-    label: "Abgelehnt",
-    className: "text-destructive-text",
-    action: "Bescheinigung hochladen",
-    primary: true,
-  },
-  NONE: {
-    label: "Nicht verifiziert",
-    className: "text-warning",
-    action: "Bescheinigung hochladen",
-    primary: true,
-  },
+// The verification belongs to Konto (SPEC N-9): status here, the upload on /verify. The texts are
+// in the dictionary.
+const VERIFICATION_STYLES = {
+  VERIFIED: { className: "text-success", primary: false },
+  PENDING: { className: "text-warning", primary: false },
+  REJECTED: { className: "text-destructive-text", primary: true },
+  NONE: { className: "text-warning", primary: true },
 } as const;
 
 export default async function AccountPage({
@@ -85,21 +74,23 @@ export default async function AccountPage({
   const account = await getAccount(user.id);
   const text = await getText();
   const locale = await getLocale();
-  const verification = VERIFICATION_LABELS[account.verification.status];
+  const t = await getMessages(accountPageMessages);
+  const verification = {
+    ...VERIFICATION_STYLES[account.verification.status],
+    ...t.verification[account.verification.status],
+  };
+  // The placeholder of a new account is stored in German (§5.21).
+  const name = userDisplayName(account.name, locale);
 
   const consequences = [
-    "Gelöscht werden dein Name, deine E-Mail-Adresse, dein Passwort und dein Avatar, deine Verifizierung samt Prüfungen und Dateien, Nachrichten an dich und deine Anmeldungen.",
-    account.banned
-      ? "Deine Discord-ID bleibt mit der Sperre gespeichert, damit sie bei einer neuen Anmeldung weiter gilt."
-      : "Die Verknüpfung mit deinem Discord-Konto wird gelöscht.",
+    t.consequences.deleted,
+    account.banned ? t.consequences.discordIdKept : t.consequences.discordUnlinked,
     // Every own team (SPEC N-17): a captain's team is dissolved, the others are left.
     ...account.teams.map((team) =>
-      team.isCaptain
-        ? `Dein Team ${team.name} wird aufgelöst.`
-        : `Du verlässt dein Team ${team.name}.`,
+      team.isCaptain ? t.consequences.teamDissolved(team.name) : t.consequences.teamLeft(team.name),
     ),
-    "Vergangene Scrims bleiben anonymisiert für die Team-Statistik.",
-    "Vom Uni-Scrims-Discord-Server wirst du nicht entfernt. Den kannst du selbst verlassen.",
+    t.consequences.pastScrims,
+    t.consequences.hubServer,
   ];
 
   return (
@@ -107,22 +98,23 @@ export default async function AccountPage({
       {/* min-h-11: the same height as on /verify, so the tabs do not jump (SPEC N-11). Logging out
           is in the account menu since Phase 17 (SPEC N-13). */}
       <div className="flex min-h-11 items-center">
-        <h1 className="type-h1">Einstellungen</h1>
+        <h1 className="type-h1">{t.title}</h1>
       </div>
       {account.banned || account.setupStep ? null : (
         <AccountTabs current="/account" unverified={account.verification.status !== "VERIFIED"} />
       )}
       {account.banned ? (
         <Alert>
-          <span>Dein Konto ist gesperrt. Löschen kannst du es trotzdem.</span>
+          <span>{t.bannedNotice}</span>
         </Alert>
       ) : account.setupStep ? (
         <Alert>
           <span>
-            Dein Konto ist noch nicht fertig eingerichtet.{" "}
-            <Link href={setupUrl("/team")} className="font-semibold underline underline-offset-2">
-              Weiter
-            </Link>
+            {t.setupIncomplete((label) => (
+              <Link href={setupUrl("/team")} className="font-semibold underline underline-offset-2">
+                {label}
+              </Link>
+            ))}
           </span>
         </Alert>
       ) : null}
@@ -130,13 +122,13 @@ export default async function AccountPage({
         <Alert>
           <span>
             {error.includes("already_linked") || error.includes("unable_to_link")
-              ? "Das Discord-Konto ließ sich nicht verbinden. Verbinde das Discord-Konto, das schon mit Uni Scrims verknüpft ist."
-              : "Der Link ist ungültig oder abgelaufen. Bitte versuch es erneut."}
+              ? t.discordLinkFailed
+              : t.linkInvalid}
           </span>
         </Alert>
       ) : emailConfirmed === "bestaetigt" ? (
         <Alert variant="success">
-          <span>Deine E-Mail-Adresse ist bestätigt.</span>
+          <span>{t.emailConfirmed}</span>
         </Alert>
       ) : null}
 
@@ -150,43 +142,36 @@ export default async function AccountPage({
       >
         {/* SPEC N-13: for every signed-in account, banned and incomplete ones included. */}
         <section className={`${cardClass} lg:col-start-1`}>
-          <h2 className="type-label text-muted-foreground">Grundeinstellungen</h2>
+          <h2 className="type-label text-muted-foreground">{t.basics}</h2>
           <div className="flex max-w-xl flex-col gap-2">
-            <span className="text-[14px] font-medium">Profil-ID</span>
+            <span className="text-[14px] font-medium">{t.profileId}</span>
             <CopyValue value={user.id} />
-            <p className="text-[13px] text-muted-foreground">
-              Nenn sie uns, wenn du dich beim Support meldest. Ändern lässt sie sich nicht.
-            </p>
+            <p className="text-[13px] text-muted-foreground">{t.profileIdHint}</p>
           </div>
           <div className="flex max-w-xl flex-col gap-2 border-t border-border pt-4">
-            <span className="text-[14px] font-medium">Design</span>
+            <span className="text-[14px] font-medium">{t.theme}</span>
             <ThemeForm current={user.theme} options={themeOptions(locale)} />
-            <p className="text-[13px] text-muted-foreground">
-              „System“ folgt der Einstellung deines Geräts. Deine Wahl gilt auf allen Geräten.
-            </p>
+            <p className="text-[13px] text-muted-foreground">{t.themeHint}</p>
           </div>
           {/* Only active, complete accounts set a rank: it only counts in a team (SPEC N-16). */}
           {account.banned || account.setupStep ? null : (
             <div className="flex max-w-xl flex-col gap-2 border-t border-border pt-4">
               <ActionForm
                 action={setPlayerRankAction}
-                submitLabel="Rang speichern"
+                submitLabel={t.saveRank}
                 variant="outline"
                 size="sm"
                 className="flex flex-col gap-3"
               >
-                <Field label="Dein Rang">
+                <Field label={t.yourRank}>
                   <Select
                     name="rank"
                     defaultValue={account.rank ?? NO_RANK}
-                    options={RANK_OPTIONS}
+                    options={rankOptions(t.noRank)}
                   />
                 </Field>
               </ActionForm>
-              <p className="text-[13px] text-pretty text-muted-foreground">
-                Selbst angegeben. Als Spieler oder Ersatzspieler zählt er für euren Team-Rang; dein
-                Team sieht ihn, alle anderen nur den Team-Rang.
-              </p>
+              <p className="text-[13px] text-pretty text-muted-foreground">{t.rankHint}</p>
             </div>
           )}
         </section>
@@ -194,34 +179,34 @@ export default async function AccountPage({
           className="px-5 pt-4 pb-1 lg:col-start-1"
           rows={[
             {
-              label: "Status",
+              label: t.status,
               value: (
                 <span className={`font-semibold ${verification.className}`}>
                   {verification.label}
                 </span>
               ),
             },
-            { label: "Hochschule", value: account.verification.university ?? "–" },
+            { label: t.university, value: account.verification.university ?? "–" },
             {
-              label: account.teams.length > 1 ? "Teams" : "Team",
+              label: t.teams(account.teams.length),
               value:
                 account.teams.length > 0 ? (
                   <span className="flex flex-col items-end gap-0.5">
                     {account.teams.map((team) => (
                       <span key={team.id}>
                         {team.name}
-                        {team.isCaptain ? " · Captain" : ""}
+                        {team.isCaptain ? t.captainSuffix : ""}
                       </span>
                     ))}
                   </span>
                 ) : (
-                  "Kein Team"
+                  t.noTeam
                 ),
             },
           ]}
         >
           <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <h2 className="type-label text-muted-foreground">Studierendenstatus</h2>
+            <h2 className="type-label text-muted-foreground">{t.studentStatus}</h2>
             {/* /verify needs an active account (requirePageUser). */}
             {account.banned || account.setupStep ? null : (
               <Link
@@ -238,18 +223,18 @@ export default async function AccountPage({
         </DetailRows>
         {/* Linked accounts (SPEC N-13): Discord today, others come with their connection. */}
         <section className={`${cardClass} lg:col-start-2 lg:row-span-5 lg:row-start-1`}>
-          <h2 className="type-label text-muted-foreground">Verknüpfte Konten</h2>
-          <h3 className="-mb-1 text-[14px] font-medium">Discord</h3>
+          <h2 className="type-label text-muted-foreground">{t.linkedAccounts}</h2>
+          <h3 className="-mb-1 text-[14px] font-medium">{t.discord}</h3>
           {account.hasDiscord ? (
             <>
               <div className="flex items-center gap-3.5">
                 <UserAvatar
-                  user={{ id: user.id, name: account.name, avatarVersion: account.avatarVersion }}
+                  user={{ id: user.id, name, avatarVersion: account.avatarVersion }}
                   className="size-12 text-[14px]"
                 />
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-label font-semibold">{account.name}</span>
-                  <span className="text-[13px] text-muted-foreground">Mit Discord verknüpft</span>
+                  <span className="truncate font-label font-semibold">{name}</span>
+                  <span className="text-[13px] text-muted-foreground">{t.linkedWithDiscord}</span>
                 </div>
               </div>
               {user.hubJoinFailedAt || user.dmFailedAt ? (
@@ -263,37 +248,37 @@ export default async function AccountPage({
                       callbackURL="/account"
                       errorCallbackURL="/account"
                     >
-                      Discord erneut verbinden
+                      {t.relinkDiscord}
                     </DiscordButton>
                   )}
                 </>
               ) : (
                 <span className="flex items-center gap-2 text-[14px] text-success">
                   <CheckIcon strokeWidth={3} />
-                  Discord-Nachrichten kommen an
+                  {t.discordMessagesArrive}
                 </span>
               )}
             </>
           ) : (
             <p className="text-[14px] text-muted-foreground">
-              Noch nicht verknüpft. Das geht im{" "}
-              <Link
-                href={setupUrl("/team")}
-                className="text-foreground underline underline-offset-2"
-              >
-                nächsten Schritt der Einrichtung
-              </Link>
-              .
+              {t.discordNotLinked((label) => (
+                <Link
+                  href={setupUrl("/team")}
+                  className="text-foreground underline underline-offset-2"
+                >
+                  {label}
+                </Link>
+              ))}
             </p>
           )}
         </section>
         {account.firstName && !account.banned ? (
           <section className={`${cardClass} lg:col-start-1`}>
-            <h2 className="type-label text-muted-foreground">Name und Anmeldung</h2>
+            <h2 className="type-label text-muted-foreground">{t.nameAndSignIn}</h2>
             {account.canEditName ? (
               <ActionForm
                 action={updateRealNameAction}
-                submitLabel="Name speichern"
+                submitLabel={t.saveName}
                 variant="outline"
                 size="sm"
                 className="flex max-w-xl flex-col gap-3"
@@ -301,61 +286,51 @@ export default async function AccountPage({
                 <RealNameFields
                   defaults={{ firstName: account.firstName, lastName: account.lastName ?? "" }}
                 />
-                <p className="text-[13px] text-muted-foreground">
-                  Wie auf deiner Immatrikulationsbescheinigung. Nach dem Hochladen kannst du ihn
-                  nicht mehr selbst ändern. Nur du und unsere Prüfer sehen ihn.
-                </p>
+                <p className="text-[13px] text-muted-foreground">{t.nameHint}</p>
               </ActionForm>
             ) : (
               <p className="text-[14px]">
                 <span className="font-semibold">
                   {account.firstName} {account.lastName}
                 </span>
-                <span className="block text-[13px] text-muted-foreground">
-                  Nur du und unsere Prüfer sehen deinen Namen. Ändern geht nach dem Hochladen der
-                  Bescheinigung nur per Mail an uns (Adresse im Impressum).
-                </span>
+                <span className="block text-[13px] text-muted-foreground">{t.nameLockedHint}</span>
               </p>
             )}
             <div className="flex flex-col gap-3 border-t border-border pt-4">
               <p className="text-[14px]">
-                E-Mail-Adresse: <span className="font-semibold break-all">{account.email}</span>
+                {t.emailAddress} <span className="font-semibold break-all">{account.email}</span>
               </p>
               <ActionForm
                 action={changeEmailAction}
-                submitLabel="Adresse ändern"
+                submitLabel={t.changeEmail}
                 variant="outline"
                 size="sm"
                 className="flex max-w-xl flex-col gap-3"
               >
-                <EmailField label="Neue E-Mail-Adresse" name="newEmail" />
-                <p className="text-[13px] text-muted-foreground">
-                  Wir schicken einen Link an die neue Adresse. Bis du ihn öffnest, gilt die alte.
-                </p>
+                <EmailField label={t.newEmail} name="newEmail" />
+                <p className="text-[13px] text-muted-foreground">{t.newEmailHint}</p>
               </ActionForm>
             </div>
             {account.hasPassword ? (
               <div className="flex flex-col gap-3 border-t border-border pt-4">
                 <ActionForm
                   action={changePasswordAction}
-                  submitLabel="Passwort ändern"
+                  submitLabel={t.changePassword}
                   variant="outline"
                   size="sm"
                   className="flex max-w-xl flex-col gap-3"
                 >
                   <PasswordField
-                    label="Aktuelles Passwort"
+                    label={t.currentPassword}
                     name="currentPassword"
                     autoComplete="current-password"
                   />
                   <PasswordField
-                    label="Neues Passwort"
+                    label={t.newPassword}
                     name="newPassword"
                     autoComplete="new-password"
                   />
-                  <p className="text-[13px] text-muted-foreground">
-                    Auf deinen anderen Geräten wirst du danach abgemeldet.
-                  </p>
+                  <p className="text-[13px] text-muted-foreground">{t.passwordHint}</p>
                 </ActionForm>
               </div>
             ) : null}
@@ -363,15 +338,13 @@ export default async function AccountPage({
         ) : null}
         {/* Data export (SPEC N-5): a plain link, the route answers with a file. */}
         <section className={`${cardClass} lg:col-start-1`}>
-          <h2 className="type-label text-muted-foreground">Deine Daten</h2>
+          <h2 className="type-label text-muted-foreground">{t.yourData}</h2>
           <p className="text-[14px] text-pretty text-muted-foreground">
-            Lade alles herunter, was wir zu deinem Konto speichern, als JSON-Datei (Auskunft nach
-            Art. 15 DSGVO). Wozu wir die Daten nutzen und wie lange wir sie aufbewahren, steht in
-            der{" "}
-            <Link href="/datenschutz" className="font-semibold underline underline-offset-2">
-              Datenschutzerklärung
-            </Link>
-            .
+            {t.yourDataText((label) => (
+              <Link href="/datenschutz" className="font-semibold underline underline-offset-2">
+                {label}
+              </Link>
+            ))}
           </p>
           <a
             href="/api/account/export"
@@ -382,26 +355,24 @@ export default async function AccountPage({
               className: "self-start",
             })}
           >
-            Meine Daten herunterladen
+            {t.downloadData}
           </a>
         </section>
         <section className="flex flex-col gap-2.5 pt-2 lg:col-start-1">
-          <h2 className="type-h2">Konto löschen</h2>
-          <p className="text-[14px] text-pretty text-muted-foreground">
-            Löscht dein Konto mit deinen persönlichen Daten und deiner Verifizierung. Das lässt sich
-            nicht rückgängig machen.
-          </p>
+          <h2 className="type-h2">{t.deleteAccount}</h2>
+          <p className="text-[14px] text-pretty text-muted-foreground">{t.deleteAccountText}</p>
           {account.deletionProblem ? (
             <Alert>
               <div className="flex flex-col gap-3">
                 {/* Which teams, as there may be several since Phase 21 (SPEC N-17). */}
                 <span>
-                  {text(account.deletionProblem)} Betrifft:{" "}
-                  {account.teams
-                    .filter((team) => team.blocksDeletion)
-                    .map((team) => team.name)
-                    .join(", ")}
-                  .
+                  {text(account.deletionProblem)}{" "}
+                  {t.affectedTeams(
+                    account.teams
+                      .filter((team) => team.blocksDeletion)
+                      .map((team) => team.name)
+                      .join(", "),
+                  )}
                 </span>
                 {/* The role moves on the team page of each such team (Mitglieder). */}
                 {account.captainHandovers.length === 0 ? (
@@ -416,7 +387,7 @@ export default async function AccountPage({
                             size="sm"
                             className="h-auto max-w-full py-2 text-left whitespace-normal"
                           >
-                            Zu {team.name}
+                            {t.toTeam(team.name)}
                           </Button>
                         </form>
                       ))}
@@ -430,19 +401,19 @@ export default async function AccountPage({
             <ActionForm
               key={handover.teamId}
               action={handOverCaptainAction}
-              submitLabel="Captain-Rolle übertragen"
+              submitLabel={t.handOverCaptain}
               variant="outline"
               size="sm"
               className="flex flex-col gap-3"
-              confirmText={`Captain-Rolle in ${handover.teamName} wirklich übertragen?`}
+              confirmText={t.handOverConfirm(handover.teamName)}
             >
               <input type="hidden" name="teamId" value={handover.teamId} />
-              <Field label={`Neuer Captain für ${handover.teamName}`}>
+              <Field label={t.newCaptainFor(handover.teamName)}>
                 <Select
                   name="memberId"
                   required
                   defaultValue={null}
-                  placeholder="Neuen Captain wählen …"
+                  placeholder={t.chooseNewCaptain}
                   options={handover.candidates.map((member) => ({
                     value: member.id,
                     label: member.name,
