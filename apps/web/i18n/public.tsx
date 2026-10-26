@@ -16,7 +16,7 @@ export const landingMessages = dictionary(
     title: "Scrims gegen andere Uni-Teams.",
     titleMuted: "Ohne Suchen in zehn Discords.",
     lead: "Postet eure Anfrage aufs Board, bewerbt euch bei anderen Teams und klärt die Lobby direkt auf Discord.",
-    studentsOnly: "Nur für eingeschriebene Studierende deutscher Hochschulen.",
+    studentsOnly: "Nur für Teams deutscher Hochschulen mit verifiziertem Captain.",
     preview: {
       south: "Uni Süd",
       west: "HS West",
@@ -116,7 +116,7 @@ export const landingMessages = dictionary(
     title: "Scrims against other uni teams.",
     titleMuted: "Without searching ten Discords.",
     lead: "Post your request on the board, apply to other teams and sort out the lobby directly on Discord.",
-    studentsOnly: "Only for enrolled students of German universities.",
+    studentsOnly: "Only for teams of German universities with a verified captain.",
     preview: {
       south: "Uni South",
       west: "UAS West",
