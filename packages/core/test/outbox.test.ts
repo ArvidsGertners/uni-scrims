@@ -36,7 +36,7 @@ import {
   REQUEST_STARTS_AT,
   bookScrim,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createTeamWithMembers,
   createUser,
   uid,
@@ -475,8 +475,8 @@ describe("deliverNotification: personal notifications (§5.17)", () => {
   });
 
   it("keeps captain notifications with the captain, whatever members switched on", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     await choose(host.members[0]!.id, NotifType.APPLICATION_RECEIVED, { discord: true });
     await applyToRequest({
@@ -619,9 +619,9 @@ describe("deliverNotification: personal notifications (§5.17)", () => {
 
 describe("deliverNotification: relevance (§6.1)", () => {
   it("sends APPLICATION_RECEIVED only while the request is open", async () => {
-    const host = await createReadyTeam();
-    const first = await createReadyTeam();
-    const second = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const first = await createFullyVerifiedTeam();
+    const second = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     for (const team of [first, second]) {
       await applyToRequest({
@@ -707,8 +707,8 @@ describe("deliverNotification: relevance (§6.1)", () => {
   });
 
   it("drops every notification to a dissolved team", async () => {
-    const host = await createReadyTeam();
-    const applicant = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const applicant = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     await applyToRequest({
       userId: applicant.captain.id,
@@ -723,8 +723,8 @@ describe("deliverNotification: relevance (§6.1)", () => {
   });
 
   it("sends types without a check regardless of the request state", async () => {
-    const host = await createReadyTeam();
-    const applicant = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const applicant = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     await applyToRequest({
       userId: applicant.captain.id,
@@ -1126,7 +1126,7 @@ describe("listFailedNotifications", () => {
 
   it("lists failed entries by their last attempt, latest first, with the name of the target", async () => {
     const user = await createUser();
-    const { team } = await createReadyTeam();
+    const { team } = await createFullyVerifiedTeam();
     const toUser = await failed(
       { channel: NotifChannel.USER_DM, targetUserId: user.id },
       LATER,

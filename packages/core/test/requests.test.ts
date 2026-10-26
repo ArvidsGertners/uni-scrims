@@ -26,7 +26,7 @@ import {
   SOON_STARTS_AT,
   createOpenRequest,
   activeTeamId,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createTeamWithMembers,
 } from "./helpers.ts";
 
@@ -39,7 +39,7 @@ async function apply(captainId: string, requestId: string, message?: string) {
 
 describe("createRequest", () => {
   it("creates an open request with the start converted from Berlin time", async () => {
-    const { team, captain } = await createReadyTeam();
+    const { team, captain } = await createFullyVerifiedTeam();
     const request = await createOpenRequest(captain.id, { maps: ["Ascent", "Bind"], note: " Hi " });
     expect(request).toMatchObject({
       teamId: team.id,
@@ -53,41 +53,31 @@ describe("createRequest", () => {
   });
 
   it("rejects an unverified captain", async () => {
-    const { captain } = await createReadyTeam({ verifiedCaptain: false });
+    const { captain } = await createFullyVerifiedTeam({ verifiedCaptain: false });
     await expect(createOpenRequest(captain.id)).rejects.toMatchObject({ code: "NOT_VERIFIED" });
   });
 
   it("rejects members who are not the captain", async () => {
-    const { members } = await createReadyTeam();
+    const { members } = await createFullyVerifiedTeam();
     await expect(createOpenRequest(members[0]!.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("rejects teams with fewer than 5 verified members", async () => {
-    const { captain } = await createTeamWithMembers({ extraMembers: 3 });
-    await expect(createOpenRequest(captain.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
-  });
-
-  it("does not count a verified coach as the fifth player (SPEC N-1)", async () => {
-    const { captain, members } = await createReadyTeam();
-    await prisma.teamMember.updateMany({
-      where: { userId: members[0]!.id },
-      data: { role: MemberRole.COACH },
+  it("needs only a verified captain, not 5 verified players (SPEC N-21)", async () => {
+    const alone = await createTeamWithMembers();
+    await expect(createOpenRequest(alone.captain.id)).resolves.toMatchObject({
+      teamId: alone.team.id,
     });
-    await expect(createOpenRequest(captain.id)).rejects.toMatchObject({
-      code: "FORBIDDEN",
-      message: "Euer Team hat noch keine 5 verifizierten Spieler.",
+    const unverifiedPlayers = await createTeamWithMembers({
+      extraMembers: 3,
+      verifiedMembers: false,
     });
-    await prisma.teamMember.updateMany({
-      where: { userId: members[0]!.id },
-      data: { role: MemberRole.SUBSTITUTE },
-    });
-    await expect(createOpenRequest(captain.id)).resolves.toMatchObject({
-      teamId: expect.any(String),
+    await expect(createOpenRequest(unverifiedPlayers.captain.id)).resolves.toMatchObject({
+      teamId: unverifiedPlayers.team.id,
     });
   });
 
   it("requires 30 minutes lead time", async () => {
-    const { captain } = await createReadyTeam();
+    const { captain } = await createFullyVerifiedTeam();
     // NOW is 14:00 in Berlin.
     await expect(
       createOpenRequest(captain.id, { date: "2026-10-21", time: "14:15" }),
@@ -106,14 +96,14 @@ describe("createRequest", () => {
     ["a map twice", { maps: ["Bind", "Bind"] }],
     ["a long note", { note: "x".repeat(301) }],
   ])("rejects %s", async (_label, overrides) => {
-    const { captain } = await createReadyTeam();
+    const { captain } = await createFullyVerifiedTeam();
     await expect(
       createOpenRequest(captain.id, overrides as Partial<typeof REQUEST_INPUT>),
     ).rejects.toMatchObject({ code: "INVALID" });
   });
 
   it("explains invalid input in German", async () => {
-    const { captain } = await createReadyTeam();
+    const { captain } = await createFullyVerifiedTeam();
     await expect(
       createOpenRequest(captain.id, { maps: ["Dust2"] } as unknown as Partial<
         typeof REQUEST_INPUT
@@ -127,7 +117,7 @@ describe("createRequest", () => {
   });
 
   it(`allows at most ${MAX_OPEN_REQUESTS} open requests, also in parallel`, async () => {
-    const { team, captain } = await createReadyTeam();
+    const { team, captain } = await createFullyVerifiedTeam();
     for (let i = 0; i < MAX_OPEN_REQUESTS - 1; i++) await createOpenRequest(captain.id);
     const results = await Promise.allSettled([
       createOpenRequest(captain.id),
@@ -141,8 +131,8 @@ describe("createRequest", () => {
 
 describe("applyToRequest", () => {
   it("creates a pending application and notifies the creating team", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     const { application, outOfRange } = await apply(guest.captain.id, request.id, " Gerne! ");
     expect(outOfRange).toBe(false);
@@ -165,10 +155,10 @@ describe("applyToRequest", () => {
   });
 
   it("creates one notification per application (§6.1)", async () => {
-    const host = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
-    await apply((await createReadyTeam()).captain.id, request.id);
-    await apply((await createReadyTeam()).captain.id, request.id);
+    await apply((await createFullyVerifiedTeam()).captain.id, request.id);
+    await apply((await createFullyVerifiedTeam()).captain.id, request.id);
     expect(
       await prisma.notification.count({
         where: { requestId: request.id, type: NotifType.APPLICATION_RECEIVED },
@@ -177,32 +167,34 @@ describe("applyToRequest", () => {
   });
 
   it("allows applications outside the rank range with a hint", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam({ rank: Rank.IRON });
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam({ rank: Rank.IRON });
     const request = await createOpenRequest(host.captain.id);
     await expect(apply(guest.captain.id, request.id)).resolves.toMatchObject({ outOfRange: true });
   });
 
   it("rejects applications to the own request", async () => {
-    const host = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     await expect(apply(host.captain.id, request.id)).rejects.toMatchObject({ code: "INVALID" });
   });
 
-  it("rejects teams that are not ready and unverified captains", async () => {
-    const host = await createReadyTeam();
+  it("accepts a team with only a verified captain, rejects unverified captains", async () => {
+    const host = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
-    const small = await createTeamWithMembers({ extraMembers: 3 });
-    await expect(apply(small.captain.id, request.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
-    const unverified = await createReadyTeam({ verifiedCaptain: false });
+    const small = await createTeamWithMembers({ extraMembers: 3, verifiedMembers: false });
+    await expect(apply(small.captain.id, request.id)).resolves.toMatchObject({
+      application: { teamId: small.team.id, status: AppStatus.PENDING },
+    });
+    const unverified = await createFullyVerifiedTeam({ verifiedCaptain: false });
     await expect(apply(unverified.captain.id, request.id)).rejects.toMatchObject({
       code: "NOT_VERIFIED",
     });
   });
 
   it("allows only one application per team, also after withdrawing", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     const { application } = await apply(guest.captain.id, request.id);
     await expect(apply(guest.captain.id, request.id)).rejects.toMatchObject({ code: "CONFLICT" });
@@ -215,8 +207,8 @@ describe("applyToRequest", () => {
   });
 
   it("rejects applications to requests that are no longer open", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     await expect(
       applyToRequest({
@@ -231,8 +223,8 @@ describe("applyToRequest", () => {
   });
 
   it("rejects long messages", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     await expect(apply(guest.captain.id, request.id, "x".repeat(201))).rejects.toMatchObject({
       code: "INVALID",
@@ -242,8 +234,8 @@ describe("applyToRequest", () => {
 
 describe("withdrawApplication", () => {
   it("withdraws a pending application only once and only by the own captain", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     const { application } = await apply(guest.captain.id, request.id);
     const withdraw = (userId: string) =>
@@ -260,9 +252,9 @@ describe("withdrawApplication", () => {
 
 describe("deleteRequest", () => {
   it("cancels the request, rejects pending applications and notifies their teams", async () => {
-    const host = await createReadyTeam();
-    const pending = await createReadyTeam();
-    const withdrawn = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const pending = await createFullyVerifiedTeam();
+    const withdrawn = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     const { application } = await apply(pending.captain.id, request.id);
     const { application: withdrawnApplication } = await apply(withdrawn.captain.id, request.id);
@@ -301,9 +293,9 @@ describe("deleteRequest", () => {
 
 describe("confirmApplication", () => {
   it("books the scrim and writes exactly the expected outbox entries (§6.1)", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
-    const other = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
+    const other = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     const { application } = await apply(guest.captain.id, request.id);
     const { application: otherApplication } = await apply(other.captain.id, request.id);
@@ -369,8 +361,8 @@ describe("confirmApplication", () => {
   });
 
   it("skips reminders whose time has already passed", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id, SOON);
     expect(request.startsAt).toEqual(SOON_STARTS_AT);
     const { application } = await apply(guest.captain.id, request.id);
@@ -392,9 +384,9 @@ describe("confirmApplication", () => {
     });
   });
 
-  it("fails clearly if the applicant team is no longer ready or active", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+  it("fails clearly if the applicant lacks the badge the host requires or is inactive", async () => {
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     const { application } = await apply(guest.captain.id, request.id);
     const confirm = () =>
@@ -405,10 +397,15 @@ describe("confirmApplication", () => {
         now: NOW,
       });
 
+    // The host admits only fully verified teams (SPEC N-21) and the guest loses the badge.
+    await prisma.team.update({
+      where: { id: host.team.id },
+      data: { verifiedApplicantsOnly: true },
+    });
     await prisma.user.update({ where: { id: guest.members[0]!.id }, data: { verifiedAt: null } });
     await expect(confirm()).rejects.toMatchObject({
       code: "CONFLICT",
-      message: expect.stringContaining("nicht mehr spielbereit"),
+      message: expect.stringContaining("nicht vollständig verifiziert"),
     });
     await prisma.user.update({ where: { id: guest.members[0]!.id }, data: { verifiedAt: NOW } });
     // A verified coach does not count either (SPEC N-1).
@@ -417,7 +414,7 @@ describe("confirmApplication", () => {
     await guestRole(MemberRole.COACH);
     await expect(confirm()).rejects.toMatchObject({
       code: "CONFLICT",
-      message: expect.stringContaining("nicht mehr spielbereit"),
+      message: expect.stringContaining("nicht vollständig verifiziert"),
     });
     await guestRole(MemberRole.PLAYER);
     await prisma.team.update({ where: { id: guest.team.id }, data: { bannedAt: NOW } });
@@ -436,8 +433,8 @@ describe("confirmApplication", () => {
   });
 
   it("rejects an unverified host captain and other teams", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     const { application } = await apply(guest.captain.id, request.id);
     const confirm = (userId: string) =>
@@ -453,8 +450,8 @@ describe("confirmApplication", () => {
   });
 
   it("rejects withdrawn applications", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     const { application } = await apply(guest.captain.id, request.id);
     await withdrawApplication({
@@ -475,10 +472,10 @@ describe("confirmApplication", () => {
 
 describe("concurrency (§7)", () => {
   it("books exactly one scrim for two parallel confirmations", async () => {
-    const host = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
-    const first = await apply((await createReadyTeam()).captain.id, request.id);
-    const second = await apply((await createReadyTeam()).captain.id, request.id);
+    const first = await apply((await createFullyVerifiedTeam()).captain.id, request.id);
+    const second = await apply((await createFullyVerifiedTeam()).captain.id, request.id);
     const results = await Promise.allSettled(
       [first, second].map(({ application }) =>
         confirmApplication({
@@ -503,9 +500,9 @@ describe("concurrency (§7)", () => {
 
   it("leaves no pending application on a booked request with parallel apply and confirm", async () => {
     for (let round = 0; round < 3; round++) {
-      const host = await createReadyTeam();
-      const guest = await createReadyTeam();
-      const late = await createReadyTeam();
+      const host = await createFullyVerifiedTeam();
+      const guest = await createFullyVerifiedTeam();
+      const late = await createFullyVerifiedTeam();
       const request = await createOpenRequest(host.captain.id);
       const { application } = await apply(guest.captain.id, request.id);
       await Promise.allSettled([
@@ -531,8 +528,8 @@ describe("concurrency (§7)", () => {
 
 describe("expireRequests", () => {
   it("expires open requests at their start and notifies pending applicants", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const start = new Date("2026-10-23T09:00:00Z");
     const due = await createOpenRequest(host.captain.id, { date: "2026-10-23", time: "11:00" });
     const later = await createOpenRequest(host.captain.id, { date: "2026-10-23", time: "11:15" });

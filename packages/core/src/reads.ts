@@ -19,7 +19,6 @@ import {
   isScrimTeam,
   pickActiveTeam,
   requireUser,
-  teamReadyProblem,
 } from "./permissions.ts";
 import {
   RANKS,
@@ -31,12 +30,13 @@ import {
 } from "./ranks.ts";
 import {
   activeTeamWhere,
-  hasReadyMembers,
+  hasFullyVerifiedMembers,
   isTeamActive,
-  isTeamReady,
+  isTeamFullyVerified,
   listedTeamWhere,
 } from "./readiness.ts";
 import {
+  applicantRuleProblem,
   applicantTeamProblem,
   isRequestOpen,
   openRequestWhere,
@@ -45,7 +45,13 @@ import {
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
-import { getMyTeam, teamLimitProblem, teamUniversities, verifiedUniversityNames } from "./teams.ts";
+import {
+  getMyTeam,
+  needsCaptainVerification,
+  teamLimitProblem,
+  teamUniversities,
+  verifiedUniversityNames,
+} from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
 import { getDiscordId } from "./users.ts";
 
@@ -129,6 +135,7 @@ const teamCardSelect = {
   id: true,
   name: true,
   tag: true,
+  verifiedApplicantsOnly: true,
   ...teamLogoSelect,
   members: {
     select: {
@@ -157,6 +164,8 @@ export type TeamCardData = {
   logo: TeamLogoInfo | null;
   universities: { shown: string[]; more: number };
   reliability: Reliability;
+  /** At least 5 verified players or substitutes: the badge (SPEC N-21). */
+  fullyVerified: boolean;
 };
 
 function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>): TeamCardData {
@@ -168,6 +177,7 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
     logo: teamLogoInfo(team),
     universities: teamUniversities(team.members),
     reliability: reliabilities.get(team.id)!,
+    fullyVerified: hasFullyVerifiedMembers(team.members),
   };
 }
 
@@ -182,6 +192,8 @@ export type BoardInput = {
    * without one no rank filter (SPEC N-16); "ALL" = no rank filter.
    */
   ranks?: readonly Rank[] | "ALL" | null;
+  /** Only requests of fully verified teams (SPEC N-21); missing or false = all. */
+  fullyVerifiedOnly?: boolean | null;
   now: Date;
 };
 
@@ -202,6 +214,7 @@ export async function getBoard(input: BoardInput) {
           : [];
   const date = input.date && isValidDateString(input.date) ? input.date : null;
   const range = date ? berlinDayRange(date) : null;
+  const fullyVerifiedOnly = input.fullyVerifiedOnly === true;
 
   const base: Prisma.ScrimRequestWhereInput = {
     ...openRequestWhere(input.now),
@@ -231,11 +244,15 @@ export async function getBoard(input: BoardInput) {
     _count: { select: { applications: { where: { status: AppStatus.PENDING } } } },
   } satisfies Prisma.ScrimRequestInclude;
 
-  const requests = await prisma.scrimRequest.findMany({
+  const found = await prisma.scrimRequest.findMany({
     where: filtered,
     include,
     orderBy: { startsAt: "asc" },
   });
+  // The badge is computed from the members, so this filter runs after loading (SPEC N-21).
+  const requests = fullyVerifiedOnly
+    ? found.filter((request) => hasFullyVerifiedMembers(request.team.members))
+    : found;
   const reliabilities = await getReliabilities(requests.map((request) => request.teamId));
   const ownApplications = ownTeam
     ? await prisma.application.findMany({
@@ -253,6 +270,8 @@ export async function getBoard(input: BoardInput) {
     maps: request.maps,
     applicationCount: request._count.applications,
     team: toTeamCard(request.team, reliabilities),
+    /** The team admits only fully verified applicants (SPEC N-21). */
+    verifiedApplicantsOnly: request.team.verifiedApplicantsOnly,
     ownApplicationStatus:
       ownApplications.find((application) => application.requestId === request.id)?.status ?? null,
   });
@@ -261,7 +280,7 @@ export async function getBoard(input: BoardInput) {
     ownTeam: ownTeam
       ? { id: ownTeam.id, rank: ownRank, isCaptain: isCaptainOf(user, ownTeam) }
       : null,
-    filter: { date, ranks },
+    filter: { date, ranks, fullyVerifiedOnly },
     requests: requests.map(toCard),
   };
 }
@@ -360,34 +379,38 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const pending = applications.filter((application) => application.status === AppStatus.PENDING);
   const offersConfirm = isOwner && open && pending.length > 0;
   const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.text ?? null) : null;
-  // Applying and confirming need a ready team, withdrawing and deleting do not (SPEC P0-3).
-  // Readiness is only counted when it decides: one of the two is offered and nothing else blocks
-  // it. Then it runs alongside the reliabilities; null means not counted.
-  const countReadiness =
-    ownTeam !== null && actionProblem === null && (offersApply || offersConfirm);
-  const [reliabilities, ownTeamReady, ownMemberCount] = await Promise.all([
+  const host = request.team;
+  // Applying needs the badge only if the host team admits just fully verified teams (SPEC N-21).
+  // The own players are only counted when that decides: applying is offered, nothing else blocks
+  // it and the setting is on. Then it runs alongside the reliabilities; null means not counted.
+  const countOwnPlayers =
+    ownTeam !== null && offersApply && actionProblem === null && host.verifiedApplicantsOnly;
+  const [reliabilities, ownFullyVerified, ownMemberCount] = await Promise.all([
     getReliabilities([request.teamId, ...applications.map((application) => application.teamId)]),
-    countReadiness ? isTeamReady(ownTeam.id) : null,
+    countOwnPlayers ? isTeamFullyVerified(ownTeam.id) : null,
     offersApply ? prisma.teamMember.count({ where: { teamId: ownTeam.id } }) : null,
   ]);
-  const readyProblem = ownTeamReady === null ? null : teamReadyProblem(ownTeamReady);
-  const bookingProblem = actionProblem ?? readyProblem?.text ?? null;
+  const ruleProblem =
+    ownFullyVerified === null ? null : applicantRuleProblem(host, ownFullyVerified);
 
-  const apply: ActionOffer = offersApply ? { problem: bookingProblem } : null;
+  const apply: ActionOffer = offersApply ? { problem: actionProblem ?? ruleProblem } : null;
   const withdraw: ActionOffer =
     ownApplication?.status === AppStatus.PENDING ? { problem: actionProblem } : null;
   // Only the captain can ever delete, so other members do not see it (§7).
   const remove: ActionOffer =
     isOwner && open && isCaptainOf(user, ownTeam) ? { problem: actionProblem } : null;
-  const confirm: ActionOffer = offersConfirm ? { problem: bookingProblem } : null;
-  // The applicant team must still be active and ready, as confirmApplication checks it
-  // (findApplicantTeamProblem); here from the members that are already loaded.
+  const confirm: ActionOffer = offersConfirm ? { problem: actionProblem } : null;
+  // The applicant team must still be active, and fully verified if the host requires it, as
+  // confirmApplication checks it (findApplicantTeamProblem); here from the loaded members.
   const confirmOffer = (application: (typeof applications)[number]) => {
     if (!confirm || application.status !== AppStatus.PENDING) {
       return { canConfirm: false, teamProblem: null };
     }
     const { team } = application;
-    const teamProblem = applicantTeamProblem(team, hasReadyMembers(team.members));
+    const teamProblem = applicantTeamProblem(team, {
+      required: host.verifiedApplicantsOnly,
+      fullyVerified: hasFullyVerifiedMembers(team.members),
+    });
     return { canConfirm: confirm.problem === null && teamProblem === null, teamProblem };
   };
 
@@ -405,6 +428,8 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     maps: request.maps,
     note: request.note,
     team: { ...toTeamCard(request.team, reliabilities), links: toTeamLinks(request.team) },
+    /** The creating team admits only fully verified applicants (SPEC N-21). */
+    verifiedApplicantsOnly: host.verifiedApplicantsOnly,
     apply,
     /** The team that would apply, for "Du bewirbst dich als …"; only while applying is offered. */
     applyAs:
@@ -743,6 +768,8 @@ export async function getNavTeam(userId: string) {
     teamLimit: user.teamLimit,
     /** Why no further team can be founded or joined (SPEC N-17), or null. */
     limitProblem: teamLimitProblem(own.length, user.teamLimit),
+    /** The warning dot: unverified captain of an active team (SPEC N-21). */
+    verificationNeeded: needsCaptainVerification(user, own),
   };
 }
 
@@ -756,6 +783,8 @@ export type TeamListInput = {
   search?: string | null;
   /** Teams whose team rank is one of these; missing, empty or "ALL" = no rank filter. */
   ranks?: readonly Rank[] | "ALL" | null;
+  /** Only fully verified teams (SPEC N-21); missing or false = all. */
+  fullyVerifiedOnly?: boolean | null;
 };
 
 export type TeamListMember = {
@@ -774,6 +803,8 @@ export type TeamListEntry = {
   rank: Rank | null;
   logo: TeamLogoInfo | null;
   universities: { shown: string[]; more: number };
+  /** At least 5 verified players or substitutes: the badge (SPEC N-21). */
+  fullyVerified: boolean;
   members: TeamListMember[];
 };
 
@@ -804,8 +835,8 @@ const teamListSelect = {
 
 /**
  * All active teams their captain has not hidden, with universities, team rank and members (SPEC
- * N-20, §5.23), for every active account like the board. Search and rank filter run after loading,
- * because the team rank is computed on read (§5.19).
+ * N-20, §5.23), for every active account like the board. Search, rank and badge filter run after
+ * loading, because team rank and badge are computed on read (§5.19, §5.24).
  */
 export async function getTeamList(input: TeamListInput) {
   await requireUser(input.userId);
@@ -817,6 +848,7 @@ export async function getTeamList(input: TeamListInput) {
   const chosen = input.ranks;
   // In rank order, without duplicates; empty = all ranks.
   const ranks = chosen && chosen !== "ALL" ? RANKS.filter((rank) => chosen.includes(rank)) : [];
+  const fullyVerifiedOnly = input.fullyVerifiedOnly === true;
   const needle = search.toLocaleLowerCase("de");
   const matches = (text: string | null) => !!text && text.toLocaleLowerCase("de").includes(needle);
 
@@ -825,8 +857,13 @@ export async function getTeamList(input: TeamListInput) {
     select: teamListSelect,
   });
   const teams: TeamListEntry[] = rows
-    .map((team) => ({ team, rank: teamRank(team.members) }))
+    .map((team) => ({
+      team,
+      rank: teamRank(team.members),
+      fullyVerified: hasFullyVerifiedMembers(team.members),
+    }))
     .filter(({ rank }) => ranks.length === 0 || (rank !== null && ranks.includes(rank)))
+    .filter(({ fullyVerified }) => !fullyVerifiedOnly || fullyVerified)
     .filter(
       ({ team }) =>
         !needle ||
@@ -835,13 +872,14 @@ export async function getTeamList(input: TeamListInput) {
         verifiedUniversityNames(team.members).some(matches),
     )
     .sort((a, b) => a.team.name.localeCompare(b.team.name, "de"))
-    .map(({ team, rank }) => ({
+    .map(({ team, rank, fullyVerified }) => ({
       id: team.id,
       name: team.name,
       tag: team.tag,
       rank,
       logo: teamLogoInfo(team),
       universities: teamUniversities(team.members),
+      fullyVerified,
       members: team.members.map(({ role, user }) => ({
         id: user.id,
         name: user.name,
@@ -850,5 +888,5 @@ export async function getTeamList(input: TeamListInput) {
         rank: user.rank,
       })),
     }));
-  return { teams, filter: { search, ranks } };
+  return { teams, filter: { search, ranks, fullyVerifiedOnly } };
 }

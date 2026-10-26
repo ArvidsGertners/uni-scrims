@@ -27,8 +27,6 @@ import {
   captainVerificationProblem,
   requireActingCaptain,
   requireTeamMember,
-  requireTeamReady,
-  teamReadyProblem,
 } from "./permissions.ts";
 import { isOutsideRange, loadTeamRank } from "./ranks.ts";
 import {
@@ -37,7 +35,7 @@ import {
   parseInput,
   requestInputSchema,
 } from "./schemas.ts";
-import { isTeamActive, isTeamReady } from "./readiness.ts";
+import { isTeamActive, isTeamFullyVerified } from "./readiness.ts";
 import { berlinToUtc } from "./time.ts";
 
 export { MAX_OPEN_REQUESTS };
@@ -86,10 +84,10 @@ export async function openRequestLimitProblem(
 }
 
 /**
- * Why createRequest fails regardless of the input, in actingCaptainProblem's order followed by
- * readiness and the limit. A ban or another captain settles it alone; an unverified captain also
- * learns what else is missing. Under the team lock createRequest throws the first entry;
- * getRequestForm shows the list (§7).
+ * Why createRequest fails regardless of the input, in actingCaptainProblem's order followed by the
+ * limit. A ban or another captain settles it alone; an unverified captain also learns whether the
+ * limit is reached. Under the team lock createRequest throws the first entry; getRequestForm shows
+ * the list (§7). Since Phase 25 the number of verified players does not matter (SPEC N-21).
  */
 export async function requestPostingProblems(
   user: { id: string; verifiedAt: Date | null },
@@ -99,36 +97,47 @@ export async function requestPostingProblems(
 ): Promise<Problem[]> {
   const blocking = captainProblem(user, team);
   if (blocking) return [blocking];
-  // In parallel for getRequestForm; on createRequest's transaction both counts share its single
-  // connection and run one after the other.
-  const [ready, full] = await Promise.all([
-    isTeamReady(team.id, db),
-    openRequestLimitProblem(team.id, now, db),
-  ]);
-  return [captainVerificationProblem(user), teamReadyProblem(ready), full].filter(
-    (problem) => problem !== null,
-  );
+  const full = await openRequestLimitProblem(team.id, now, db);
+  return [captainVerificationProblem(user), full].filter((problem) => problem !== null);
 }
 
 /**
- * Why the applicant team cannot be booked, or null: it must be active and ready (SPEC P0-5).
- * Pure, for teams whose members are loaded; findApplicantTeamProblem reads readiness from the db.
+ * Why a team without the badge cannot apply to the host team's requests, or null: the host admits
+ * only fully verified teams (SPEC N-21).
+ */
+export function applicantRuleProblem(
+  host: { name: string; verifiedApplicantsOnly: boolean },
+  fullyVerified: boolean,
+): Message | null {
+  return host.verifiedApplicantsOnly && !fullyVerified
+    ? msg("applicantsMustBeFullyVerified", { team: host.name })
+    : null;
+}
+
+/**
+ * Why the applicant team cannot be booked, or null: it must be active, and fully verified if the
+ * host team admits only such teams (SPEC P0-5, N-21). Pure, for teams whose members are loaded;
+ * findApplicantTeamProblem counts in the db.
  */
 export function applicantTeamProblem(
   team: { name: string; bannedAt: Date | null; dissolvedAt: Date | null },
-  ready: boolean,
+  badge: { required: boolean; fullyVerified: boolean },
 ): Message | null {
   if (!isTeamActive(team)) return msg("applicantTeamInactive", { team: team.name });
-  if (!ready) return msg("applicantTeamNotReady", { team: team.name });
+  if (badge.required && !badge.fullyVerified) {
+    return msg("applicantTeamNotFullyVerified", { team: team.name });
+  }
   return null;
 }
 
-/** applicantTeamProblem against the database; readiness is only counted for active teams. */
+/** applicantTeamProblem against the database; the players are only counted when it matters. */
 export async function findApplicantTeamProblem(
   team: { id: string; name: string; bannedAt: Date | null; dissolvedAt: Date | null },
   db: Db,
+  required: boolean,
 ): Promise<Message | null> {
-  return applicantTeamProblem(team, isTeamActive(team) && (await isTeamReady(team.id, db)));
+  const fullyVerified = required && isTeamActive(team) && (await isTeamFullyVerified(team.id, db));
+  return applicantTeamProblem(team, { required, fullyVerified });
 }
 
 /** Posts a request for `teamId`, the team the form was shown for (§5.20). */
@@ -274,7 +283,17 @@ export async function applyToRequest(input: {
         throw new DomainError("INVALID", "ownRequest");
       }
       if (!isRequestOpen(request, input.now)) throw notOpen();
-      await requireTeamReady(team.id, tx);
+      // The host row is not locked: if its captain turns the setting on meanwhile, the application
+      // may still be created, but confirmApplication checks again under both team locks (§5.24).
+      const host = await tx.team.findUniqueOrThrow({
+        where: { id: request.teamId },
+        select: { name: true, verifiedApplicantsOnly: true },
+      });
+      const ruleProblem = applicantRuleProblem(
+        host,
+        host.verifiedApplicantsOnly && (await isTeamFullyVerified(team.id, tx)),
+      );
+      if (ruleProblem) throw new DomainError("FORBIDDEN", ruleProblem);
       const existing = await tx.application.findUnique({
         where: { requestId_teamId: { requestId: request.id, teamId: team.id } },
       });
@@ -336,7 +355,8 @@ export async function withdrawApplication(input: {
 
 /**
  * Books the scrim atomically (ARCHITECTURE §5.4). Only the first of two parallel confirmations
- * wins; if a team is no longer ready or active, the application stays pending.
+ * wins; if a team is no longer active, or the applicant lacks the badge the host requires, the
+ * application stays pending.
  */
 export async function confirmApplication(input: {
   userId: string;
@@ -380,9 +400,8 @@ export async function confirmApplication(input: {
     if (application.status !== AppStatus.PENDING) {
       throw new DomainError("CONFLICT", "applicationNotOpen");
     }
-    await requireTeamReady(host.id, tx);
     const guest = application.team;
-    const guestProblem = await findApplicantTeamProblem(guest, tx);
+    const guestProblem = await findApplicantTeamProblem(guest, tx, host.verifiedApplicantsOnly);
     if (guestProblem) throw new DomainError("CONFLICT", guestProblem);
 
     const booked = await tx.scrimRequest.updateMany({

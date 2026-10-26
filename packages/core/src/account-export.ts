@@ -159,6 +159,7 @@ export async function exportAccountData(input: {
               ...teamLinksSelect,
               linksUpdatedAt: true,
               listed: true,
+              verifiedApplicantsOnly: true,
             },
           },
         },
@@ -347,6 +348,8 @@ export async function exportAccountData(input: {
             linksGeändertAm: team.linksUpdatedAt,
             // Whether all signed-in users see the team with its members on the teams list (SPEC N-20).
             inTeamsListe: isListedTeam(team),
+            // Whether only fully verified teams may apply to the team's requests (SPEC N-21).
+            nurVollstaendigVerifizierteBewerber: team.verifiedApplicantsOnly,
             rolle: MEMBER_ROLE_LABELS.de[role],
             captain: isCaptainOf(user, team),
             beigetretenAm: joinedAt,

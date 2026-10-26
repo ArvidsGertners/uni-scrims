@@ -119,8 +119,8 @@ export async function createTeamWithMembers(
 
 const HOUR = 60 * 60 * 1000;
 
-/** Ready to play: verified captain plus 4 verified members. */
-export async function createReadyTeam(
+/** Fully verified (SPEC N-21): verified captain plus 4 verified members. */
+export async function createFullyVerifiedTeam(
   options: { rank?: Rank | null; verifiedCaptain?: boolean } = {},
 ) {
   return createTeamWithMembers({ extraMembers: 4, ...options });
@@ -166,8 +166,8 @@ export async function createOpenRequest(
 
 /** Two ready teams, a request of the host and the guest's confirmed application. */
 export async function bookScrim(overrides: Partial<typeof REQUEST_INPUT> = {}) {
-  const host = await createReadyTeam();
-  const guest = await createReadyTeam();
+  const host = await createFullyVerifiedTeam();
+  const guest = await createFullyVerifiedTeam();
   const request = await createOpenRequest(host.captain.id, overrides);
   const { application } = await applyToRequest({
     userId: guest.captain.id,

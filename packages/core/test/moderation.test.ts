@@ -23,7 +23,7 @@ import {
   SOON,
   bookScrim,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createSession,
   createUser,
   uid,
@@ -45,7 +45,7 @@ afterAll(async () => {
 
 describe("banTeam", () => {
   it("is only for admins", async () => {
-    const { team, captain } = await createReadyTeam();
+    const { team, captain } = await createFullyVerifiedTeam();
     await expect(banTeam({ adminId: captain.id, teamId: team.id, now: NOW })).rejects.toMatchObject(
       { code: "FORBIDDEN" },
     );
@@ -58,7 +58,7 @@ describe("banTeam", () => {
     // The banned team hosts a scrim within 24 h, has an open request with an applicant and has
     // applied to another request.
     const { host: banned, guest: opponent, scrim } = await bookScrim(SOON);
-    const applicant = await createReadyTeam();
+    const applicant = await createFullyVerifiedTeam();
     const ownRequest = await createOpenRequest(banned.captain.id);
     await applyToRequest({
       userId: applicant.captain.id,
@@ -66,7 +66,7 @@ describe("banTeam", () => {
       requestId: ownRequest.id,
       now: NOW,
     });
-    const other = await createReadyTeam();
+    const other = await createFullyVerifiedTeam();
     const foreignRequest = await createOpenRequest(other.captain.id);
     const { application } = await applyToRequest({
       userId: banned.captain.id,
@@ -112,7 +112,7 @@ describe("banTeam", () => {
   });
 
   it("rejects a second ban and unknown teams", async () => {
-    const { team } = await createReadyTeam();
+    const { team } = await createFullyVerifiedTeam();
     await banTeam({ adminId: admin.id, teamId: team.id, now: NOW });
     await expect(banTeam({ adminId: admin.id, teamId: team.id, now: NOW })).rejects.toMatchObject({
       code: "CONFLICT",
@@ -125,7 +125,7 @@ describe("banTeam", () => {
 
 describe("banUser", () => {
   it("removes a player from the team and ends the sessions", async () => {
-    const { team, members } = await createReadyTeam();
+    const { team, members } = await createFullyVerifiedTeam();
     const player = members[0]!;
     await createSession(player.id);
 
@@ -168,7 +168,7 @@ describe("banUser", () => {
   });
 
   it("bans the captain of an already banned team", async () => {
-    const { team, captain } = await createReadyTeam();
+    const { team, captain } = await createFullyVerifiedTeam();
     await banTeam({ adminId: admin.id, teamId: team.id, now: NOW });
     await expect(
       banUser({ adminId: admin.id, userId: captain.id, uploadDir, now: NOW }),
@@ -266,7 +266,7 @@ describe("searchModerationTargets", () => {
   });
 
   it("finds users by part of the name or the exact Discord ID, with their team", async () => {
-    const { team, captain, members } = await createReadyTeam();
+    const { team, captain, members } = await createFullyVerifiedTeam();
     const byName = await search(captain.name.slice(5).toUpperCase());
     expect(byName.users).toEqual([
       {
@@ -297,9 +297,9 @@ describe("searchModerationTargets", () => {
     const banned = await createUser({ banned: true });
     await prisma.user.update({ where: { id: banned.id }, data: { name: `Gesperrt ${marker}` } });
 
-    const active = await createReadyTeam();
-    const bannedTeam = await createReadyTeam();
-    const dissolved = await createReadyTeam();
+    const active = await createFullyVerifiedTeam();
+    const bannedTeam = await createFullyVerifiedTeam();
+    const dissolved = await createFullyVerifiedTeam();
     for (const [team, data] of [
       [active.team, { name: `Aktiv ${marker}` }],
       [bannedTeam.team, { name: `Bann ${marker}`, bannedAt: NOW }],

@@ -32,7 +32,7 @@ import {
   SOON,
   bookScrim,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createUser,
 } from "./helpers.ts";
 
@@ -126,7 +126,7 @@ describe("cancelScrim", () => {
     const { host, guest, scrim } = await bookScrim();
     const cancel = async (userId: string, now = NOW) =>
       cancelScrim({ userId, teamId: await activeTeamId(userId), scrimId: scrim.id, now });
-    const outsider = await createReadyTeam();
+    const outsider = await createFullyVerifiedTeam();
     await expect(cancel(outsider.captain.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(cancel(guest.members[0]!.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(cancel(host.captain.id, REQUEST_STARTS_AT)).rejects.toMatchObject({
@@ -421,7 +421,7 @@ describe("retireTeamActivity", () => {
   it("cancels requests, withdraws applications and cancels future scrims without late flag", async () => {
     // Team X hosts a scrim within 24 h, has an open request with an applicant and has applied elsewhere.
     const { host: x, guest: opponent, scrim } = await bookScrim(SOON);
-    const applicant = await createReadyTeam();
+    const applicant = await createFullyVerifiedTeam();
     const ownRequest = await createOpenRequest(x.captain.id);
     await applyToRequest({
       userId: applicant.captain.id,
@@ -429,7 +429,7 @@ describe("retireTeamActivity", () => {
       requestId: ownRequest.id,
       now: NOW,
     });
-    const elsewhere = await createReadyTeam();
+    const elsewhere = await createFullyVerifiedTeam();
     const foreignRequest = await createOpenRequest(elsewhere.captain.id);
     const { application } = await applyToRequest({
       userId: x.captain.id,
@@ -488,7 +488,7 @@ describe("retireTeamActivity", () => {
   it("does not deadlock with parallel applications and deletions while a team dissolves", async () => {
     for (let round = 0; round < 10; round++) {
       // Applying to the dissolving team's request (FK checks on its Team row).
-      const host = await createReadyTeam();
+      const host = await createFullyVerifiedTeam();
       await prisma.teamMember.deleteMany({
         where: { teamId: host.team.id, userId: { not: host.captain.id } },
       });
@@ -505,10 +505,10 @@ describe("retireTeamActivity", () => {
           createdAt: NOW,
         },
       });
-      const applicant = await createReadyTeam();
+      const applicant = await createFullyVerifiedTeam();
       // Deleting a request the dissolving team applied to (its application and notification).
-      const leaving = await createReadyTeam();
-      const other = await createReadyTeam();
+      const leaving = await createFullyVerifiedTeam();
+      const other = await createFullyVerifiedTeam();
       const foreignRequest = await createOpenRequest(other.captain.id);
       await applyToRequest({
         userId: leaving.captain.id,
@@ -551,8 +551,8 @@ describe("retireTeamActivity", () => {
   it("leaves requests that have started to the sweeper, which lets them expire", async () => {
     // The sweeper has not run yet: X's request and the one X applied to are still OPEN after
     // their start.
-    const x = await createReadyTeam();
-    const applicant = await createReadyTeam();
+    const x = await createFullyVerifiedTeam();
+    const applicant = await createFullyVerifiedTeam();
     const ownRequest = await createOpenRequest(x.captain.id);
     const { application: received } = await applyToRequest({
       userId: applicant.captain.id,
@@ -560,7 +560,7 @@ describe("retireTeamActivity", () => {
       requestId: ownRequest.id,
       now: NOW,
     });
-    const elsewhere = await createReadyTeam();
+    const elsewhere = await createFullyVerifiedTeam();
     const foreignRequest = await createOpenRequest(elsewhere.captain.id);
     const { application: sent } = await applyToRequest({
       userId: x.captain.id,

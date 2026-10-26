@@ -16,7 +16,7 @@ import {
 import {
   NOW,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createTeamWithMembers,
   createUser,
 } from "./helpers.ts";
@@ -129,7 +129,7 @@ describe("computed team rank", () => {
   });
 
   it("filters the board by the own rank, and not at all without one", async () => {
-    const author = await createReadyTeam({ rank: Rank.DIAMOND });
+    const author = await createFullyVerifiedTeam({ rank: Rank.DIAMOND });
     const low = await createOpenRequest(author.captain.id, {
       rankMin: Rank.IRON,
       rankMax: Rank.BRONZE,
@@ -137,11 +137,11 @@ describe("computed team rank", () => {
     const board = async (userId: string) =>
       (await getBoard({ userId, now: NOW })).requests.some((request) => request.id === low.id);
 
-    const ranked = await createReadyTeam({ rank: Rank.GOLD });
+    const ranked = await createFullyVerifiedTeam({ rank: Rank.GOLD });
     expect(await board(ranked.captain.id)).toBe(false);
     expect((await getBoard({ userId: ranked.captain.id, now: NOW })).ownTeam?.rank).toBe(Rank.GOLD);
 
-    const unranked = await createReadyTeam({ rank: null });
+    const unranked = await createFullyVerifiedTeam({ rank: null });
     expect(await board(unranked.captain.id)).toBe(true);
     expect(await getBoard({ userId: unranked.captain.id, now: NOW })).toMatchObject({
       ownTeam: { rank: null },
@@ -155,13 +155,13 @@ describe("computed team rank", () => {
   });
 
   it("starts a new request without a team rank at no rank, and gives no out-of-range hint", async () => {
-    const unranked = await createReadyTeam({ rank: null });
+    const unranked = await createFullyVerifiedTeam({ rank: null });
     expect(await getRequestForm({ userId: unranked.captain.id, now: NOW })).toMatchObject({
       rank: null,
       rankRange: { rankMin: Rank.IRON, rankMax: Rank.RADIANT },
     });
 
-    const author = await createReadyTeam({ rank: Rank.DIAMOND });
+    const author = await createFullyVerifiedTeam({ rank: Rank.DIAMOND });
     const request = await createOpenRequest(author.captain.id, {
       rankMin: Rank.DIAMOND,
       rankMax: Rank.RADIANT,
@@ -182,7 +182,7 @@ describe("computed team rank", () => {
     });
 
     // With a rank outside the range, the hints are there as before.
-    const low = await createReadyTeam({ rank: Rank.IRON });
+    const low = await createFullyVerifiedTeam({ rank: Rank.IRON });
     expect((await detail(low.captain.id))?.outOfRange).toBe(true);
     expect(
       (

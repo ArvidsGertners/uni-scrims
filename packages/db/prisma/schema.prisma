@@ -340,37 +340,39 @@ model TeamLimitRequest {
 
 // State: active (bannedAt and dissolvedAt null) | banned | dissolved. Banned and dissolved are final in the MVP.
 model Team {
-  id               String    @id @default(cuid())
-  name             String
+  id                     String    @id @default(cuid())
+  name                   String
   // lowercase + trimmed ⇒ case-insensitive unique name; null after dissolution.
-  nameNormalized   String?   @unique
+  nameNormalized         String?   @unique
   // 2–5 characters, not unique.
-  tag              String
-  game             String    @default("valorant")
+  tag                    String
+  game                   String    @default("valorant")
   // Single source of truth for the captain role; intentionally not unique.
-  captainId        String
-  captain          User      @relation(fields: [captainId], references: [id])
+  captainId              String
+  captain                User      @relation(fields: [captainId], references: [id])
   // 12 URL-safe characters; null after dissolution.
-  inviteCode       String?   @unique
-  discordGuildId   String?
-  discordChannelId String?
-  bannedAt         DateTime? @db.Timestamptz(3)
-  dissolvedAt      DateTime? @db.Timestamptz(3)
-  createdAt        DateTime  @db.Timestamptz(3)
+  inviteCode             String?   @unique
+  discordGuildId         String?
+  discordChannelId       String?
+  bannedAt               DateTime? @db.Timestamptz(3)
+  dissolvedAt            DateTime? @db.Timestamptz(3)
+  createdAt              DateTime  @db.Timestamptz(3)
   // Last change to a logo; null = no logo. Versions both logo URLs (Phase 10, both logos since 11).
-  logoUpdatedAt    DateTime? @db.Timestamptz(3)
+  logoUpdatedAt          DateTime? @db.Timestamptz(3)
   // External links set by the captain, https only, host checked per platform (Phase 19).
-  discordUrl       String?
-  websiteUrl       String?
-  xUrl             String?
-  instagramUrl     String?
-  twitchUrl        String?
-  youtubeUrl       String?
-  tiktokUrl        String?
+  discordUrl             String?
+  websiteUrl             String?
+  xUrl                   String?
+  instagramUrl           String?
+  twitchUrl              String?
+  youtubeUrl             String?
+  tiktokUrl              String?
   // Last change to the links; null = no links. The version an admin removes (Phase 19).
-  linksUpdatedAt   DateTime? @db.Timestamptz(3)
+  linksUpdatedAt         DateTime? @db.Timestamptz(3)
   // Shown in the teams list with its members; the captain turns it off (Phase 24).
-  listed           Boolean   @default(true)
+  listed                 Boolean   @default(true)
+  // Only fully verified teams may apply to this team's requests; the captain turns it on (Phase 25).
+  verifiedApplicantsOnly Boolean   @default(false)
 
   logos         TeamLogo[]
   members       TeamMember[]

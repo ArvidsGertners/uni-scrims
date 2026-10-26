@@ -19,7 +19,7 @@ import {
 import {
   NOW,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createTeamWithMembers,
   createUser,
   useAdmin,
@@ -332,8 +332,8 @@ describe("team logo actions", () => {
   });
 
   it("gives team reads the version and the backgrounds with a logo", async () => {
-    const viewer = await createReadyTeam();
-    const author = await createReadyTeam();
+    const viewer = await createFullyVerifiedTeam();
+    const author = await createFullyVerifiedTeam();
     await set(author.captain.id, author.team.id, LIGHT);
     const request = await createOpenRequest(author.captain.id);
     const card = async () =>

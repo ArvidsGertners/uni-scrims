@@ -24,17 +24,17 @@ import {
   SOON,
   bookScrim,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createUser,
 } from "./helpers.ts";
 
 const HOUR = 60 * 60 * 1000;
 const AFTER_START = new Date(REQUEST_STARTS_AT.getTime() + HOUR);
-type ReadyTeam = Awaited<ReturnType<typeof createReadyTeam>>;
+type FullyVerifiedTeam = Awaited<ReturnType<typeof createFullyVerifiedTeam>>;
 
 async function book(
-  host: ReadyTeam,
-  guest: ReadyTeam,
+  host: FullyVerifiedTeam,
+  guest: FullyVerifiedTeam,
   overrides: Partial<typeof REQUEST_INPUT> = {},
 ) {
   const request = await createOpenRequest(host.captain.id, overrides);
@@ -53,7 +53,7 @@ async function book(
 }
 
 async function answer(
-  team: ReadyTeam,
+  team: FullyVerifiedTeam,
   scrimId: string,
   outcome: FeedbackOutcome,
   rating: number | null = null,
@@ -70,8 +70,12 @@ async function answer(
 
 describe("getReliability (§5.7)", () => {
   it("counts played scrims, no-shows and late cancellations and averages ratings from 3 on", async () => {
-    const team = await createReadyTeam();
-    const opponents = [await createReadyTeam(), await createReadyTeam(), await createReadyTeam()];
+    const team = await createFullyVerifiedTeam();
+    const opponents = [
+      await createFullyVerifiedTeam(),
+      await createFullyVerifiedTeam(),
+      await createFullyVerifiedTeam(),
+    ];
     for (const [index, opponent] of opponents.entries()) {
       const scrim = await book(team, opponent);
       await answer(team, scrim.id, FeedbackOutcome.PLAYED, 1);
@@ -124,8 +128,8 @@ describe("getReliability (§5.7)", () => {
 
 describe("getBoard", () => {
   it("shows open future requests matching the own rank by default", async () => {
-    const viewer = await createReadyTeam({ rank: Rank.GOLD });
-    const author = await createReadyTeam();
+    const viewer = await createFullyVerifiedTeam({ rank: Rank.GOLD });
+    const author = await createFullyVerifiedTeam();
     const matching = await createOpenRequest(author.captain.id);
     const higher = await createOpenRequest(author.captain.id, {
       rankMin: Rank.DIAMOND,
@@ -151,8 +155,8 @@ describe("getBoard", () => {
   });
 
   it("filters by several ranks: the range has to contain one of them", async () => {
-    const viewer = await createReadyTeam({ rank: Rank.GOLD });
-    const author = await createReadyTeam();
+    const viewer = await createFullyVerifiedTeam({ rank: Rank.GOLD });
+    const author = await createFullyVerifiedTeam();
     const low = await createOpenRequest(author.captain.id, {
       rankMin: Rank.IRON,
       rankMax: Rank.BRONZE,
@@ -185,8 +189,8 @@ describe("getBoard", () => {
   });
 
   it("filters by the Berlin calendar date of the start", async () => {
-    const viewer = await createReadyTeam();
-    const author = await createReadyTeam();
+    const viewer = await createFullyVerifiedTeam();
+    const author = await createFullyVerifiedTeam();
     const night = await createOpenRequest(author.captain.id, { date: "2026-10-23", time: "01:00" });
     const board = (date: string) =>
       getBoard({ userId: viewer.captain.id, date, ranks: "ALL", now: NOW });
@@ -196,8 +200,8 @@ describe("getBoard", () => {
   });
 
   it("shows card data and the own application, without own requests", async () => {
-    const viewer = await createReadyTeam();
-    const author = await createReadyTeam();
+    const viewer = await createFullyVerifiedTeam();
+    const author = await createFullyVerifiedTeam();
     const request = await createOpenRequest(author.captain.id);
     const own = await createOpenRequest(viewer.captain.id);
     const { application } = await applyToRequest({
@@ -206,7 +210,7 @@ describe("getBoard", () => {
       requestId: request.id,
       now: NOW,
     });
-    const withdrawn = await createReadyTeam();
+    const withdrawn = await createFullyVerifiedTeam();
     const { application: withdrawnApplication } = await applyToRequest({
       userId: withdrawn.captain.id,
       teamId: withdrawn.team.id,
@@ -236,8 +240,8 @@ describe("getBoard", () => {
   });
 
   it("hides requests of banned teams and rejects banned users", async () => {
-    const viewer = await createReadyTeam();
-    const author = await createReadyTeam();
+    const viewer = await createFullyVerifiedTeam();
+    const author = await createFullyVerifiedTeam();
     const request = await createOpenRequest(author.captain.id);
     await prisma.team.update({ where: { id: author.team.id }, data: { bannedAt: NOW } });
     const board = await getBoard({ userId: viewer.captain.id, ranks: "ALL", now: NOW });
@@ -255,20 +259,19 @@ describe("getRequestForm", () => {
   const BANNED = { kind: "TEAM_BANNED", text: { key: "teamBanned" } };
   const NOT_CAPTAIN = { kind: "NOT_CAPTAIN", text: { key: "notCaptain" } };
   const NOT_VERIFIED = { kind: "CAPTAIN_NOT_VERIFIED", text: { key: "captainNotVerified" } };
-  const NOT_READY = { kind: "TEAM_NOT_READY", text: { key: "teamNotReady" } };
   const LIMIT = { kind: "REQUEST_LIMIT", text: { key: "requestLimit" } };
 
   it("lists every reason for the captain; members only learn that the captain has to act", async () => {
     expect(await form((await createUser()).id)).toBeNull();
-    // Unverified captain plus 4 verified members: also not ready.
-    const team = await createReadyTeam({ verifiedCaptain: false });
+    // Unverified captain; how many players are verified does not matter (SPEC N-21).
+    const team = await createFullyVerifiedTeam({ verifiedCaptain: false });
     expect(await form(team.captain.id)).toEqual({
       // The active team, which the form posts for (§5.20).
       teamId: team.team.id,
       teamName: team.team.name,
       rank: Rank.GOLD,
       rankRange: { rankMin: Rank.GOLD, rankMax: Rank.GOLD },
-      problems: [NOT_VERIFIED, NOT_READY],
+      problems: [NOT_VERIFIED],
     });
     expect(await form(team.members[0]!.id)).toMatchObject({ problems: [NOT_CAPTAIN] });
 
@@ -284,7 +287,7 @@ describe("getRequestForm", () => {
   });
 
   it("applies the limit of open requests like createRequest, next to other reasons", async () => {
-    const team = await createReadyTeam();
+    const team = await createFullyVerifiedTeam();
     expect(await form(team.captain.id)).toMatchObject({ problems: [] });
     for (const time of ["11:00", "12:00", "13:00", "14:00", "15:00"]) {
       await createOpenRequest(team.captain.id, { date: "2026-10-22", time });
@@ -293,22 +296,23 @@ describe("getRequestForm", () => {
     expect(await form(team.captain.id)).toMatchObject({ problems: [LIMIT] });
     await expect(sixth()).rejects.toMatchObject({ code: "CONFLICT", text: LIMIT.text });
 
-    // The captain passes the checks before the lock; under the lock createRequest throws the
-    // first entry of the same list, so readiness wins over the limit.
+    // Unverified players change nothing (SPEC N-21); an unverified captain comes first.
     await prisma.user.update({ where: { id: team.members[0]!.id }, data: { verifiedAt: null } });
-    expect(await form(team.captain.id)).toMatchObject({ problems: [NOT_READY, LIMIT] });
-    await expect(sixth()).rejects.toMatchObject({ code: "FORBIDDEN", text: NOT_READY.text });
+    expect(await form(team.captain.id)).toMatchObject({ problems: [LIMIT] });
+    await prisma.user.update({ where: { id: team.captain.id }, data: { verifiedAt: null } });
+    expect(await form(team.captain.id)).toMatchObject({ problems: [NOT_VERIFIED, LIMIT] });
+    await expect(sixth()).rejects.toMatchObject({ code: "NOT_VERIFIED", text: NOT_VERIFIED.text });
     // A request that has started no longer counts (11:00 Berlin = 09:00 UTC).
     expect(await form(team.captain.id, new Date("2026-10-22T09:00:00Z"))).toMatchObject({
-      problems: [NOT_READY],
+      problems: [NOT_VERIFIED],
     });
   });
 });
 
 describe("getRequestDetail", () => {
   it("shows applications only to the creating team (§7)", async () => {
-    const author = await createReadyTeam();
-    const applicant = await createReadyTeam({ rank: Rank.IRON });
+    const author = await createFullyVerifiedTeam();
+    const applicant = await createFullyVerifiedTeam({ rank: Rank.IRON });
     const outsider = await createUser();
     const request = await createOpenRequest(author.captain.id);
     const { application } = await applyToRequest({
@@ -366,8 +370,8 @@ describe("getRequestDetail", () => {
   });
 
   it("offers applying and confirming only where core allows them", async () => {
-    const author = await createReadyTeam();
-    const applicant = await createReadyTeam();
+    const author = await createFullyVerifiedTeam();
+    const applicant = await createFullyVerifiedTeam();
     const request = await createOpenRequest(author.captain.id);
     const { application } = await applyToRequest({
       userId: applicant.captain.id,
@@ -375,7 +379,6 @@ describe("getRequestDetail", () => {
       requestId: request.id,
       now: NOW,
     });
-    const notReady = { key: "teamNotReady" };
     const detail = (userId: string) =>
       getRequestDetail({ userId, requestId: request.id, now: NOW });
     const confirm = () =>
@@ -387,37 +390,44 @@ describe("getRequestDetail", () => {
       });
     const unverify = (userId: string, verifiedAt: Date | null = null) =>
       prisma.user.update({ where: { id: userId }, data: { verifiedAt } });
+    const admitOnlyFullyVerified = (verifiedApplicantsOnly: boolean) =>
+      prisma.team.update({ where: { id: author.team.id }, data: { verifiedApplicantsOnly } });
 
-    // The host team is not ready: confirming is blocked, deleting is not.
+    // Unverified players block nothing (SPEC N-21); the badge is gone.
     await unverify(author.members[0]!.id);
-    expect(await detail(author.captain.id)).toMatchObject({
-      remove: { problem: null },
-      confirm: { problem: notReady },
-      applications: [{ canConfirm: false, teamProblem: null }],
-    });
-    await expect(confirm()).rejects.toMatchObject({ text: notReady });
-    await unverify(author.members[0]!.id, NOW);
-
-    // The applicant team is no longer ready: only its application cannot be confirmed.
     await unverify(applicant.members[0]!.id);
-    const applicantNotReady = {
-      key: "applicantTeamNotReady",
+    expect(await detail(author.captain.id)).toMatchObject({
+      team: { fullyVerified: false },
+      verifiedApplicantsOnly: false,
+      remove: { problem: null },
+      confirm: { problem: null },
+      applications: [{ canConfirm: true, teamProblem: null, team: { fullyVerified: false } }],
+    });
+
+    // The host admits only fully verified teams: only that application cannot be confirmed.
+    await admitOnlyFullyVerified(true);
+    const applicantNotFullyVerified = {
+      key: "applicantTeamNotFullyVerified",
       params: { team: applicant.team.name },
     };
     expect(await detail(author.captain.id)).toMatchObject({
+      verifiedApplicantsOnly: true,
       confirm: { problem: null },
-      applications: [{ canConfirm: false, teamProblem: applicantNotReady }],
+      applications: [{ canConfirm: false, teamProblem: applicantNotFullyVerified }],
     });
-    await expect(confirm()).rejects.toMatchObject({ text: applicantNotReady });
-    // Withdrawing needs no ready team.
+    await expect(confirm()).rejects.toMatchObject({ text: applicantNotFullyVerified });
+    // Withdrawing does not depend on it.
     expect(await detail(applicant.captain.id)).toMatchObject({ withdraw: { problem: null } });
     await unverify(applicant.members[0]!.id, NOW);
+    expect(await detail(author.captain.id)).toMatchObject({
+      applications: [{ canConfirm: true, teamProblem: null, team: { fullyVerified: true } }],
+    });
     // A verified coach does not count as a player of the applicant team (SPEC N-1).
     const applicantRole = (role: MemberRole) =>
       prisma.teamMember.updateMany({ where: { userId: applicant.members[0]!.id }, data: { role } });
     await applicantRole(MemberRole.COACH);
     expect(await detail(author.captain.id)).toMatchObject({
-      applications: [{ canConfirm: false, teamProblem: applicantNotReady }],
+      applications: [{ canConfirm: false, teamProblem: applicantNotFullyVerified }],
     });
     await applicantRole(MemberRole.PLAYER);
 
@@ -432,10 +442,15 @@ describe("getRequestDetail", () => {
     });
     await expect(confirm()).rejects.toMatchObject({ text: applicantInactive });
 
-    const late = await createReadyTeam();
+    // A team without the badge cannot apply while the setting is on.
+    const late = await createFullyVerifiedTeam();
     await unverify(late.members[0]!.id);
+    const mustBeFullyVerified = {
+      key: "applicantsMustBeFullyVerified",
+      params: { team: author.team.name },
+    };
     expect(await detail(late.captain.id)).toMatchObject({
-      apply: { problem: notReady },
+      apply: { problem: mustBeFullyVerified },
       applyAs: { name: late.team.name, memberCount: 5 },
     });
     await expect(
@@ -445,16 +460,18 @@ describe("getRequestDetail", () => {
         requestId: request.id,
         now: NOW,
       }),
-    ).rejects.toMatchObject({ text: notReady });
+    ).rejects.toMatchObject({ code: "FORBIDDEN", text: mustBeFullyVerified });
     // The captain rule comes first.
     expect(await detail(late.members[1]!.id)).toMatchObject({
       apply: { problem: { key: "notCaptain" } },
     });
+    await admitOnlyFullyVerified(false);
+    expect(await detail(late.captain.id)).toMatchObject({ apply: { problem: null } });
   });
 
   it("links the scrim for both teams after booking and hides banned teams' requests", async () => {
     const { host, guest, request, scrim } = await bookScrim();
-    const outsider = await createReadyTeam();
+    const outsider = await createFullyVerifiedTeam();
     const detail = (userId: string) =>
       getRequestDetail({ userId, requestId: request.id, now: NOW });
     expect(await detail(host.members[0]!.id)).toMatchObject({ open: false, scrimId: scrim.id });
@@ -468,7 +485,7 @@ describe("getRequestDetail", () => {
 describe("getScrimDetail and getMyScrims", () => {
   it("is only visible to members of both teams and shows the current opponent captain", async () => {
     const { host, guest, scrim } = await bookScrim();
-    const outsider = await createReadyTeam();
+    const outsider = await createFullyVerifiedTeam();
     const detail = (userId: string, now = NOW) =>
       getScrimDetail({ userId, scrimId: scrim.id, now });
 
@@ -534,8 +551,8 @@ describe("getScrimDetail and getMyScrims", () => {
   });
 
   it("lists upcoming and past scrims of the own team", async () => {
-    const team = await createReadyTeam();
-    const opponent = await createReadyTeam();
+    const team = await createFullyVerifiedTeam();
+    const opponent = await createFullyVerifiedTeam();
     const soon = await book(team, opponent, SOON);
     const later = await book(opponent, team);
     const cancelled = await book(team, opponent);
@@ -567,8 +584,8 @@ describe("getScrimDetail and getMyScrims", () => {
   });
 
   it("lists open requests, applications, the opponent captain and due feedback", async () => {
-    const team = await createReadyTeam();
-    const other = await createReadyTeam();
+    const team = await createFullyVerifiedTeam();
+    const other = await createFullyVerifiedTeam();
     const ownRequest = await createOpenRequest(team.captain.id);
     const otherRequest = await createOpenRequest(other.captain.id);
     const { application } = await applyToRequest({
@@ -627,7 +644,7 @@ describe("getTeamDashboard (§5.14)", () => {
   });
 
   it("adds the board's reliability and no scrim to the team page", async () => {
-    const team = await createReadyTeam();
+    const team = await createFullyVerifiedTeam();
     const dashboard = await getTeamDashboard({ userId: team.members[0]!.id, now: NOW });
     expect(dashboard).toMatchObject({ id: team.team.id, nextScrim: null });
     expect(dashboard?.reliability).toEqual(await getReliability(team.team.id));
@@ -678,7 +695,7 @@ describe("getTeamDashboard (§5.14)", () => {
 
 describe("getNavTeam (§5.15)", () => {
   it("names the own team with its logo, and nothing without one", async () => {
-    const { team, members, captain } = await createReadyTeam();
+    const { team, members, captain } = await createFullyVerifiedTeam();
     const logoAt = new Date("2026-10-20T10:00:00Z");
     await prisma.team.update({ where: { id: team.id }, data: { logoUpdatedAt: logoAt } });
     await prisma.teamLogo.create({
@@ -697,8 +714,16 @@ describe("getNavTeam (§5.15)", () => {
       teamCount: 1,
       teamLimit: 5,
       limitProblem: null,
+      verificationNeeded: false,
     });
-    const none = { team: null, teams: [], teamCount: 0, teamLimit: 5, limitProblem: null };
+    const none = {
+      team: null,
+      teams: [],
+      teamCount: 0,
+      teamLimit: 5,
+      limitProblem: null,
+      verificationNeeded: false,
+    };
     expect(await getNavTeam((await createUser()).id)).toEqual(none);
     await prisma.team.update({ where: { id: team.id }, data: { dissolvedAt: NOW } });
     expect(await getNavTeam(captain.id)).toEqual(none);

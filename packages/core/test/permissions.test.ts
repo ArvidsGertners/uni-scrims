@@ -11,7 +11,7 @@ import {
   getBotStatus,
   getSuccessMetrics,
   getVerificationFile,
-  isTeamReady,
+  isTeamFullyVerified,
   leaveTeam,
   listDisputes,
   listFailedNotifications,
@@ -27,7 +27,6 @@ import {
   requireReviewer,
   requireStaffMember,
   requireTeamMember,
-  requireTeamReady,
   requireUser,
   requireVerified,
   decideTeamLimitRequest,
@@ -42,7 +41,7 @@ import {
 import {
   NOW,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createTeamWithMembers,
   createUser,
 } from "./helpers.ts";
@@ -141,8 +140,8 @@ describe("requireCaptain / requireActingCaptain", () => {
   });
 
   it("does not reveal a ban through another team's request (§4)", async () => {
-    const outsider = await createReadyTeam();
-    const owner = await createReadyTeam();
+    const outsider = await createFullyVerifiedTeam();
+    const owner = await createFullyVerifiedTeam();
     const request = await createOpenRequest(owner.captain.id);
     const remove = () =>
       deleteRequest({ userId: outsider.captain.id, requestId: request.id, now: NOW });
@@ -186,15 +185,13 @@ describe("requireUser and incomplete accounts (§5.8)", () => {
   });
 });
 
-describe("requireTeamReady / isTeamReady", () => {
+describe("isTeamFullyVerified (SPEC N-21)", () => {
   it("needs 5 verified members", async () => {
-    const ready = await createTeamWithMembers({ extraMembers: 4 });
-    expect(await isTeamReady(ready.team.id)).toBe(true);
-    await expect(requireTeamReady(ready.team.id)).resolves.toBeUndefined();
+    const full = await createTeamWithMembers({ extraMembers: 4 });
+    expect(await isTeamFullyVerified(full.team.id)).toBe(true);
 
-    const notReady = await createTeamWithMembers({ extraMembers: 4, verifiedMembers: false });
-    expect(await isTeamReady(notReady.team.id)).toBe(false);
-    await expect(requireTeamReady(notReady.team.id)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const unverified = await createTeamWithMembers({ extraMembers: 4, verifiedMembers: false });
+    expect(await isTeamFullyVerified(unverified.team.id)).toBe(false);
   });
 
   it("counts substitutes but never coaches (SPEC N-1)", async () => {
@@ -202,9 +199,9 @@ describe("requireTeamReady / isTeamReady", () => {
     const setRole = (role: MemberRole) =>
       prisma.teamMember.updateMany({ where: { userId: members[3]!.id }, data: { role } });
     await setRole(MemberRole.COACH);
-    expect(await isTeamReady(team.id)).toBe(false);
+    expect(await isTeamFullyVerified(team.id)).toBe(false);
     await setRole(MemberRole.SUBSTITUTE);
-    expect(await isTeamReady(team.id)).toBe(true);
+    expect(await isTeamFullyVerified(team.id)).toBe(true);
   });
 });
 

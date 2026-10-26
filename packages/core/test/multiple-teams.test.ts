@@ -35,7 +35,7 @@ import {
 import {
   NOW,
   REQUEST_INPUT,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createTeamWithMembers,
   createUser,
   useAdmin,
@@ -70,8 +70,8 @@ async function addMember(
 
 /** The captain of `first` also captains `second` (and is its member). */
 async function captainOfBoth() {
-  const first = await createReadyTeam();
-  const second = await createReadyTeam();
+  const first = await createFullyVerifiedTeam();
+  const second = await createFullyVerifiedTeam();
   await addMember(second.team.id, first.captain.id);
   await prisma.team.update({
     where: { id: second.team.id },
@@ -170,8 +170,8 @@ describe("actions act for the team they get", () => {
   });
 
   it("refuses a team the user is not a member of, and scrims of other teams", async () => {
-    const own = await createReadyTeam();
-    const other = await createReadyTeam();
+    const own = await createFullyVerifiedTeam();
+    const other = await createFullyVerifiedTeam();
     await expect(
       createRequest({ ...REQUEST_INPUT, userId: own.captain.id, teamId: other.team.id, now: NOW }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -192,8 +192,8 @@ describe("actions act for the team they get", () => {
   });
 
   it("points to another own team that plays a scrim the active one does not", async () => {
-    const host = await createReadyTeam();
-    const guest = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
     const request = await createRequest({
       ...REQUEST_INPUT,
       userId: host.captain.id,

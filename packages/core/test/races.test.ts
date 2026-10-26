@@ -46,7 +46,7 @@ import {
   REQUEST_STARTS_AT,
   bookScrim,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createTeamWithMembers,
   createUser,
   uid,
@@ -96,8 +96,8 @@ const ban = (userId: string) => banUser({ adminId: admin.id, userId, uploadDir, 
 describe("applyToRequest while the applicant team is retired", () => {
   it("leaves no pending application of a team banned meanwhile", async () => {
     for (let round = 0; round < ROUNDS; round++) {
-      const host = await createReadyTeam();
-      const guest = await createReadyTeam();
+      const host = await createFullyVerifiedTeam();
+      const guest = await createFullyVerifiedTeam();
       const request = await createOpenRequest(host.captain.id);
       const results = await Promise.allSettled([
         applyToRequest({
@@ -122,8 +122,8 @@ describe("applyToRequest while the applicant team is retired", () => {
 
   it("does not deadlock when both teams apply to each other while being retired", async () => {
     for (let round = 0; round < ROUNDS; round++) {
-      const a = await createReadyTeam();
-      const b = await createReadyTeam();
+      const a = await createFullyVerifiedTeam();
+      const b = await createFullyVerifiedTeam();
       const requestA = await createOpenRequest(a.captain.id);
       const requestB = await createOpenRequest(b.captain.id);
       const results = await Promise.allSettled([
@@ -160,8 +160,8 @@ describe("applyToRequest while the applicant team is retired", () => {
 describe("two teams retired at the same time", () => {
   it("does not deadlock when they applied to each other's requests", async () => {
     for (let round = 0; round < ROUNDS; round++) {
-      const a = await createReadyTeam();
-      const b = await createReadyTeam();
+      const a = await createFullyVerifiedTeam();
+      const b = await createFullyVerifiedTeam();
       const requestA = await createOpenRequest(a.captain.id);
       const requestB = await createOpenRequest(b.captain.id);
       await applyToRequest({
@@ -198,7 +198,7 @@ describe("deleteAccount and the requests whose notes it clears", () => {
     for (let round = 0; round < ROUNDS; round++) {
       // The user wrote the note as an earlier captain of X and now captains T alone; T applied to
       // the request. The deletion withdraws that application and clears the note.
-      const x = await createReadyTeam();
+      const x = await createFullyVerifiedTeam();
       const { team: t, captain: user } = await createTeamWithMembers();
       const request = await createOpenRequest(x.captain.id, { note: "Discord: alt#0001" });
       await prisma.scrimRequest.update({
@@ -304,8 +304,8 @@ describe("team links while the team is dissolved", () => {
 describe("confirmApplication while a team is banned", () => {
   it("never books a scrim with a banned team", async () => {
     for (let round = 0; round < ROUNDS; round++) {
-      const host = await createReadyTeam();
-      const guest = await createReadyTeam();
+      const host = await createFullyVerifiedTeam();
+      const guest = await createFullyVerifiedTeam();
       const request = await createOpenRequest(host.captain.id);
       const { application } = await applyToRequest({
         userId: guest.captain.id,

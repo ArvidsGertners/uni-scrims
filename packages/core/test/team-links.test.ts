@@ -19,7 +19,7 @@ import {
   NOW,
   bookScrim,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createTeamWithMembers,
   createUser,
   useAdmin,
@@ -351,7 +351,7 @@ describe("reads with links", () => {
 
     // Other logged-in users see the request's team with its links.
     const viewer = await createUser();
-    const open = await createReadyTeam();
+    const open = await createFullyVerifiedTeam();
     const openRequest = await createOpenRequest(open.captain.id);
     await updateTeamLinks({
       userId: open.captain.id,

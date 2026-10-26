@@ -11,7 +11,7 @@ import {
   nextStored,
   setNotificationPreferences,
 } from "../src/index.ts";
-import { NOW, createReadyTeam, createUser } from "./helpers.ts";
+import { NOW, createFullyVerifiedTeam, createUser } from "./helpers.ts";
 
 const OFF = { discord: false, email: false };
 
@@ -117,7 +117,7 @@ describe("setNotificationPreferences", () => {
   });
 
   it("knows the captain defaults of the own team", async () => {
-    const { captain } = await createReadyTeam();
+    const { captain } = await createFullyVerifiedTeam();
     const page = await getNotificationPreferences(captain.id);
     expect(page.isCaptain).toBe(true);
     const booked = page.categories.flatMap((c) => c.types).find((t) => t.type === "SCRIM_BOOKED");
@@ -174,8 +174,8 @@ describe("setNotificationPreferences", () => {
 
 describe("captain of one team and member of another (§5.20)", () => {
   it("shows the member defaults and stores a changed scrim choice for all teams", async () => {
-    const captained = await createReadyTeam();
-    const joined = await createReadyTeam();
+    const captained = await createFullyVerifiedTeam();
+    const joined = await createFullyVerifiedTeam();
     const user = captained.captain;
     await prisma.teamMember.create({
       data: { teamId: joined.team.id, userId: user.id, joinedAt: NOW },

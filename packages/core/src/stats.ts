@@ -2,7 +2,7 @@
 // the data is small (ARCHITECTURE §1), so medians and rates are computed here from plain reads.
 import { RequestStatus, ScrimStatus, prisma } from "@uni-scrims/db";
 import { requireAdmin } from "./permissions.ts";
-import { activeTeamWhere, hasReadyMembers } from "./readiness.ts";
+import { activeTeamWhere, hasFullyVerifiedMembers, isVerifiedMember } from "./readiness.ts";
 import { OUTCOME_STATUSES } from "./scrims.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -15,7 +15,7 @@ export const ACTIVE_TEAM_DAYS = 30;
 export const ACTIVE_TEAM_MIN_SCRIMS = 2;
 
 /** Snapshot metrics describe now; all others have a value per window. */
-type SnapshotKey = "readyTeams" | "activeTeams";
+type SnapshotKey = "verifiedCaptainTeams" | "fullyVerifiedTeams" | "activeTeams";
 type WindowedKey =
   | "reviewTime"
   | "confirmationRate"
@@ -35,19 +35,30 @@ type MetricDefinition = {
   unit: MetricUnit;
   /** "atLeast": reached at value ≥ target; "below": reached at value < target. */
   goal: "atLeast" | "below";
-  target: number;
+  /** null: shown for information only, without target and stretch (SPEC N-21). */
+  target: number | null;
   stretch: number | null;
 } & ({ key: SnapshotKey; snapshot: true } | { key: WindowedKey; snapshot: false });
 
 /** SPEC §8, in its order, with targets and stretch goals; names and definitions: i18n/stats.ts. */
 export const SUCCESS_METRICS: readonly MetricDefinition[] = [
   {
-    key: "readyTeams",
+    // Until Phase 24 "readyTeams", the teams with ≥ 5 verified players (SPEC N-21).
+    key: "verifiedCaptainTeams",
     group: "early",
     unit: "count",
     goal: "atLeast",
     target: 15,
     stretch: 30,
+    snapshot: true,
+  },
+  {
+    key: "fullyVerifiedTeams",
+    group: "early",
+    unit: "count",
+    goal: "atLeast",
+    target: null,
+    stretch: null,
     snapshot: true,
   },
   {
@@ -127,9 +138,9 @@ export const SUCCESS_METRICS: readonly MetricDefinition[] = [
 export type MetricResult = {
   /** null without cases. */
   value: number | null;
-  /** How many entries the value rests on (for readyTeams: the active teams). */
+  /** How many entries the value rests on (for the team counts: the active teams). */
   cases: number;
-  /** null without a value, or for stretchReached without a stretch goal. */
+  /** null without a value or without a target, or for stretchReached without a stretch goal. */
   reached: boolean | null;
   stretchReached: boolean | null;
 };
@@ -156,7 +167,10 @@ function result(definition: MetricDefinition, value: number | null, cases: numbe
   return {
     value,
     cases,
-    reached: value === null ? null : meets(value, definition.goal, definition.target),
+    reached:
+      value === null || definition.target === null
+        ? null
+        : meets(value, definition.goal, definition.target),
     stretchReached:
       value === null || definition.stretch === null
         ? null
@@ -190,6 +204,7 @@ export async function getSuccessMetrics(input: {
       where: activeTeamWhere(),
       select: {
         id: true,
+        captain: { select: { verifiedAt: true } },
         members: { select: { role: true, user: { select: { verifiedAt: true } } } },
       },
     }),
@@ -265,7 +280,9 @@ export async function getSuccessMetrics(input: {
   const last28Days = windowed(new Date(now.getTime() - STATS_WINDOW_DAYS * DAY));
   const total = windowed(null);
 
-  const readyTeamIds = teams.filter((team) => hasReadyMembers(team.members)).map(({ id }) => id);
+  // Teams that can play since Phase 25: their captain is verified (SPEC N-21).
+  const captainTeamIds = teams.filter((team) => isVerifiedMember(team.captain)).map(({ id }) => id);
+  const fullyVerifiedTeams = teams.filter((team) => hasFullyVerifiedMembers(team.members)).length;
   const activeStart = new Date(now.getTime() - ACTIVE_TEAM_DAYS * DAY);
   const playedPerTeam = new Map<string, number>();
   for (const scrim of started) {
@@ -274,13 +291,14 @@ export async function getSuccessMetrics(input: {
       playedPerTeam.set(teamId, (playedPerTeam.get(teamId) ?? 0) + 1);
     }
   }
-  const activeTeams = readyTeamIds.filter(
+  const activeTeams = captainTeamIds.filter(
     (teamId) => (playedPerTeam.get(teamId) ?? 0) >= ACTIVE_TEAM_MIN_SCRIMS,
   ).length;
   const snapshots: Record<SnapshotKey, Value> = {
-    // A count: no ready teams is 0, not "no value", even without any active team.
-    readyTeams: [readyTeamIds.length, teams.length],
-    activeTeams: [rate(activeTeams, readyTeamIds.length), readyTeamIds.length],
+    // Counts: no such teams is 0, not "no value", even without any active team.
+    verifiedCaptainTeams: [captainTeamIds.length, teams.length],
+    fullyVerifiedTeams: [fullyVerifiedTeams, teams.length],
+    activeTeams: [rate(activeTeams, captainTeamIds.length), captainTeamIds.length],
   };
 
   return SUCCESS_METRICS.map((definition): SuccessMetric => {

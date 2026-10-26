@@ -351,7 +351,8 @@ describe("reads", () => {
       id: team.id,
       isCaptain: true,
       verifiedPlayerCount: 4,
-      ready: false,
+      fullyVerified: false,
+      verifiedApplicantsOnly: false,
     });
     expect(own?.inviteCode).toBe(team.inviteCode);
     expect(own?.members.find((member) => member.id === pending.id)?.status).toBe("PENDING");
@@ -384,13 +385,19 @@ describe("reads", () => {
     const setRole = (userId: string, role: MemberRole) =>
       prisma.teamMember.updateMany({ where: { userId }, data: { role } });
     await setRole(members[3]!.id, MemberRole.COACH);
-    expect(await getMyTeam(captain.id)).toMatchObject({ verifiedPlayerCount: 4, ready: false });
+    expect(await getMyTeam(captain.id)).toMatchObject({
+      verifiedPlayerCount: 4,
+      fullyVerified: false,
+    });
     expect(
       (await getMyTeam(captain.id))?.members.find((member) => member.id === members[3]!.id)?.role,
     ).toBe(MemberRole.COACH);
 
     await setRole(members[3]!.id, MemberRole.SUBSTITUTE);
-    expect(await getMyTeam(captain.id)).toMatchObject({ verifiedPlayerCount: 5, ready: true });
+    expect(await getMyTeam(captain.id)).toMatchObject({
+      verifiedPlayerCount: 5,
+      fullyVerified: true,
+    });
   });
 
   it("previews a team by invite code", async () => {

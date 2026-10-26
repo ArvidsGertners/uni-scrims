@@ -2,8 +2,8 @@
 // import the domain modules (they import the catalog through errors.ts) and client forms can use
 // them too. The domain modules re-export them where they were defined before.
 
-/** A team is ready to play with at least this many verified players (SPEC P0-3). */
-export const READY_MEMBER_COUNT = 5;
+/** A team is fully verified with at least this many verified players (SPEC P0-3, N-21). */
+export const FULLY_VERIFIED_PLAYER_COUNT = 5;
 export const MAX_TEAM_MEMBERS = 10;
 /** Max. open requests per team (SPEC P0-4). */
 export const MAX_OPEN_REQUESTS = 5;

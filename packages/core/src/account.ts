@@ -22,7 +22,12 @@ import {
   localeSchema,
   themePreferenceSchema,
 } from "./schemas.ts";
-import { TRANSFER_CAPTAIN_FIRST, dissolveTeam, lockRetirements } from "./teams.ts";
+import {
+  TRANSFER_CAPTAIN_FIRST,
+  dissolveTeam,
+  lockRetirements,
+  needsCaptainVerification,
+} from "./teams.ts";
 import { deleteUpload } from "./uploads.ts";
 import { avatarVersion } from "./users.ts";
 import {
@@ -120,6 +125,8 @@ export async function getAccount(userId: string) {
                 : ("NONE" as const),
           university: student.latest?.university ?? null,
         },
+    /** The warning dot: unverified captain of an active team (SPEC N-21). */
+    verificationNeeded: needsCaptainVerification(user, ownTeams),
     /** All own teams (SPEC N-17); a captain's team is dissolved by the deletion, others are left. */
     teams: ownTeams.map((team) => ({
       id: team.id,

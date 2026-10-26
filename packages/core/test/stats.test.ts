@@ -160,11 +160,17 @@ describe("getSuccessMetrics", () => {
     });
   });
 
-  it("has no values without data, except the count of ready teams", async () => {
+  it("has no values without data, except the team counts", async () => {
     const metrics = byKey(await getSuccessMetrics({ adminId: admin.id, now: NOW }));
-    expect(metrics.readyTeams).toMatchObject({
+    expect(metrics.verifiedCaptainTeams).toMatchObject({
       snapshot: true,
       now: { value: 0, cases: 0, reached: false, stretchReached: false },
+    });
+    // For information only: no target, so never reached or missed (SPEC N-21).
+    expect(metrics.fullyVerifiedTeams).toMatchObject({
+      snapshot: true,
+      target: null,
+      now: { value: 0, cases: 0, reached: null, stretchReached: null },
     });
     expect(metrics.activeTeams).toMatchObject({
       now: { value: null, cases: 0, reached: null, stretchReached: null },
@@ -181,10 +187,10 @@ describe("getSuccessMetrics", () => {
   it("computes every metric of SPEC §8 for the last 28 days and in total", async () => {
     const a = await createTeamWithMembers({ extraMembers: 4 });
     const b = await createTeamWithMembers({ extraMembers: 4 });
-    // F: ready, but no scrims.
+    // F: fully verified, but no scrims.
     await createTeamWithMembers({ extraMembers: 4 });
     const c = await createTeamWithMembers({ extraMembers: 3 });
-    // A verified coach as fifth member: not ready (SPEC N-1).
+    // A verified coach as fifth member: not fully verified (SPEC N-1).
     const e = await createTeamWithMembers({ extraMembers: 4 });
     await prisma.teamMember.updateMany({
       where: { userId: e.members[0]!.id },
@@ -304,13 +310,17 @@ describe("getSuccessMetrics", () => {
 
     const { metrics, windows } = await metricsAt();
 
-    // A, B and F are ready; C misses a player, E has a coach as fifth, the banned team is out.
-    expect(metrics.readyTeams).toMatchObject({
-      now: { value: 3, cases: 5, reached: false, stretchReached: false },
+    // All five active teams have a verified captain (SPEC N-21); A, B and F are fully verified,
+    // C misses a player, E has a coach as fifth; the banned team is out.
+    expect(metrics.verifiedCaptainTeams).toMatchObject({
+      now: { value: 5, cases: 5, reached: false, stretchReached: false },
     });
-    // A and B played 3 scrims in the last 30 days, F none.
+    expect(metrics.fullyVerifiedTeams).toMatchObject({
+      now: { value: 3, cases: 5, reached: null, stretchReached: null },
+    });
+    // A and B played 3 scrims in the last 30 days; C, E and F did not.
     expect(metrics.activeTeams).toMatchObject({
-      now: { value: 2 / 3, cases: 3, reached: true, stretchReached: null },
+      now: { value: 2 / 5, cases: 5, reached: false, stretchReached: null },
     });
 
     // Decisions: 2 h, 10 h, 30 h in the window; 1 h before it.
@@ -350,7 +360,7 @@ describe("getSuccessMetrics", () => {
   });
 
   it("counts teams with 2 played scrims that started in the last 30 days", async () => {
-    const opponent = await createTeamWithMembers({ extraMembers: 3 });
+    const opponent = await createTeamWithMembers({ extraMembers: 3, verifiedCaptain: false });
     const scrim = (host: Team, status: ScrimStatus, startsAt: Date) =>
       createScrim({
         host,
@@ -372,7 +382,7 @@ describe("getSuccessMetrics", () => {
     await scrim(noShow, ScrimStatus.COMPLETED, ago(2 * DAY));
     await scrim(noShow, ScrimStatus.NO_SHOW, ago(3 * DAY));
 
-    // The opponent played all of them but is not ready, so it is in neither number.
+    // The opponent played all of them but has no verified captain, so it is in neither number.
     const { metrics } = await metricsAt();
     expect(metrics.activeTeams).toMatchObject({
       now: { value: 1 / 3, cases: 3, reached: false, stretchReached: null },

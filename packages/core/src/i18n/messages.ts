@@ -5,6 +5,7 @@ import type { TeamLinkPlatform } from "../team-links.ts";
 import { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../../config/account.ts";
 import {
   APPLICATION_MESSAGE_MAX,
+  FULLY_VERIFIED_PLAYER_COUNT,
   MAX_LOGO_SIDE,
   MAX_OPEN_REQUESTS,
   MAX_TEAM_LIMIT,
@@ -12,7 +13,6 @@ import {
   MIN_LOGO_CONTENT,
   RATING_MAX,
   RATING_MIN,
-  READY_MEMBER_COUNT,
   REQUEST_NOTE_MAX,
   TEAM_LIMIT_REASON_MAX,
   TEAM_LIMIT_REASON_MIN,
@@ -52,7 +52,6 @@ const de = {
   teamBanned: "Das Team ist gesperrt.",
   notCaptain: "Das kann nur euer Captain.",
   captainNotVerified: "Als Captain musst du für Scrim-Aktionen verifiziert sein.",
-  teamNotReady: `Euer Team hat noch keine ${READY_MEMBER_COUNT} verifizierten Spieler.`,
   notInTeam: "Du bist nicht in diesem Team.",
   notInAnyTeam: "Du bist in keinem Team.",
   teamNotFound: "Team nicht gefunden.",
@@ -82,8 +81,10 @@ const de = {
   applicationNotFound: "Bewerbung nicht gefunden.",
   applicationNotOpen: "Die Bewerbung ist nicht mehr offen.",
   applicantTeamInactive: ({ team }: { team: string }) => `Das Team „${team}“ ist nicht mehr aktiv.`,
-  applicantTeamNotReady: ({ team }: { team: string }) =>
-    `Das Team „${team}“ ist nicht mehr spielbereit (weniger als ${READY_MEMBER_COUNT} verifizierte Spieler).`,
+  applicantsMustBeFullyVerified: ({ team }: { team: string }) =>
+    `„${team}“ nimmt nur Bewerbungen von vollständig verifizierten Teams an (mindestens ${FULLY_VERIFIED_PLAYER_COUNT} verifizierte Spieler oder Ersatzspieler).`,
+  applicantTeamNotFullyVerified: ({ team }: { team: string }) =>
+    `Das Team „${team}“ ist nicht vollständig verifiziert (weniger als ${FULLY_VERIFIED_PLAYER_COUNT} verifizierte Spieler oder Ersatzspieler), und ihr nehmt nur solche Teams an.`,
 
   // Scrims and feedback
   scrimNotFound: "Scrim nicht gefunden.",
@@ -233,7 +234,6 @@ export const MESSAGES = dictionary(de, {
   teamBanned: "The team is banned.",
   notCaptain: "Only your captain can do that.",
   captainNotVerified: "As captain, you need to be verified for scrim actions.",
-  teamNotReady: `Your team doesn't have ${READY_MEMBER_COUNT} verified players yet.`,
   notInTeam: "You're not in this team.",
   notInAnyTeam: "You're not in a team.",
   teamNotFound: "Team not found.",
@@ -262,8 +262,10 @@ export const MESSAGES = dictionary(de, {
   applicationNotFound: "Application not found.",
   applicationNotOpen: "The application is no longer open.",
   applicantTeamInactive: ({ team }) => `The team “${team}” is no longer active.`,
-  applicantTeamNotReady: ({ team }) =>
-    `The team “${team}” is no longer ready to play (fewer than ${READY_MEMBER_COUNT} verified players).`,
+  applicantsMustBeFullyVerified: ({ team }) =>
+    `“${team}” only accepts applications from fully verified teams (at least ${FULLY_VERIFIED_PLAYER_COUNT} verified players or substitutes).`,
+  applicantTeamNotFullyVerified: ({ team }) =>
+    `The team “${team}” is not fully verified (fewer than ${FULLY_VERIFIED_PLAYER_COUNT} verified players or substitutes), and you only accept such teams.`,
 
   scrimNotFound: "Scrim not found.",
   scrimNotCancellable: "The scrim can no longer be cancelled.",

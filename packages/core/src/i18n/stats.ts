@@ -1,14 +1,19 @@
 // Names and definitions of the success metrics (SPEC §8, N-2) in both languages (§5.21).
-import { READY_MEMBER_COUNT } from "../../config/limits.ts";
+import { FULLY_VERIFIED_PLAYER_COUNT } from "../../config/limits.ts";
 import { dictionary } from "../../config/locale.ts";
 import { ACTIVE_TEAM_DAYS, ACTIVE_TEAM_MIN_SCRIMS, type MetricKey } from "../stats.ts";
 
 type MetricTexts = Record<MetricKey, { label: string; description: string }>;
 
 const de: MetricTexts = {
-  readyTeams: {
-    label: "Spielbereite Teams",
-    description: `Aktive Teams mit mindestens ${READY_MEMBER_COUNT} verifizierten Spielern, Stand jetzt.`,
+  verifiedCaptainTeams: {
+    label: "Teams mit verifiziertem Captain",
+    description:
+      "Aktive Teams, deren Captain verifiziert ist, Stand jetzt. Sie können Scrims anfragen.",
+  },
+  fullyVerifiedTeams: {
+    label: "Vollständig verifizierte Teams",
+    description: `Aktive Teams mit mindestens ${FULLY_VERIFIED_PLAYER_COUNT} verifizierten Spielern oder Ersatzspielern, Stand jetzt. Nur zur Info.`,
   },
   reviewTime: {
     label: "Prüfzeit",
@@ -29,7 +34,7 @@ const de: MetricTexts = {
   },
   activeTeams: {
     label: `Teams mit ≥ ${ACTIVE_TEAM_MIN_SCRIMS} Scrims pro Monat`,
-    description: `Spielbereite Teams mit mindestens ${ACTIVE_TEAM_MIN_SCRIMS} gespielten Scrims in den letzten ${ACTIVE_TEAM_DAYS} Tagen, Stand jetzt.`,
+    description: `Teams mit verifiziertem Captain und mindestens ${ACTIVE_TEAM_MIN_SCRIMS} gespielten Scrims in den letzten ${ACTIVE_TEAM_DAYS} Tagen, Stand jetzt.`,
   },
   noShowRate: { label: "No-Show-Rate", description: "No-Show ÷ (Gespielt + No-Show)." },
   averageRating: {
@@ -39,9 +44,13 @@ const de: MetricTexts = {
 };
 
 export const METRIC_TEXTS = dictionary(de, {
-  readyTeams: {
-    label: "Ready teams",
-    description: `Active teams with at least ${READY_MEMBER_COUNT} verified players, as of now.`,
+  verifiedCaptainTeams: {
+    label: "Teams with a verified captain",
+    description: "Active teams whose captain is verified, as of now. They can request scrims.",
+  },
+  fullyVerifiedTeams: {
+    label: "Fully verified teams",
+    description: `Active teams with at least ${FULLY_VERIFIED_PLAYER_COUNT} verified players or substitutes, as of now. For information only.`,
   },
   reviewTime: {
     label: "Review time",
@@ -62,7 +71,7 @@ export const METRIC_TEXTS = dictionary(de, {
   },
   activeTeams: {
     label: `Teams with ≥ ${ACTIVE_TEAM_MIN_SCRIMS} scrims per month`,
-    description: `Ready teams with at least ${ACTIVE_TEAM_MIN_SCRIMS} played scrims in the last ${ACTIVE_TEAM_DAYS} days, as of now.`,
+    description: `Teams with a verified captain and at least ${ACTIVE_TEAM_MIN_SCRIMS} played scrims in the last ${ACTIVE_TEAM_DAYS} days, as of now.`,
   },
   noShowRate: { label: "No-show rate", description: "No-show ÷ (played + no-show)." },
   averageRating: { label: "Average rating", description: "Ratings from played scrims." },

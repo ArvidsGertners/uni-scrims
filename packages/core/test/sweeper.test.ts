@@ -26,7 +26,7 @@ import {
   NOW,
   bookScrim,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createSession,
   createUser,
   uid,
@@ -221,8 +221,8 @@ describe("runSweeper (§6.3)", () => {
   });
 
   it("expires requests and opens and evaluates scrims in one run", async () => {
-    const host = await createReadyTeam();
-    const applicant = await createReadyTeam();
+    const host = await createFullyVerifiedTeam();
+    const applicant = await createFullyVerifiedTeam();
     const request = await createOpenRequest(host.captain.id);
     await applyToRequest({
       userId: applicant.captain.id,

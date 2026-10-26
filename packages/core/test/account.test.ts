@@ -40,7 +40,7 @@ import {
   NOW,
   bookScrim,
   createOpenRequest,
-  createReadyTeam,
+  createFullyVerifiedTeam,
   createSession,
   createTeamWithMembers,
   createUser,
@@ -180,7 +180,7 @@ describe("getAccount", () => {
 
 describe("deleteAccount", () => {
   it("anonymizes a player and removes all personal data", async () => {
-    const { team, members } = await createReadyTeam();
+    const { team, members } = await createFullyVerifiedTeam();
     const player = members[0]!;
     const files = await personalData(player.id);
 
@@ -304,8 +304,8 @@ describe("deleteAccount", () => {
   });
 
   it("keeps the messages of applications, which belong to the team", async () => {
-    const x = await createReadyTeam();
-    const other = await createReadyTeam();
+    const x = await createFullyVerifiedTeam();
+    const other = await createFullyVerifiedTeam();
     const request = await createOpenRequest(other.captain.id);
     const { application } = await applyToRequest({
       userId: x.captain.id,

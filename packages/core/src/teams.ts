@@ -25,9 +25,9 @@ import {
 } from "./permissions.ts";
 import { teamRank, teamRankSummary } from "./ranks.ts";
 import {
-  countReadyMembers,
+  countVerifiedPlayerMembers,
+  isFullyVerifiedCount,
   isPlayingRole,
-  isReadyCount,
   isListedTeam,
   isTeamActive,
   isVerifiedMember,
@@ -41,6 +41,7 @@ import {
   teamInputSchema,
   teamLinksSchema,
   teamListedSchema,
+  teamVerifiedApplicantsOnlySchema,
 } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 import { NO_TEAM_LINKS, TEAM_LINK_PLATFORMS, teamLinkColumns, toTeamLinks } from "./team-links.ts";
@@ -198,6 +199,38 @@ export async function setTeamListed(input: { userId: string; teamId: string; lis
     if (team.listed === listed) return;
     await tx.team.update({ where: { id: input.teamId }, data: { listed } });
   });
+}
+
+/**
+ * Whether only fully verified teams may apply to the team's requests (SPEC N-21, §5.24): captain of
+ * a team that is not banned, verification is not needed, like setTeamListed. Only a change writes.
+ */
+export async function setVerifiedApplicantsOnly(input: {
+  userId: string;
+  teamId: string;
+  value: boolean;
+}) {
+  await requireCaptain(input.userId, input.teamId);
+  const value = parseInput(teamVerifiedApplicantsOnlySchema, input.value);
+  await prisma.$transaction(async (tx) => {
+    await lockTeam(tx, input.teamId);
+    const { team } = await requireCaptain(input.userId, input.teamId, tx);
+    if (team.verifiedApplicantsOnly === value) return;
+    await tx.team.update({ where: { id: input.teamId }, data: { verifiedApplicantsOnly: value } });
+  });
+}
+
+/**
+ * Whether the user should verify: not verified and captain of an active team, since scrims need
+ * only the captain's verification (SPEC N-21). The warning dot at "Konto" shows it.
+ */
+export function needsCaptainVerification(
+  user: { id: string; verifiedAt: Date | null },
+  teams: readonly { captainId: string; bannedAt: Date | null; dissolvedAt: Date | null }[],
+): boolean {
+  return (
+    !isVerifiedMember(user) && teams.some((team) => isCaptainOf(user, team) && isTeamActive(team))
+  );
 }
 
 /** Removes all external links (dissolution, admins); internal, without permission check. */
@@ -666,7 +699,8 @@ export async function getMyTeam(userId: string) {
     joinedAt,
     role,
     isCaptain: isCaptainOf(member, team),
-    // Coaches need no verification (SPEC N-1); a coach as captain still does for scrim actions.
+    // Players and substitutes count for the badge once verified, the captain needs it for scrim
+    // actions (SPEC N-21); coaches need none (N-1).
     needsVerification: member.id === team.captainId || role !== MemberRole.COACH,
     // The own team sees the members' own ranks (SPEC N-16); the teams list too (N-20).
     rank: member.rank,
@@ -679,7 +713,7 @@ export async function getMyTeam(userId: string) {
         : ("UNVERIFIED" as const),
   }));
   // Verified players and substitutes; coaches never count (SPEC N-1).
-  const verifiedPlayerCount = countReadyMembers(memberRows);
+  const verifiedPlayerCount = countVerifiedPlayerMembers(memberRows);
   return {
     id: team.id,
     name: team.name,
@@ -691,14 +725,16 @@ export async function getMyTeam(userId: string) {
     links: toTeamLinks(team),
     // On the teams list (SPEC N-20); a banned team is not, whatever the captain chose.
     listed: isListedTeam(team),
+    // Only fully verified teams may apply to the team's requests (SPEC N-21).
+    verifiedApplicantsOnly: team.verifiedApplicantsOnly,
     banned: team.bannedAt !== null,
     isCaptain,
     // Only the captain manages the invite link.
     inviteCode: isCaptain ? team.inviteCode : null,
     members,
     verifiedPlayerCount,
-    // Counted once, judged by the rule core enforces, so the team page and the request pages agree.
-    ready: isReadyCount(verifiedPlayerCount),
+    // Counted once, judged by the same rule as the badge on the other pages (SPEC N-21).
+    fullyVerified: isFullyVerifiedCount(verifiedPlayerCount),
     universities: teamUniversities(memberRows),
   };
 }

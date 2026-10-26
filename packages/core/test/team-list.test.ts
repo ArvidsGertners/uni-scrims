@@ -83,6 +83,8 @@ describe("getTeamList (§5.23)", () => {
         rank: Rank.PLATINUM,
         logo: null,
         universities: { shown: [`Hochschule ${tok}`, `Uni ${tok} Nord`], more: 0 },
+        // Only captain and player count as verified players, so no badge (SPEC N-21).
+        fullyVerified: false,
         members: [
           {
             id: captain.id,
@@ -115,7 +117,7 @@ describe("getTeamList (§5.23)", () => {
         ],
       },
     ]);
-    expect(result.filter).toEqual({ search: tok, ranks: [] });
+    expect(result.filter).toEqual({ search: tok, ranks: [], fullyVerifiedOnly: false });
   });
 
   it("leaves out banned, dissolved and hidden teams, also for their members", async () => {

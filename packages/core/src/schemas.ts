@@ -75,6 +75,9 @@ export type TeamLinksInput = z.input<typeof teamLinksSchema>;
 /** Whether the team is shown in the teams list (Phase 24, §5.23). */
 export const teamListedSchema = z.boolean(key("invalidInput"));
 
+/** Whether only fully verified teams may apply (Phase 25, §5.24). */
+export const teamVerifiedApplicantsOnlySchema = z.boolean(key("invalidInput"));
+
 export const memberRoleSchema = z.enum(MemberRole, key("chooseRole"));
 
 /** The own rank in the settings (Phase 20, §5.19); empty means none. */

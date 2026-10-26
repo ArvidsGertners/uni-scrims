@@ -54,8 +54,7 @@ export function isDomainError(error: unknown): error is DomainError {
 }
 
 /** Reasons that pages show with a link to where they can be fixed (§7). */
-export type ProblemKind =
-  "TEAM_BANNED" | "NOT_CAPTAIN" | "CAPTAIN_NOT_VERIFIED" | "TEAM_NOT_READY" | "REQUEST_LIMIT";
+export type ProblemKind = "TEAM_BANNED" | "NOT_CAPTAIN" | "CAPTAIN_NOT_VERIFIED" | "REQUEST_LIMIT";
 
 /**
  * Why an action is not possible: mutations throw it, pages show the same message. Readonly, since

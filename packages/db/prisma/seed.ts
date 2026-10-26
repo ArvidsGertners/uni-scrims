@@ -1,4 +1,4 @@
-// Idempotent dev seed: universities and two ready-to-play test teams (5 verified users each).
+// Idempotent dev seed: universities and two fully verified test teams (5 verified users each).
 // With --universities-only (production) just the university list.
 import { randomBytes } from "node:crypto";
 import path from "node:path";
@@ -135,7 +135,7 @@ async function main(): Promise<void> {
   for (const team of seedTeams) {
     await seedTeam(team, now);
   }
-  // Phase 21 (§5.20): a member of two teams, as coach in the second, so Beta's readiness stays.
+  // Phase 21 (§5.20): a member of two teams, as coach in the second, so Beta's badge stays (SPEC N-21).
   const twoTeams = { teamId: "seed-team-beta", userId: "seed-team-alpha-user-2" };
   await prisma.teamMember.upsert({
     where: { teamId_userId: twoTeams },

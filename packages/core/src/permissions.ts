@@ -13,7 +13,6 @@ import {
   problemError,
 } from "./errors.ts";
 import { type PlainMessageKey, msg } from "./i18n/render.ts";
-import { isTeamReady } from "./readiness.ts";
 import { type AccountSetupStep, accountSetupStep, getDiscordId, isLoggedOutUser } from "./users.ts";
 
 /** Shown when an action needs a complete account; pages redirect to the step instead (§5.8). */
@@ -40,13 +39,6 @@ const CAPTAIN_NOT_VERIFIED: Problem = {
   code: "NOT_VERIFIED",
   text: msg("captainNotVerified"),
 };
-// Always about the user's own team: posting, applying and confirming as host.
-const TEAM_NOT_READY: Problem = {
-  kind: "TEAM_NOT_READY",
-  code: "FORBIDDEN",
-  text: msg("teamNotReady"),
-};
-
 type ActingUser = { id: string; verifiedAt: Date | null };
 type ActingTeam = { captainId: string; bannedAt: Date | null };
 
@@ -210,11 +202,6 @@ export async function requireTeamMember(
   return { user, team: membership.team };
 }
 
-export async function requireTeamReady(teamId: string, db: Db = prisma): Promise<void> {
-  const problem = teamReadyProblem(await isTeamReady(teamId, db));
-  if (problem) throw problemError(problem);
-}
-
 /** Which roles see which part of the admin area (ARCHITECTURE §5.9). */
 export const STAFF_AREAS = {
   /** Verification queue and file access. */
@@ -296,14 +283,6 @@ export async function canSeeAvatar(
     if (isDomainError(error)) return false;
     throw error;
   }
-}
-
-/**
- * Non-throwing counterpart of requireTeamReady: posting, applying and confirming need a ready team,
- * withdrawing, deleting, cancelling and feedback do not (SPEC P0-3).
- */
-export function teamReadyProblem(ready: boolean): Problem | null {
-  return ready ? null : TEAM_NOT_READY;
 }
 
 type ScrimTeams = { hostTeamId: string; guestTeamId: string };
