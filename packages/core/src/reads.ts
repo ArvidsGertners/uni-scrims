@@ -1,5 +1,13 @@
 // Reads for the board, request and scrim pages (ARCHITECTURE §3 "Lesen", §5.7, §7).
-import { AppStatus, type Prisma, type Rank, ScrimStatus, prisma } from "@uni-scrims/db";
+import {
+  AppStatus,
+  type MemberRole,
+  type Prisma,
+  type Rank,
+  ScrimStatus,
+  prisma,
+} from "@uni-scrims/db";
+import { TEAM_SEARCH_MAX } from "../config/limits.ts";
 import type { Db } from "./db.ts";
 import type { Message } from "./i18n/render.ts";
 import {
@@ -31,7 +39,7 @@ import {
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
-import { getMyTeam, teamLimitProblem, teamUniversities } from "./teams.ts";
+import { getMyTeam, teamLimitProblem, teamUniversities, verifiedUniversityNames } from "./teams.ts";
 import { berlinDayRange, isValidDateString } from "./time.ts";
 import { getDiscordId } from "./users.ts";
 
@@ -730,4 +738,107 @@ export async function getNavTeam(userId: string) {
     /** Why no further team can be founded or joined (SPEC N-17), or null. */
     limitProblem: teamLimitProblem(own.length, user.teamLimit),
   };
+}
+
+// ─── Teams list ───────────────────────────────────────────────────────────────
+
+export { TEAM_SEARCH_MAX };
+
+export type TeamListInput = {
+  userId: string;
+  /** Part of a team name, tag or university; trimmed, cut to TEAM_SEARCH_MAX, empty = all. */
+  search?: string | null;
+  /** Teams whose team rank is one of these; missing, empty or "ALL" = no rank filter. */
+  ranks?: readonly Rank[] | "ALL" | null;
+};
+
+export type TeamListMember = {
+  id: string;
+  name: string;
+  role: MemberRole;
+  isCaptain: boolean;
+  /** The member's own rank; the list shows it to everyone (SPEC N-20). */
+  rank: Rank | null;
+};
+
+export type TeamListEntry = {
+  id: string;
+  name: string;
+  tag: string;
+  rank: Rank | null;
+  logo: TeamLogoInfo | null;
+  universities: { shown: string[]; more: number };
+  members: TeamListMember[];
+};
+
+const teamListSelect = {
+  id: true,
+  name: true,
+  tag: true,
+  captainId: true,
+  ...teamLogoSelect,
+  members: {
+    // The order of the members tab.
+    orderBy: [{ joinedAt: "asc" }, { userId: "asc" }],
+    select: {
+      ...teamRankMemberSelect,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          verifiedAt: true,
+          universityOther: true,
+          university: { select: { name: true } },
+          ...teamRankMemberSelect.user.select,
+        },
+      },
+    },
+  },
+} satisfies Prisma.TeamSelect;
+
+/**
+ * All active teams their captain has not hidden, with universities, team rank and members (SPEC
+ * N-20, §5.23), for every active account like the board. Search and rank filter run after loading,
+ * because the team rank is computed on read (§5.19).
+ */
+export async function getTeamList(input: TeamListInput) {
+  await requireUser(input.userId);
+  const search = (input.search ?? "").trim().slice(0, TEAM_SEARCH_MAX);
+  const chosen = input.ranks;
+  // In rank order, without duplicates; empty = all ranks.
+  const ranks = chosen && chosen !== "ALL" ? RANKS.filter((rank) => chosen.includes(rank)) : [];
+  const needle = search.toLocaleLowerCase("de");
+  const matches = (text: string | null) => !!text && text.toLocaleLowerCase("de").includes(needle);
+
+  const rows = await prisma.team.findMany({
+    where: { ...activeTeamWhere(), listed: true },
+    select: teamListSelect,
+  });
+  const teams: TeamListEntry[] = rows
+    .map((team) => ({ team, rank: teamRank(team.members) }))
+    .filter(({ rank }) => ranks.length === 0 || (rank !== null && ranks.includes(rank)))
+    .filter(
+      ({ team }) =>
+        !needle ||
+        matches(team.name) ||
+        matches(team.tag) ||
+        verifiedUniversityNames(team.members).some(matches),
+    )
+    .sort((a, b) => a.team.name.localeCompare(b.team.name, "de"))
+    .map(({ team, rank }) => ({
+      id: team.id,
+      name: team.name,
+      tag: team.tag,
+      rank,
+      logo: teamLogoInfo(team),
+      universities: teamUniversities(team.members),
+      members: team.members.map(({ role, user }) => ({
+        id: user.id,
+        name: user.name,
+        role,
+        isCaptain: isCaptainOf(user, team),
+        rank: user.rank,
+      })),
+    }));
+  return { teams, filter: { search, ranks } };
 }

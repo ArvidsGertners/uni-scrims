@@ -39,6 +39,7 @@ import {
   parseInput,
   teamInputSchema,
   teamLinksSchema,
+  teamListedSchema,
 } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
 import { NO_TEAM_LINKS, TEAM_LINK_PLATFORMS, teamLinkColumns, toTeamLinks } from "./team-links.ts";
@@ -180,6 +181,21 @@ export async function updateTeamLinks(input: {
       where: { id: input.teamId },
       data: { ...data, linksUpdatedAt: toTeamLinks(data).length > 0 ? input.now : null },
     });
+  });
+}
+
+/**
+ * Shows or hides the team in the teams list (SPEC N-20, §5.23): captain of a team that is not
+ * banned, verification is not needed, like the links. Only a change writes.
+ */
+export async function setTeamListed(input: { userId: string; teamId: string; listed: boolean }) {
+  await requireCaptain(input.userId, input.teamId);
+  const listed = parseInput(teamListedSchema, input.listed);
+  await prisma.$transaction(async (tx) => {
+    await lockTeam(tx, input.teamId);
+    const { team } = await requireCaptain(input.userId, input.teamId, tx);
+    if (team.listed === listed) return;
+    await tx.team.update({ where: { id: input.teamId }, data: { listed } });
   });
 }
 
@@ -597,13 +613,16 @@ type MemberUniversity = {
   };
 };
 
+/** The universities of the verified members, not summarized (SPEC P0-3, N-20). */
+export function verifiedUniversityNames(members: MemberUniversity[]): (string | null)[] {
+  return members
+    .filter(({ user }) => isVerifiedMember(user))
+    .map(({ user }) => user.university?.name ?? user.universityOther);
+}
+
 /** Universities represented on a team card: those of the verified members (SPEC P0-3). */
 export function teamUniversities(members: MemberUniversity[]) {
-  return summarizeUniversities(
-    members
-      .filter(({ user }) => isVerifiedMember(user))
-      .map(({ user }) => user.university?.name ?? user.universityOther),
-  );
+  return summarizeUniversities(verifiedUniversityNames(members));
 }
 
 const memberSelect = {
@@ -668,6 +687,8 @@ export async function getMyTeam(userId: string) {
     game: team.game,
     logo,
     links: toTeamLinks(team),
+    // Shown in the teams list (SPEC N-20).
+    listed: team.listed,
     banned: team.bannedAt !== null,
     isCaptain,
     // Only the captain manages the invite link.

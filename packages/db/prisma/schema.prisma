@@ -369,6 +369,8 @@ model Team {
   tiktokUrl        String?
   // Last change to the links; null = no links. The version an admin removes (Phase 19).
   linksUpdatedAt   DateTime? @db.Timestamptz(3)
+  // Shown in the teams list with its members; the captain turns it off (Phase 24).
+  listed           Boolean   @default(true)
 
   logos         TeamLogo[]
   members       TeamMember[]

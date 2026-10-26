@@ -19,6 +19,8 @@ export const RATING_MIN = 1;
 export const RATING_MAX = 5;
 
 export const TEAM_LINK_MAX = 300;
+/** Longer searches in the teams list are cut to this many characters (SPEC N-20). */
+export const TEAM_SEARCH_MAX = 100;
 
 export const TEAM_LIMIT_REASON_MIN = 10;
 export const TEAM_LIMIT_REASON_MAX = 500;

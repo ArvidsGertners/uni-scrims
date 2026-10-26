@@ -74,6 +74,7 @@ async function fullAccount() {
       websiteUrl: "https://eure-seite.de/",
       xUrl: "https://x.com/team",
       linksUpdatedAt: NOW,
+      listed: false,
     },
   });
   await prisma.user.update({
@@ -280,6 +281,7 @@ describe("exportAccountData", () => {
           tiktok: null,
         },
         linksGeändertAm: NOW,
+        inTeamsListe: false,
         rolle: "Spieler",
         captain: true,
         beigetretenAm: NOW,
@@ -551,6 +553,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     youtubeUrl: SHOWN,
     tiktokUrl: SHOWN,
     linksUpdatedAt: SHOWN,
+    listed: SHOWN,
   },
   TeamLogo: { teamId: KEY, background: SHOWN, data: TEAM },
   TeamMember: { teamId: SHOWN, userId: SELF, role: SHOWN, joinedAt: SHOWN },

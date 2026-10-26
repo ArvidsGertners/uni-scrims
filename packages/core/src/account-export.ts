@@ -157,6 +157,7 @@ export async function exportAccountData(input: {
               logos: { select: { background: true }, orderBy: { background: "asc" } },
               ...teamLinksSelect,
               linksUpdatedAt: true,
+              listed: true,
             },
           },
         },
@@ -343,6 +344,8 @@ export async function exportAccountData(input: {
               TEAM_LINK_PLATFORMS.map((platform) => [platform.key, team[platform.field]]),
             ),
             linksGeändertAm: team.linksUpdatedAt,
+            // Whether all signed-in users see the team with its members in the teams list (SPEC N-20).
+            inTeamsListe: team.listed,
             rolle: MEMBER_ROLE_LABELS.de[role],
             captain: isCaptainOf(user, team),
             beigetretenAm: joinedAt,
