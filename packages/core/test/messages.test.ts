@@ -254,6 +254,7 @@ describe("sendMessage and the notification", () => {
       startsAt: REQUEST_STARTS_AT.toISOString(),
       context: "APPLICATION",
       guestTeamId: guest.team.id,
+      toGuest: false,
     });
     const firstMessage = await prisma.message.findFirstOrThrow({
       where: { body: "eins", authorId: guest.captain.id },

@@ -67,10 +67,12 @@ export const notificationPayloadSchemas = {
   // teamName: the team that ended the partnership; startsAt: its next date, for weekday and time.
   PARTNERSHIP_ENDED: requestPayloadSchema,
   // teamName: the sending team; never the text (Phase 32, §5.30). context and guestTeamId build the
-  // link: the scrim page, or the request page with the thread of this guest team.
+  // link: the scrim page, or the request page with the thread of this guest team; toGuest: the
+  // receiving team is the guest, for the wording.
   MESSAGE_RECEIVED: requestPayloadSchema.extend({
     context: z.enum(MESSAGE_CONTEXTS),
     guestTeamId: z.string(),
+    toGuest: z.boolean(),
   }),
 } satisfies Record<NotifType, z.ZodType>;
 

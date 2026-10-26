@@ -27,6 +27,7 @@ const payloads: { [T in NotifType]: MessageOf<T>["payload"] } = {
   DIRECT_REQUEST_RECEIVED: { ...requestPayload, format: "BO3", weeklyUntil: null },
   DIRECT_REQUEST_DECLINED: requestPayload,
   PARTNERSHIP_ENDED: requestPayload,
+  MESSAGE_RECEIVED: { ...requestPayload, context: "SCRIM", guestTeamId: "team-2", toGuest: true },
 };
 
 function sample<T extends NotifType>(
@@ -73,6 +74,7 @@ const LINKS: Record<NotifType, string> = {
   DIRECT_REQUEST_RECEIVED: "/requests/request-1",
   DIRECT_REQUEST_DECLINED: "/requests/request-1",
   PARTNERSHIP_ENDED: "/scrims?tab=anfragen",
+  MESSAGE_RECEIVED: "/scrims/scrim-1",
 };
 
 describe("buildMessage", () => {
@@ -221,6 +223,63 @@ describe("direct requests and fixed partners (SPEC N-26)", () => {
     expect(embedOf(sample(NotifType.DIRECT_REQUEST_DECLINED)).description).toBe(
       "**Die Bären** hat eure Direktanfrage abgelehnt.",
     );
+  });
+});
+
+describe("messages between teams (SPEC N-28)", () => {
+  const received = (
+    context: "APPLICATION" | "DIRECT" | "SCRIM",
+    toGuest: boolean,
+    locale: "de" | "en" = "de",
+  ) =>
+    sample(NotifType.MESSAGE_RECEIVED, {
+      payload: { ...requestPayload, context, guestTeamId: "team-2", toGuest },
+      locale,
+      ...(context === "SCRIM" ? {} : { scrimId: null }),
+    });
+
+  it("names who wrote and about what, from the receiving side, never the text", () => {
+    const only = " Die Nachricht selbst steht nur auf der Seite.";
+    expect(embedOf(received("APPLICATION", false))).toMatchObject({
+      title: "Neue Nachricht",
+      description: `**Die Bären** hat euch zu seiner Bewerbung auf eure Anfrage geschrieben.${only}`,
+      fields: [{ name: "Start", value: START_TEXT }],
+    });
+    expect(embedOf(received("APPLICATION", true)).description).toBe(
+      `**Die Bären** hat euch zu eurer Bewerbung geschrieben.${only}`,
+    );
+    expect(embedOf(received("DIRECT", false)).description).toBe(
+      `**Die Bären** hat euch zu eurer Direktanfrage geschrieben.${only}`,
+    );
+    expect(embedOf(received("DIRECT", true)).description).toBe(
+      `**Die Bären** hat euch zu seiner Direktanfrage an euch geschrieben.${only}`,
+    );
+    expect(embedOf(received("SCRIM", true)).description).toBe(
+      `**Die Bären** hat euch zu eurem Scrim geschrieben.${only}`,
+    );
+  });
+
+  it("links the scrim, or the request with the thread of the guest team", () => {
+    expect(linkOf(received("SCRIM", false))).toMatchObject({
+      label: "Nachricht lesen",
+      url: `${BASE_URL}/scrims/scrim-1`,
+    });
+    expect(linkOf(received("APPLICATION", false)).url).toBe(
+      `${BASE_URL}/requests/request-1?chat=team-2`,
+    );
+    expect(linkOf(received("DIRECT", true)).url).toBe(`${BASE_URL}/requests/request-1?chat=team-2`);
+  });
+
+  it("writes them in English", () => {
+    expect(embedOf(received("APPLICATION", false, "en"))).toMatchObject({
+      title: "New message",
+      description:
+        "**Die Bären** sent you a message about its application to your request. The message itself is only on the site.",
+    });
+    expect(embedOf(received("DIRECT", true, "en")).description).toBe(
+      "**Die Bären** sent you a message about its direct request to you. The message itself is only on the site.",
+    );
+    expect(linkOf(received("SCRIM", true, "en")).label).toBe("Read message");
   });
 });
 

@@ -418,6 +418,7 @@ export async function sendMessage(
             startsAt: context.request.startsAt.toISOString(),
             context: messageContext,
             guestTeamId: key.guestTeamId,
+            toGuest: !otherIsHost,
           },
         },
       ]);

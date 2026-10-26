@@ -17,6 +17,7 @@ import {
 import { directRequestDeclined } from "./direct-request-declined.ts";
 import { directRequestReceived } from "./direct-request-received.ts";
 import { feedbackPrompt } from "./feedback-prompt.ts";
+import { messageReceived } from "./message-received.ts";
 import { partnershipEnded } from "./partnership-ended.ts";
 import { reminder1h } from "./reminder-1h.ts";
 import { reminder24h } from "./reminder-24h.ts";
@@ -44,6 +45,7 @@ const builders: {
   DIRECT_REQUEST_RECEIVED: directRequestReceived,
   DIRECT_REQUEST_DECLINED: directRequestDeclined,
   PARTNERSHIP_ENDED: partnershipEnded,
+  MESSAGE_RECEIVED: messageReceived,
 };
 
 /**

@@ -19,6 +19,7 @@ const de = {
     viewStatus: "Status ansehen",
     uploadAgain: "Neu hochladen",
     requests: "Zu euren Anfragen",
+    readMessage: "Nachricht lesen",
   },
   applicationReceived: {
     title: "Neue Bewerbung",
@@ -74,6 +75,18 @@ const de = {
       `${team} hat für heute schon einen Gegner. Eure Anfrage für ihr Zeitfenster ist damit abgelehnt.`,
     readyWindowEnded: (team: string) =>
       `${team} ist heute doch nicht mehr spielbereit. Eure Anfrage für ihr Zeitfenster ist damit abgelehnt.`,
+  },
+  // Never the text of the message (SPEC N-28): who wrote and about what, from the receiving side.
+  messageReceived: {
+    title: "Neue Nachricht",
+    applicationToHost: (team: string) =>
+      `${team} hat euch zu seiner Bewerbung auf eure Anfrage geschrieben.`,
+    applicationToGuest: (team: string) => `${team} hat euch zu eurer Bewerbung geschrieben.`,
+    directToHost: (team: string) => `${team} hat euch zu eurer Direktanfrage geschrieben.`,
+    directToGuest: (team: string) =>
+      `${team} hat euch zu seiner Direktanfrage an euch geschrieben.`,
+    scrim: (team: string) => `${team} hat euch zu eurem Scrim geschrieben.`,
+    onlyOnSite: "Die Nachricht selbst steht nur auf der Seite.",
   },
   partnershipEnded: {
     title: "Feste Partnerschaft beendet",
@@ -131,6 +144,7 @@ export const BOT_MESSAGES = dictionary(de, {
     viewStatus: "View status",
     uploadAgain: "Upload again",
     requests: "Go to your requests",
+    readMessage: "Read message",
   },
   applicationReceived: {
     title: "New application",
@@ -180,6 +194,16 @@ export const BOT_MESSAGES = dictionary(de, {
       `${team} already has an opponent for today, so your request for their window is declined.`,
     readyWindowEnded: (team) =>
       `${team} is no longer ready to play today, so your request for their window is declined.`,
+  },
+  messageReceived: {
+    title: "New message",
+    applicationToHost: (team) =>
+      `${team} sent you a message about its application to your request.`,
+    applicationToGuest: (team) => `${team} sent you a message about your application.`,
+    directToHost: (team) => `${team} sent you a message about your direct request.`,
+    directToGuest: (team) => `${team} sent you a message about its direct request to you.`,
+    scrim: (team) => `${team} sent you a message about your scrim.`,
+    onlyOnSite: "The message itself is only on the site.",
   },
   partnershipEnded: {
     title: "Fixed partnership ended",

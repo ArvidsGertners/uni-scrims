@@ -24,6 +24,12 @@ const payloads: Record<NotifType, unknown> = {
   DIRECT_REQUEST_RECEIVED: { ...requestPayload, format: "BO3", weeklyUntil: null },
   DIRECT_REQUEST_DECLINED: requestPayload,
   PARTNERSHIP_ENDED: requestPayload,
+  MESSAGE_RECEIVED: {
+    ...requestPayload,
+    context: "APPLICATION",
+    guestTeamId: "team-2",
+    toGuest: false,
+  },
 };
 
 function sample(type: NotifType): OutboxMessage {

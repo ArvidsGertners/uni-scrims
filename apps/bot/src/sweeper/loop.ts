@@ -36,7 +36,10 @@ export async function sweeperTick(
   const purge = schedule.isDue(now);
   try {
     const result = await deps.runSweeper(now, { purge });
-    if (purge && result.purgedNotifications !== null) schedule.ran(now);
+    // A failed purge step (notifications or threads, §6.3) is tried again in the next run.
+    if (purge && result.purgedNotifications !== null && result.purgedConversations !== null) {
+      schedule.ran(now);
+    }
     if (Object.values(result).some((count) => count !== null && count > 0)) {
       console.log("Sweeper", result);
     }
