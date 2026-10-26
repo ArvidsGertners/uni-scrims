@@ -10,6 +10,8 @@ import { DomainError } from "./errors.ts";
 import { type PlainMessageKey, key } from "./i18n/render.ts";
 import { lockTeam } from "./locks.ts";
 import { requireCaptain, requireUser } from "./permissions.ts";
+import { activeTeamWhere } from "./readiness.ts";
+import { openRequestWhere } from "./requests.ts";
 import { parseInput } from "./schemas.ts";
 
 export { MAX_LOGO_BYTES };
@@ -246,19 +248,13 @@ export async function removeTeamLogo(input: {
   });
 }
 
-/**
- * The stored WebP for one background and the version, for logged-in users who are not banned,
- * like team cards; dissolved teams have none.
- */
-export async function getTeamLogo(input: {
-  userId: string;
-  teamId: string;
-  background: LogoBackground;
-}): Promise<{ data: Uint8Array<ArrayBuffer>; version: number }> {
-  await requireUser(input.userId);
-  const background = parseInput(logoBackgroundSchema, input.background);
+type StoredLogo = { data: Uint8Array<ArrayBuffer>; version: number };
+
+/** The stored WebP for one background of the team matching `where`, and its version. */
+async function loadLogo(where: Prisma.TeamWhereInput, chosen: LogoBackground): Promise<StoredLogo> {
+  const background = parseInput(logoBackgroundSchema, chosen);
   const team = await prisma.team.findFirst({
-    where: { id: input.teamId, dissolvedAt: null },
+    where,
     select: {
       logoUpdatedAt: true,
       logos: { where: { background }, select: { data: true } },
@@ -267,4 +263,36 @@ export async function getTeamLogo(input: {
   const logo = team?.logos[0];
   if (!logo || !team.logoUpdatedAt) throw new DomainError("NOT_FOUND", "noLogo");
   return { data: logo.data, version: team.logoUpdatedAt.getTime() };
+}
+
+/**
+ * The stored WebP for one background and the version, for logged-in users who are not banned,
+ * like team cards; dissolved teams have none.
+ */
+export async function getTeamLogo(input: {
+  userId: string;
+  teamId: string;
+  background: LogoBackground;
+}): Promise<StoredLogo> {
+  await requireUser(input.userId);
+  return loadLogo({ id: input.teamId, dissolvedAt: null }, input.background);
+}
+
+/**
+ * Without login only the logos the public board can show (SPEC N-24, §5.26): of active teams with
+ * an open request; others are NOT_FOUND, like a missing logo.
+ */
+export async function getPublicTeamLogo(input: {
+  teamId: string;
+  background: LogoBackground;
+  now: Date;
+}): Promise<StoredLogo> {
+  return loadLogo(
+    {
+      id: input.teamId,
+      ...activeTeamWhere(),
+      requests: { some: openRequestWhere(input.now) },
+    },
+    input.background,
+  );
 }

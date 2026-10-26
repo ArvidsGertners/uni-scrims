@@ -217,13 +217,13 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
 
 // ─── Board ────────────────────────────────────────────────────────────────────
 
-export type BoardInput = {
-  userId: string;
+/** The board's filters, shared by the board and the public board (§5.26). */
+type BoardFilterInput = {
   /** Berlin calendar date "YYYY-MM-DD"; invalid values are ignored. */
   date?: string | null;
   /**
-   * Requests whose range contains one of these ranks. Default (missing or empty): own team rank,
-   * without one no rank filter (SPEC N-16); "ALL" = no rank filter.
+   * Requests whose range contains one of these ranks; "ALL" = no rank filter. Missing or empty:
+   * the board's default (see BoardInput and PublicBoardInput).
    */
   ranks?: readonly Rank[] | "ALL" | null;
   /** Only requests of fully verified teams (SPEC N-21); missing or false = all. */
@@ -233,25 +233,33 @@ export type BoardInput = {
   now: Date;
 };
 
-/** Open, future requests of other active teams (SPEC P0-4); the own ones are in getMyScrims. */
-export async function getBoard(input: BoardInput) {
-  const user = await requireUser(input.userId);
-  const ownTeam = await findOwnTeam(user.id);
-  const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
-  const chosen = input.ranks;
-  // In rank order, without duplicates; empty = all ranks.
-  const ranks =
-    chosen === "ALL"
-      ? []
-      : chosen?.length
-        ? RANKS.filter((rank) => chosen.includes(rank))
-        : ownRank
-          ? [ownRank]
-          : [];
+/** ranks: missing or empty = own team rank, without one no rank filter (SPEC N-16). */
+export type BoardInput = BoardFilterInput & { userId: string };
+
+/** Without a user; ranks: missing or empty = no rank filter, as there is no own team (SPEC N-24). */
+export type PublicBoardInput = BoardFilterInput;
+
+/** The chosen ranks in rank order without duplicates, `fallback` when none; empty = all ranks. */
+function chosenRanks(chosen: readonly Rank[] | "ALL" | null | undefined, fallback: Rank[]) {
+  if (chosen === "ALL") return [];
+  return chosen?.length ? RANKS.filter((rank) => chosen.includes(rank)) : fallback;
+}
+
+/**
+ * Open, future requests of active teams with the board's filters, as cards (SPEC P0-4, §5.26);
+ * `excludeTeamId` leaves out the own team's requests.
+ */
+async function loadBoardRequests(input: {
+  date: string | null | undefined;
+  ranks: Rank[];
+  fullyVerifiedOnly: boolean;
+  reliableOnly: boolean;
+  excludeTeamId: string | null;
+  now: Date;
+}) {
+  const { ranks, fullyVerifiedOnly, reliableOnly } = input;
   const date = input.date && isValidDateString(input.date) ? input.date : null;
   const range = date ? berlinDayRange(date) : null;
-  const fullyVerifiedOnly = input.fullyVerifiedOnly === true;
-  const reliableOnly = input.reliableOnly === true;
 
   const base: Prisma.ScrimRequestWhereInput = {
     ...openRequestWhere(input.now),
@@ -262,7 +270,7 @@ export async function getBoard(input: BoardInput) {
     AND: [
       base,
       ...(range ? [{ startsAt: { gte: range.from, lt: range.to } }] : []),
-      ...(ownTeam ? [{ teamId: { not: ownTeam.id } }] : []),
+      ...(input.excludeTeamId ? [{ teamId: { not: input.excludeTeamId } }] : []),
       // Enums have no order in Prisma filters: rankMin ≤ rank ≤ rankMax via the rank list.
       ...(ranks.length > 0
         ? [
@@ -298,6 +306,37 @@ export async function getBoard(input: BoardInput) {
   const requests = reliableOnly
     ? verified.filter((request) => isReliable(reliabilities.get(request.teamId)!))
     : verified;
+
+  return {
+    filter: { date, ranks, fullyVerifiedOnly, reliableOnly },
+    requests: requests.map((request) => ({
+      id: request.id,
+      startsAt: request.startsAt,
+      format: request.format,
+      rankMin: request.rankMin,
+      rankMax: request.rankMax,
+      maps: request.maps,
+      applicationCount: request._count.applications,
+      team: toTeamCard(request.team, reliabilities),
+      /** The team admits only fully verified applicants (SPEC N-21). */
+      verifiedApplicantsOnly: request.team.verifiedApplicantsOnly,
+    })),
+  };
+}
+
+/** Open, future requests of other active teams (SPEC P0-4); the own ones are in getMyScrims. */
+export async function getBoard(input: BoardInput) {
+  const user = await requireUser(input.userId);
+  const ownTeam = await findOwnTeam(user.id);
+  const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
+  const { filter, requests } = await loadBoardRequests({
+    date: input.date,
+    ranks: chosenRanks(input.ranks, ownRank ? [ownRank] : []),
+    fullyVerifiedOnly: input.fullyVerifiedOnly === true,
+    reliableOnly: input.reliableOnly === true,
+    excludeTeamId: ownTeam?.id ?? null,
+    now: input.now,
+  });
   const ownApplications = ownTeam
     ? await prisma.application.findMany({
         where: { teamId: ownTeam.id, requestId: { in: requests.map((request) => request.id) } },
@@ -305,28 +344,32 @@ export async function getBoard(input: BoardInput) {
       })
     : [];
 
-  const toCard = (request: (typeof requests)[number]) => ({
-    id: request.id,
-    startsAt: request.startsAt,
-    format: request.format,
-    rankMin: request.rankMin,
-    rankMax: request.rankMax,
-    maps: request.maps,
-    applicationCount: request._count.applications,
-    team: toTeamCard(request.team, reliabilities),
-    /** The team admits only fully verified applicants (SPEC N-21). */
-    verifiedApplicantsOnly: request.team.verifiedApplicantsOnly,
-    ownApplicationStatus:
-      ownApplications.find((application) => application.requestId === request.id)?.status ?? null,
-  });
-
   return {
     ownTeam: ownTeam
       ? { id: ownTeam.id, rank: ownRank, isCaptain: isCaptainOf(user, ownTeam) }
       : null,
-    filter: { date, ranks, fullyVerifiedOnly, reliableOnly },
-    requests: requests.map(toCard),
+    filter,
+    requests: requests.map((request) => ({
+      ...request,
+      ownApplicationStatus:
+        ownApplications.find((application) => application.requestId === request.id)?.status ?? null,
+    })),
   };
+}
+
+/**
+ * The board for visitors without login (SPEC N-24, §5.26): the same requests and cards for
+ * everyone, without user, own team or rank default; open to all like the landing page (§7).
+ */
+export async function getPublicBoard(input: PublicBoardInput) {
+  return loadBoardRequests({
+    date: input.date,
+    ranks: chosenRanks(input.ranks, []),
+    fullyVerifiedOnly: input.fullyVerifiedOnly === true,
+    reliableOnly: input.reliableOnly === true,
+    excludeTeamId: null,
+    now: input.now,
+  });
 }
 
 // ─── Request form ─────────────────────────────────────────────────────────────
@@ -898,9 +941,7 @@ export async function getTeamList(input: TeamListInput) {
     .slice(0, TEAM_SEARCH_MAX)
     .join("")
     .trim();
-  const chosen = input.ranks;
-  // In rank order, without duplicates; empty = all ranks.
-  const ranks = chosen && chosen !== "ALL" ? RANKS.filter((rank) => chosen.includes(rank)) : [];
+  const ranks = chosenRanks(input.ranks, []);
   const fullyVerifiedOnly = input.fullyVerifiedOnly === true;
   const reliableOnly = input.reliableOnly === true;
   const needle = search.toLocaleLowerCase("de");
