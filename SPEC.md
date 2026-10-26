@@ -104,6 +104,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 40. Als Spieler mit englischer Sprachwahl will ich auch die Mails und Discord-Nachrichten von Uni Scrims auf Englisch bekommen, und als Captain will ich `/setup` auf Englisch bedienen können.
 41. Als Spieler will ich alle Teams mit ihren Hochschulen, ihrem Rang und ihren Spielern sehen, um passende Gegner zu finden, und als Captain will ich unser Team dort ausblenden können.
 42. Als Captain will ich Scrims anfragen, ohne dass sich alle Spieler anmelden müssen, und spontan eine Aushilfe mitbringen können, wenn jemand ausfällt; als Team, dem Verifizierung wichtig ist, will ich nach vollständig verifizierten Teams filtern und nur sie als Bewerber zulassen.
+43. Als Captain, der bisher im Scrim-Channel sucht, will ich auf der Startseite sofort sehen, was Uni Scrims mir darüber hinaus bringt, und dass ich andere Scrim-Seiten dafür nicht aufgeben muss.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen. Seit Phase 25 kann es das doch, sobald der Captain verifiziert ist; ihm fehlt nur das Abzeichen „Vollständig verifiziert“ (N-21).
@@ -477,6 +478,11 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Statistik zeigt statt „Spielbereite Teams“ die Momentaufnahmen „Teams mit verifiziertem Captain“ (Ziel und Stretch wie bisher) und „Vollständig verifizierte Teams“ (ohne Ziel, nur zur Info); „Teams mit ≥ 2 Scrims pro Monat“ bezieht sich auf die Teams mit verifiziertem Captain (§8).
 - [x] Startseite, Team-Seite, Verifizierungsseite und „Rollen und Rechte“ beschreiben die neue Regel auf Deutsch und Englisch. Die Datenauskunft nennt beim Team die Einstellung. Die Datenschutzerklärung sagt, dass nur Captains die Verifizierung für Scrims brauchen, und dass alle eingeloggten Nutzer sehen, ob ein Team vollständig verifiziert ist.
 
+**N-22 Startseite „Warum Uni Scrims?“** (Phase 26)
+- [ ] Die Startseite hat zwischen „Funktionen“ und „Verbindlichkeit“ einen Abschnitt „Warum Uni Scrims?“, der den Scrim-Channel und Uni Scrims gegenüberstellt, in sechs Zeilen: Anfragen bleiben stehen bzw. verfallen zur Startzeit und Gebuchtes verschwindet vom Board (P0-4); Zusagen gehen im Chat unter bzw. Teams bewerben sich, ein Team wird angenommen und alle anderen bekommen Bescheid (P0-5); an den Termin denkt jeder selbst bzw. Erinnerung 24 h und 1 h vorher (P0-7); No-Shows haben keine Folgen bzw. gespielte Scrims, No-Shows und kurzfristige Absagen stehen am Team (P0-8); Suchen heißt scrollen bzw. Filter nach Tag, Rang und vollständig verifizierten Teams (P0-4, N-21); wer studiert, weiß niemand bzw. verifizierter Captain und Abzeichen für vollständig verifizierte Teams (N-21). Es steht nur, was es gibt. Auf dem Handy steht jede Zeile als Block mit beiden Seiten untereinander.
+- [ ] Die FAQ hat die Frage „Ersetzt Uni Scrims andere Scrim-Seiten?“ mit der Antwort, dass Uni Scrims für Scrims gegen andere Uni-Teams zur Vorbereitung auf die Uniliga da ist und man für alle anderen Scrims weiter nutzt, was man kennt. Die Seite nennt keine anderen Plattformen beim Namen (Entscheidung des Nutzers: Uni Scrims steht neben anderen Scrim-Seiten, nicht gegen sie).
+- [ ] Alles auf Deutsch und Englisch; die Seite passt ab 320 px, hell und dunkel.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -613,7 +619,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 23 | Mails und Discord-Nachrichten in der Sprache des Empfängers (N-19) | DMs, Mails und Konto-Mails kommen in der Sprache des Kontos, Team-Channel-Posts in der des Captains, ohne Sprache auf Deutsch; `/setup` antwortet auf Englisch für englische Konten und Discord-Apps; Konten ohne Sprache bekommen sie bei der nächsten Anmeldung |
 | 24 | Teams-Liste (N-20) | Unter „Scrims“ öffnet „Teams“ eine Liste aller aktiven Teams mit Hochschulen, Team-Rang und Mitgliedern (Discord-Name, Rolle, Rang); Suche und Rang-Filter grenzen sie ein; der Captain blendet sein Team aus und wieder ein |
 | 25 | Ein verifizierter Captain reicht (N-21) | Ein Team, in dem nur der Captain verifiziert ist, postet, bewirbt sich und bestätigt; Teams mit 5 verifizierten Spielern tragen das Abzeichen „Vollständig verifiziert“ auf Board, Anfrage, Bewerbungen und Teams-Liste, und beide Listen filtern danach; der Captain lässt auf Wunsch nur vollständig verifizierte Bewerber zu |
-| 26 | Startseite „Warum Uni Scrims?“ (geplant) | Die Startseite stellt Scrim-Channel und Uni Scrims gegenüber und sagt in der FAQ, dass Uni Scrims andere Scrim-Seiten nicht ersetzen muss |
+| 26 | Startseite „Warum Uni Scrims?“ (N-22) | Die Startseite stellt Scrim-Channel und Uni Scrims gegenüber und sagt in der FAQ, dass Uni Scrims andere Scrim-Seiten nicht ersetzen muss |
 | 27 | Zuverlässigkeit sichtbarer (geplant) | Board und Teams-Liste zeigen die Zuverlässigkeit deutlich und filtern nach zuverlässigen Teams |
 | 28 | Board ohne Anmeldung (geplant) | Abgemeldete sehen die offenen Anfragen nur lesend; Bewerben führt zur Anmeldung |
 | 29 | Wiederkehrende Anfragen (geplant) | Ein Captain legt eine wöchentliche Anfrage an, und die nächste erscheint rechtzeitig von selbst |
