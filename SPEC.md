@@ -38,7 +38,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 | Benachrichtigung über neue Anfragen | Bei wenigen Teams reicht das Board. Später möglich (P1). |
 | Turniere, Ligen, Ranglisten | Das macht die Uniliga. Kein Konkurrenzprodukt. |
 | Match-Stats, VOD-Upload, Ergebnistracking | Kein Kernproblem und viel Aufwand. |
-| Chat zwischen Teams | Discord existiert. Wir zeigen nur den Discord-Namen des Captains an (seit Phase 19 auf Wunsch auch einen Link zum Discord-Server des Teams, N-15). |
+| Chat zwischen Teams | Discord existiert. Wir zeigen nur den Discord-Namen des Captains an (seit Phase 19 auf Wunsch auch einen Link zum Discord-Server des Teams, N-15; seit Phase 24 stehen in der Teams-Liste die Discord-Namen aller Mitglieder, solange der Captain das Team nicht ausblendet, N-20). |
 | Einzelspieler-Börse (LFT/LFP) | Anderer Use Case, später möglich. |
 | Monetarisierung | Nicht geplant. |
 | Mobile App | Web-App responsive bauen reicht. |
@@ -102,6 +102,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 38. Als Spieler, der in mehreren Teams spielt oder mehrere Teams betreut, will ich in mehreren Teams sein und in der Leiste zwischen ihnen wechseln, und mehr Teams beantragen können, wenn fünf nicht reichen.
 39. Als Studierender, der kein Deutsch spricht, will ich die ganze Seite oben rechts auf Englisch umstellen, und mit englischem Browser will ich sie gleich auf Englisch sehen.
 40. Als Spieler mit englischer Sprachwahl will ich auch die Mails und Discord-Nachrichten von Uni Scrims auf Englisch bekommen, und als Captain will ich `/setup` auf Englisch bedienen können.
+41. Als Spieler will ich alle Teams mit ihren Hochschulen, ihrem Rang und ihren Spielern sehen, um passende Gegner zu finden, und als Captain will ich unser Team dort ausblenden können.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
@@ -253,7 +254,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 **P0-10 Rechtliches und Datenschutz**
 - [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
 - [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Bis Phase 6 wurden bei einer erneuten Anmeldung nach der Löschung Discord-Name, Avatar und Session an diesem Platzhalter gespeichert; seit Phase 7 speichert eine Anmeldung über Discord dort nichts mehr, und der Platzhalter bleibt abgemeldet (N-3). Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
-- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3); seit Phase 10 ein optionales Team-Logo, nur als vom Server neu erzeugtes Bild ohne Metadaten (N-6); seit Phase 19 optionale Links des Teams, die der Captain angibt (N-15); seit Phase 20 der selbst angegebene Rang (N-16)
+- [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3); seit Phase 10 ein optionales Team-Logo, nur als vom Server neu erzeugtes Bild ohne Metadaten (N-6); seit Phase 19 optionale Links des Teams, die der Captain angibt (N-15); seit Phase 20 der selbst angegebene Rang (N-16); seit Phase 24, ob das Team in der Teams-Liste steht (N-20)
 - [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
 ### Nach dem MVP umgesetzt
@@ -420,7 +421,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Der Team-Rang wird nicht mehr gewählt, sondern beim Anzeigen berechnet: der Durchschnitt der Ränge aller Spieler und Ersatzspieler, die einen Rang angegeben haben (auch wenn sie noch nicht verifiziert sind), auf einen Rang gerundet, bei genau der Mitte aufwärts. Coaches zählen nie. Hat niemand davon einen Rang, hat das Team keinen Rang („Ohne Rang“).
 - [x] Gründen und Bearbeiten eines Teams haben kein Rangfeld mehr. Alle bestehenden Teams starten nach dem Update ohne Rang; der bisher gewählte Rang wird nicht übernommen.
 - [x] Ohne Team-Rang filtert das Board nicht vorab (alle Ränge), eine neue Anfrage startet mit dem Rang-Bereich Iron bis Radiant, und es gibt keinen Hinweis „außerhalb des Bereichs“, weder beim Bewerben noch beim Ersteller. Mit Team-Rang bleibt alles wie bisher.
-- [x] Andere Teams sehen nur den Team-Rang (Board, Anfrage, Bewerbungen, Einladungsseite). Die Mitglieder eines Teams sehen zusätzlich den Rang jedes Einzelnen im Tab „Mitglieder“.
+- [x] Andere Teams sehen nur den Team-Rang (Board, Anfrage, Bewerbungen, Einladungsseite). Die Mitglieder eines Teams sehen zusätzlich den Rang jedes Einzelnen im Tab „Mitglieder“. Seit Phase 24 sehen alle eingeloggten Nutzer die Einzelränge in der Teams-Liste, solange der Captain das Team nicht ausblendet (N-20).
 - [x] Der Tab „Team“ zeigt den Team-Rang mit der Anzahl der Ränge, aus denen er berechnet ist. Wer als Spieler oder Ersatzspieler zählt und keinen Rang angegeben hat, sieht dort einen Link „Rang angeben“ zu den Einstellungen.
 - [x] Die Datenauskunft enthält den eigenen Rang und den Rang des Teams; die Kontolöschung löscht den eigenen Rang. Die Datenschutzerklärung nennt den Rang, wer ihn sieht und dass er in den Team-Rang einfließt.
 - [x] Neben jedem Rang steht sein Rang-Bild aus dem Spiel (Board, Anfrage, Scrims, Team, Mitglieder, Einladung, Einstellungen und die Rang-Auswahlen); ohne Rang steht Riots „Unrated“-Bild davor („Ohne Rang“, in der Auswahl „Kein Rang“). Das Impressum nennt dafür in einem eigenen Abschnitt Riots Hinweis zur Nutzung seiner Assets, deutsch und im englischen Wortlaut der Richtlinie (nach Phase 20 ergänzt, zuerst im Footer; seit dem 25.10.2026 auf Wunsch des Nutzers im Impressum, damit Footer und Startseite keinen englischen Text zeigen).
@@ -455,6 +456,13 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Ein Konto ohne gespeicherte Sprache (vor Phase 22 angelegt) bekommt bei der nächsten Anmeldung (Passwort, Code, Discord oder Bestätigungslink) die Sprache, in der die Seite gerade erscheint: die im Browser gewählte, sonst die Browsersprache, sonst Deutsch. Kommt die Anmeldung ohne beides (etwa ein Link-Scanner, der einen Bestätigungslink öffnet), wird nichts gespeichert. Eine gespeicherte Sprache ändert nur die Wahl oben rechts.
 - [x] Deutsch bleiben: die Test-Skripte und Ausgaben für den Betreiber, die Präfixe der Entwicklungs-Umleitungen und die Datenauskunft. Die deutschen Texte bleiben unverändert.
 - [x] Die Datenschutzerklärung nennt die Übernahme der Sprache bei der Anmeldung und dass Mails und Discord-Nachrichten in der gespeicherten Sprache kommen.
+
+**N-20 Teams-Liste** (Phase 24)
+- [ ] In der Leiste steht unter „Scrims“ der Eintrag „Teams“ (auf dem Handy im Menü an derselben Stelle). Er öffnet die Seite `/teams` mit allen aktiven Teams (nicht gesperrt, nicht aufgelöst), die ihr Captain nicht ausgeblendet hat, auch Teams, die noch nicht spielbereit sind, und die eigenen. Sortiert nach Teamnamen. Sehen dürfen sie alle eingeloggten, nicht gesperrten Nutzer mit vollständigem Konto, auch unverifizierte (wie das Board).
+- [ ] Jedes Team steht als Karte: Logo (oder Kürzel), Name, Kürzel, Hochschulen (wie auf dem Board die der verifizierten Mitglieder, höchstens drei und „+n“) und der Team-Rang (N-16, sonst „Ohne Rang“). Darunter alle Mitglieder in der Reihenfolge des Tabs „Mitglieder“ mit Discord-Name, „Captain“ beim Captain, Rolle (Spieler, Ersatz, Coach) und dem eigenen Rang (sonst „Ohne Rang“). Keine Profilbilder, kein Klarname, kein Verifizierungsstatus.
+- [ ] Oben ein Suchfeld und ein Rang-Filter. Die Suche findet Teams, deren Name, Kürzel oder eine der Hochschulen verifizierter Mitglieder den Text enthält (Groß- und Kleinschreibung egal, auch Hochschulen, die die Karte unter „+n“ zusammenfasst). Im Rang-Filter sind mehrere Ränge wählbar: Es erscheinen Teams, deren Team-Rang einer davon ist; Teams ohne Rang nur ohne Rang-Filter. Ohne Auswahl gibt es keinen Rang-Filter. Ohne Treffer sagt die Seite das.
+- [ ] Der Captain eines nicht gesperrten Teams blendet das Team im Tab „Team“ aus der Teams-Liste aus und wieder ein (auch ohne eigene Verifizierung). Ein ausgeblendetes Team fehlt in der Liste für alle, auch für seine Mitglieder. Alle Mitglieder sehen im Tab „Team“, ob das Team in der Liste steht. Neue und bestehende Teams stehen in der Liste, bis der Captain sie ausblendet (Entscheidung des Nutzers). Die Tabelle „Rollen und Rechte“ nennt das Recht.
+- [ ] Die Datenauskunft nennt beim Team, ob es in der Teams-Liste steht. Die Datenschutzerklärung nennt, dass in der Teams-Liste Discord-Namen, Rollen und Ränge der Mitglieder für alle eingeloggten Nutzer sichtbar sind, solange der Captain das Team nicht ausblendet.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -587,6 +595,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 21 | Mehrere Teams pro Nutzer (N-17) | Ein Nutzer ist in bis zu 5 Teams und wechselt in der Leiste das aktive Team; Rechte gelten je Team; am Limit verweisen Gründen und Beitreten auf den Antrag, den Admins auf „Anträge“ entscheiden; `/setup` fragt nach dem Team |
 | 22 | Deutsch und Englisch (N-18) | Oben rechts wechselt ein Menü mit Flaggen auf jeder Seite die Sprache; auf Englisch sind alle Seiten samt Admin-Bereich, Meldungen, Datumsangaben und Rechtstexten englisch, auf Deutsch bleibt alles wie bisher; ohne Wahl gilt die Browsersprache; die Wahl gilt im Browser und mit Konto auf allen Geräten |
 | 23 | Mails und Discord-Nachrichten in der Sprache des Empfängers (N-19) | DMs, Mails und Konto-Mails kommen in der Sprache des Kontos, Team-Channel-Posts in der des Captains, ohne Sprache auf Deutsch; `/setup` antwortet auf Englisch für englische Konten und Discord-Apps; Konten ohne Sprache bekommen sie bei der nächsten Anmeldung |
+| 24 | Teams-Liste (N-20) | Unter „Scrims“ öffnet „Teams“ eine Liste aller aktiven Teams mit Hochschulen, Team-Rang und Mitgliedern (Discord-Name, Rolle, Rang); Suche und Rang-Filter grenzen sie ein; der Captain blendet sein Team aus und wieder ein |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
