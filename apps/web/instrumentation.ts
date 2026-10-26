@@ -5,6 +5,11 @@ export async function register(): Promise<void> {
   adminOrigin();
   const { startUploadJanitor } = await import("./lib/janitor");
   startUploadJanitor();
+  // The WebSocket server of the message threads, on its own port (§5.30); not while building.
+  if (process.env.NEXT_PHASE !== "phase-production-build") {
+    const { startRealtimeServer } = await import("./lib/realtime/start");
+    startRealtimeServer();
+  }
   // Visible in the logs right after a deploy; the admin page shows the same warning.
   const { missingLegalPages } = await import("./lib/legal");
   const missing = await missingLegalPages();

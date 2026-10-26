@@ -39,7 +39,7 @@ pnpm dev
 
 Die App-DB läuft auf `localhost:5433`, die Test-DB auf `localhost:5434` (tmpfs, ohne dauerhafte Daten). Ist Port 5433 belegt, kann die App-DB mit `DB_PORT=<port>` auf einen anderen Host-Port gelegt werden.
 
-Entwickeln auf einem Server: `next dev` lauscht sonst auf allen Schnittstellen, mit dem Dev-Login also öffentlich. Dort in der Shell `DEV_HOST=127.0.0.1` setzen (und bei belegtem Port 3000 `PORT=<port>`), die Seite per SSH-Portweiterleitung öffnen und `BETTER_AUTH_URL` sowie `PUBLIC_BASE_URL` auf `http://localhost:<port>` setzen.
+Entwickeln auf einem Server: `next dev` lauscht sonst auf allen Schnittstellen, mit dem Dev-Login also öffentlich. Dort in der Shell `DEV_HOST=127.0.0.1` setzen (und bei belegtem Port 3000 `PORT=<port>`), die Seite per SSH-Portweiterleitung öffnen und `BETTER_AUTH_URL` sowie `PUBLIC_BASE_URL` auf `http://localhost:<port>` setzen. Seit Phase 32 lauscht im selben Prozess der WebSocket-Server der Nachrichten an derselben Adresse auf `REALTIME_PORT` (Standard 3001); ihn ebenfalls weiterleiten und bei einem anderen Port `REALTIME_PUBLIC_URL=ws://localhost:<port>/ws` setzen.
 
 ## Befehle
 
@@ -362,6 +362,8 @@ services:
   web:
     ports:
       - "127.0.0.1:3100:3000"
+      # WebSocket server of the message threads (Phase 32)
+      - "127.0.0.1:3101:3001"
 ```
 
 Die Compose-Befehle laufen dann mit beiden Dateien (`backup.sh` und das Einspielen beim Wiederherstellen nehmen nur die Haupt-Datei; für `exec db` ist das dasselbe, weil die Ergänzung `db` nicht ändert). `DOMAIN` muss trotzdem in der `.env` stehen, weil die Compose-Datei es verlangt:
@@ -412,6 +414,18 @@ server {
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Since Phase 32: the WebSocket server of the message threads (ARCHITECTURE §5.30). The server
+    # pings every 30 s, so the timeout only ends connections that are gone.
+    location = /ws {
+        proxy_pass http://127.0.0.1:3101;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_read_timeout 3600s;
     }
 }
 ```

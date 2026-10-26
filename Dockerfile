@@ -34,13 +34,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Docker sets HOSTNAME to the container ID otherwise; the standalone server must listen on all interfaces.
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+# WebSocket server of the message threads in the same process (ARCHITECTURE §5.30).
+ENV REALTIME_PORT=3001
 COPY --from=web-build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=web-build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=web-build --chown=node:node /app/apps/web/public ./apps/web/public
 # A new uploads volume takes over owner and mode of this directory; as root-owned, uploads would fail.
 RUN mkdir -p /data/uploads && chown node:node /data/uploads && chmod 700 /data/uploads
 USER node
-EXPOSE 3000
+EXPOSE 3000 3001
 CMD ["node", "apps/web/server.js"]
 
 # ─── bot ──────────────────────────────────────────────────────────────────────

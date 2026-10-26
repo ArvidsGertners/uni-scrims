@@ -6,5 +6,7 @@
 		max_size 6MB
 	}
 	header Strict-Transport-Security "max-age=31536000"
+	# The WebSocket server of the message threads runs in the web process on its own port (§5.30).
+	reverse_proxy /ws web:3001
 	reverse_proxy web:3000
 }
