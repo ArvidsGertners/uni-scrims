@@ -212,17 +212,17 @@ Discord-IDs kopieren: In Discord unter Einstellungen → Erweitert den Entwickle
 
 ## Discord-Hub einrichten (Struktur)
 
-Jeder, der Discord verknüpft, landet automatisch im Hub (§5.1). Damit er dort nicht nur `#general` sieht, bekommt der Hub diese Struktur. Sie wird von Hand angelegt; der Bot braucht dafür keine weiteren Rechte. Die Reihenfolge ist wichtig, vor allem Schritt 5 vor Schritt 6.
+Jeder, der Discord verknüpft, landet automatisch im Hub (§5.1). Damit er dort nicht nur `#general` sieht, bekommt der Hub diese Struktur. Der Bot der Plattform braucht dafür keine weiteren Rechte. Am 26.10.2026 wurde sie einmalig per Skript angelegt, mit einem eigenen Bot „Server Setup“ mit Administrator-Rechten (die Texte postete der Uni-Scrims-Bot, die Einladung auf `#willkommen` erzeugte ebenfalls er, damit sie bleibt, wenn der Setup-Bot den Server verlässt). Von Hand geht es genauso; die Reihenfolge ist wichtig, vor allem Schritt 5 vor Schritt 6.
 
 | Kategorie | Kanäle | Wer darf schreiben |
 |---|---|---|
-| INFO | `#willkommen`, `#regeln`, `#ankündigungen` | nur „Team“ |
+| INFO | `#willkommen`, `#regeln`, `#ankündigungen` | nur „Team“ und der Bot (für die Texte) |
 | HILFE | `#support`, `#feedback` (Feedback zur Plattform) | alle, Slowmode 30 s |
 | COMMUNITY | `#allgemein` | alle, Slowmode 10 s |
 | INTERN (privat) | der Dev-Channel | nur „Team“ und der Bot |
 
 1. **Rolle „Team“** anlegen (Servereinstellungen → Rollen) und dir und den Admins geben, mit „Nachrichten verwalten“ und „Mitglieder timeouten“. Die Rolle des Bots („Uni Scrims“) bleibt, wie sie ist.
-2. **Kategorie INFO** mit den drei Kanälen. In den Berechtigungen der Kategorie für `@everyone`: „Nachrichten senden“, „Nachrichten in Threads senden“ und „Threads erstellen“ (öffentlich und privat) aus, „Reaktionen hinzufügen“ an; für „Team“: „Nachrichten senden“ an. Die Kanäle mit der Kategorie synchronisieren.
+2. **Kategorie INFO** mit den drei Kanälen. In den Berechtigungen der Kategorie für `@everyone`: „Nachrichten senden“, „Nachrichten in Threads senden“ und „Threads erstellen“ (öffentlich und privat) aus, „Reaktionen hinzufügen“ an; für „Team“: „Nachrichten senden“ an; für die Rolle des Bots „Nachrichten senden“ und „Links einbetten“ an. Die Kanäle mit der Kategorie synchronisieren.
 3. **Kategorie HILFE** mit `#support` (Slowmode 30 s) und `#feedback` (Slowmode 30 s), **Kategorie COMMUNITY** mit `#allgemein` (Slowmode 10 s). Keine besonderen Rechte.
 4. **Kategorie INTERN**: für `@everyone` „Kanal ansehen“ aus; für „Team“ an; für die Rolle des Bots „Kanal ansehen“, „Nachrichten senden“ und „Links einbetten“ an. Dann den Dev-Channel hineinziehen und mit der Kategorie synchronisieren. Seine ID bleibt, `DEV_CHANNEL_ID` ändert sich nicht.
 5. **Neuen Einladungslink** auf `#willkommen` erzeugen (Rechtsklick → Leute einladen → Link bearbeiten: läuft nie ab, keine Begrenzung) und `HUB_INVITE_URL` in der `.env` von Production und Entwicklung ersetzen, danach `web` neu starten (`dc up -d web`). Der Link steht im Discord-Knopf auf `/support` und im Hinweis, wenn der Beitritt zum Hub gescheitert ist. **Erst danach** Schritt 6: Einladungen hängen an ihrem Kanal, und löscht man den Kanal des alten Links, führt der Knopf ins Leere.
