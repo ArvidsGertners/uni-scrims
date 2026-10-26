@@ -260,7 +260,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 ### Nach dem MVP umgesetzt
 
-Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen ab 5, ARCHITECTURE §11).
+Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen ab 5, ARCHITECTURE §11). Seit dem 26.10.2026 kommen Phasen aus dem Feedback der ersten Teams dazu (`docs/nutzerfeedback-2026-10.md`, Fahrplan der Phasen 26–32 im Zeitplan, §10): Uni Scrims bleibt nur für Uni-Teams und steht neben anderen Scrim-Seiten statt gegen sie; nichts davon bindet die Seite enger an Discord (Entscheidungen des Nutzers).
 
 **N-1 Ersatzspieler und Coach** (Phase 5)
 - [x] Jedes Mitglied hat eine Rolle: Spieler, Ersatzspieler oder Coach. Wer beitritt oder ein Team gründet, ist Spieler.
@@ -613,6 +613,15 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 23 | Mails und Discord-Nachrichten in der Sprache des Empfängers (N-19) | DMs, Mails und Konto-Mails kommen in der Sprache des Kontos, Team-Channel-Posts in der des Captains, ohne Sprache auf Deutsch; `/setup` antwortet auf Englisch für englische Konten und Discord-Apps; Konten ohne Sprache bekommen sie bei der nächsten Anmeldung |
 | 24 | Teams-Liste (N-20) | Unter „Scrims“ öffnet „Teams“ eine Liste aller aktiven Teams mit Hochschulen, Team-Rang und Mitgliedern (Discord-Name, Rolle, Rang); Suche und Rang-Filter grenzen sie ein; der Captain blendet sein Team aus und wieder ein |
 | 25 | Ein verifizierter Captain reicht (N-21) | Ein Team, in dem nur der Captain verifiziert ist, postet, bewirbt sich und bestätigt; Teams mit 5 verifizierten Spielern tragen das Abzeichen „Vollständig verifiziert“ auf Board, Anfrage, Bewerbungen und Teams-Liste, und beide Listen filtern danach; der Captain lässt auf Wunsch nur vollständig verifizierte Bewerber zu |
+| 26 | Startseite „Warum Uni Scrims?“ (geplant) | Die Startseite stellt Scrim-Channel und Uni Scrims gegenüber und sagt in der FAQ, dass Uni Scrims andere Scrim-Seiten nicht ersetzen muss |
+| 27 | Zuverlässigkeit sichtbarer (geplant) | Board und Teams-Liste zeigen die Zuverlässigkeit deutlich und filtern nach zuverlässigen Teams |
+| 28 | Board ohne Anmeldung (geplant) | Abgemeldete sehen die offenen Anfragen nur lesend; Bewerben führt zur Anmeldung |
+| 29 | Wiederkehrende Anfragen (geplant) | Ein Captain legt eine wöchentliche Anfrage an, und die nächste erscheint rechtzeitig von selbst |
+| 30 | Direktanfrage und feste Partner (geplant) | Ein Captain fragt ein bestimmtes Team direkt an, auch als „Nochmal gegen dieses Team“ und wöchentlich; das andere Team nimmt an oder lehnt ab |
+| 31 | Sofortsuche „Heute spielbereit“ (geplant) | Ein Team meldet ein Zeitfenster für heute, andere fragen darin mit einem Klick an |
+| 32 | Nachrichten zwischen den Teams (geplant) | Ersteller- und Bewerber-Team bzw. beide Scrim-Teams schreiben sich auf der Seite; Benachrichtigung ohne Inhalt |
+
+Danach, sobald die Antworten da sind: Uniliga (Verifizierung über die Kader, Division und Gruppe als Filter), Riot (Rang über RSO, Stats aus den Scrims), OPL (Umfang offen) und VOD-Review (eigenes Replay-Tool). Jede Phase bekommt bei ihrem Beginn eine eigene Spezifikation (N-Abschnitt) mit den Entscheidungen des Nutzers.
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
