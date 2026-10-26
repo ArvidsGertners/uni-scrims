@@ -322,7 +322,7 @@ async function OpenRequests({ mine }: { mine: MyScrims }) {
                 {formatMaps(request.maps, locale)}
               </span>
             </div>
-            <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+            <span className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row">
               {request.weekly ? <Badge>{t.weekly}</Badge> : null}
               <Badge variant="accent">{t.open}</Badge>
             </span>
@@ -359,18 +359,15 @@ async function SeriesList({ series }: { series: MyScrims["series"] }) {
             key={entry.id}
             className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5"
           >
-            <div className="flex items-start justify-between gap-2.5">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="type-h2">
-                  {t.everyWeekday(formatBerlinWeekday(entry.nextStartsAt, locale))}
-                </span>
-                <span className="text-[13px] text-muted-foreground">
-                  {formatFormat(entry.format, locale)} ·{" "}
-                  <RankRangeLabel rankMin={entry.rankMin} rankMax={entry.rankMax} /> ·{" "}
-                  {formatMaps(entry.maps, locale)}
-                </span>
-              </div>
-              <Badge>{t.weekly}</Badge>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="type-h2">
+                {t.everyWeekday(formatBerlinWeekday(entry.nextStartsAt, locale))}
+              </span>
+              <span className="text-[13px] text-muted-foreground">
+                {formatFormat(entry.format, locale)} ·{" "}
+                <RankRangeLabel rankMin={entry.rankMin} rankMax={entry.rankMax} /> ·{" "}
+                {formatMaps(entry.maps, locale)}
+              </span>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-[14px]">
               <div className="flex min-w-0 flex-col gap-0.5">
