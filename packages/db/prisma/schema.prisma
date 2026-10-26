@@ -201,6 +201,7 @@ model User {
   pendingTeamLimit     TeamLimitRequest?     @relation("TeamLimitRequestPendingUser")
   decidedTeamLimits    TeamLimitRequest[]    @relation("TeamLimitRequestDecidedBy")
   createdRequests      ScrimRequest[]
+  createdSeries        RequestSeries[]
   submittedFeedback    ScrimFeedback[]
   resolvedScrims       Scrim[]               @relation("ScrimResolvedBy")
   notifications        Notification[]
@@ -377,6 +378,7 @@ model Team {
   logos         TeamLogo[]
   members       TeamMember[]
   requests      ScrimRequest[]
+  requestSeries RequestSeries[]
   applications  Application[]
   hostScrims    Scrim[]         @relation("ScrimHostTeam")
   guestScrims   Scrim[]         @relation("ScrimGuestTeam")
@@ -427,26 +429,58 @@ model TeamMember {
 }
 
 model ScrimRequest {
-  id          String        @id @default(cuid())
+  id          String         @id @default(cuid())
   teamId      String
-  team        Team          @relation(fields: [teamId], references: [id])
+  team        Team           @relation(fields: [teamId], references: [id])
   createdById String
-  createdBy   User          @relation(fields: [createdById], references: [id])
-  game        String        @default("valorant")
-  startsAt    DateTime      @db.Timestamptz(3)
+  createdBy   User           @relation(fields: [createdById], references: [id])
+  game        String         @default("valorant")
+  startsAt    DateTime       @db.Timestamptz(3)
   format      ScrimFormat
   rankMin     Rank
   rankMax     Rank
   maps        String[]
   note        String?
   status      RequestStatus
-  createdAt   DateTime      @db.Timestamptz(3)
+  createdAt   DateTime       @db.Timestamptz(3)
+  // Posted for a weekly series (Phase 29, §5.27); null = a single request.
+  seriesId    String?
+  series      RequestSeries? @relation(fields: [seriesId], references: [id])
 
   applications  Application[]
   scrim         Scrim?
   notifications Notification[]
 
+  @@unique([seriesId, startsAt])
   @@index([status, startsAt])
+  @@index([teamId])
+}
+
+// A weekly recurring request (Phase 29, §5.27). The sweeper posts each date a week before its start,
+// when the previous date starts, with these fields; createdById is also the author of their note.
+model RequestSeries {
+  id           String      @id @default(cuid())
+  teamId       String
+  team         Team        @relation(fields: [teamId], references: [id])
+  createdById  String
+  createdBy    User        @relation(fields: [createdById], references: [id])
+  game         String      @default("valorant")
+  format       ScrimFormat
+  rankMin      Rank
+  rankMax      Rank
+  maps         String[]
+  note         String?
+  // The next date not yet posted or skipped.
+  nextStartsAt DateTime    @db.Timestamptz(3)
+  // The last date, on or before the end date.
+  lastStartsAt DateTime    @db.Timestamptz(3)
+  // Ended by the captain, after the last date, by a ban or a dissolution; null = running.
+  endedAt      DateTime?   @db.Timestamptz(3)
+  createdAt    DateTime    @db.Timestamptz(3)
+
+  requests ScrimRequest[]
+
+  @@index([endedAt, nextStartsAt])
   @@index([teamId])
 }
 
