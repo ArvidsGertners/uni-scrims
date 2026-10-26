@@ -70,6 +70,8 @@ export const landingMessages = dictionary(
       title: "Mehr als ein Scrim-Channel.",
       channel: "Im Scrim-Channel",
       uniScrims: "Auf Uni Scrims",
+      /** Before each cell, for screen readers: which side it belongs to. */
+      srSide: (side: string) => `${side}: `,
       rows: [
         {
           channel: "Alte Anfragen bleiben stehen",
@@ -82,7 +84,7 @@ export const landingMessages = dictionary(
         },
         {
           channel: "An den Termin denkt jeder selbst",
-          uniScrims: "Erinnerung 24 h und 1 h vor dem Scrim",
+          uniScrims: "Reminder vor dem Scrim, je nach Einstellung per Discord oder Mail",
         },
         {
           channel: "No-Shows haben keine Folgen",
@@ -93,8 +95,9 @@ export const landingMessages = dictionary(
           uniScrims: "Filter nach Tag, Rang und vollständig verifizierten Teams",
         },
         {
-          channel: "Wer studiert, weiß niemand",
-          uniScrims: "Verifizierter Captain, Abzeichen für vollständig verifizierte Teams",
+          channel: "Ob ein Uni-Team anfragt, weiß niemand",
+          uniScrims:
+            "Anfragen und Bewerbungen nur von Teams mit verifiziertem Captain, Abzeichen für vollständig verifizierte Teams",
         },
       ],
     },
@@ -209,6 +212,7 @@ export const landingMessages = dictionary(
       title: "More than a scrim channel.",
       channel: "In a scrim channel",
       uniScrims: "On Uni Scrims",
+      srSide: (side) => `${side}: `,
       rows: [
         {
           channel: "Old requests stay up",
@@ -220,7 +224,7 @@ export const landingMessages = dictionary(
         },
         {
           channel: "Everyone has to remember the date",
-          uniScrims: "Reminders 24 h and 1 h before the scrim",
+          uniScrims: "Reminders before the scrim, by Discord or email as you choose",
         },
         {
           channel: "No-shows have no consequences",
@@ -231,8 +235,9 @@ export const landingMessages = dictionary(
           uniScrims: "Filters by day, rank and fully verified teams",
         },
         {
-          channel: "Nobody knows who's a student",
-          uniScrims: "Verified captain, badge for fully verified teams",
+          channel: "Nobody knows if a university team is asking",
+          uniScrims:
+            "Requests and applications only from teams with a verified captain, badge for fully verified teams",
         },
       ],
     },

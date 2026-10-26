@@ -286,7 +286,7 @@ export default async function LandingPage({
                 <p className="flex gap-2.5 px-5 py-1.5 text-pretty text-muted-foreground sm:py-4">
                   <XIcon size={16} strokeWidth={2.5} className="mt-[3px] shrink-0 text-faint" />
                   <span>
-                    <span className="sr-only">{t.why.channel}: </span>
+                    <span className="sr-only">{t.why.srSide(t.why.channel)}</span>
                     {row.channel}
                   </span>
                 </p>
@@ -297,7 +297,7 @@ export default async function LandingPage({
                     className="mt-[3px] shrink-0 text-accent-text"
                   />
                   <span>
-                    <span className="sr-only">{t.why.uniScrims}: </span>
+                    <span className="sr-only">{t.why.srSide(t.why.uniScrims)}</span>
                     {row.uniScrims}
                   </span>
                 </p>
