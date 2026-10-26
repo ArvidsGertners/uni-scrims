@@ -266,6 +266,8 @@ describe("getRequestForm", () => {
     // Unverified captain; how many players are verified does not matter (SPEC N-21).
     const team = await createFullyVerifiedTeam({ verifiedCaptain: false });
     expect(await form(team.captain.id)).toEqual({
+      // A request for the board: no target (SPEC N-26).
+      target: null,
       // The active team, which the form posts for (§5.20).
       teamId: team.team.id,
       teamName: team.team.name,
@@ -579,6 +581,7 @@ describe("getScrimDetail and getMyScrims", () => {
       upcoming: [],
       past: [],
       requests: [],
+      incoming: [],
       series: [],
       applications: [],
     });

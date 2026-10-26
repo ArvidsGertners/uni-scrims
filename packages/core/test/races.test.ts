@@ -17,8 +17,10 @@ import {
 import sharp from "sharp";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  acceptDirectRequest,
   autoRejectStaleVerifications,
   banTeam,
+  declineDirectRequest,
   createRequest,
   endRequestSeries,
   postSeriesRequests,
@@ -806,6 +808,127 @@ describe("postSeriesRequests while the series or its team changes", () => {
           where: { teamId: t.id, status: "OPEN", startsAt: { gt: REQUEST_STARTS_AT } },
         }),
       ).toBe(5);
+    }
+  });
+});
+
+describe("direct requests while the request or its teams change (§5.28)", () => {
+  const NEXT = new Date("2026-10-29T19:00:00Z");
+  const seriesIds: string[] = [];
+  type Team = Awaited<ReturnType<typeof createFullyVerifiedTeam>>;
+
+  afterAll(async () => {
+    await prisma.requestSeries.updateMany({
+      where: { id: { in: seriesIds }, endedAt: null },
+      data: { endedAt: NOW },
+    });
+  });
+
+  function direct(from: Team, to: Team, repeatUntil: string | null = null) {
+    return createRequest({
+      ...REQUEST_INPUT,
+      repeatUntil,
+      userId: from.captain.id,
+      teamId: from.team.id,
+      targetTeamId: to.team.id,
+      now: NOW,
+    });
+  }
+
+  const accept = (to: Team, requestId: string) =>
+    acceptDirectRequest({ userId: to.captain.id, requestId, now: NOW });
+
+  it("books at most once against a withdrawal, a decline or a second acceptance", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createFullyVerifiedTeam();
+      const b = await createFullyVerifiedTeam();
+      const request = await direct(a, b);
+      const others = [
+        () => deleteRequest({ userId: a.captain.id, requestId: request.id, now: NOW }),
+        () => declineDirectRequest({ userId: b.captain.id, requestId: request.id, now: NOW }),
+        () => accept(b, request.id),
+      ];
+      const kind = round % others.length;
+      const results = await Promise.allSettled([accept(b, request.id), others[kind]!()]);
+      expectOnlyDomainErrors(results);
+      // Exactly one of the two wins.
+      expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+      const scrims = await prisma.scrim.count({ where: { requestId: request.id } });
+      const { status } = await prisma.scrimRequest.findUniqueOrThrow({
+        where: { id: request.id },
+      });
+      expect(scrims).toBe(status === "BOOKED" ? 1 : 0);
+    }
+  });
+
+  it("leaves no scheduled scrim with a team banned meanwhile", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createFullyVerifiedTeam();
+      const b = await createFullyVerifiedTeam();
+      const request = await direct(a, b);
+      const banned = round % 2 === 0 ? a : b;
+      const results = await Promise.allSettled([
+        accept(b, request.id),
+        banTeam({ adminId: admin.id, teamId: banned.team.id, now: NOW }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(
+        await prisma.scrim.count({ where: { requestId: request.id, status: "SCHEDULED" } }),
+      ).toBe(0);
+      expect(await prisma.scrimRequest.count({ where: { id: request.id, status: "OPEN" } })).toBe(
+        0,
+      );
+    }
+  });
+
+  it("leaves no open direct request to a team banned meanwhile", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createFullyVerifiedTeam();
+      const b = await createFullyVerifiedTeam();
+      const results = await Promise.allSettled([
+        direct(a, b),
+        banTeam({ adminId: admin.id, teamId: b.team.id, now: NOW }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(
+        await prisma.scrimRequest.count({ where: { targetTeamId: b.team.id, status: "OPEN" } }),
+      ).toBe(0);
+    }
+  });
+
+  it("books each partnership date once against an end by the partner and a second run", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createFullyVerifiedTeam();
+      const b = await createFullyVerifiedTeam();
+      const request = await direct(a, b, "2026-11-19");
+      await accept(b, request.id);
+      const { seriesId } = await prisma.scrimRequest.findUniqueOrThrow({
+        where: { id: request.id },
+      });
+      seriesIds.push(seriesId!);
+      const ending = round % 2 === 0;
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        const results = await Promise.allSettled([
+          postSeriesRequests(REQUEST_STARTS_AT),
+          ending
+            ? endRequestSeries({
+                userId: b.captain.id,
+                seriesId: seriesId!,
+                now: REQUEST_STARTS_AT,
+              })
+            : postSeriesRequests(REQUEST_STARTS_AT),
+        ]);
+        expectOnlyDomainErrors(results);
+        expect(logged).not.toHaveBeenCalled();
+      } finally {
+        logged.mockRestore();
+      }
+      const booked = await prisma.scrim.count({ where: { request: { seriesId }, startsAt: NEXT } });
+      if (ending) expect(booked).toBeLessThanOrEqual(1);
+      else expect(booked).toBe(1);
     }
   });
 });

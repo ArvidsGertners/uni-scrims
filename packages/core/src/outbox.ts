@@ -131,6 +131,7 @@ export function isNotificationRelevant(notification: RelevanceInput, now: Date):
   const bothTeamsActive = !!scrim && isTeamActive(scrim.hostTeam) && isTeamActive(scrim.guestTeam);
   switch (notification.type) {
     case NotifType.APPLICATION_RECEIVED:
+    case NotifType.DIRECT_REQUEST_RECEIVED:
       return !!request && isRequestOpen(request, now);
     case NotifType.SCRIM_BOOKED:
       return scrim?.status === ScrimStatus.SCHEDULED && bothTeamsActive;

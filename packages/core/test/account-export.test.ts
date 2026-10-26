@@ -574,6 +574,8 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     status: SHOWN,
     createdAt: SHOWN,
     seriesId: SHOWN,
+    targetTeamId: SHOWN,
+    weeklyLastStartsAt: SHOWN,
   },
   RequestSeries: {
     id: KEY,
@@ -588,6 +590,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     nextStartsAt: SHOWN,
     lastStartsAt: SHOWN,
     endedAt: SHOWN,
+    targetTeamId: SHOWN,
     createdAt: SHOWN,
   },
   Application: {

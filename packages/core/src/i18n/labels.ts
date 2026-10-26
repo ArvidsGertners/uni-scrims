@@ -63,8 +63,20 @@ export const FEEDBACK_OUTCOME_LABELS: Localized<Record<FeedbackOutcome, string>>
 );
 
 export const REQUEST_STATUS_LABELS: Localized<Record<RequestStatus, string>> = dictionary(
-  { OPEN: "Offen", BOOKED: "Gebucht", CANCELLED: "Gelöscht", EXPIRED: "Verfallen" },
-  { OPEN: "Open", BOOKED: "Booked", CANCELLED: "Deleted", EXPIRED: "Expired" },
+  {
+    OPEN: "Offen",
+    BOOKED: "Gebucht",
+    CANCELLED: "Gelöscht",
+    EXPIRED: "Verfallen",
+    DECLINED: "Abgelehnt",
+  },
+  {
+    OPEN: "Open",
+    BOOKED: "Booked",
+    CANCELLED: "Deleted",
+    EXPIRED: "Expired",
+    DECLINED: "Declined",
+  },
 );
 
 export const SCRIM_STATUS_LABELS: Localized<Record<ScrimStatus, string>> = dictionary(
@@ -102,6 +114,9 @@ export const NOTIFICATION_TYPE_LABELS: Localized<Record<NotifType, string>> = di
     REMINDER_1H: "Reminder 1 h",
     FEEDBACK_PROMPT: "Feedback-Hinweis",
     CHANNEL_BROKEN: "Team-Channel nicht erreichbar",
+    DIRECT_REQUEST_RECEIVED: "Neue Direktanfrage",
+    DIRECT_REQUEST_DECLINED: "Direktanfrage abgelehnt",
+    PARTNERSHIP_ENDED: "Feste Partnerschaft beendet",
   },
   {
     VERIFICATION_RESULT: "Verification result",
@@ -115,6 +130,9 @@ export const NOTIFICATION_TYPE_LABELS: Localized<Record<NotifType, string>> = di
     REMINDER_1H: "Reminder 1 h",
     FEEDBACK_PROMPT: "Feedback prompt",
     CHANNEL_BROKEN: "Team channel unreachable",
+    DIRECT_REQUEST_RECEIVED: "New direct request",
+    DIRECT_REQUEST_DECLINED: "Direct request declined",
+    PARTNERSHIP_ENDED: "Fixed partnership ended",
   },
 );
 

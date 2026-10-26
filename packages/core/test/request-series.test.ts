@@ -456,6 +456,8 @@ describe("reads", () => {
         maps: ["Haven"],
         due: false,
         blocked: null,
+        // A series for the board, no fixed partnership (SPEC N-26).
+        partner: null,
         end: { problem: null },
       },
     ]);
@@ -560,6 +562,7 @@ describe("account data", () => {
         rangBis: "Platinum",
         maps: ["Split"],
         notiz: "Hi",
+        festerPartner: null,
       },
     ]);
     expect(data.anfragen).toEqual([expect.objectContaining({ startAm: W0, wöchentlich: true })]);

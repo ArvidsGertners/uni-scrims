@@ -533,10 +533,10 @@ export async function dissolveTeam(teamId: string, now: Date, db: Db = prisma): 
 }
 
 /**
- * The requests retireTeamActivity locks, sorted by id: the team's open requests and the open
- * requests its pending applications go to. A caller that locks further requests before the
- * retirement (deleteAccount) locks these together with its own, so every request lock of the
- * transaction is taken in id order (§4).
+ * The requests retireTeamActivity locks, sorted by id: the team's open requests, the open direct
+ * requests to it (§5.28) and the open requests its pending applications go to. A caller that locks
+ * further requests before the retirement (deleteAccount) locks these together with its own, so
+ * every request lock of the transaction is taken in id order (§4).
  */
 export async function retirementRequestIds(
   teamId: string,
@@ -544,7 +544,7 @@ export async function retirementRequestIds(
   db: Db = prisma,
 ): Promise<string[]> {
   const own = await db.scrimRequest.findMany({
-    where: { teamId, ...openRequestWhere(now) },
+    where: { OR: [{ teamId }, { targetTeamId: teamId }], ...openRequestWhere(now) },
     select: { id: true },
   });
   const applied = await db.application.findMany({
@@ -607,9 +607,10 @@ export async function retireTeamActivity(teamId: string, now: Date, db: Db = pri
       include: { hostTeam: { select: { name: true } }, guestTeam: { select: { name: true } } },
     });
     for (const scrim of scrims) await lockScrim(tx, scrim.id);
-    // No more requests from the team's weekly series (SPEC N-25); the caller holds the team lock.
+    // No more requests from the team's weekly series (SPEC N-25) and no more dates of its fixed
+    // partnerships on either side (SPEC N-26); the caller holds the team lock (§5.28).
     await tx.requestSeries.updateMany({
-      where: { teamId, endedAt: null },
+      where: { OR: [{ teamId }, { targetTeamId: teamId }], endedAt: null },
       data: { endedAt: now },
     });
 
@@ -621,6 +622,12 @@ export async function retireTeamActivity(teamId: string, now: Date, db: Db = pri
     for (const request of requests) {
       await closeOpenRequest(tx, request, RequestStatus.CANCELLED, now);
     }
+    // Direct requests to the team fall away without a notice: it would tell their requesting
+    // team about a ban (SPEC N-26).
+    await tx.scrimRequest.updateMany({
+      where: { id: { in: requestIds }, targetTeamId: teamId, status: RequestStatus.OPEN },
+      data: { status: RequestStatus.CANCELLED },
+    });
     await tx.application.updateMany({
       where: { teamId, status: AppStatus.PENDING, requestId: { in: requestIds } },
       data: { status: AppStatus.WITHDRAWN, decidedAt: now },

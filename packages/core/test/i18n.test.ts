@@ -51,6 +51,7 @@ const SAMPLES: { [K in ParamKey]: MessageParams<K> } = {
   applicantTeamInactive: { team: "Team Probe" },
   applicantsMustBeFullyVerified: { team: "Team Probe" },
   applicantTeamNotFullyVerified: { team: "Team Probe" },
+  requestingTeamInactive: { team: "Team Probe" },
   teamLinkTooLong: { platform: "discord" },
   teamLinkInvalid: { platform: "website" },
   teamLinkNotHttps: { platform: "x" },

@@ -192,6 +192,8 @@ export async function exportAccountData(input: {
           note: true,
           status: true,
           seriesId: true,
+          targetTeam: { select: { name: true } },
+          weeklyLastStartsAt: true,
         },
       });
       const series = await tx.requestSeries.findMany({
@@ -208,6 +210,7 @@ export async function exportAccountData(input: {
           rankMax: true,
           maps: true,
           note: true,
+          targetTeam: { select: { name: true } },
         },
       });
       const feedback = await tx.scrimFeedback.findMany({
@@ -400,6 +403,10 @@ export async function exportAccountData(input: {
           notiz: request.note,
           status: REQUEST_STATUS_LABELS.de[request.status],
           wöchentlich: request.seriesId !== null,
+          // A direct request (SPEC N-26): the requested team, and the last date of a proposed
+          // fixed partnership.
+          direktAn: request.targetTeam?.name ?? null,
+          wöchentlichBis: request.weeklyLastStartsAt,
         })),
         // Weekly series (SPEC N-25): their requests are in anfragen with wöchentlich.
         wiederkehrendeAnfragen: series.map((entry) => ({
@@ -413,6 +420,8 @@ export async function exportAccountData(input: {
           rangBis: RANK_LABELS[entry.rankMax],
           maps: entry.maps,
           notiz: entry.note,
+          // A fixed partnership (SPEC N-26): the partner team.
+          festerPartner: entry.targetTeam?.name ?? null,
         })),
         feedback: feedback.map((entry) => ({
           team: teamName(entry.teamId),

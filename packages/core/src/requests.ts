@@ -7,6 +7,7 @@ import {
   NotifType,
   type Prisma,
   RequestStatus,
+  type ScrimFormat,
   ScrimStatus,
   prisma,
 } from "@uni-scrims/db";
@@ -15,7 +16,7 @@ import { TIMING } from "../config/timing.ts";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, type Problem, problemError } from "./errors.ts";
 import { type Message, msg } from "./i18n/render.ts";
-import { lockRequest, lockTeam } from "./locks.ts";
+import { lockRequest, lockTeam, lockTeams } from "./locks.ts";
 import {
   BOTH_TEAM_CHANNELS,
   type NotificationEntry,
@@ -28,7 +29,7 @@ import {
   requireActingCaptain,
   requireTeamMember,
 } from "./permissions.ts";
-import { isOutsideRange, loadTeamRank } from "./ranks.ts";
+import { RANKS, isOutsideRange, loadTeamRank } from "./ranks.ts";
 import {
   type RequestInput,
   applicationMessageSchema,
@@ -73,14 +74,42 @@ export function openRequestWhere(now: Date) {
 }
 
 /**
- * The requests the board shows, signed in or not: open ones of active teams (SPEC P0-4, N-24). The
- * public logos follow the same rule (§5.26).
+ * The requests the board shows, signed in or not: open ones of active teams (SPEC P0-4, N-24), no
+ * direct requests (SPEC N-26). The public logos follow the same rule (§5.26).
  */
 export function boardRequestWhere(now: Date) {
   return {
     ...openRequestWhere(now),
+    targetTeamId: null,
     team: activeTeamWhere(),
   } satisfies Prisma.ScrimRequestWhereInput;
+}
+
+/** Direct requests have no rank range; they store the whole range (§5.28). */
+const DIRECT_REQUEST_RANKS = { rankMin: RANKS[0]!, rankMax: RANKS[RANKS.length - 1]! };
+
+/**
+ * Why `ownTeamId` cannot send a direct request to the target, or null (SPEC N-26): the target must
+ * exist, be active and be another team. Hidden teams (Team.listed) can be requested.
+ */
+export function directRequestTargetProblem(
+  ownTeamId: string | null,
+  target: { id: string; bannedAt: Date | null; dissolvedAt: Date | null } | null,
+): DomainError | null {
+  if (!target || !isTeamActive(target)) return new DomainError("NOT_FOUND", "targetTeamNotFound");
+  if (target.id === ownTeamId) return new DomainError("INVALID", "ownTeamTarget");
+  return null;
+}
+
+/** The target team of a new direct request, or throws directRequestTargetProblem. */
+async function requireDirectRequestTarget(ownTeamId: string, targetTeamId: string, db: Db) {
+  const target = await db.team.findUnique({
+    where: { id: targetTeamId },
+    select: { id: true, name: true, bannedAt: true, dissolvedAt: true },
+  });
+  const problem = directRequestTargetProblem(ownTeamId, target);
+  if (problem) throw problem;
+  return target!;
 }
 
 const REQUEST_LIMIT: Problem = {
@@ -161,26 +190,48 @@ export async function findApplicantTeamProblem(
 
 /**
  * Posts a request for `teamId`, the team the form was shown for (§5.20). With `repeatUntil` it is
- * the first date of a weekly series, created in the same transaction (SPEC N-25, §5.27).
+ * the first date of a weekly series, created in the same transaction (SPEC N-25, §5.27). With
+ * `targetTeamId` it is a direct request to that team, without a rank range; `repeatUntil` then only
+ * proposes a fixed partnership, which accepting creates (SPEC N-26, §5.28).
  */
 export async function createRequest(
-  input: RequestInput & { userId: string; teamId: string; now: Date },
+  input: Omit<RequestInput, "rankMin" | "rankMax"> &
+    Partial<Pick<RequestInput, "rankMin" | "rankMax">> & {
+      userId: string;
+      teamId: string;
+      targetTeamId?: string | null;
+      now: Date;
+    },
 ) {
   return prisma.$transaction(async (tx) => {
     const { user, team } = await requireActingCaptain(input.userId, input.teamId, tx);
-    const data = parseInput(requestInputSchema, input);
+    const targetTeamId = input.targetTeamId || null;
+    const data = parseInput(
+      requestInputSchema,
+      targetTeamId ? { ...input, ...DIRECT_REQUEST_RANKS } : input,
+    );
     const startsAt = berlinToUtc(data.date, data.time);
     if (isStartTooSoon(startsAt, input.now)) {
       const minutes = Math.round(TIMING.MIN_REQUEST_LEAD / 60_000);
       throw new DomainError("INVALID", msg("startTooSoon", { minutes }));
     }
+    // Before the locks, so a captain only ever holds an existing, active other team.
+    if (targetTeamId) await requireDirectRequestTarget(team.id, targetTeamId, tx);
     // Team lock: parallel creates must not exceed the limit. User and team are re-read under the
     // lock (the role, the ban or the members may have changed while we waited); from here on
-    // requestPostingProblems alone decides.
-    await lockTeam(tx, team.id);
+    // requestPostingProblems alone decides. A direct request also holds the target (§5.28): a ban
+    // of it either commits first (seen below) or waits and then cancels this request.
+    await lockTeams(tx, targetTeamId ? [team.id, targetTeamId] : [team.id]);
     const current = await requireTeamMember(user.id, team.id, tx);
     const [problem] = await requestPostingProblems(current.user, current.team, input.now, tx);
     if (problem) throw problemError(problem);
+    const target = targetTeamId
+      ? await requireDirectRequestTarget(team.id, targetTeamId, tx)
+      : null;
+    // The schema allows 7 days up to SERIES_MAX_WEEKS weeks, so there are 1 to 16 more dates.
+    const lastStartsAt = data.repeatUntil
+      ? addBerlinWeeks(startsAt, Math.floor(daysBetweenDates(data.date, data.repeatUntil) / 7))
+      : null;
     const fields = {
       teamId: team.id,
       createdById: user.id,
@@ -191,16 +242,40 @@ export async function createRequest(
       maps: data.maps,
       note: data.note,
     };
-    // The schema allows 7 days up to SERIES_MAX_WEEKS weeks, so there are 1 to 16 more dates.
-    const series = data.repeatUntil
+    if (target) {
+      const request = await tx.scrimRequest.create({
+        data: {
+          ...fields,
+          startsAt,
+          targetTeamId: target.id,
+          weeklyLastStartsAt: lastStartsAt,
+          status: RequestStatus.OPEN,
+          createdAt: input.now,
+        },
+      });
+      await queueNotifications(tx, input.now, [
+        {
+          type: NotifType.DIRECT_REQUEST_RECEIVED,
+          channel: NotifChannel.PERSONAL,
+          entityId: request.id,
+          targetTeamId: target.id,
+          requestId: request.id,
+          payload: {
+            teamName: team.name,
+            startsAt: startsAt.toISOString(),
+            format: request.format,
+            weeklyUntil: lastStartsAt?.toISOString() ?? null,
+          },
+        },
+      ]);
+      return request;
+    }
+    const series = lastStartsAt
       ? await tx.requestSeries.create({
           data: {
             ...fields,
             nextStartsAt: addBerlinWeeks(startsAt, 1),
-            lastStartsAt: addBerlinWeeks(
-              startsAt,
-              Math.floor(daysBetweenDates(data.date, data.repeatUntil) / 7),
-            ),
+            lastStartsAt,
             createdAt: input.now,
           },
         })
@@ -217,10 +292,16 @@ export async function createRequest(
   });
 }
 
-type RequestForClosing = { id: string; startsAt: Date; team: { name: string } };
+type RequestForClosing = {
+  id: string;
+  startsAt: Date;
+  targetTeamId: string | null;
+  team: { name: string };
+};
 
 /**
- * OPEN → CANCELLED or EXPIRED; pending applications are rejected and their teams notified.
+ * OPEN → CANCELLED or EXPIRED; pending applications are rejected and their teams notified. The
+ * target of a cancelled direct request is notified like an applicant (§5.28); an expired one is not.
  * The caller holds the request lock. Returns false if the request was no longer open.
  */
 export async function closeOpenRequest(
@@ -242,18 +323,29 @@ export async function closeOpenRequest(
   });
   const type =
     status === RequestStatus.CANCELLED ? NotifType.REQUEST_DELETED : NotifType.REQUEST_EXPIRED;
-  await queueNotifications(
-    tx,
-    now,
-    rejected.map((application) => ({
+  const payload = { teamName: request.team.name, startsAt: request.startsAt.toISOString() };
+  await queueNotifications(tx, now, [
+    ...rejected.map((application) => ({
       type,
       channel: NotifChannel.PERSONAL,
       entityId: request.id,
       targetTeamId: application.teamId,
       requestId: request.id,
-      payload: { teamName: request.team.name, startsAt: request.startsAt.toISOString() },
+      payload,
     })),
-  );
+    ...(status === RequestStatus.CANCELLED && request.targetTeamId
+      ? [
+          {
+            type: NotifType.REQUEST_DELETED,
+            channel: NotifChannel.PERSONAL,
+            entityId: request.id,
+            targetTeamId: request.targetTeamId,
+            requestId: request.id,
+            payload: { ...payload, direct: true },
+          },
+        ]
+      : []),
+  ]);
   return true;
 }
 
@@ -463,61 +555,84 @@ export async function confirmApplication(input: {
       select: { id: true, teamId: true },
     });
 
-    const feedbackOpensAt = new Date(request.startsAt.getTime() + TIMING.FEEDBACK_OFFSET);
-    const scrim = await tx.scrim.create({
-      data: {
-        requestId: request.id,
-        hostTeamId: host.id,
-        guestTeamId: guest.id,
-        startsAt: request.startsAt,
-        format: request.format,
-        maps: request.maps,
-        feedbackOpensAt,
-        feedbackDeadline: new Date(feedbackOpensAt.getTime() + TIMING.FEEDBACK_WINDOW),
-        status: ScrimStatus.SCHEDULED,
-        createdAt: now,
-      },
-    });
-
-    const startsAt = request.startsAt.toISOString();
-    const sides = [
-      { teamId: host.id, opponentTeamName: guest.name },
-      { teamId: guest.id, opponentTeamName: host.name },
-    ];
-    type ScrimNotifType =
-      | typeof NotifType.SCRIM_BOOKED
-      | typeof NotifType.REMINDER_24H
-      | typeof NotifType.REMINDER_1H
-      | typeof NotifType.FEEDBACK_PROMPT;
-    const toBothTeams = (type: ScrimNotifType, scheduledFor?: Date): NotificationEntry[] =>
-      sides.flatMap((side) =>
-        forTeam(side.teamId, BOTH_TEAM_CHANNELS, {
-          type,
-          entityId: scrim.id,
-          scrimId: scrim.id,
-          scheduledFor,
-          payload: { opponentTeamName: side.opponentTeamName, startsAt, format: scrim.format },
-        }),
-      );
-    const [before24h, before1h] = TIMING.REMINDER_OFFSETS;
-    const reminders = [
-      { type: NotifType.REMINDER_24H, at: new Date(request.startsAt.getTime() - before24h) },
-      { type: NotifType.REMINDER_1H, at: new Date(request.startsAt.getTime() - before1h) },
-    ].filter((reminder) => reminder.at > now);
-
-    await queueNotifications(tx, now, [
-      ...toBothTeams(NotifType.SCRIM_BOOKED),
-      ...rejected.map((other) => ({
+    const scrim = await createScrimBooking(tx, { request, host, guest, now });
+    await queueNotifications(
+      tx,
+      now,
+      rejected.map((other) => ({
         type: NotifType.APPLICATION_REJECTED,
         channel: NotifChannel.PERSONAL,
         entityId: other.id,
         targetTeamId: other.teamId,
         requestId: request.id,
-        payload: { teamName: host.name, startsAt },
+        payload: { teamName: host.name, startsAt: request.startsAt.toISOString() },
       })),
-      ...reminders.flatMap((reminder) => toBothTeams(reminder.type, reminder.at)),
-      ...toBothTeams(NotifType.FEEDBACK_PROMPT, feedbackOpensAt),
-    ]);
+    );
     return scrim;
   });
+}
+
+/**
+ * Books the scrim of a request whose status the caller has just set to BOOKED (§5.4, §5.28): the
+ * scrim row and, for both teams, SCRIM_BOOKED, the reminders still ahead and FEEDBACK_PROMPT. The
+ * caller holds both team locks and the request lock, or has just created the request.
+ */
+export async function createScrimBooking(
+  tx: Prisma.TransactionClient,
+  input: {
+    request: { id: string; startsAt: Date; format: ScrimFormat; maps: string[] };
+    host: { id: string; name: string };
+    guest: { id: string; name: string };
+    now: Date;
+  },
+) {
+  const { request, host, guest, now } = input;
+  const feedbackOpensAt = new Date(request.startsAt.getTime() + TIMING.FEEDBACK_OFFSET);
+  const scrim = await tx.scrim.create({
+    data: {
+      requestId: request.id,
+      hostTeamId: host.id,
+      guestTeamId: guest.id,
+      startsAt: request.startsAt,
+      format: request.format,
+      maps: request.maps,
+      feedbackOpensAt,
+      feedbackDeadline: new Date(feedbackOpensAt.getTime() + TIMING.FEEDBACK_WINDOW),
+      status: ScrimStatus.SCHEDULED,
+      createdAt: now,
+    },
+  });
+
+  const startsAt = request.startsAt.toISOString();
+  const sides = [
+    { teamId: host.id, opponentTeamName: guest.name },
+    { teamId: guest.id, opponentTeamName: host.name },
+  ];
+  type ScrimNotifType =
+    | typeof NotifType.SCRIM_BOOKED
+    | typeof NotifType.REMINDER_24H
+    | typeof NotifType.REMINDER_1H
+    | typeof NotifType.FEEDBACK_PROMPT;
+  const toBothTeams = (type: ScrimNotifType, scheduledFor?: Date): NotificationEntry[] =>
+    sides.flatMap((side) =>
+      forTeam(side.teamId, BOTH_TEAM_CHANNELS, {
+        type,
+        entityId: scrim.id,
+        scrimId: scrim.id,
+        scheduledFor,
+        payload: { opponentTeamName: side.opponentTeamName, startsAt, format: scrim.format },
+      }),
+    );
+  const [before24h, before1h] = TIMING.REMINDER_OFFSETS;
+  const reminders = [
+    { type: NotifType.REMINDER_24H, at: new Date(request.startsAt.getTime() - before24h) },
+    { type: NotifType.REMINDER_1H, at: new Date(request.startsAt.getTime() - before1h) },
+  ].filter((reminder) => reminder.at > now);
+
+  await queueNotifications(tx, now, [
+    ...toBothTeams(NotifType.SCRIM_BOOKED),
+    ...reminders.flatMap((reminder) => toBothTeams(reminder.type, reminder.at)),
+    ...toBothTeams(NotifType.FEEDBACK_PROMPT, feedbackOpensAt),
+  ]);
+  return scrim;
 }

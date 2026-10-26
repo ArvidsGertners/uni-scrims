@@ -32,6 +32,9 @@ export const NOTIFICATION_SETTING_LABELS = dictionary<Record<NotifType, string>>
     REMINDER_1H: "Erinnerung 1 Stunde vorher",
     FEEDBACK_PROMPT: "Bitte um Feedback",
     CHANNEL_BROKEN: "Team-Channel nicht mehr verknüpft",
+    DIRECT_REQUEST_RECEIVED: "Direktanfrage erhalten",
+    DIRECT_REQUEST_DECLINED: "Direktanfrage abgelehnt",
+    PARTNERSHIP_ENDED: "Feste Partnerschaft beendet",
   },
   {
     VERIFICATION_RESULT: "Result of the review",
@@ -45,5 +48,8 @@ export const NOTIFICATION_SETTING_LABELS = dictionary<Record<NotifType, string>>
     REMINDER_1H: "Reminder 1 hour before",
     FEEDBACK_PROMPT: "Feedback request",
     CHANNEL_BROKEN: "Team channel no longer linked",
+    DIRECT_REQUEST_RECEIVED: "Direct request received",
+    DIRECT_REQUEST_DECLINED: "Direct request declined",
+    PARTNERSHIP_ENDED: "Fixed partnership ended",
   },
 );

@@ -37,6 +37,9 @@ export const NOTIFICATION_CATEGORIES: {
       { type: NotifType.APPLICATION_REJECTED, audience: "CAPTAIN" },
       { type: NotifType.REQUEST_DELETED, audience: "CAPTAIN" },
       { type: NotifType.REQUEST_EXPIRED, audience: "CAPTAIN" },
+      { type: NotifType.DIRECT_REQUEST_RECEIVED, audience: "CAPTAIN" },
+      { type: NotifType.DIRECT_REQUEST_DECLINED, audience: "CAPTAIN" },
+      { type: NotifType.PARTNERSHIP_ENDED, audience: "CAPTAIN" },
     ],
   },
   {

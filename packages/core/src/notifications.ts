@@ -9,6 +9,12 @@ import type { Db } from "./db.ts";
 /** Display data of a request notification: the other team and the start. */
 const requestPayloadSchema = z.object({ teamName: z.string(), startsAt: z.iso.datetime() });
 
+/** A new direct request (§5.28): weeklyUntil is the last date of a proposed partnership, or null. */
+const directRequestPayloadSchema = requestPayloadSchema.extend({
+  format: z.enum(ScrimFormat),
+  weeklyUntil: z.iso.datetime().nullable(),
+});
+
 /** Display data of a scrim notification, from the receiving team's point of view. */
 const scrimPayloadSchema = z.object({
   opponentTeamName: z.string(),
@@ -26,7 +32,8 @@ export const notificationPayloadSchemas = {
   APPLICATION_RECEIVED: requestPayloadSchema,
   // teamName: the creating team, as in the two below.
   APPLICATION_REJECTED: requestPayloadSchema,
-  REQUEST_DELETED: requestPayloadSchema,
+  // direct: a direct request withdrawn by the requesting team (Phase 30, §5.28); absent before.
+  REQUEST_DELETED: requestPayloadSchema.extend({ direct: z.boolean().optional() }),
   REQUEST_EXPIRED: requestPayloadSchema,
   SCRIM_BOOKED: scrimPayloadSchema,
   // opponentTeamName: the cancelling team.
@@ -36,6 +43,12 @@ export const notificationPayloadSchemas = {
   FEEDBACK_PROMPT: scrimPayloadSchema,
   // teamName: the team whose channel link was removed.
   CHANNEL_BROKEN: z.object({ teamName: z.string() }),
+  // teamName: the requesting team.
+  DIRECT_REQUEST_RECEIVED: directRequestPayloadSchema,
+  // teamName: the team that declined.
+  DIRECT_REQUEST_DECLINED: requestPayloadSchema,
+  // teamName: the team that ended the partnership; startsAt: its next date, for weekday and time.
+  PARTNERSHIP_ENDED: requestPayloadSchema,
 } satisfies Record<NotifType, z.ZodType>;
 
 export type NotificationPayload<T extends NotifType> = z.infer<

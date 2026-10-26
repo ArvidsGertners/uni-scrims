@@ -215,11 +215,13 @@ export async function getSuccessMetrics(input: {
     }),
     // Booked and expired requests that have started. One still OPEN after its start expires with
     // the sweeper's next run, so it counts as expired already; a sweeper that lags or stands still
-    // would otherwise leave it out and inflate the rate. Deleted requests (CANCELLED) never count.
+    // would otherwise leave it out and inflate the rate. Deleted requests (CANCELLED) never count,
+    // nor do direct requests: only board requests measure the board (SPEC §8, N-26).
     prisma.scrimRequest.findMany({
       where: {
         status: { in: [RequestStatus.BOOKED, RequestStatus.EXPIRED, RequestStatus.OPEN] },
         startsAt: { lte: now },
+        targetTeamId: null,
       },
       select: { status: true, startsAt: true },
     }),
@@ -231,7 +233,7 @@ export async function getSuccessMetrics(input: {
         createdAt: true,
         hostTeamId: true,
         guestTeamId: true,
-        request: { select: { createdAt: true } },
+        request: { select: { createdAt: true, targetTeamId: true } },
         feedback: { where: { rating: { not: null } }, select: { rating: true } },
         _count: { select: { feedback: true } },
       },
@@ -247,7 +249,10 @@ export async function getSuccessMetrics(input: {
     const decided = decisions.filter((decision) => within(decision.decidedAt!, from));
     const requestsIn = requests.filter((request) => within(request.startsAt, from));
     const booked = requestsIn.filter((request) => request.status === RequestStatus.BOOKED).length;
-    const bookings = scrims.filter((scrim) => within(scrim.createdAt, from));
+    // Time to booking of board requests only: a partnership books its dates when they are created.
+    const bookings = scrims.filter(
+      (scrim) => within(scrim.createdAt, from) && scrim.request.targetTeamId === null,
+    );
     const startedIn = started.filter((scrim) => within(scrim.startsAt, from));
     const played = startedIn.filter((scrim) => scrim.status === ScrimStatus.COMPLETED);
     const noShows = startedIn.filter((scrim) => scrim.status === ScrimStatus.NO_SHOW).length;

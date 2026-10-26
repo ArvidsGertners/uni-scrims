@@ -415,4 +415,46 @@ describe("getSuccessMetrics", () => {
       expect(windows(key).map(({ cases }) => cases)).toEqual([2, 3]);
     }
   });
+
+  it("counts only board requests for the confirmation rate and the time to booking", async () => {
+    const a = await createTeamWithMembers({ extraMembers: 4 });
+    const b = await createTeamWithMembers({ extraMembers: 4 });
+    // A board request booked after 2 h, and an expired one.
+    await createScrim({
+      host: a,
+      guest: b,
+      status: ScrimStatus.COMPLETED,
+      startsAt: ago(2 * DAY),
+      requestCreatedAt: ago(3 * DAY),
+      bookedAfter: 2 * HOUR,
+    });
+    await createRequest(a, RequestStatus.EXPIRED, ago(2 * DAY), ago(3 * DAY));
+    // Direct requests (SPEC N-26): a date of a partnership booked when it was created, an expired
+    // and a declined one. They count for the played scrims, not for these two metrics.
+    await createScrim({
+      host: a,
+      guest: b,
+      status: ScrimStatus.COMPLETED,
+      startsAt: ago(DAY),
+      requestCreatedAt: ago(8 * DAY),
+      bookedAfter: 0,
+    });
+    const partnerDate = await prisma.scrim.findFirstOrThrow({ where: { startsAt: ago(DAY) } });
+    await prisma.scrimRequest.update({
+      where: { id: partnerDate.requestId },
+      data: { targetTeamId: b.team.id },
+    });
+    for (const status of [RequestStatus.EXPIRED, RequestStatus.DECLINED]) {
+      const request = await createRequest(a, status, ago(DAY), ago(2 * DAY));
+      await prisma.scrimRequest.update({
+        where: { id: request.id },
+        data: { targetTeamId: b.team.id },
+      });
+    }
+
+    const { windows } = await metricsAt();
+    expect(windows("confirmationRate")[1]).toMatchObject({ value: 0.5, cases: 2 });
+    expect(windows("timeToBooking")[1]).toMatchObject({ value: 2 * HOUR, cases: 1 });
+    expect(windows("showUpRate")[1]).toMatchObject({ value: 1, cases: 2 });
+  });
 });

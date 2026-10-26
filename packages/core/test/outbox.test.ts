@@ -20,6 +20,8 @@ import {
   banUser,
   cancelScrim,
   classifyDeliveryError,
+  createRequest,
+  declineDirectRequest,
   deleteAccount,
   deleteRequest,
   deliverDueNotifications,
@@ -33,6 +35,7 @@ import {
 import { queueNotifications } from "../src/notifications.ts";
 import {
   NOW,
+  REQUEST_INPUT,
   REQUEST_STARTS_AT,
   bookScrim,
   createOpenRequest,
@@ -638,6 +641,29 @@ describe("deliverNotification: relevance (§6.1)", () => {
     expect(await send(received[0]!.id)).toBe("SENT");
     await deleteRequest({ userId: host.captain.id, requestId: request.id, now: NOW });
     expect(await send(received[1]!.id)).toBe("CANCELLED");
+  });
+
+  it("sends DIRECT_REQUEST_RECEIVED only while the direct request is open (SPEC N-26)", async () => {
+    const host = await createFullyVerifiedTeam();
+    const target = await createFullyVerifiedTeam();
+    const direct = (date: string) =>
+      createRequest({
+        ...REQUEST_INPUT,
+        date,
+        userId: host.captain.id,
+        teamId: host.team.id,
+        targetTeamId: target.team.id,
+        now: NOW,
+      });
+    const received = async (requestId: string) =>
+      prisma.notification.findFirstOrThrow({
+        where: { requestId, type: NotifType.DIRECT_REQUEST_RECEIVED },
+      });
+    const open = await direct("2026-10-22");
+    expect(await send((await received(open.id)).id)).toBe("SENT");
+    const declined = await direct("2026-10-23");
+    await declineDirectRequest({ userId: target.captain.id, requestId: declined.id, now: NOW });
+    expect(await send((await received(declined.id)).id)).toBe("CANCELLED");
   });
 
   it("sends booking and reminders only while the scrim is scheduled and both teams are active", async () => {

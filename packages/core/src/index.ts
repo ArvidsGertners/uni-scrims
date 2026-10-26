@@ -24,6 +24,7 @@ export { rejectReasonText, userDisplayName } from "./i18n/stored.ts";
 export * from "./time.ts";
 export * from "./requests.ts";
 export * from "./request-series.ts";
+export * from "./direct-requests.ts";
 export * from "./scrims.ts";
 export * from "./reads.ts";
 export * from "./outbox.ts";

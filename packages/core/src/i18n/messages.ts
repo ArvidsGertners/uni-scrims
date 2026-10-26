@@ -88,6 +88,10 @@ const de = {
     `Das Team „${team}“ ist nicht vollständig verifiziert (weniger als ${FULLY_VERIFIED_PLAYER_COUNT} verifizierte Spieler oder Ersatzspieler), und ihr nehmt nur solche Teams an.`,
   seriesNotFound: "Serie nicht gefunden.",
   seriesEnded: "Die Serie ist schon beendet.",
+  targetTeamNotFound: "Das angefragte Team gibt es nicht oder es ist nicht mehr aktiv.",
+  ownTeamTarget: "Ihr könnt nicht euer eigenes Team anfragen.",
+  requestingTeamInactive: ({ team }: { team: string }) =>
+    `Das anfragende Team „${team}“ ist nicht mehr aktiv.`,
 
   // Scrims and feedback
   scrimNotFound: "Scrim nicht gefunden.",
@@ -274,6 +278,9 @@ export const MESSAGES = dictionary(de, {
     `The team “${team}” is not fully verified (fewer than ${FULLY_VERIFIED_PLAYER_COUNT} verified players or substitutes), and you only accept such teams.`,
   seriesNotFound: "Series not found.",
   seriesEnded: "The series has already ended.",
+  targetTeamNotFound: "The requested team doesn't exist or is no longer active.",
+  ownTeamTarget: "You can't send a request to your own team.",
+  requestingTeamInactive: ({ team }) => `The requesting team “${team}” is no longer active.`,
 
   scrimNotFound: "Scrim not found.",
   scrimNotCancellable: "The scrim can no longer be cancelled.",

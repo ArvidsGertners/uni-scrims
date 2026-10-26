@@ -43,11 +43,12 @@ import {
   applicantRuleProblem,
   applicantTeamProblem,
   boardRequestWhere,
+  directRequestTargetProblem,
   isRequestOpen,
   openRequestWhere,
   requestPostingProblems,
 } from "./requests.ts";
-import { nextSeriesStart, seriesPostsAt } from "./request-series.ts";
+import { nextSeriesStart, seriesPostsAt, unverifiedCaptainTeams } from "./request-series.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
@@ -378,15 +379,23 @@ export async function getPublicBoard(input: PublicBoardInput) {
  * the captain sees every reason at once, other members only that the captain has to act, and a
  * ban is the only reason. kind lets the page link to where each one is fixed (§7).
  */
-export async function getRequestForm(input: { userId: string; now: Date }) {
+export async function getRequestForm(input: {
+  userId: string;
+  now: Date;
+  /** A direct request to this team (SPEC N-26); missing = a request for the board. */
+  targetTeamId?: string | null;
+}) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
   if (!ownTeam) return null;
-  const [problems, rank] = await Promise.all([
+  const [problems, rank, target] = await Promise.all([
     requestPostingProblems(user, ownTeam, input.now, prisma),
     loadTeamRank(ownTeam.id),
+    input.targetTeamId ? loadDirectRequestTarget(ownTeam.id, input.targetTeamId, input.now) : null,
   ]);
   return {
+    /** The team a direct request goes to, or why it cannot; null for a board request. */
+    target,
     /** The team the form posts for: the active one (§5.20). */
     teamId: ownTeam.id,
     teamName: ownTeam.name,
@@ -397,6 +406,18 @@ export async function getRequestForm(input: { userId: string; now: Date }) {
       : { rankMin: RANKS[0]!, rankMax: RANKS[RANKS.length - 1]! },
     problems: problems.map(({ kind, text }) => ({ kind, text })),
   };
+}
+
+/** The card of a direct request's target for the form, or the problem createRequest would throw. */
+async function loadDirectRequestTarget(ownTeamId: string, targetTeamId: string, now: Date) {
+  const team = await prisma.team.findUnique({
+    where: { id: targetTeamId },
+    select: { ...teamCardSelect, bannedAt: true, dissolvedAt: true },
+  });
+  const problem = directRequestTargetProblem(ownTeamId, team);
+  if (problem || !team) return { team: null, problem: problem?.text ?? null };
+  const reliabilities = await getReliabilities([team.id], now);
+  return { team: toTeamCard(team, reliabilities), problem: null };
 }
 
 // ─── Request detail ───────────────────────────────────────────────────────────
@@ -416,8 +437,9 @@ const detailTeamSelect = {
 } satisfies Prisma.TeamSelect;
 
 /**
- * Request for logged-in users; applications only for members of the creating team (§7).
- * null for unknown requests and those of banned or dissolved teams.
+ * Request for logged-in users; applications only for members of the creating team (§7). A direct
+ * request only for members of the requesting and the requested team (SPEC N-26).
+ * null for unknown requests, those of banned or dissolved teams and direct requests of others.
  */
 export async function getRequestDetail(input: { userId: string; requestId: string; now: Date }) {
   const user = await requireUser(input.userId);
@@ -425,23 +447,39 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     where: { id: input.requestId },
     include: {
       team: { select: detailTeamSelect },
+      targetTeam: { select: detailTeamSelect },
       scrim: { select: { id: true, hostTeamId: true, guestTeamId: true } },
     },
   });
   if (!request || !isTeamActive(request.team)) return null;
+  // The user's memberships in the request's teams: the creating one and, for a direct request, the
+  // requested one (dissolved teams have no memberships left, the filter covers leftovers).
+  const memberOf = await prisma.teamMember.findMany({
+    where: {
+      userId: user.id,
+      teamId: { in: [request.teamId, request.targetTeamId].filter((id) => id !== null) },
+      team: { dissolvedAt: null },
+    },
+    select: { teamId: true },
+  });
+  const isMemberOf = (teamId: string | null) => memberOf.some((entry) => entry.teamId === teamId);
+  if (request.targetTeamId && memberOf.length === 0) return null;
 
   const ownTeam = await findOwnTeam(user.id);
   const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
   const isOwner = ownTeam?.id === request.teamId;
-  // Created by another of the user's teams: the page offers to switch to see it as owner (§5.20).
-  const otherOwnTeam =
-    !isOwner &&
-    (await prisma.teamMember.findUnique({
-      where: { teamId_userId: { teamId: request.teamId, userId: user.id } },
-      select: { userId: true },
-    }))
-      ? { id: request.team.id, name: request.team.name }
-      : null;
+  const isTarget = request.targetTeamId !== null && ownTeam?.id === request.targetTeamId;
+  // Created by, or for a direct request sent to, another of the user's teams: the page offers to
+  // switch to that team (§5.20).
+  const otherTeam =
+    isOwner || isTarget
+      ? null
+      : isMemberOf(request.teamId)
+        ? request.team
+        : isMemberOf(request.targetTeamId)
+          ? request.targetTeam
+          : null;
+  const otherOwnTeam = otherTeam ? { id: otherTeam.id, name: otherTeam.name } : null;
   const showApplications = canSeeApplications(ownTeam?.id, request);
   // Only one of the two ever runs: the creating team sees all applications, others their own.
   const applications = showApplications
@@ -460,7 +498,9 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
       : null;
   const scrim = request.scrim;
   const open = isRequestOpen(request, input.now);
-  const offersApply = open && ownTeam !== null && !isOwner && !ownApplication;
+  // A direct request takes no applications (SPEC N-26).
+  const offersApply =
+    open && ownTeam !== null && !isOwner && !ownApplication && request.targetTeamId === null;
   const pending = applications.filter((application) => application.status === AppStatus.PENDING);
   const offersConfirm = isOwner && open && pending.length > 0;
   const actionProblem = ownTeam ? (actingCaptainProblem(user, ownTeam)?.text ?? null) : null;
@@ -472,7 +512,11 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     ownTeam !== null && offersApply && actionProblem === null && host.verifiedApplicantsOnly;
   const [reliabilities, ownFullyVerified, ownMemberCount] = await Promise.all([
     getReliabilities(
-      [request.teamId, ...applications.map((application) => application.teamId)],
+      [
+        request.teamId,
+        ...(request.targetTeamId ? [request.targetTeamId] : []),
+        ...applications.map((application) => application.teamId),
+      ],
       input.now,
     ),
     countOwnPlayers ? isTeamFullyVerified(ownTeam.id) : null,
@@ -488,6 +532,9 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const remove: ActionOffer =
     isOwner && open && isCaptainOf(user, ownTeam) ? { problem: actionProblem } : null;
   const confirm: ActionOffer = offersConfirm ? { problem: actionProblem } : null;
+  // Accepting and declining a direct request: only the requested team's captain (SPEC N-26).
+  const answer: ActionOffer =
+    isTarget && open && isCaptainOf(user, ownTeam) ? { problem: actionProblem } : null;
   // The applicant team must still be active, and fully verified if the host requires it, as
   // confirmApplication checks it (findApplicantTeamProblem); here from the loaded members.
   const confirmOffer = (application: (typeof applications)[number]) => {
@@ -515,9 +562,29 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     rankMax: request.rankMax,
     maps: request.maps,
     note: request.note,
-    /** Posted by a weekly series; only the creating team sees that (SPEC N-25). */
-    weekly: isOwner && request.seriesId !== null,
+    /**
+     * Posted by a weekly series; only the creating team sees that (SPEC N-25), for a fixed
+     * partnership both teams (SPEC N-26).
+     */
+    weekly: (isOwner || isTarget) && request.seriesId !== null,
     team: { ...toTeamCard(request.team, reliabilities), links: toTeamLinks(request.team) },
+    /**
+     * A direct request (SPEC N-26): the requested team, the last date of a proposed partnership,
+     * and whether the page shows it to the requested team.
+     */
+    direct: request.targetTeam
+      ? {
+          target: {
+            ...toTeamCard(request.targetTeam, reliabilities),
+            links: toTeamLinks(request.targetTeam),
+          },
+          weeklyUntil: request.weeklyLastStartsAt,
+          incoming: isTarget,
+        }
+      : null,
+    /** Accept or decline a direct request, for the requested team's captain. */
+    accept: answer,
+    decline: answer,
     /** The creating team admits only fully verified applicants (SPEC N-21). */
     verifiedApplicantsOnly: host.verifiedApplicantsOnly,
     apply,
@@ -580,6 +647,8 @@ const scrimTeamSelect = {
   id: true,
   name: true,
   tag: true,
+  bannedAt: true,
+  dissolvedAt: true,
   ...teamLinksSelect,
   captain: { select: { id: true, name: true } },
 } satisfies Prisma.TeamSelect;
@@ -644,7 +713,18 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
     /** null while feedback is possible (start until deadline), otherwise why not. */
     feedbackClosed,
     canGiveFeedback: actionProblem === null && !ownFeedback && feedbackClosed === null,
+    /**
+     * "Nochmal gegen dieses Team" (SPEC N-26): for the captain, once the scrim is past or cancelled,
+     * while the opponent is active. The page prefills format, maps and time from the scrim.
+     */
+    rematch:
+      isCaptainOf(user, ownTeam) && isTeamActive(opponent) && !isUpcomingScrim(scrim, input.now),
   };
+}
+
+/** Scheduled and in the future: "Anstehend"; every other scrim is past (vorbei oder abgesagt). */
+function isUpcomingScrim(scrim: { status: ScrimStatus; startsAt: Date }, now: Date): boolean {
+  return scrim.status === ScrimStatus.SCHEDULED && scrim.startsAt > now;
 }
 
 /**
@@ -661,15 +741,29 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       upcoming: [],
       past: [],
       requests: [],
+      incoming: [],
       series: [],
       applications: [],
     };
   }
   const opponentSelect = {
     ...teamCardSelect,
+    bannedAt: true,
+    dissolvedAt: true,
     captain: { select: { id: true, name: true } },
   } satisfies Prisma.TeamSelect;
-  const [scrims, requests, runningSeries, applications, ownLogo] = await Promise.all([
+  const smallTeamSelect = { id: true, name: true, tag: true, ...teamLogoSelect };
+  const seriesTeamSelect = {
+    ...smallTeamSelect,
+    captain: { select: { verifiedAt: true } },
+  } satisfies Prisma.TeamSelect;
+  const smallTeam = (team: Prisma.TeamGetPayload<{ select: typeof smallTeamSelect }>) => ({
+    id: team.id,
+    name: team.name,
+    tag: team.tag,
+    logo: teamLogoInfo(team),
+  });
+  const [scrims, requests, incoming, runningSeries, applications, ownLogo] = await Promise.all([
     prisma.scrim.findMany({
       where: { OR: [{ hostTeamId: ownTeam.id }, { guestTeamId: ownTeam.id }] },
       orderBy: { startsAt: "asc" },
@@ -683,11 +777,22 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
     prisma.scrimRequest.findMany({
       where: { ...openRequestWhere(input.now), teamId: ownTeam.id },
       orderBy: { startsAt: "asc" },
-      include: { _count: { select: { applications: { where: { status: AppStatus.PENDING } } } } },
+      include: {
+        targetTeam: { select: smallTeamSelect },
+        _count: { select: { applications: { where: { status: AppStatus.PENDING } } } },
+      },
     }),
+    // Direct requests to the team (SPEC N-26), from active teams like the board.
+    prisma.scrimRequest.findMany({
+      where: { ...openRequestWhere(input.now), targetTeamId: ownTeam.id, team: activeTeamWhere() },
+      orderBy: { startsAt: "asc" },
+      include: { team: { select: smallTeamSelect } },
+    }),
+    // The team's series and the fixed partnerships it is the partner of (§5.28).
     prisma.requestSeries.findMany({
-      where: { teamId: ownTeam.id, endedAt: null },
+      where: { OR: [{ teamId: ownTeam.id }, { targetTeamId: ownTeam.id }], endedAt: null },
       orderBy: { id: "asc" },
+      include: { team: { select: seriesTeamSelect }, targetTeam: { select: seriesTeamSelect } },
     }),
     prisma.application.findMany({
       where: {
@@ -713,6 +818,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
   ]);
   // Feedback is given by the acting captain only (SPEC P0-8), like on the scrim page.
   const mayGiveFeedback = actingCaptainProblem(user, ownTeam) === null;
+  const isCaptain = isCaptainOf(user, ownTeam);
   const items = scrims.map((scrim) => {
     const opponent = scrim.hostTeamId === ownTeam.id ? scrim.guestTeam : scrim.hostTeam;
     const feedbackGiven = scrim.feedback.some((feedback) => feedback.teamId === ownTeam.id);
@@ -735,17 +841,19 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       feedbackGiven,
       canGiveFeedback:
         mayGiveFeedback && !feedbackGiven && feedbackClosedReason(scrim, input.now) === null,
+      /** "Nochmal gegen dieses Team" for the captain, while the opponent is active (SPEC N-26). */
+      rematch: isCaptain && isTeamActive(opponent) && !isUpcomingScrim(scrim, input.now),
     };
   });
-  const isUpcoming = (item: (typeof items)[number]) =>
-    item.status === ScrimStatus.SCHEDULED && item.startsAt > input.now;
+  const isUpcoming = (item: (typeof items)[number]) => isUpcomingScrim(item, input.now);
   const upcoming = items.filter(isUpcoming);
   // The opponent captain's Discord ID, for the "write on Discord" link (SPEC P0-6).
   const captainDiscordIds = await Promise.all(
     upcoming.map((item) => getDiscordId(item.opponent.captainId)),
   );
   // Running series with a date still to post (SPEC N-25). A due date waits for the reason the
-  // sweeper sees: requestPostingProblems for the current captain (§5.27).
+  // sweeper sees: requestPostingProblems for the current captain (§5.27); for a fixed partnership
+  // an unverified captain on either side (§5.28).
   // Sorted by the date shown: the stored pointer may still name a date already too late.
   const series = runningSeries
     .flatMap((entry) => {
@@ -753,8 +861,9 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       return nextStartsAt ? [{ entry, nextStartsAt, postsAt: seriesPostsAt(nextStartsAt) }] : [];
     })
     .sort((a, b) => a.nextStartsAt.getTime() - b.nextStartsAt.getTime());
-  const isCaptain = isCaptainOf(user, ownTeam);
-  const [blocked] = series.some(({ postsAt }) => postsAt <= input.now)
+  const [blocked] = series.some(
+    ({ entry, postsAt }) => entry.targetTeamId === null && postsAt <= input.now,
+  )
     ? await requestPostingProblems(
         isCaptain
           ? user
@@ -767,10 +876,17 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
         prisma,
       )
     : [];
-  // Only the captain can ever end a series, so other members do not see it (§7).
+  // Only the captain can ever end a series, so other members do not see it (§7); a partnership
+  // the captains of both teams (§5.28).
   const end: ActionOffer = isCaptain
     ? { problem: actingCaptainProblem(user, ownTeam)?.text ?? null }
     : null;
+  const seriesBlock = (entry: (typeof runningSeries)[number]) => {
+    if (!entry.targetTeam) return blocked?.kind ?? null;
+    const unverified = unverifiedCaptainTeams([entry.team, entry.targetTeam]);
+    if (unverified.includes(ownTeam.id)) return "CAPTAIN_NOT_VERIFIED" as const;
+    return unverified.length > 0 ? ("PARTNER_CAPTAIN_NOT_VERIFIED" as const) : null;
+  };
   return {
     hasTeam: true,
     team: {
@@ -793,6 +909,18 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       maps: request.maps,
       applicationCount: request._count.applications,
       weekly: request.seriesId !== null,
+      /** A direct request: the team asked (SPEC N-26). */
+      target: request.targetTeam ? smallTeam(request.targetTeam) : null,
+      /** The last date of a proposed fixed partnership, or null. */
+      weeklyUntil: request.weeklyLastStartsAt,
+    })),
+    incoming: incoming.map((request) => ({
+      id: request.id,
+      startsAt: request.startsAt,
+      format: request.format,
+      maps: request.maps,
+      weeklyUntil: request.weeklyLastStartsAt,
+      team: smallTeam(request.team),
     })),
     series: series.map(({ entry, nextStartsAt, postsAt }) => ({
       id: entry.id,
@@ -805,8 +933,15 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       maps: entry.maps,
       /** The request is due: it appears with the next sweeper run, unless it is blocked. */
       due: postsAt <= input.now,
-      /** Why the due request waits (limit, unverified captain); null if it is not due yet. */
-      blocked: postsAt <= input.now ? (blocked?.kind ?? null) : null,
+      /**
+       * Why the due request waits (limit, unverified captain; for a partnership an unverified
+       * captain of the own or the partner team); null if it is not due yet.
+       */
+      blocked: postsAt <= input.now ? seriesBlock(entry) : null,
+      /** A fixed partnership: the other team; its dates are booked, not posted (SPEC N-26). */
+      partner: entry.targetTeam
+        ? smallTeam(entry.teamId === ownTeam.id ? entry.targetTeam : entry.team)
+        : null,
       end,
     })),
     applications: applications.map((application) => ({
@@ -956,6 +1091,8 @@ export type TeamListEntry = {
   /** Of the last RELIABILITY_WINDOW_DAYS, like on the board (SPEC N-23). */
   reliability: Reliability;
   members: TeamListMember[];
+  /** The user may open a direct request to this team (SPEC N-26). */
+  canRequest: boolean;
 };
 
 const teamListSelect = {
@@ -990,7 +1127,12 @@ const teamListSelect = {
  * the reliabilities only for the teams the other filters leave.
  */
 export async function getTeamList(input: TeamListInput) {
-  await requireUser(input.userId);
+  const user = await requireUser(input.userId);
+  // "Direkt anfragen" for the captain of the active team, not banned, on every other card (SPEC
+  // N-26); a missing verification the form names (getRequestForm).
+  const ownTeam = await findOwnTeam(user.id);
+  const requestingTeamId =
+    ownTeam && !ownTeam.bannedAt && isCaptainOf(user, ownTeam) ? ownTeam.id : null;
   // Cut by code points, then trimmed again: no half emoji, no trailing space.
   const search = Array.from((input.search ?? "").trim())
     .slice(0, TEAM_SEARCH_MAX)
@@ -1046,6 +1188,7 @@ export async function getTeamList(input: TeamListInput) {
         isCaptain: isCaptainOf(user, team),
         rank: user.rank,
       })),
+      canRequest: requestingTeamId !== null && team.id !== requestingTeamId,
     }));
   return { teams, filter: { search, ranks, fullyVerifiedOnly, reliableOnly } };
 }
