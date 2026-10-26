@@ -2,7 +2,14 @@ import type { TeamCardData } from "@uni-scrims/core";
 import { describeStartTime } from "@uni-scrims/core";
 import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
-import { CheckIcon, ChevronRightIcon, ClockIcon, MapPinIcon } from "@/components/icons";
+import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  MapPinIcon,
+  ShieldCheckIcon,
+} from "@/components/icons";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +20,7 @@ import {
   formatUniversities,
 } from "@/lib/scrim-format";
 import { getLocale, getMessages } from "@/lib/locale";
-import { formatMessages } from "@/i18n/format";
+import { formatMessages, fullyVerifiedMessages } from "@/i18n/format";
 import { requestCardMessages, scrimSharedMessages } from "@/i18n/scrims";
 
 type CardRequest = {
@@ -24,6 +31,8 @@ type CardRequest = {
   maps: string[];
   applicationCount: number;
   team: TeamCardData;
+  /** The team admits only fully verified applicants (SPEC N-21). */
+  verifiedApplicantsOnly: boolean;
   ownApplicationStatus: AppStatus | null;
 };
 
@@ -40,12 +49,16 @@ export async function RequestCard({ request, preview }: Props) {
   const locale = await getLocale();
   const t = await getMessages(requestCardMessages);
   const shared = await getMessages(scrimSharedMessages);
+  const verified = await getMessages(fullyVerifiedMessages);
   const content = (
     <>
       <div className="flex items-center gap-3">
         <TeamAvatar team={team} className="border-border" />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[16px] font-semibold">{team.name}</span>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-[16px] font-semibold">{team.name}</span>
+            {team.fullyVerified ? <FullyVerifiedBadge /> : null}
+          </span>
           <span className="truncate text-[13px] text-muted-foreground">
             {formatUniversities(team.universities, locale)}
           </span>
@@ -71,6 +84,12 @@ export async function RequestCard({ request, preview }: Props) {
           {shared.teamRank} <RankLabel rank={team.rank} /> ·{" "}
           {formatReliability(team.reliability, locale)}
         </p>
+        {request.verifiedApplicantsOnly ? (
+          <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            <ShieldCheckIcon size={14} />
+            {verified.applicantsOnly}
+          </p>
+        ) : null}
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3.5">
         {/* The count stays next to the own application's status (SPEC P0-4). */}

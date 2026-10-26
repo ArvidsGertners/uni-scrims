@@ -65,7 +65,7 @@ export function formatCases(key: MetricKey, result: MetricResult, locale: Locale
   const t = formatMessages[locale];
   const [one, many] = t.caseNouns[key];
   const noun = result.cases === 1 ? one : many;
-  return key === "readyTeams" || key === "activeTeams"
+  return key === "verifiedCaptainTeams" || key === "fullyVerifiedTeams" || key === "activeTeams"
     ? t.casesOf(result.cases, noun)
     : t.casesFrom(result.cases, noun);
 }

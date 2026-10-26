@@ -12,6 +12,7 @@ import { cn } from "cn";
 import Link from "next/link";
 import { DiscordContact } from "@/components/discord-contact";
 import { EmptyState } from "@/components/empty-state";
+import { FULLY_VERIFIED_PARAM, FullyVerifiedFilter } from "@/components/fully-verified-filter";
 import {
   CalendarIcon,
   CheckIcon,
@@ -114,6 +115,7 @@ export default async function ScrimsPage({
       ranks: rankParams.includes("ALL")
         ? "ALL"
         : rankParams.filter((value): value is Rank => RANKS.includes(value as Rank)),
+      fullyVerifiedOnly: single(params[FULLY_VERIFIED_PARAM]) === "1",
       now,
     }),
     getMyScrims({ userId: user.id, now }),
@@ -214,12 +216,13 @@ async function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequest
   const locale = await getLocale();
   const t = await getMessages(scrimsPageMessages);
   const shared = await getMessages(scrimSharedMessages);
-  const filtered = board.filter.date !== null || board.filter.ranks.length > 0;
+  const filtered =
+    board.filter.date !== null || board.filter.ranks.length > 0 || board.filter.fullyVerifiedOnly;
   return (
     <>
       {/* Keyed by the applied filter: soft navigations would otherwise keep stale select values. */}
       <form
-        key={`${board.filter.date ?? ""}|${board.filter.ranks.join(",")}`}
+        key={`${board.filter.date ?? ""}|${board.filter.ranks.join(",")}|${board.filter.fullyVerifiedOnly}`}
         method="get"
         action="/scrims"
         className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,18rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
@@ -243,6 +246,11 @@ async function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequest
             }))}
           />
         </Field>
+        {/* Below the row from 640 px, between the fields and the buttons on phones. */}
+        <FullyVerifiedFilter
+          checked={board.filter.fullyVerifiedOnly}
+          className="col-span-full sm:order-last"
+        />
         <Button type="submit" variant="outline" className="px-[18px]">
           {t.filter}
         </Button>

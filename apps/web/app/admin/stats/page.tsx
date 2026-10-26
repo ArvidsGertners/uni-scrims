@@ -60,7 +60,9 @@ async function MetricCard({ metric }: { metric: SuccessMetric }) {
           {METRIC_TEXTS[locale][metric.key].description}
         </p>
         <p className="text-[13px]">
-          {t.target(formatThreshold(metric.unit, metric.goal, metric.target, locale))}
+          {metric.target === null
+            ? t.noTarget
+            : t.target(formatThreshold(metric.unit, metric.goal, metric.target, locale))}
           {metric.stretch === null
             ? null
             : ` · ${t.stretch(formatThreshold(metric.unit, metric.goal, metric.stretch, locale))}`}

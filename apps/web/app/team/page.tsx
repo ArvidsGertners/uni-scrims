@@ -5,8 +5,8 @@ import {
   TEAM_LINK_PLATFORMS,
   LOGO_BACKGROUNDS,
   LOGO_BACKGROUND_LABELS,
+  FULLY_VERIFIED_PLAYER_COUNT,
   MAX_TEAM_MEMBERS,
-  READY_MEMBER_COUNT,
   describeStartDay,
   describeStartTime,
   getTeamDashboard,
@@ -23,7 +23,6 @@ import { TeamFields } from "@/components/team-fields";
 import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Alert } from "@/components/ui/alert";
 import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import {
@@ -31,6 +30,7 @@ import {
   regenerateInviteAction,
   removeTeamLogoAction,
   setTeamListedAction,
+  setVerifiedApplicantsOnlyAction,
   updateTeamAction,
   updateTeamLinksAction,
 } from "./actions";
@@ -56,7 +56,7 @@ export default async function TeamPage() {
         <div className="flex flex-col gap-2.5">
           <h1 className="type-h1">{t.noTeamHeading}</h1>
           <p className="max-w-3xl text-pretty text-muted-foreground">
-            {t.noTeamIntro(READY_MEMBER_COUNT, MAX_TEAM_MEMBERS)}
+            {t.noTeamIntro(FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS)}
           </p>
         </div>
         <NewTeamForms />
@@ -65,7 +65,7 @@ export default async function TeamPage() {
   }
 
   const memberCount = team.members.length;
-  const missing = Math.max(0, READY_MEMBER_COUNT - team.verifiedPlayerCount);
+  const missing = Math.max(0, FULLY_VERIFIED_PLAYER_COUNT - team.verifiedPlayerCount);
   const inviteUrl = team.inviteCode ? `${baseUrl}/join/${team.inviteCode}` : null;
   const soleMember = memberCount === 1;
   const manage = team.isCaptain && !team.banned;
@@ -87,14 +87,13 @@ export default async function TeamPage() {
               ? t.rosterFull
               : t.roomFor(MAX_TEAM_MEMBERS - memberCount)}
           </StatTile>
+          {/* The badge, no longer a condition for scrims (SPEC N-21). */}
           <StatTile
             label={t.verified}
-            value={`${team.verifiedPlayerCount} / ${READY_MEMBER_COUNT}`}
-            tone={team.ready ? "text-success" : "text-warning"}
+            value={`${team.verifiedPlayerCount} / ${FULLY_VERIFIED_PLAYER_COUNT}`}
+            tone={team.fullyVerified ? "text-success" : undefined}
           >
-            {team.ready
-              ? t.readyToPlay(READY_MEMBER_COUNT)
-              : t.missingToReady(missing, READY_MEMBER_COUNT)}
+            {team.fullyVerified ? t.fullyVerified : t.missingToBadge(missing)}
           </StatTile>
           <StatTile label={t.played} value={team.reliability.played}>
             {formatReliabilityDetails(team.reliability, locale)}
@@ -118,11 +117,6 @@ export default async function TeamPage() {
             </StatTile>
           )}
         </div>
-        {!team.ready ? (
-          <Alert>
-            <span>{t.notReadyNotice(READY_MEMBER_COUNT, missing)}</span>
-          </Alert>
-        ) : null}
       </div>
 
       {/* The team and its logos left, the links right: for the captain from 768 px, for the
@@ -185,6 +179,11 @@ export default async function TeamPage() {
                 { label: t.universities, value: formatUniversities(team.universities, locale) },
                 // Whether all signed-in users see the team and its members there (SPEC N-20).
                 { label: t.teamsList, value: team.listed ? t.listed : t.unlisted },
+                // Who may apply to the team's requests (SPEC N-21).
+                {
+                  label: t.applicants,
+                  value: team.verifiedApplicantsOnly ? t.applicantsVerifiedOnly : t.applicantsAll,
+                },
               ].map((row) => (
                 <div
                   key={row.label}
@@ -208,6 +207,28 @@ export default async function TeamPage() {
                 >
                   <input type="hidden" name="teamId" value={team.id} />
                   <input type="hidden" name="listed" value={team.listed ? "false" : "true"} />
+                </ActionForm>
+              </div>
+            ) : null}
+            {manage ? (
+              <div className="flex flex-col gap-2 border-t border-border pt-4">
+                <span className="text-[14px] font-medium">{t.applicants}</span>
+                <p className="text-[13px] text-pretty text-muted-foreground">
+                  {t.applicantsHint(FULLY_VERIFIED_PLAYER_COUNT)}
+                </p>
+                <ActionForm
+                  action={setVerifiedApplicantsOnlyAction}
+                  submitLabel={team.verifiedApplicantsOnly ? t.admitAll : t.admitVerifiedOnly}
+                  variant="outline"
+                  size="sm"
+                  className="flex flex-col items-start"
+                >
+                  <input type="hidden" name="teamId" value={team.id} />
+                  <input
+                    type="hidden"
+                    name="verifiedApplicantsOnly"
+                    value={team.verifiedApplicantsOnly ? "false" : "true"}
+                  />
                 </ActionForm>
               </div>
             ) : null}
@@ -378,7 +399,7 @@ export default async function TeamPage() {
 
         {me && me.status !== "VERIFIED" && me.needsVerification ? (
           <p className="text-[14px] text-muted-foreground">
-            {t.notVerified}{" "}
+            {me.isCaptain ? t.notVerified.captain : t.notVerified.player}{" "}
             <Link href="/verify" className="text-foreground underline underline-offset-2">
               {t.toVerification}
             </Link>

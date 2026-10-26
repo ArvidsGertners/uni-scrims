@@ -30,7 +30,12 @@ describe("formatThreshold and formatCases", () => {
     expect(formatThreshold("rate", "atLeast", 0.7, "de")).toBe(pct("≥ 70 %"));
     const result = { value: 1, cases: 1, reached: true, stretchReached: true };
     expect(formatCases("reviewTime", result, "de")).toBe("aus 1 Prüfung");
-    expect(formatCases("readyTeams", { ...result, cases: 4 }, "de")).toBe("von 4 aktiven Teams");
+    expect(formatCases("verifiedCaptainTeams", { ...result, cases: 4 }, "de")).toBe(
+      "von 4 aktiven Teams",
+    );
+    expect(formatCases("activeTeams", { ...result, cases: 1 }, "de")).toBe(
+      "von 1 Team mit verifiziertem Captain",
+    );
   });
 });
 
@@ -42,6 +47,11 @@ describe("English (§5.21)", () => {
     expect(formatThreshold("rate", "atLeast", 0.7, "en")).toBe("≥ 70%");
     const result = { value: 1, cases: 1, reached: true, stretchReached: true };
     expect(formatCases("reviewTime", result, "en")).toBe("from 1 review");
-    expect(formatCases("readyTeams", { ...result, cases: 4 }, "en")).toBe("of 4 active teams");
+    expect(formatCases("fullyVerifiedTeams", { ...result, cases: 4 }, "en")).toBe(
+      "of 4 active teams",
+    );
+    expect(formatCases("activeTeams", { ...result, cases: 2 }, "en")).toBe(
+      "of 2 teams with a verified captain",
+    );
   });
 });

@@ -1,4 +1,4 @@
-import { MAX_TEAM_MEMBERS, READY_MEMBER_COUNT, getNavTeam } from "@uni-scrims/core";
+import { FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS, getNavTeam } from "@uni-scrims/core";
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
 import { PageMain } from "@/components/page-main";
@@ -20,7 +20,7 @@ export default async function NewTeamPage() {
       <div className="flex flex-col gap-2.5">
         <h1 className="type-h1">{t.heading}</h1>
         <p className="max-w-3xl text-pretty text-muted-foreground">
-          {t.intro(READY_MEMBER_COUNT, MAX_TEAM_MEMBERS, teamCount, teamLimit)}
+          {t.intro(FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS, teamCount, teamLimit)}
         </p>
       </div>
       {limitProblem ? (

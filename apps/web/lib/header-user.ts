@@ -45,6 +45,14 @@ export const siteChrome = cache(async () => {
   return { user, active, teams, teamUnavailable, adminHost };
 });
 
+/**
+ * The warning dot at the verification tab: unverified captain of an active team (SPEC N-21), from
+ * the sidebar's team query, so the tab and the sidebar agree.
+ */
+export async function verificationNeeded(): Promise<boolean> {
+  return (await siteChrome()).teams?.verificationNeeded ?? false;
+}
+
 /** The navigation of the signed-in user, or null (logged out, admin host). */
 export async function siteNav(): Promise<AppNavData | null> {
   const { user, active, teams, teamUnavailable, adminHost } = await siteChrome();
@@ -57,7 +65,8 @@ export async function siteNav(): Promise<AppNavData | null> {
       // "Neues Konto" until Discord is linked, shown in the page's language (§5.21).
       name: userDisplayName(user.name, locale),
       avatarVersion: user.avatarVersion,
-      unverified: active && !user.verifiedAt,
+      // Only unverified captains of an active team need it for scrims (SPEC N-21).
+      unverified: active && (teams?.verificationNeeded ?? false),
     },
     team: teams?.team ?? null,
     teams: teams?.teams ?? [],

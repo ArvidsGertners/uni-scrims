@@ -331,7 +331,7 @@ describe("reads", () => {
     });
   });
 
-  it("returns the own team with member status and readiness", async () => {
+  it("returns the own team with member status and badge", async () => {
     const { team, captain, members } = await createTeamWithMembers({ extraMembers: 4 });
     const pending = members[3]!;
     await prisma.user.update({ where: { id: pending.id }, data: { verifiedAt: null } });

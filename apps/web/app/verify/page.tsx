@@ -11,6 +11,7 @@ import { AlertTriangleIcon, ClockIcon, ShieldCheckIcon, UploadIcon } from "@/com
 import { PageMain } from "@/components/page-main";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { verificationNeeded } from "@/lib/header-user";
 import { requirePageUser } from "@/lib/session";
 import { AccountTabs } from "../account/account-tabs";
 import { VerificationForm } from "./verification-form";
@@ -46,7 +47,7 @@ export default async function VerifyPage({
       <div className="flex min-h-11 items-center">
         <h1 className="type-h1">{t.title}</h1>
       </div>
-      <AccountTabs current="/verify" unverified={!verifiedAt} />
+      <AccountTabs current="/verify" unverified={await verificationNeeded()} />
       <div className="flex w-full max-w-[44rem] flex-col">
         {verifiedAt ? (
           <div className="flex flex-col gap-6">

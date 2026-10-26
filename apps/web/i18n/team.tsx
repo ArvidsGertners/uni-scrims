@@ -7,31 +7,29 @@ import type { ReactNode } from "react";
 /** Renders an inline link of a sentence with the given label. */
 type LinkRender = (label: string) => ReactNode;
 
-/** The start of the texts on creating or joining a team. */
-const deTeamRules = (ready: number, max: number) =>
-  `Gründe ein Team oder tritt über einen Einladungslink bei. Ein Team braucht mindestens ${ready} verifizierte Spieler und hat höchstens ${max} Mitglieder.`;
-const enTeamRules = (ready: number, max: number) =>
-  `Create a team or join one with an invite link. A team needs at least ${ready} verified players and has at most ${max} members.`;
+/** The start of the texts on creating or joining a team (SPEC N-21). */
+const deTeamRules = (full: number, max: number) =>
+  `Gründe ein Team oder tritt über einen Einladungslink bei. Für Scrims reicht ein verifizierter Captain; mit mindestens ${full} verifizierten Spielern bekommt ein Team das Abzeichen „Vollständig verifiziert“. Ein Team hat höchstens ${max} Mitglieder.`;
+const enTeamRules = (full: number, max: number) =>
+  `Create a team or join one with an invite link. A verified captain is enough for scrims; with at least ${full} verified players, a team gets the “Fully verified” badge. A team has at most ${max} members.`;
 
 /** /team. */
 export const teamPageMessages = dictionary(
   {
     noTeamHeading: "Du bist noch in keinem Team",
-    noTeamIntro: (ready: number, max: number) =>
-      `${deTeamRules(ready, max)} Das geht auch, während deine Verifizierung noch läuft.`,
+    noTeamIntro: (full: number, max: number) =>
+      `${deTeamRules(full, max)} Das geht auch, während deine Verifizierung noch läuft.`,
     members: "Mitglieder",
     rosterFull: "Kader voll",
     roomFor: (count: number) => `Platz für ${count} weitere`,
     verified: "Verifiziert",
-    readyToPlay: (ready: number) => `Spielbereit (mindestens ${ready})`,
-    missingToReady: (missing: number, ready: number) => `Noch ${missing} bis ${ready}`,
+    fullyVerified: "Vollständig verifiziert",
+    missingToBadge: (missing: number) => `Noch ${missing} bis zum Abzeichen`,
     played: "Gespielt",
     nextScrim: "Nächstes Scrim",
     nextScrimDetails: (time: string, opponent: string, format: string) =>
       `${time} · gegen ${opponent} · ${format}`,
     noNextScrim: "Noch keins geplant. Zum Board",
-    notReadyNotice: (ready: number, missing: number) =>
-      `Ihr braucht mindestens ${ready} verifizierte Spieler, um Scrims anzufragen oder euch zu bewerben. Es fehlen noch ${missing}. Ersatzspieler zählen mit, Coaches nicht.`,
     teamHeading: (name: string) => `Team ${name}`,
     save: "Speichern",
     name: "Name",
@@ -50,6 +48,14 @@ export const teamPageMessages = dictionary(
       "In der Teams-Liste sehen alle Eingeloggten euer Team mit den Discord-Namen, Rollen und Rängen der Mitglieder.",
     hideFromList: "Aus der Teams-Liste nehmen",
     showInList: "In der Teams-Liste zeigen",
+    /** Who may apply to the team's requests (SPEC N-21). */
+    applicants: "Bewerbungen",
+    applicantsAll: "Alle Teams",
+    applicantsVerifiedOnly: "Nur vollständig verifizierte Teams",
+    applicantsHint: (full: number) =>
+      `Lasst ihr nur vollständig verifizierte Teams zu, können sich Teams mit weniger als ${full} verifizierten Spielern oder Ersatzspielern nicht auf eure Anfragen bewerben, und ihre offenen Bewerbungen lassen sich nicht bestätigen.`,
+    admitVerifiedOnly: "Nur vollständig verifizierte Teams zulassen",
+    admitAll: "Alle Teams zulassen",
     teamId: "Team-ID",
     teamIdHint: "Nenn sie uns, wenn du dich für euer Team beim Support meldest.",
     logos: "Logos",
@@ -90,25 +96,28 @@ export const teamPageMessages = dictionary(
     leave: "Team verlassen",
     dissolveConfirm: "Du bist das einzige Mitglied. Das Team wird aufgelöst. Fortfahren?",
     leaveConfirm: "Team wirklich verlassen?",
-    notVerified: "Noch nicht verifiziert?",
+    /** Before the link to the verification: the captain needs it, players count for the badge. */
+    notVerified: {
+      captain: "Noch nicht verifiziert? Als Captain brauchst du die Verifizierung für Scrims.",
+      player:
+        "Noch nicht verifiziert? Damit zählst du für das Abzeichen „Vollständig verifiziert“.",
+    },
     toVerification: "Zur Verifizierung",
   },
   {
     noTeamHeading: "You're not in a team yet",
-    noTeamIntro: (ready, max) =>
-      `${enTeamRules(ready, max)} You can do this while your verification is still in progress.`,
+    noTeamIntro: (full, max) =>
+      `${enTeamRules(full, max)} You can do this while your verification is still in progress.`,
     members: "Members",
     rosterFull: "Roster full",
     roomFor: (count) => `Room for ${count} more`,
     verified: "Verified",
-    readyToPlay: (ready) => `Ready to play (at least ${ready})`,
-    missingToReady: (missing, ready) => `${missing} more to reach ${ready}`,
+    fullyVerified: "Fully verified",
+    missingToBadge: (missing) => `${missing} more for the badge`,
     played: "Played",
     nextScrim: "Next scrim",
     nextScrimDetails: (time, opponent, format) => `${time} · vs ${opponent} · ${format}`,
     noNextScrim: "Nothing planned yet. Go to the board",
-    notReadyNotice: (ready, missing) =>
-      `You need at least ${ready} verified players to request scrims or apply. You're still ${missing} short. Substitutes count, coaches don't.`,
     teamHeading: (name) => `Team ${name}`,
     save: "Save",
     name: "Name",
@@ -125,6 +134,13 @@ export const teamPageMessages = dictionary(
       "On the teams list, everyone signed in sees your team with the members' Discord names, roles and ranks.",
     hideFromList: "Remove from the teams list",
     showInList: "Show on the teams list",
+    applicants: "Applications",
+    applicantsAll: "All teams",
+    applicantsVerifiedOnly: "Fully verified teams only",
+    applicantsHint: (full) =>
+      `If you admit only fully verified teams, teams with fewer than ${full} verified players or substitutes can't apply to your requests, and their open applications can't be accepted.`,
+    admitVerifiedOnly: "Admit only fully verified teams",
+    admitAll: "Admit all teams",
     teamId: "Team ID",
     teamIdHint: "Give it to us when you contact support about your team.",
     logos: "Logos",
@@ -163,7 +179,10 @@ export const teamPageMessages = dictionary(
     leave: "Leave team",
     dissolveConfirm: "You're the only member. The team will be dissolved. Continue?",
     leaveConfirm: "Really leave the team?",
-    notVerified: "Not verified yet?",
+    notVerified: {
+      captain: "Not verified yet? As captain, you need verification for scrims.",
+      player: "Not verified yet? Then you count towards the “Fully verified” badge.",
+    },
     toVerification: "Go to verification",
   },
 );
@@ -194,15 +213,15 @@ export const newTeamPageMessages = dictionary(
   {
     backToTeam: "Zurück zum Team",
     heading: "Neues Team",
-    intro: (ready: number, max: number, count: number, limit: number) =>
-      `${deTeamRules(ready, max)} Du bist in ${count} von ${limit} Teams.`,
+    intro: (full: number, max: number, count: number, limit: number) =>
+      `${deTeamRules(full, max)} Du bist in ${count} von ${limit} Teams.`,
     requestMoreTeams: "Mehr Teams beantragen",
   },
   {
     backToTeam: "Back to the team",
     heading: "New team",
-    intro: (ready, max, count, limit) =>
-      `${enTeamRules(ready, max)} You're in ${count} of ${limit} ${limit === 1 ? "team" : "teams"}.`,
+    intro: (full, max, count, limit) =>
+      `${enTeamRules(full, max)} You're in ${count} of ${limit} ${limit === 1 ? "team" : "teams"}.`,
     requestMoreTeams: "Request more teams",
   },
 );
@@ -300,7 +319,7 @@ export const rolesTableMessages = dictionary(
   {
     heading: "Rollen und Rechte",
     intro:
-      "Jedes Mitglied ist Spieler, Ersatz oder Coach; der Captain hat zusätzlich eine dieser Rollen. Coaches brauchen keine Verifizierung.",
+      "Jedes Mitglied ist Spieler, Ersatz oder Coach; der Captain hat zusätzlich eine dieser Rollen. Für Scrims braucht nur der Captain eine Verifizierung; verifizierte Spieler und Ersatzspieler zählen für das Abzeichen „Vollständig verifiziert“.",
     right: "Recht",
     roles: { captain: "Captain", player: "Spieler", substitute: "Ersatz", coach: "Coach" },
     yes: "ja",
@@ -309,7 +328,7 @@ export const rolesTableMessages = dictionary(
     defaultOn: "Standard an",
     optional: "wählbar",
     rights: {
-      readiness: "Zählt zur Spielbereitschaft, wenn verifiziert",
+      badge: "Zählt für das Abzeichen „Vollständig verifiziert“, wenn verifiziert",
       ownRank: "Eigener Rang zählt für den Team-Rang",
       seeRanks: "Ränge der Mitglieder sehen",
       seeActivity: "Scrims, Anfragen und Bewerbungen des Teams sehen",
@@ -318,6 +337,7 @@ export const rolesTableMessages = dictionary(
       requests: "Anfragen erstellen, bewerben, bestätigen, absagen, Feedback geben",
       editTeam: "Team, Logos und Links bearbeiten, Einladungslink",
       listTeam: "Team in der Teams-Liste zeigen oder ausblenden",
+      verifiedApplicants: "Bewerbungen auf vollständig verifizierte Teams beschränken",
       manageMembers: "Rollen setzen, Mitglieder entfernen, Captain übertragen",
       linkChannel: "Team-Channel verknüpfen (/setup)",
       leave: "Team verlassen",
@@ -330,7 +350,7 @@ export const rolesTableMessages = dictionary(
   {
     heading: "Roles and permissions",
     intro:
-      "Every member is a player, substitute or coach; the captain also has one of these roles. Coaches don't need verification.",
+      "Every member is a player, substitute or coach; the captain also has one of these roles. Only the captain needs verification for scrims; verified players and substitutes count towards the “Fully verified” badge.",
     right: "Permission",
     roles: { captain: "Captain", player: "Player", substitute: "Substitute", coach: "Coach" },
     yes: "yes",
@@ -339,7 +359,7 @@ export const rolesTableMessages = dictionary(
     defaultOn: "on by default",
     optional: "optional",
     rights: {
-      readiness: "Counts towards being ready to play, if verified",
+      badge: "Counts towards the “Fully verified” badge, if verified",
       ownRank: "Own rank counts towards the team rank",
       seeRanks: "See the members' ranks",
       seeActivity: "See the team's scrims, requests and applications",
@@ -348,6 +368,7 @@ export const rolesTableMessages = dictionary(
       requests: "Create requests, apply, accept, cancel, give feedback",
       editTeam: "Edit team, logos and links, invite link",
       listTeam: "Show or hide the team on the teams list",
+      verifiedApplicants: "Admit only fully verified teams as applicants",
       manageMembers: "Set roles, remove members, hand over captain",
       linkChannel: "Link the team channel (/setup)",
       leave: "Leave team",
@@ -403,6 +424,8 @@ export const teamActionMessages = dictionary(
     linksSaved: "Links gespeichert",
     listed: "Das Team steht jetzt in der Teams-Liste",
     unlisted: "Das Team ist aus der Teams-Liste ausgeblendet",
+    verifiedApplicantsOnly: "Ab jetzt lasst ihr nur vollständig verifizierte Teams zu",
+    allApplicants: "Ab jetzt lasst ihr alle Teams zu",
     dissolved: "Du hast das Team aufgelöst",
     left: "Du hast das Team verlassen",
   },
@@ -412,6 +435,8 @@ export const teamActionMessages = dictionary(
     linksSaved: "Links saved",
     listed: "Your team is now on the teams list",
     unlisted: "Your team is hidden from the teams list",
+    verifiedApplicantsOnly: "From now on you admit only fully verified teams",
+    allApplicants: "From now on you admit all teams",
     dissolved: "You dissolved the team",
     left: "You left the team",
   },

@@ -10,7 +10,8 @@ import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { CountedTextarea } from "@/components/counted-textarea";
-import { CheckIcon } from "@/components/icons";
+import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
+import { CheckIcon, ShieldCheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { TeamAvatar } from "@/components/team-avatar";
@@ -33,7 +34,7 @@ import {
   withdrawApplicationAction,
 } from "../actions";
 import { getLocale, getMessages, getText } from "@/lib/locale";
-import { formatMessages } from "@/i18n/format";
+import { formatMessages, fullyVerifiedMessages } from "@/i18n/format";
 import { requestDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
 
 export default async function RequestPage({ params }: { params: Promise<{ id: string }> }) {
@@ -44,6 +45,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const locale = await getLocale();
   const t = await getMessages(requestDetailMessages);
   const shared = await getMessages(scrimSharedMessages);
+  const verified = await getMessages(fullyVerifiedMessages);
   if (!request) notFound();
 
   const { team } = request;
@@ -91,11 +93,18 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           </div>
           <span className="flex flex-wrap items-center gap-2 text-[14px] text-muted-foreground">
             {formatUniversities(team.universities, locale)}
+            {team.fullyVerified ? <FullyVerifiedBadge /> : null}
             {status ? <Badge className="h-[22px] px-2 text-[12px]">{status}</Badge> : null}
           </span>
           <span className="text-[13px] text-muted-foreground">
             {formatReliability(team.reliability, locale)}
           </span>
+          {request.verifiedApplicantsOnly ? (
+            <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+              <ShieldCheckIcon size={14} />
+              {verified.applicantsOnly}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -289,13 +298,14 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     <div className="flex items-center gap-3">
                       <TeamAvatar team={application.team} size="sm" className="bg-background" />
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <div className="flex flex-wrap items-center gap-x-1.5">
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                           <span className="font-semibold">{application.team.name}</span>
                           <TeamLinks
                             teamName={application.team.name}
                             links={application.team.links}
                             className="-my-1.5"
                           />
+                          {application.team.fullyVerified ? <FullyVerifiedBadge /> : null}
                         </div>
                         <span className="text-[13px] text-muted-foreground">
                           {formatUniversities(application.team.universities, locale)}

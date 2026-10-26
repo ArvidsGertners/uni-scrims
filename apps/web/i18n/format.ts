@@ -1,5 +1,6 @@
 // Texts of the shared formatters in lib/ (§5.21).
 import type { MetricKey } from "@uni-scrims/core";
+import { FULLY_VERIFIED_PLAYER_COUNT } from "@uni-scrims/core/config/limits";
 import { dictionary } from "@uni-scrims/core/config/locale";
 import type { AppStatus } from "@uni-scrims/db";
 
@@ -20,13 +21,14 @@ const de = {
   timeSuffix: " Uhr",
   /** What the number of cases of a success metric counts. */
   caseNouns: {
-    readyTeams: ["aktiven Team", "aktiven Teams"],
+    verifiedCaptainTeams: ["aktiven Team", "aktiven Teams"],
+    fullyVerifiedTeams: ["aktiven Team", "aktiven Teams"],
     reviewTime: ["Prüfung", "Prüfungen"],
     confirmationRate: ["Anfrage", "Anfragen"],
     timeToBooking: ["Buchung", "Buchungen"],
     showUpRate: ["Scrim", "Scrims"],
     feedbackRate: ["ausgewerteten Scrim", "ausgewerteten Scrims"],
-    activeTeams: ["spielbereiten Team", "spielbereiten Teams"],
+    activeTeams: ["Team mit verifiziertem Captain", "Teams mit verifiziertem Captain"],
     noShowRate: ["Scrim", "Scrims"],
     averageRating: ["Bewertung", "Bewertungen"],
   } as Record<MetricKey, [one: string, many: string]>,
@@ -50,16 +52,33 @@ export const formatMessages = dictionary(de, {
   },
   timeSuffix: "",
   caseNouns: {
-    readyTeams: ["active team", "active teams"],
+    verifiedCaptainTeams: ["active team", "active teams"],
+    fullyVerifiedTeams: ["active team", "active teams"],
     reviewTime: ["review", "reviews"],
     confirmationRate: ["request", "requests"],
     timeToBooking: ["booking", "bookings"],
     showUpRate: ["scrim", "scrims"],
     feedbackRate: ["evaluated scrim", "evaluated scrims"],
-    activeTeams: ["ready team", "ready teams"],
+    activeTeams: ["team with a verified captain", "teams with a verified captain"],
     noShowRate: ["scrim", "scrims"],
     averageRating: ["rating", "ratings"],
   },
   casesOf: (cases, noun) => `of ${cases} ${noun}`,
   casesFrom: (cases, noun) => `from ${cases} ${noun}`,
 });
+
+/** The badge of fully verified teams and the hint of the applicant setting (SPEC N-21). */
+export const fullyVerifiedMessages = dictionary(
+  {
+    badge: "Vollständig verifiziert",
+    badgeTitle: `Mindestens ${FULLY_VERIFIED_PLAYER_COUNT} verifizierte Spieler oder Ersatzspieler`,
+    applicantsOnly: "Nur für vollständig verifizierte Teams",
+    filter: "Nur vollständig verifizierte Teams",
+  },
+  {
+    badge: "Fully verified",
+    badgeTitle: `At least ${FULLY_VERIFIED_PLAYER_COUNT} verified players or substitutes`,
+    applicantsOnly: "Only for fully verified teams",
+    filter: "Only fully verified teams",
+  },
+);

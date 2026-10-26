@@ -11,6 +11,8 @@ import type { Rank } from "@uni-scrims/db";
 import { cn } from "cn";
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
+import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
+import { FULLY_VERIFIED_PARAM, FullyVerifiedFilter } from "@/components/fully-verified-filter";
 import { UsersIcon } from "@/components/icons";
 import { CARD_COLUMNS } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
@@ -40,8 +42,9 @@ export default async function TeamsPage({
     userId: user.id,
     search: single(params.suche) ?? null,
     ranks: list(params.rang).filter((value): value is Rank => RANKS.includes(value as Rank)),
+    fullyVerifiedOnly: single(params[FULLY_VERIFIED_PARAM]) === "1",
   });
-  const filtered = filter.search !== "" || filter.ranks.length > 0;
+  const filtered = filter.search !== "" || filter.ranks.length > 0 || filter.fullyVerifiedOnly;
 
   return (
     <PageMain width="wide" className="gap-6">
@@ -52,7 +55,7 @@ export default async function TeamsPage({
 
       {/* Keyed by the applied filter: soft navigations would otherwise keep stale values. */}
       <form
-        key={`${filter.search}|${filter.ranks.join(",")}`}
+        key={`${filter.search}|${filter.ranks.join(",")}|${filter.fullyVerifiedOnly}`}
         method="get"
         action="/teams"
         className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
@@ -76,6 +79,11 @@ export default async function TeamsPage({
             }))}
           />
         </Field>
+        {/* Below the row from 640 px, between the fields and the buttons on phones. */}
+        <FullyVerifiedFilter
+          checked={filter.fullyVerifiedOnly}
+          className="col-span-full sm:order-last"
+        />
         <Button type="submit" variant="outline" className="px-[18px]">
           {t.filter}
         </Button>
@@ -110,9 +118,12 @@ async function TeamCard({ team }: { team: TeamListEntry }) {
       <div className="flex items-center gap-3">
         <TeamAvatar team={team} className="border-border" />
         <div className="flex min-w-0 flex-1 flex-col">
-          <h2 className="text-[16px] font-semibold break-words">
-            {team.name} <span className="font-label text-[13px] text-faint">{team.tag}</span>
-          </h2>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h2 className="text-[16px] font-semibold break-words">
+              {team.name} <span className="font-label text-[13px] text-faint">{team.tag}</span>
+            </h2>
+            {team.fullyVerified ? <FullyVerifiedBadge /> : null}
+          </div>
           <span className="text-[13px] text-pretty text-muted-foreground">
             {formatUniversities(team.universities, locale)}
           </span>

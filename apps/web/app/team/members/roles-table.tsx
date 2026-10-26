@@ -10,7 +10,7 @@ type Text = (typeof rolesTableMessages)["de"];
 /** The rows in the order of the table; the cells per role in the order of the head. */
 function rightRows(t: Text): { right: string; cells: [Cell, Cell, Cell, Cell] }[] {
   return [
-    { right: t.rights.readiness, cells: [t.byRole, true, true, false] },
+    { right: t.rights.badge, cells: [t.byRole, true, true, false] },
     { right: t.rights.ownRank, cells: [t.byRole, true, true, false] },
     { right: t.rights.seeRanks, cells: [true, true, true, true] },
     { right: t.rights.seeActivity, cells: [true, true, true, true] },
@@ -22,6 +22,7 @@ function rightRows(t: Text): { right: string; cells: [Cell, Cell, Cell, Cell] }[
     { right: t.rights.requests, cells: ["✓¹", false, false, false] },
     { right: t.rights.editTeam, cells: [true, false, false, false] },
     { right: t.rights.listTeam, cells: [true, false, false, false] },
+    { right: t.rights.verifiedApplicants, cells: [true, false, false, false] },
     { right: t.rights.manageMembers, cells: [true, false, false, false] },
     { right: t.rights.linkChannel, cells: [true, false, false, false] },
     { right: t.rights.leave, cells: ["✓²", true, true, true] },

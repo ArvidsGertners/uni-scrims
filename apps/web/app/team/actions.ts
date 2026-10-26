@@ -12,6 +12,7 @@ import {
   setActiveTeam,
   setMemberRole,
   setTeamListed,
+  setVerifiedApplicantsOnly,
   setTeamLogo,
   transferCaptain,
   updateTeam,
@@ -161,6 +162,22 @@ export async function setTeamListedAction(_state: ActionState, formData: FormDat
     await setFlash(listed.data === "true" ? t.listed : t.unlisted);
   }
   // finish revalidates the whole layout, the teams list included (SPEC N-20).
+  return finish(state);
+}
+
+export async function setVerifiedApplicantsOnlyAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  const value = z.enum(["true", "false"]).safeParse(formField(formData, "verifiedApplicantsOnly"));
+  if (!teamId.success || !value.success) return invalidInput();
+  const state = await runAction(async () => {
+    await setVerifiedApplicantsOnly({ userId, teamId: teamId.data, value: value.data === "true" });
+  });
+  if (state.done) {
+    const t = await getMessages(teamActionMessages);
+    await setFlash(value.data === "true" ? t.verifiedApplicantsOnly : t.allApplicants);
+  }
+  // finish revalidates the whole layout, board and request pages included (SPEC N-21).
   return finish(state);
 }
 

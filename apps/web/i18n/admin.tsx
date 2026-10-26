@@ -202,6 +202,8 @@ export const adminStatsMessages = dictionary(
     targetReached: "Ziel erreicht",
     targetMissed: "Ziel verfehlt",
     target: (threshold: string) => `Ziel ${threshold}`,
+    /** A metric shown for information only (SPEC N-21). */
+    noTarget: "Ohne Ziel, nur zur Info",
     stretch: (threshold: string) => `Stretch ${threshold}`,
     current: "Aktuell",
     lastDays: (days: number) => `Letzte ${days} Tage`,
@@ -219,6 +221,7 @@ export const adminStatsMessages = dictionary(
     targetReached: "Target reached",
     targetMissed: "Target missed",
     target: (threshold) => `Target ${threshold}`,
+    noTarget: "No target, for information only",
     stretch: (threshold) => `Stretch ${threshold}`,
     current: "Current",
     lastDays: (days) => `Last ${days} days`,

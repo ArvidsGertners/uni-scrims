@@ -214,7 +214,6 @@ export const newRequestMessages = dictionary(
     problemLinks: {
       notCaptain: "Wer ist euer Captain?",
       captainNotVerified: "Zur Verifizierung",
-      teamNotReady: "Zum Team",
       requestLimit: "Zu euren Anfragen",
     },
     title: "Scrim-Anfrage erstellen",
@@ -240,7 +239,6 @@ export const newRequestMessages = dictionary(
     problemLinks: {
       notCaptain: "Who is your captain?",
       captainNotVerified: "Go to verification",
-      teamNotReady: "Go to your team",
       requestLimit: "Go to your requests",
     },
     title: "Create a scrim request",

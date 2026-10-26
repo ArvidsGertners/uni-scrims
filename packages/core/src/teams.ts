@@ -426,7 +426,7 @@ export async function removeMember(input: {
 }
 
 /**
- * Player, substitute or coach (SPEC N-1); only the first two count for readiness. The captain sets it
+ * Player, substitute or coach (SPEC N-1); only the first two count for the badge. The captain sets it
  * for every member, the own role included; verification is not needed, as for all team management.
  */
 export async function setMemberRole(input: {

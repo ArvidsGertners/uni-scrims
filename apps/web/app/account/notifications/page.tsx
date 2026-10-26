@@ -6,6 +6,7 @@ import {
 } from "@uni-scrims/core";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
 import { PageMain } from "@/components/page-main";
+import { verificationNeeded } from "@/lib/header-user";
 import { requirePageUser } from "@/lib/session";
 import { AccountTabs } from "../account-tabs";
 import { NotificationForm, type NotificationFormCategory } from "./notification-form";
@@ -36,7 +37,7 @@ export default async function NotificationsPage() {
       <div className="flex min-h-11 items-center">
         <h1 className="type-h1">{t.title}</h1>
       </div>
-      <AccountTabs current="/account/notifications" unverified={!user.verifiedAt} />
+      <AccountTabs current="/account/notifications" unverified={await verificationNeeded()} />
       <div className="flex max-w-3xl flex-col gap-3">
         <p className="text-pretty text-muted-foreground">
           {t.intro(

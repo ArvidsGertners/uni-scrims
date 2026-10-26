@@ -1,5 +1,5 @@
 import { RANK_LABELS, RANKS } from "@uni-scrims/core";
-import { MAX_TEAM_MEMBERS, READY_MEMBER_COUNT } from "@uni-scrims/core/config/limits";
+import { FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS } from "@uni-scrims/core/config/limits";
 import { cn } from "cn";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -175,7 +175,7 @@ export default async function LandingPage({
                             key={slot}
                             className={cn(
                               "aspect-square rounded-sm",
-                              slot < READY_MEMBER_COUNT
+                              slot < FULLY_VERIFIED_PLAYER_COUNT
                                 ? "bg-primary"
                                 : "border border-dashed border-border-strong",
                             )}
@@ -183,7 +183,7 @@ export default async function LandingPage({
                         ))}
                       </div>
                       <div className="flex justify-between font-label text-[12px] text-faint">
-                        <span>{t.verifiedCount(READY_MEMBER_COUNT)}</span>
+                        <span>{t.verifiedCount(FULLY_VERIFIED_PLAYER_COUNT)}</span>
                         <span>{t.maxCount(MAX_TEAM_MEMBERS)}</span>
                       </div>
                     </div>

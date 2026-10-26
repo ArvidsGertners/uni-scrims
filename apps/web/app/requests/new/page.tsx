@@ -34,7 +34,6 @@ function problemLinks(
   return {
     NOT_CAPTAIN: { href: "/team", label: t.problemLinks.notCaptain },
     CAPTAIN_NOT_VERIFIED: { href: "/verify", label: t.problemLinks.captainNotVerified },
-    TEAM_NOT_READY: { href: "/team", label: t.problemLinks.teamNotReady },
     REQUEST_LIMIT: { href: "/scrims?tab=anfragen", label: t.problemLinks.requestLimit },
   };
 }

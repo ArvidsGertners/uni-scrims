@@ -333,7 +333,8 @@ export const verifyPageMessages = dictionary(
     status: "Status",
     university: "Hochschule",
     verifiedTitle: "Du bist verifiziert",
-    verifiedText: "Du kannst jetzt Teams gründen oder beitreten und Scrims anfragen.",
+    verifiedText:
+      "Als Captain kannst du jetzt Scrims anfragen, und als Spieler zählst du für das Abzeichen „Vollständig verifiziert“ deines Teams.",
     verified: "Verifiziert",
     verifiedSince: "Verifiziert seit",
     toBoard: "Zum Board",
@@ -349,7 +350,7 @@ export const verifyPageMessages = dictionary(
     uploadNew: "Neues Dokument hochladen",
     uploadTitle: "Bestätige deinen Studierendenstatus",
     uploadText:
-      "Uni Scrims ist nur für eingeschriebene Studierende. Lade dazu deine aktuelle Immatrikulationsbescheinigung hoch.",
+      "Uni Scrims ist für Teams deutscher Hochschulen. Als Captain brauchst du die Verifizierung für Scrims; als Spieler ist sie freiwillig und zählt für das Abzeichen „Vollständig verifiziert“ deines Teams. Lade dazu deine aktuelle Immatrikulationsbescheinigung hoch.",
     /** "Darauf achten wir", with the current semester. */
     checks: (semester: string) => [
       "Dein Name ist gut lesbar",
@@ -362,7 +363,8 @@ export const verifyPageMessages = dictionary(
     status: "Status",
     university: "University",
     verifiedTitle: "You're verified",
-    verifiedText: "You can now create or join teams and request scrims.",
+    verifiedText:
+      "As captain, you can now request scrims, and as a player you count towards your team's “Fully verified” badge.",
     verified: "Verified",
     verifiedSince: "Verified since",
     toBoard: "Go to the board",
@@ -378,7 +380,7 @@ export const verifyPageMessages = dictionary(
     uploadNew: "Upload a new document",
     uploadTitle: "Confirm your student status",
     uploadText:
-      "Uni Scrims is only for enrolled students. To confirm, upload your current enrolment certificate.",
+      "Uni Scrims is for teams from German universities. As captain, you need verification for scrims; as a player it's optional and counts towards your team's “Fully verified” badge. To confirm, upload your current enrolment certificate.",
     checks: (semester: string) => [
       "Your name is easy to read",
       `Current semester (${semester})`,

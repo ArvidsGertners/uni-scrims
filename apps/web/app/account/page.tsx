@@ -101,7 +101,7 @@ export default async function AccountPage({
         <h1 className="type-h1">{t.title}</h1>
       </div>
       {account.banned || account.setupStep ? null : (
-        <AccountTabs current="/account" unverified={account.verification.status !== "VERIFIED"} />
+        <AccountTabs current="/account" unverified={account.verificationNeeded} />
       )}
       {account.banned ? (
         <Alert>

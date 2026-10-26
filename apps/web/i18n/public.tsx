@@ -1,5 +1,6 @@
 // Texts of the public pages (§5.21): landing page, login, registration, password, support, legal
 // pages and the dev login. Sentences with a link are render props, so the markup stays in the page.
+import { FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS } from "@uni-scrims/core/config/limits";
 import { dictionary } from "@uni-scrims/core/config/locale";
 import type { ReactNode } from "react";
 
@@ -31,11 +32,11 @@ export const landingMessages = dictionary(
       },
       {
         title: "Studierendenstatus bestätigen",
-        text: "Lade deine Immatrikulationsbescheinigung hoch. Wir prüfen sie von Hand und löschen sie danach.",
+        text: "Lade deine Immatrikulationsbescheinigung hoch. Wir prüfen sie von Hand und löschen sie danach. Für Scrims reicht es, wenn der Captain verifiziert ist.",
       },
       {
         title: "Team bilden, Scrims spielen",
-        text: "Mindestens 5 verifizierte Spieler, höchstens 10 Mitglieder pro Team.",
+        text: `Höchstens ${MAX_TEAM_MEMBERS} Mitglieder pro Team. Mit mindestens ${FULLY_VERIFIED_PLAYER_COUNT} verifizierten Spielern bekommt euer Team das Abzeichen „Vollständig verifiziert“.`,
       },
     ],
     discord: "Discord",
@@ -79,7 +80,7 @@ export const landingMessages = dictionary(
       {
         question: "Wer kann mitmachen?",
         answer:
-          "Alle ab 16, die an einer deutschen Hochschule eingeschrieben sind. Du lädst deine Immatrikulationsbescheinigung hoch, sie wird von Hand geprüft und direkt danach gelöscht.",
+          "Teams deutscher Hochschulen, alle ab 16. Wer ein Team als Captain führt, lädt die eigene Immatrikulationsbescheinigung hoch; sie wird von Hand geprüft und direkt danach gelöscht. Mitspieler können sich genauso verifizieren, müssen es aber nicht.",
       },
       {
         question: "Brauche ich Discord?",
@@ -98,8 +99,7 @@ export const landingMessages = dictionary(
       },
       {
         question: "Können Spieler aus verschiedenen Hochschulen in einem Team sein?",
-        answer:
-          "Ja. Gemischte Teams sind erlaubt, solange alle verifiziert studieren. Mindestens 5 verifizierte Spieler, höchstens 10 Mitglieder pro Team.",
+        answer: `Ja. Gemischte Teams sind erlaubt, und fällt mal jemand aus, darf auch eine Aushilfe mitspielen. Teams mit mindestens ${FULLY_VERIFIED_PLAYER_COUNT} verifizierten Spielern tragen das Abzeichen „Vollständig verifiziert“, und andere Teams können nach ihm filtern. Höchstens ${MAX_TEAM_MEMBERS} Mitglieder pro Team.`,
       },
     ],
     ctaTitle: "Euer nächster Scrim wartet schon.",
@@ -132,11 +132,11 @@ export const landingMessages = dictionary(
       },
       {
         title: "Confirm your student status",
-        text: "Upload your enrolment certificate. We review it by hand and delete it afterwards.",
+        text: "Upload your enrolment certificate. We review it by hand and delete it afterwards. For scrims, it's enough if the captain is verified.",
       },
       {
         title: "Build a team, play scrims",
-        text: "At least 5 verified players, at most 10 members per team.",
+        text: `At most ${MAX_TEAM_MEMBERS} members per team. With at least ${FULLY_VERIFIED_PLAYER_COUNT} verified players, your team gets the “Fully verified” badge.`,
       },
     ],
     discord: "Discord",
@@ -180,7 +180,7 @@ export const landingMessages = dictionary(
       {
         question: "Who can join?",
         answer:
-          "Anyone aged 16 or over who is enrolled at a German university. You upload your enrolment certificate; it is reviewed by hand and deleted right afterwards.",
+          "Teams from German universities, everyone aged 16 or over. Whoever leads a team as captain uploads their own enrolment certificate; it is reviewed by hand and deleted right afterwards. Teammates can verify the same way, but don't have to.",
       },
       {
         question: "Do I need Discord?",
@@ -199,8 +199,7 @@ export const landingMessages = dictionary(
       },
       {
         question: "Can players from different universities be in one team?",
-        answer:
-          "Yes. Mixed teams are allowed as long as everyone is a verified student. At least 5 verified players, at most 10 members per team.",
+        answer: `Yes. Mixed teams are allowed, and if someone can't make it, a stand-in may play too. Teams with at least ${FULLY_VERIFIED_PLAYER_COUNT} verified players carry the “Fully verified” badge, and other teams can filter by it. At most ${MAX_TEAM_MEMBERS} members per team.`,
       },
     ],
     ctaTitle: "Your next scrim is already waiting.",

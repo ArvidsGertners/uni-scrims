@@ -21,6 +21,7 @@ function team(
   rank: TeamCardData["rank"],
   universities: TeamCardData["universities"],
   reliability: Omit<TeamCardData["reliability"], "avgRating">,
+  fullyVerified: boolean,
 ): TeamCardData {
   return {
     id,
@@ -30,6 +31,7 @@ function team(
     logo: null,
     universities,
     reliability: { ...reliability, avgRating: null },
+    fullyVerified,
   };
 }
 
@@ -51,11 +53,13 @@ export async function BoardPreview() {
       maps: ["Ascent", "Bind", "Haven"],
       applicationCount: 2,
       ownApplicationStatus: "PENDING",
+      verifiedApplicantsOnly: false,
       team: team(
         PREVIEW_TEAMS.volt,
         "PLATINUM",
         { shown: [unis.south, unis.west], more: 0 },
         { played: 12, noShows: 0, lateCancels: 1 },
+        true,
       ),
     },
     {
@@ -66,11 +70,13 @@ export async function BoardPreview() {
       maps: ["Lotus", "Split"],
       applicationCount: 0,
       ownApplicationStatus: null,
+      verifiedApplicantsOnly: false,
       team: team(
         PREVIEW_TEAMS.mavs,
         "DIAMOND",
         { shown: [unis.east], more: 0 },
         { played: 5, noShows: 0, lateCancels: 0 },
+        true,
       ),
     },
     {
@@ -81,11 +87,13 @@ export async function BoardPreview() {
       maps: [],
       applicationCount: 1,
       ownApplicationStatus: null,
+      verifiedApplicantsOnly: false,
       team: team(
         PREVIEW_TEAMS.krnl,
         "GOLD",
         { shown: [unis.central], more: 1 },
         { played: 3, noShows: 1, lateCancels: 0 },
+        false,
       ),
     },
   ] as const;
