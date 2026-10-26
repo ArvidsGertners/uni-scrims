@@ -485,11 +485,11 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Alles auf Deutsch und Englisch; die Seite passt ab 320 px, hell und dunkel.
 
 **N-23 Zuverlässigkeit sichtbarer** (Phase 27)
-- [ ] Die Zuverlässigkeit (gespielte Scrims, No-Shows, kurzfristige Absagen, Durchschnittsbewertung ab 3 Bewertungen, P0-8) zählt nur noch Scrims mit Start in den letzten 90 Tagen; eine kurzfristige Absage zählt auch, wenn das abgesagte Scrim noch in der Zukunft lag. Überall, wo sie steht, steht „Letzte 90 Tage“ dabei (Entscheidung des Nutzers: Anzeige und Filter nutzen denselben Zeitraum).
-- [ ] Auf den Karten des Boards, im Kopf einer Anfrage und bei jeder Bewerbung steht die Zuverlässigkeit in einer eigenen Zeile; No-Shows und kurzfristige Absagen sind farbig hervorgehoben, sobald sie über 0 liegen. Die Teams-Liste zeigt sie jetzt auch (bisher gar nicht). Der Tab „Team“ nennt den Zeitraum in der Kachel.
-- [ ] Ein Team ist **zuverlässig**, wenn seine No-Show-Quote der letzten 90 Tage unter 10 % liegt: No-Shows ÷ (gespielte Scrims + No-Shows). Kurzfristige Absagen zählen dafür nicht; ein Team ohne Scrims in dem Zeitraum ist zuverlässig (Entscheidungen des Nutzers).
-- [ ] Board und Teams-Liste haben den Filter „Nur zuverlässige Teams“ neben „Nur vollständig verifizierte Teams“. Er ist aus, bis man ihn wählt, und „Zurücksetzen“ nimmt ihn mit weg; der Text nennt die Regel kurz.
-- [ ] Die Startseite sagt bei der Verbindlichkeit, in der Gegenüberstellung (N-22) und in der FAQ, dass die Zahlen die der letzten 90 Tage sind. Alles auf Deutsch und Englisch; die Seiten passen ab 320 px.
+- [x] Die Zuverlässigkeit (gespielte Scrims, No-Shows, kurzfristige Absagen, Durchschnittsbewertung ab 3 Bewertungen, P0-8) zählt nur noch Scrims mit Start in den letzten 90 Tagen; eine kurzfristige Absage zählt auch, wenn das abgesagte Scrim noch in der Zukunft lag. Überall, wo sie steht, steht „Letzte 90 Tage“ dabei (Entscheidung des Nutzers: Anzeige und Filter nutzen denselben Zeitraum).
+- [x] Auf den Karten des Boards, im Kopf einer Anfrage und bei jeder Bewerbung steht die Zuverlässigkeit in einer eigenen Zeile; No-Shows und kurzfristige Absagen sind farbig hervorgehoben, sobald sie über 0 liegen. Die Teams-Liste zeigt sie jetzt auch (bisher gar nicht). Der Tab „Team“ nennt den Zeitraum in der Kachel.
+- [x] Ein Team ist **zuverlässig**, wenn seine No-Show-Quote der letzten 90 Tage unter 10 % liegt: No-Shows ÷ (gespielte Scrims + No-Shows). Kurzfristige Absagen zählen dafür nicht; ein Team ohne Scrims in dem Zeitraum ist zuverlässig (Entscheidungen des Nutzers).
+- [x] Board und Teams-Liste haben den Filter „Nur zuverlässige Teams“ neben „Nur vollständig verifizierte Teams“. Er ist aus, bis man ihn wählt, und „Zurücksetzen“ nimmt ihn mit weg; der Text nennt die Regel kurz.
+- [x] Die Startseite sagt bei der Verbindlichkeit, in der Gegenüberstellung (N-22) und in der FAQ, dass die Zahlen die der letzten 90 Tage sind. Alles auf Deutsch und Englisch; die Seiten passen ab 320 px.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
