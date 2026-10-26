@@ -14,9 +14,19 @@ export function requestDeleted(
   f: TextFormat,
   t: BotMessages,
 ): MessageParts {
+  const from = team(message.payload.teamName, f);
+  // A direct request to the team, withdrawn by the requesting team (SPEC N-26).
+  if (message.payload.direct) {
+    return {
+      title: t.requestDeleted.directTitle,
+      description: t.requestDeleted.directDescription(from),
+      fields: [startField(message.payload.startsAt, message.locale)],
+      link: { label: t.links.requests, path: "/scrims?tab=anfragen" },
+    };
+  }
   return {
     title: t.requestDeleted.title,
-    description: t.requestDeleted.description(team(message.payload.teamName, f)),
+    description: t.requestDeleted.description(from),
     fields: [startField(message.payload.startsAt, message.locale)],
     link: boardLink(t),
   };

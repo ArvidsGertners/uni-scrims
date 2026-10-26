@@ -21,6 +21,9 @@ const payloads: Record<NotifType, unknown> = {
   REMINDER_1H: scrimPayload,
   FEEDBACK_PROMPT: scrimPayload,
   CHANNEL_BROKEN: { teamName: "Die *Bären*" },
+  DIRECT_REQUEST_RECEIVED: { ...requestPayload, format: "BO3", weeklyUntil: null },
+  DIRECT_REQUEST_DECLINED: requestPayload,
+  PARTNERSHIP_ENDED: requestPayload,
 };
 
 function sample(type: NotifType): OutboxMessage {

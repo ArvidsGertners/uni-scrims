@@ -24,6 +24,9 @@ const payloads: { [T in NotifType]: MessageOf<T>["payload"] } = {
   REMINDER_1H: scrimPayload,
   FEEDBACK_PROMPT: scrimPayload,
   CHANNEL_BROKEN: { teamName: "Die Bären" },
+  DIRECT_REQUEST_RECEIVED: { ...requestPayload, format: "BO3", weeklyUntil: null },
+  DIRECT_REQUEST_DECLINED: requestPayload,
+  PARTNERSHIP_ENDED: requestPayload,
 };
 
 function sample<T extends NotifType>(
@@ -67,6 +70,9 @@ const LINKS: Record<NotifType, string> = {
   REMINDER_1H: "/scrims/scrim-1",
   FEEDBACK_PROMPT: "/scrims/scrim-1",
   CHANNEL_BROKEN: "/team",
+  DIRECT_REQUEST_RECEIVED: "/requests/request-1",
+  DIRECT_REQUEST_DECLINED: "/requests/request-1",
+  PARTNERSHIP_ENDED: "/scrims?tab=anfragen",
 };
 
 describe("buildMessage", () => {
@@ -157,6 +163,42 @@ describe("buildMessage", () => {
 /** German in an English message: umlauts, ß, the German opening quote or common German words. */
 const GERMAN =
   /[äöüÄÖÜß„]|\b(und|der|die|das|nicht|mit|für|euer|eure|ihr|Uhr|Gegnerischer|ansehen|Zum)\b/;
+
+describe("direct requests and fixed partners (SPEC N-26)", () => {
+  it("names a proposed partnership and its end date", () => {
+    const weekly = sample(NotifType.DIRECT_REQUEST_RECEIVED, {
+      payload: { ...requestPayload, format: "BO3", weeklyUntil: "2026-11-19T19:00:00.000Z" },
+    });
+    expect(embedOf(weekly)).toMatchObject({
+      title: "Neue Direktanfrage",
+      fields: [
+        { name: "Start", value: START_TEXT },
+        { name: "Format", value: "BO3" },
+      ],
+    });
+    expect(embedOf(weekly).description).toContain("jede Woche zur selben Zeit bis 19.11.2026");
+    expect(embedOf(sample(NotifType.DIRECT_REQUEST_RECEIVED)).description).not.toContain(
+      "jede Woche",
+    );
+  });
+
+  it("tells the requested team about a withdrawn direct request", () => {
+    const withdrawn = sample(NotifType.REQUEST_DELETED, {
+      payload: { ...requestPayload, direct: true },
+    });
+    expect(embedOf(withdrawn)).toMatchObject({
+      title: "Direktanfrage zurückgezogen",
+      description: "**Die Bären** hat die Direktanfrage an euch zurückgezogen.",
+    });
+    expect(linkOf(withdrawn)).toMatchObject({ url: `${BASE_URL}/scrims?tab=anfragen` });
+  });
+
+  it("names the weekday of an ended partnership", () => {
+    expect(embedOf(sample(NotifType.PARTNERSHIP_ENDED)).description).toContain(
+      "(jeden Donnerstag)",
+    );
+  });
+});
 
 describe("buildMessage in English (§5.22)", () => {
   const english = <T extends NotifType>(

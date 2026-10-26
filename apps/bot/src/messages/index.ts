@@ -14,7 +14,10 @@ import {
   discordFormat,
   render,
 } from "./common.ts";
+import { directRequestDeclined } from "./direct-request-declined.ts";
+import { directRequestReceived } from "./direct-request-received.ts";
 import { feedbackPrompt } from "./feedback-prompt.ts";
+import { partnershipEnded } from "./partnership-ended.ts";
 import { reminder1h } from "./reminder-1h.ts";
 import { reminder24h } from "./reminder-24h.ts";
 import { requestDeleted } from "./request-deleted.ts";
@@ -38,6 +41,9 @@ const builders: {
   REMINDER_1H: reminder1h,
   FEEDBACK_PROMPT: feedbackPrompt,
   CHANNEL_BROKEN: channelBroken,
+  DIRECT_REQUEST_RECEIVED: directRequestReceived,
+  DIRECT_REQUEST_DECLINED: directRequestDeclined,
+  PARTNERSHIP_ENDED: partnershipEnded,
 };
 
 /**

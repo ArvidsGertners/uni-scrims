@@ -18,6 +18,7 @@ const de = {
     giveFeedback: "Feedback geben",
     viewStatus: "Status ansehen",
     uploadAgain: "Neu hochladen",
+    requests: "Zu euren Anfragen",
   },
   applicationReceived: {
     title: "Neue Bewerbung",
@@ -49,6 +50,27 @@ const de = {
     title: "Anfrage gelöscht",
     description: (team: string) =>
       `Die Anfrage von ${team}, auf die ihr euch beworben habt, wurde gelöscht.`,
+    // A direct request to the team, withdrawn by the requesting team (SPEC N-26).
+    directTitle: "Direktanfrage zurückgezogen",
+    directDescription: (team: string) => `${team} hat die Direktanfrage an euch zurückgezogen.`,
+  },
+  directRequestReceived: {
+    title: "Neue Direktanfrage",
+    description: (team: string) =>
+      `${team} fragt euch direkt für ein Scrim an. Nehmt die Anfrage auf der Seite an oder lehnt sie ab.`,
+    /** `until`: the date of the last scrim of the proposed partnership. */
+    weeklyDescription: (team: string, until: string) =>
+      `${team} schlägt euch eine feste Partnerschaft vor: jede Woche zur selben Zeit bis ${until}. Nehmt ihr an, wird jeder Termin von selbst gebucht.`,
+  },
+  directRequestDeclined: {
+    title: "Direktanfrage abgelehnt",
+    description: (team: string) => `${team} hat eure Direktanfrage abgelehnt.`,
+  },
+  partnershipEnded: {
+    title: "Feste Partnerschaft beendet",
+    /** `weekday`: the day of the partnership's scrims. */
+    description: (team: string, weekday: string) =>
+      `${team} hat die feste Partnerschaft (jeden ${weekday}) beendet. Weitere Termine werden nicht mehr gebucht; schon gebuchte Scrims bleiben bestehen.`,
   },
   requestExpired: {
     title: "Anfrage verfallen",
@@ -99,6 +121,7 @@ export const BOT_MESSAGES = dictionary(de, {
     giveFeedback: "Give feedback",
     viewStatus: "View status",
     uploadAgain: "Upload again",
+    requests: "Go to your requests",
   },
   applicationReceived: {
     title: "New application",
@@ -129,6 +152,24 @@ export const BOT_MESSAGES = dictionary(de, {
   requestDeleted: {
     title: "Request deleted",
     description: (team) => `The request of ${team} that you applied to was deleted.`,
+    directTitle: "Direct request withdrawn",
+    directDescription: (team) => `${team} withdrew their direct request to you.`,
+  },
+  directRequestReceived: {
+    title: "New direct request",
+    description: (team) =>
+      `${team} is asking you directly for a scrim. Accept or decline the request on the site.`,
+    weeklyDescription: (team, until) =>
+      `${team} proposes a fixed partnership: every week at the same time until ${until}. If you accept, every date is booked automatically.`,
+  },
+  directRequestDeclined: {
+    title: "Direct request declined",
+    description: (team) => `${team} declined your direct request.`,
+  },
+  partnershipEnded: {
+    title: "Fixed partnership ended",
+    description: (team, weekday) =>
+      `${team} ended the fixed partnership (every ${weekday}). No more dates will be booked; scrims already booked stay.`,
   },
   requestExpired: {
     title: "Request expired",
