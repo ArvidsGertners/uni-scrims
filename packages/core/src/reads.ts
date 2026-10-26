@@ -29,7 +29,13 @@ import {
   teamRank,
   teamRankMemberSelect,
 } from "./ranks.ts";
-import { activeTeamWhere, hasReadyMembers, isTeamActive, isTeamReady } from "./readiness.ts";
+import {
+  activeTeamWhere,
+  hasReadyMembers,
+  isTeamActive,
+  isTeamReady,
+  listedTeamWhere,
+} from "./readiness.ts";
 import {
   applicantTeamProblem,
   isRequestOpen,
@@ -803,7 +809,11 @@ const teamListSelect = {
  */
 export async function getTeamList(input: TeamListInput) {
   await requireUser(input.userId);
-  const search = (input.search ?? "").trim().slice(0, TEAM_SEARCH_MAX);
+  // Cut by code points, then trimmed again: no half emoji, no trailing space.
+  const search = Array.from((input.search ?? "").trim())
+    .slice(0, TEAM_SEARCH_MAX)
+    .join("")
+    .trim();
   const chosen = input.ranks;
   // In rank order, without duplicates; empty = all ranks.
   const ranks = chosen && chosen !== "ALL" ? RANKS.filter((rank) => chosen.includes(rank)) : [];
@@ -811,7 +821,7 @@ export async function getTeamList(input: TeamListInput) {
   const matches = (text: string | null) => !!text && text.toLocaleLowerCase("de").includes(needle);
 
   const rows = await prisma.team.findMany({
-    where: { ...activeTeamWhere(), listed: true },
+    where: listedTeamWhere(),
     select: teamListSelect,
   });
   const teams: TeamListEntry[] = rows

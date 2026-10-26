@@ -28,6 +28,7 @@ import {
   countReadyMembers,
   isPlayingRole,
   isReadyCount,
+  isListedTeam,
   isTeamActive,
   isVerifiedMember,
 } from "./readiness.ts";
@@ -651,7 +652,8 @@ export async function getMyTeam(userId: string) {
     prisma.teamMember.findMany({
       where: { teamId: team.id },
       select: memberSelect,
-      orderBy: { joinedAt: "asc" },
+      // The same order as the teams list (SPEC N-20).
+      orderBy: [{ joinedAt: "asc" }, { userId: "asc" }],
     }),
     loadTeamLogoInfo(team),
   ]);
@@ -687,8 +689,8 @@ export async function getMyTeam(userId: string) {
     game: team.game,
     logo,
     links: toTeamLinks(team),
-    // Shown in the teams list (SPEC N-20).
-    listed: team.listed,
+    // On the teams list (SPEC N-20); a banned team is not, whatever the captain chose.
+    listed: isListedTeam(team),
     banned: team.bannedAt !== null,
     isCaptain,
     // Only the captain manages the invite link.

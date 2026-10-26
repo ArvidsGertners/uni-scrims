@@ -41,7 +41,7 @@ export const accountPageMessages = dictionary(
     yourRank: "Dein Rang",
     noRank: "Kein Rang",
     rankHint:
-      "Selbst angegeben. Als Spieler oder Ersatzspieler zählt er für euren Team-Rang. Dein Team sieht ihn, und in der Teams-Liste alle Eingeloggten, solange der Captain euer Team dort nicht ausblendet.",
+      "Selbst angegeben. Als Spieler oder Ersatzspieler zählt er für euren Team-Rang. Deine Teams sehen ihn, und in der Teams-Liste alle Eingeloggten bei jedem deiner Teams, das dort steht.",
     /** The state of the verification and the button to /verify (SPEC N-9). */
     verification: {
       VERIFIED: { label: "Verifiziert", action: "Details" },
@@ -133,7 +133,7 @@ export const accountPageMessages = dictionary(
     yourRank: "Your rank",
     noRank: "No rank",
     rankHint:
-      "Self-reported. As a player or substitute, it counts towards your team rank. Your team sees it, and so does everyone signed in on the teams list, unless your captain hides your team there.",
+      "Self-reported. As a player or substitute, it counts towards your team rank. Your teams see it, and so does everyone signed in on the teams list, with each of your teams that is listed there.",
     verification: {
       VERIFIED: { label: "Verified", action: "Details" },
       PENDING: { label: "Under review", action: "View status" },

@@ -22,6 +22,7 @@ import {
 import { parseNotificationPayload } from "./notifications.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { RANK_LABELS, loadTeamRank } from "./ranks.ts";
+import { isListedTeam } from "./readiness.ts";
 import { TEAM_LINK_PLATFORMS, teamLinksSelect } from "./team-links.ts";
 import { DISCORD_PROVIDER } from "./users.ts";
 import { uploadExists } from "./verification.ts";
@@ -344,8 +345,8 @@ export async function exportAccountData(input: {
               TEAM_LINK_PLATFORMS.map((platform) => [platform.key, team[platform.field]]),
             ),
             linksGeändertAm: team.linksUpdatedAt,
-            // Whether all signed-in users see the team with its members in the teams list (SPEC N-20).
-            inTeamsListe: team.listed,
+            // Whether all signed-in users see the team with its members on the teams list (SPEC N-20).
+            inTeamsListe: isListedTeam(team),
             rolle: MEMBER_ROLE_LABELS.de[role],
             captain: isCaptainOf(user, team),
             beigetretenAm: joinedAt,

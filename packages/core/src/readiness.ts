@@ -17,6 +17,23 @@ export function activeTeamWhere() {
 }
 
 /**
+ * On the teams list (SPEC N-20): active and not hidden by the captain. A ban leaves `listed` as it
+ * is, so every reader goes through this rule rather than the column.
+ */
+export function isListedTeam(team: {
+  bannedAt: Date | null;
+  dissolvedAt: Date | null;
+  listed: boolean;
+}): boolean {
+  return isTeamActive(team) && team.listed;
+}
+
+/** isListedTeam as a Prisma filter. */
+export function listedTeamWhere() {
+  return { ...activeTeamWhere(), listed: true } satisfies Prisma.TeamWhereInput;
+}
+
+/**
  * A verified member: member status and the universities of the team card. Readiness counts only
  * verified players and substitutes, see countsForReadiness.
  */

@@ -201,6 +201,17 @@ describe("getTeamList (§5.23)", () => {
     expect(long.filter.search).toHaveLength(TEAM_SEARCH_MAX);
     const none = await getTeamList({ userId: viewer.id, search: "   " });
     expect(none.filter.search).toBe("");
+    // Cut by code points: no half emoji at the end, and no trailing space.
+    const emoji = await getTeamList({
+      userId: viewer.id,
+      search: "x".repeat(TEAM_SEARCH_MAX - 1) + "😀y",
+    });
+    expect(emoji.filter.search).toBe("x".repeat(TEAM_SEARCH_MAX - 1) + "😀");
+    const space = await getTeamList({
+      userId: viewer.id,
+      search: "x".repeat(TEAM_SEARCH_MAX - 1) + " y",
+    });
+    expect(space.filter.search).toBe("x".repeat(TEAM_SEARCH_MAX - 1));
   });
 
   it("is for active, complete accounts, verified or not", async () => {
@@ -253,6 +264,8 @@ describe("setTeamListed (§5.23)", () => {
     });
     const row = await prisma.team.findUniqueOrThrow({ where: { id: team.id } });
     expect(row.listed).toBe(true);
+    // The ban keeps the captain's choice, but the team is not on the list (SPEC N-20).
+    expect((await getMyTeam(members[0]!.id))?.listed).toBe(false);
   });
 
   it("needs no verification of the captain", async () => {
