@@ -105,6 +105,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 41. Als Spieler will ich alle Teams mit ihren Hochschulen, ihrem Rang und ihren Spielern sehen, um passende Gegner zu finden, und als Captain will ich unser Team dort ausblenden können.
 42. Als Captain will ich Scrims anfragen, ohne dass sich alle Spieler anmelden müssen, und spontan eine Aushilfe mitbringen können, wenn jemand ausfällt; als Team, dem Verifizierung wichtig ist, will ich nach vollständig verifizierten Teams filtern und nur sie als Bewerber zulassen.
 43. Als Captain, der bisher im Scrim-Channel sucht, will ich auf der Startseite sofort sehen, was Uni Scrims mir darüber hinaus bringt, und dass ich andere Scrim-Seiten dafür nicht aufgeben muss.
+44. Als Captain will ich auf einen Blick sehen, wie zuverlässig ein Team in letzter Zeit war, und nur zuverlässige Teams anzeigen lassen.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen. Seit Phase 25 kann es das doch, sobald der Captain verifiziert ist; ihm fehlt nur das Abzeichen „Vollständig verifiziert“ (N-21).
@@ -243,7 +244,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Feedback-Formular auf der Scrim-Seite, ab Startzeit bis zur Auswertung, nur für den aktuellen Captain
 - [x] Bewertung 1–5 nur bei "Hat stattgefunden"; kein Freitext-Kommentar
 - [x] Auswertung genau nach der Tabelle in Flow C
-- [x] Zuverlässigkeit pro Team: gespielte Scrims, No-Shows, kurzfristige Absagen, Durchschnittsbewertung (erst ab 3 Bewertungen anzeigen). Absagen mit mehr als 24 h Vorlauf und abgesagte Scrims wegen Sperre zählen nicht.
+- [x] Zuverlässigkeit pro Team: gespielte Scrims, No-Shows, kurzfristige Absagen, Durchschnittsbewertung (erst ab 3 Bewertungen anzeigen). Absagen mit mehr als 24 h Vorlauf und abgesagte Scrims wegen Sperre zählen nicht. Seit Phase 27 nur aus den letzten 90 Tagen (N-23).
 
 **P0-9 Admin-Bereich**
 - [x] Queue für Immatrikulationsbescheinigungen, älteste zuerst, mit Vorschau der Datei und der Prüf-Checkliste
@@ -483,6 +484,13 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die FAQ hat die Frage „Ersetzt Uni Scrims andere Scrim-Seiten?“ mit der Antwort, dass Uni Scrims für Scrims gegen andere Uni-Teams zur Vorbereitung auf die Uniliga da ist und man für alle anderen Scrims weiter nutzt, was man kennt. Die Seite nennt keine anderen Plattformen beim Namen (Entscheidung des Nutzers: Uni Scrims steht neben anderen Scrim-Seiten, nicht gegen sie).
 - [x] Alles auf Deutsch und Englisch; die Seite passt ab 320 px, hell und dunkel.
 
+**N-23 Zuverlässigkeit sichtbarer** (Phase 27)
+- [ ] Die Zuverlässigkeit (gespielte Scrims, No-Shows, kurzfristige Absagen, Durchschnittsbewertung ab 3 Bewertungen, P0-8) zählt nur noch Scrims mit Start in den letzten 90 Tagen; eine kurzfristige Absage zählt auch, wenn das abgesagte Scrim noch in der Zukunft lag. Überall, wo sie steht, steht „Letzte 90 Tage“ dabei (Entscheidung des Nutzers: Anzeige und Filter nutzen denselben Zeitraum).
+- [ ] Auf den Karten des Boards, im Kopf einer Anfrage und bei jeder Bewerbung steht die Zuverlässigkeit in einer eigenen Zeile; No-Shows und kurzfristige Absagen sind farbig hervorgehoben, sobald sie über 0 liegen. Die Teams-Liste zeigt sie jetzt auch (bisher gar nicht). Der Tab „Team“ nennt den Zeitraum in der Kachel.
+- [ ] Ein Team ist **zuverlässig**, wenn seine No-Show-Quote der letzten 90 Tage unter 10 % liegt: No-Shows ÷ (gespielte Scrims + No-Shows). Kurzfristige Absagen zählen dafür nicht; ein Team ohne Scrims in dem Zeitraum ist zuverlässig (Entscheidungen des Nutzers).
+- [ ] Board und Teams-Liste haben den Filter „Nur zuverlässige Teams“ neben „Nur vollständig verifizierte Teams“. Er ist aus, bis man ihn wählt, und „Zurücksetzen“ nimmt ihn mit weg; der Text nennt die Regel kurz.
+- [ ] Die Startseite sagt bei der Verbindlichkeit, in der Gegenüberstellung (N-22) und in der FAQ, dass die Zahlen die der letzten 90 Tage sind. Alles auf Deutsch und Englisch; die Seiten passen ab 320 px.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -620,7 +628,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 24 | Teams-Liste (N-20) | Unter „Scrims“ öffnet „Teams“ eine Liste aller aktiven Teams mit Hochschulen, Team-Rang und Mitgliedern (Discord-Name, Rolle, Rang); Suche und Rang-Filter grenzen sie ein; der Captain blendet sein Team aus und wieder ein |
 | 25 | Ein verifizierter Captain reicht (N-21) | Ein Team, in dem nur der Captain verifiziert ist, postet, bewirbt sich und bestätigt; Teams mit 5 verifizierten Spielern tragen das Abzeichen „Vollständig verifiziert“ auf Board, Anfrage, Bewerbungen und Teams-Liste, und beide Listen filtern danach; der Captain lässt auf Wunsch nur vollständig verifizierte Bewerber zu |
 | 26 | Startseite „Warum Uni Scrims?“ (N-22) | Die Startseite stellt Scrim-Channel und Uni Scrims gegenüber und sagt in der FAQ, dass Uni Scrims andere Scrim-Seiten nicht ersetzen muss |
-| 27 | Zuverlässigkeit sichtbarer (geplant) | Board und Teams-Liste zeigen die Zuverlässigkeit deutlich und filtern nach zuverlässigen Teams |
+| 27 | Zuverlässigkeit sichtbarer (N-23) | Die Zuverlässigkeit der letzten 90 Tage steht deutlich auf Board, Anfrage, Bewerbungen und in der Teams-Liste; beide Listen filtern nach Teams mit einer No-Show-Quote unter 10 % |
 | 28 | Board ohne Anmeldung (geplant) | Abgemeldete sehen die offenen Anfragen nur lesend; Bewerben führt zur Anmeldung |
 | 29 | Wiederkehrende Anfragen (geplant) | Ein Captain legt eine wöchentliche Anfrage an, und die nächste erscheint rechtzeitig von selbst |
 | 30 | Direktanfrage und feste Partner (geplant) | Ein Captain fragt ein bestimmtes Team direkt an, auch als „Nochmal gegen dieses Team“ und wöchentlich; das andere Team nimmt an oder lehnt ab |

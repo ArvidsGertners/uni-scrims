@@ -513,6 +513,8 @@ Test: Zwei parallele `submitFeedback` mit PLAYED ergeben sofort `COMPLETED`.
 - `lateCancels`: Scrims mit `CANCELLED`, `lateCancel = true` und `cancelledByTeamId = team`
 - `avgRating`: Durchschnitt der Bewertungen, die **andere** Teams über dieses Team abgegeben haben (nur aus `COMPLETED`-Scrims); `null` bei weniger als 3 Bewertungen
 
+Seit Phase 27 nur aus Scrims mit Start in den letzten 90 Tagen, dazu die Regel „zuverlässig“ (§5.25).
+
 
 ### 5.8 Konto mit E-Mail und Passwort (ab Phase 7)
 
@@ -857,6 +859,22 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 - Warnpunkt: `siteNav` und `AccountTabs` nehmen `verificationNeeded` statt „nicht verifiziert“.
 
 **Datenauskunft und Datenschutz:** `teams[].nurVollstaendigVerifizierteBewerber` (§5.10); im Abdeckungstest gilt `Team.verifiedApplicantsOnly` als „in der Auskunft“. Die Datenschutzerklärung sagt, dass nur Captains die Verifizierung für Scrims brauchen und alle eingeloggten Nutzer sehen, ob ein Team vollständig verifiziert ist.
+
+### 5.25 Zuverlässigkeit der letzten 90 Tage (ab Phase 27)
+
+**Zeitraum:** `RELIABILITY_WINDOW_DAYS = 90` in `config/limits.ts`. `getReliabilities(teamIds, now, db)` und `getReliability(teamId, now, db)` bekommen `now` (zeitabhängig, CLAUDE.md) und zählen nur Scrims mit `startsAt ≥ now − 90 Tage`: `played` (COMPLETED), `noShows` (NO_SHOW), `lateCancels` (CANCELLED mit `lateCancel`; ohne Obergrenze, damit eine kurzfristige Absage eines künftigen Scrims sofort zählt) und `avgRating` aus den Bewertungen dieser Scrims (weiter ab 3). Alle Aufrufer reichen ihr `now` durch (`getBoard`, `getRequestDetail`, `getTeamDashboard`, `getTeamList`).
+
+**Regel:** `isReliable(reliability)` in `reads.ts`: ohne gespielte Scrims und No-Shows `true`, sonst `noShows / (played + noShows) < RELIABLE_NO_SHOW_RATE` (0,1 in `config/limits.ts`); kurzfristige Absagen zählen nicht.
+
+**Lesen:**
+- `getBoard({ …, reliableOnly })`: nach dem Filter „vollständig verifiziert“ werden die Zuverlässigkeiten wie bisher für die übrigen Anfragen geladen, dann filtert `reliableOnly` in JS; Rückgabe in `filter.reliableOnly`. Parameter `?zuverlaessig=1`.
+- `getTeamList({ …, reliableOnly, now })`: lädt die Zuverlässigkeit aller angezeigten Teams in einem Batch (`getReliabilities`), liefert sie je Team (`reliability`) und filtert in JS wie die übrigen Filter.
+
+**Web:**
+- `ReliabilityLine` (`components/reliability-line.tsx`): „Letzte 90 Tage: x gespielt · y No-Shows · z kurzfristige Absagen · Ø 4,2 ★“, No-Shows und kurzfristige Absagen über 0 in `text-warning`. Auf `RequestCard`, im Kopf der Anfrage, bei jeder Bewerbung und auf den Karten von `/teams`; ersetzt dort `formatReliability`.
+- Tab „Team“: die Kachel „Gespielt“ nennt den Zeitraum.
+- Filter: `FilterCheckbox` (`components/filter-checkbox.tsx`, verallgemeinert aus `FullyVerifiedFilter`) für „Nur vollständig verifizierte Teams“ (`verifiziert`) und „Nur zuverlässige Teams“ (`zuverlaessig`), nebeneinander unter den Feldern; beide zählen für „Filter aktiv“ und gehören in den Schlüssel des Formulars.
+- Startseite: Verbindlichkeit, Gegenüberstellung und FAQ nennen die 90 Tage.
 
 ## 6. Bot
 
@@ -1363,3 +1381,8 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Web: Abschnitt „Warum Uni Scrims?“ zwischen „Funktionen“ und „Verbindlichkeit“ in `app/(public)/page.tsx`, gebaut wie die anderen Abschnitte (`SectionHead`, `Card`, `COLUMN`): eine Liste aus sechs Zeilen mit „Im Scrim-Channel“ (gedämpft, `XIcon`) und „Auf Uni Scrims“ (`CheckIcon`); oben die beiden Seiten als Legende (für Screenreader verborgen, jede Zelle nennt ihre Seite selbst über `srSide`); ab 640 px zwei Spalten unter dieser Legende, darunter je Zeile ein Block mit beiden Seiten untereinander. Neue FAQ-Frage zur Positionierung. Texte in `landingMessages` (`i18n/public.tsx`), Deutsch und Englisch. Keine Änderung in `core`.
 - *Fertig wenn:* Die Startseite zeigt den Abschnitt und die neue FAQ-Frage auf Deutsch und Englisch; jede Zeile beschreibt eine Funktion, die es laut SPEC gibt; die Seite passt ab 320 px, hell und dunkel; Tests, Lint und Web-Image sind grün.
 - *Stand (26.10.2026):* abgeschlossen. Code, Tests (`pnpm test` mit 661 Tests, keine neuen, weil sich nur Texte und Markup der Startseite ändern), `pnpm lint`, Web-Image, Review samt Fixes (die Reminder-Zeile versprach jedem beide Reminder, die letzte Zeile mehr als N-21 garantiert; einheitlich „Reminder“; Screenreader-Präfix aus dem Wörterbuch; Legende auf dem Handy in §11 beschrieben). Bewusst nicht geändert: Die Zeilen wiederholen Aussagen der Abschnitte „Funktionen“ und „Verbindlichkeit“ (gewollt, die Gegenüberstellung steht für sich). Im Browser: Desktop, 768, 375 und 320 px ohne Überstand, Deutsch und Englisch, hell und dunkel; die neue FAQ-Frage steht an zweiter Stelle. Für den Deploy: `dc build && dc up -d`, keine Migration, keine Rechtstexte, keine Einstellung in der `.env`.
+
+**Phase 27: Zuverlässigkeit sichtbarer** (SPEC N-23, §5.25)
+- `core`: `RELIABILITY_WINDOW_DAYS`, `RELIABLE_NO_SHOW_RATE`, `getReliabilities`/`getReliability` mit `now` und Zeitraum, `isReliable`, `reliableOnly` in `getBoard` und `getTeamList`, `reliability` in der Teams-Liste. Tests: Zeitraum mit Grenze (genau 90 Tage zählt, älter nicht), kurzfristige Absage eines künftigen Scrims zählt, Bewertungen nur aus dem Zeitraum, Regel (keine Scrims, genau 10 %, knapp darunter), beide Filter
+- Web: `ReliabilityLine` auf Board, Anfrage, Bewerbungen und Teams-Liste; Kachel auf dem Tab „Team“; `FilterCheckbox` und der neue Filter auf Board und `/teams`; Startseite; Texte auf Deutsch und Englisch
+- *Fertig wenn:* Überall steht die Zuverlässigkeit der letzten 90 Tage mit diesem Zeitraum dabei, in einer eigenen Zeile und mit hervorgehobenen No-Shows und kurzfristigen Absagen; die Teams-Liste zeigt sie; „Nur zuverlässige Teams“ filtert Board und Teams-Liste nach der No-Show-Quote unter 10 % (Teams ohne Scrims bleiben); die Seiten passen ab 320 px auf Deutsch und Englisch; Tests, Lint und Web-Image sind grün.
