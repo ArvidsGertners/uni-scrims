@@ -607,6 +607,11 @@ export async function retireTeamActivity(teamId: string, now: Date, db: Db = pri
       include: { hostTeam: { select: { name: true } }, guestTeam: { select: { name: true } } },
     });
     for (const scrim of scrims) await lockScrim(tx, scrim.id);
+    // No more requests from the team's weekly series (SPEC N-25); the caller holds the team lock.
+    await tx.requestSeries.updateMany({
+      where: { teamId, endedAt: null },
+      data: { endedAt: now },
+    });
 
     const requests = await tx.scrimRequest.findMany({
       where: { id: { in: requestIds }, teamId },

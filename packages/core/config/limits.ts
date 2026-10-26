@@ -7,6 +7,8 @@ export const FULLY_VERIFIED_PLAYER_COUNT = 5;
 export const MAX_TEAM_MEMBERS = 10;
 /** Max. open requests per team (SPEC P0-4). */
 export const MAX_OPEN_REQUESTS = 5;
+/** A weekly series ends at most this many weeks after its first date (SPEC N-25). */
+export const SERIES_MAX_WEEKS = 16;
 /** Reliability counts the scrims that started in the last this many days (SPEC N-23). */
 export const RELIABILITY_WINDOW_DAYS = 90;
 /** A team is reliable below this no-show rate in that window (SPEC N-23). */

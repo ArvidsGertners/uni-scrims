@@ -191,6 +191,23 @@ export async function exportAccountData(input: {
           maps: true,
           note: true,
           status: true,
+          seriesId: true,
+        },
+      });
+      const series = await tx.requestSeries.findMany({
+        where: { createdById: user.id },
+        orderBy: { createdAt: "asc" },
+        select: {
+          team: { select: { name: true } },
+          createdAt: true,
+          nextStartsAt: true,
+          lastStartsAt: true,
+          endedAt: true,
+          format: true,
+          rankMin: true,
+          rankMax: true,
+          maps: true,
+          note: true,
         },
       });
       const feedback = await tx.scrimFeedback.findMany({
@@ -382,6 +399,20 @@ export async function exportAccountData(input: {
           maps: request.maps,
           notiz: request.note,
           status: REQUEST_STATUS_LABELS.de[request.status],
+          wöchentlich: request.seriesId !== null,
+        })),
+        // Weekly series (SPEC N-25): their requests are in anfragen with wöchentlich.
+        wiederkehrendeAnfragen: series.map((entry) => ({
+          team: entry.team.name,
+          erstelltAm: entry.createdAt,
+          nächsterTerminAm: entry.nextStartsAt,
+          letzterTerminAm: entry.lastStartsAt,
+          beendetAm: entry.endedAt,
+          format: SCRIM_FORMAT_LABELS.de[entry.format],
+          rangVon: RANK_LABELS[entry.rankMin],
+          rangBis: RANK_LABELS[entry.rankMax],
+          maps: entry.maps,
+          notiz: entry.note,
         })),
         feedback: feedback.map((entry) => ({
           team: teamName(entry.teamId),

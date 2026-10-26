@@ -36,7 +36,7 @@ import {
   requestInputSchema,
 } from "./schemas.ts";
 import { activeTeamWhere, isTeamActive, isTeamFullyVerified } from "./readiness.ts";
-import { berlinToUtc } from "./time.ts";
+import { addBerlinWeeks, berlinToUtc, daysBetweenDates } from "./time.ts";
 
 export { MAX_OPEN_REQUESTS };
 
@@ -46,6 +46,14 @@ function notOpen(): DomainError {
 
 function requestNotFound(): DomainError {
   return new DomainError("NOT_FOUND", "requestNotFound");
+}
+
+/**
+ * Less than MIN_REQUEST_LEAD before the start: too late to post a request for it, by hand or by a
+ * series (§5.27).
+ */
+export function isStartTooSoon(startsAt: Date, now: Date): boolean {
+  return startsAt.getTime() < now.getTime() + TIMING.MIN_REQUEST_LEAD;
 }
 
 /** Open = OPEN and not started yet: only open requests take applications and count to the limit. */
@@ -151,7 +159,10 @@ export async function findApplicantTeamProblem(
   return applicantTeamProblem(team, { required, fullyVerified });
 }
 
-/** Posts a request for `teamId`, the team the form was shown for (§5.20). */
+/**
+ * Posts a request for `teamId`, the team the form was shown for (§5.20). With `repeatUntil` it is
+ * the first date of a weekly series, created in the same transaction (SPEC N-25, §5.27).
+ */
 export async function createRequest(
   input: RequestInput & { userId: string; teamId: string; now: Date },
 ) {
@@ -159,7 +170,7 @@ export async function createRequest(
     const { user, team } = await requireActingCaptain(input.userId, input.teamId, tx);
     const data = parseInput(requestInputSchema, input);
     const startsAt = berlinToUtc(data.date, data.time);
-    if (startsAt.getTime() < input.now.getTime() + TIMING.MIN_REQUEST_LEAD) {
+    if (isStartTooSoon(startsAt, input.now)) {
       const minutes = Math.round(TIMING.MIN_REQUEST_LEAD / 60_000);
       throw new DomainError("INVALID", msg("startTooSoon", { minutes }));
     }
@@ -170,17 +181,35 @@ export async function createRequest(
     const current = await requireTeamMember(user.id, team.id, tx);
     const [problem] = await requestPostingProblems(current.user, current.team, input.now, tx);
     if (problem) throw problemError(problem);
+    const fields = {
+      teamId: team.id,
+      createdById: user.id,
+      game: team.game,
+      format: data.format,
+      rankMin: data.rankMin,
+      rankMax: data.rankMax,
+      maps: data.maps,
+      note: data.note,
+    };
+    // The schema allows 7 days up to SERIES_MAX_WEEKS weeks, so there are 1 to 16 more dates.
+    const series = data.repeatUntil
+      ? await tx.requestSeries.create({
+          data: {
+            ...fields,
+            nextStartsAt: addBerlinWeeks(startsAt, 1),
+            lastStartsAt: addBerlinWeeks(
+              startsAt,
+              Math.floor(daysBetweenDates(data.date, data.repeatUntil) / 7),
+            ),
+            createdAt: input.now,
+          },
+        })
+      : null;
     return tx.scrimRequest.create({
       data: {
-        teamId: team.id,
-        createdById: user.id,
-        game: team.game,
+        ...fields,
         startsAt,
-        format: data.format,
-        rankMin: data.rankMin,
-        rankMax: data.rankMax,
-        maps: data.maps,
-        note: data.note,
+        seriesId: series?.id ?? null,
         status: RequestStatus.OPEN,
         createdAt: input.now,
       },

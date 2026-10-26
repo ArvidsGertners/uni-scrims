@@ -14,6 +14,7 @@ import {
   RATING_MAX,
   RATING_MIN,
   REQUEST_NOTE_MAX,
+  SERIES_MAX_WEEKS,
   TEAM_NAME_MAX,
   TEAM_NAME_MIN,
   TEAM_TAG_MAX,
@@ -25,7 +26,7 @@ import { DomainError } from "./errors.ts";
 import { type Message, type PlainMessageKey, isMessageKey, key, msg } from "./i18n/render.ts";
 import { rankValue } from "./ranks.ts";
 import { type TeamLinkPlatform, parseTeamLink } from "./team-links.ts";
-import { isStartSlot, isValidDateString } from "./time.ts";
+import { daysBetweenDates, isStartSlot, isValidDateString } from "./time.ts";
 
 export { TEAM_NAME_MAX, TEAM_NAME_MIN, TEAM_TAG_MAX, TEAM_TAG_MIN };
 
@@ -174,10 +175,26 @@ export const requestInputSchema = z
       .default([])
       .refine((maps) => new Set(maps).size === maps.length, key("mapTwice")),
     note: optionalText(REQUEST_NOTE_MAX, key("noteTooLong")),
+    // Repeat weekly up to this Berlin date, like `date` the day of the actual start (SPEC N-25);
+    // empty = a single request. In the base object: zod cannot extend a refined schema.
+    repeatUntil: z
+      .string(key("repeatUntilInvalid"))
+      .nullish()
+      .transform((value) => value || null),
   })
   .refine((input) => rankValue(input.rankMin) <= rankValue(input.rankMax), {
     message: key("rankMinAboveMax"),
     path: ["rankMin"],
+  })
+  .superRefine((input, ctx) => {
+    if (input.repeatUntil === null) return;
+    const issue = (message: PlainMessageKey) =>
+      ctx.addIssue({ code: "custom", path: ["repeatUntil"], message: key(message) });
+    if (!isValidDateString(input.repeatUntil)) return issue("repeatUntilInvalid");
+    // At least one more date, at most SERIES_MAX_WEEKS weeks after the first.
+    const days = daysBetweenDates(input.date, input.repeatUntil);
+    if (days < 7) return issue("repeatUntilTooEarly");
+    if (days > SERIES_MAX_WEEKS * 7) return issue("repeatUntilTooLate");
   });
 
 export type RequestInput = z.input<typeof requestInputSchema>;

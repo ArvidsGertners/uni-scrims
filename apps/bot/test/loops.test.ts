@@ -116,6 +116,7 @@ describe("sweeper loop (§6.3)", () => {
   type Result = Awaited<ReturnType<SweeperDeps["runSweeper"]>>;
   const result = (purgedNotifications: number | null): Result => ({
     expiredRequests: 0,
+    postedSeriesRequests: 0,
     openedFeedback: 0,
     resolvedScrims: 0,
     finishedDeletions: 0,

@@ -5,6 +5,8 @@
 // request lock, then inserts a notification referencing the Team).
 // Lock order in every transaction (ARCHITECTURE §4): Team → User → ScrimRequest → Scrim, several rows
 // of one table sorted by id; VerificationRequest, Application and Notification rows only after that.
+// RequestSeries rows have no lock of their own: only holders of their team's lock change them, except
+// deleteAccount clearing notes, which postSeriesRequests waits for on the creator's user row (§5.27).
 import { type Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 

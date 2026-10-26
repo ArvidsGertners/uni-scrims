@@ -302,6 +302,7 @@ describe("exportAccountData", () => {
         rangBis: "Platinum",
         notiz: "Lobby über Discord: kontakt#1234",
         status: "Gebucht",
+        wöchentlich: false,
       }),
     ]);
     expect(data.feedback).toEqual([
@@ -571,6 +572,22 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     maps: SHOWN,
     note: SHOWN,
     status: SHOWN,
+    createdAt: SHOWN,
+    seriesId: SHOWN,
+  },
+  RequestSeries: {
+    id: KEY,
+    teamId: SHOWN,
+    createdById: SELF,
+    game: TEAM,
+    format: SHOWN,
+    rankMin: SHOWN,
+    rankMax: SHOWN,
+    maps: SHOWN,
+    note: SHOWN,
+    nextStartsAt: SHOWN,
+    lastStartsAt: SHOWN,
+    endedAt: SHOWN,
     createdAt: SHOWN,
   },
   Application: {

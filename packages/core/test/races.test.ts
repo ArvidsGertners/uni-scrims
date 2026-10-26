@@ -15,10 +15,14 @@ import {
   prisma,
 } from "@uni-scrims/db";
 import sharp from "sharp";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   autoRejectStaleVerifications,
   banTeam,
+  createRequest,
+  endRequestSeries,
+  postSeriesRequests,
+  transferCaptain,
   banUser,
   confirmApplication,
   createTeam,
@@ -43,6 +47,7 @@ import {
 import { queueNotifications } from "../src/notifications.ts";
 import {
   NOW,
+  REQUEST_INPUT,
   REQUEST_STARTS_AT,
   bookScrim,
   createOpenRequest,
@@ -672,6 +677,135 @@ describe("personal notifications fanned out while accounts and teams change (§5
         );
       }
       expect(sentTo).toEqual([host.captain.id]);
+    }
+  });
+});
+
+// Weekly series (§5.27): the sweeper posts under the team lock and the creator's user row. It logs a
+// failing series instead of throwing, so a deadlock shows up as a logged error.
+describe("postSeriesRequests while the series or its team changes", () => {
+  // REQUEST_STARTS_AT starts the series; its next date is due then.
+  const NEXT = new Date("2026-10-29T19:00:00Z");
+  const seriesIds: string[] = [];
+
+  afterAll(async () => {
+    await prisma.requestSeries.updateMany({
+      where: { id: { in: seriesIds }, endedAt: null },
+      data: { endedAt: NOW },
+    });
+  });
+
+  async function series(captainId: string, teamId: string, note: string | null = null) {
+    const request = await createRequest({
+      ...REQUEST_INPUT,
+      note,
+      repeatUntil: "2026-11-19",
+      userId: captainId,
+      teamId,
+      now: NOW,
+    });
+    seriesIds.push(request.seriesId!);
+    return request.seriesId!;
+  }
+
+  async function postedNext(seriesId: string) {
+    return prisma.scrimRequest.findMany({ where: { seriesId, startsAt: NEXT } });
+  }
+
+  /** Runs the sweeper step next to `other` and fails on any logged error of the step. */
+  async function raceSweeper(other: () => Promise<unknown>) {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const results = await Promise.allSettled([postSeriesRequests(REQUEST_STARTS_AT), other()]);
+      expectOnlyDomainErrors(results);
+      expect(logged).not.toHaveBeenCalled();
+      return results;
+    } finally {
+      logged.mockRestore();
+    }
+  }
+
+  it("leaves no note of a creator deleted meanwhile, also after leaving the team", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team: t, captain: user, members } = await createTeamWithMembers({ extraMembers: 1 });
+      const seriesId = await series(user.id, t.id, "Discord: alt#0001");
+      await transferCaptain({ userId: user.id, teamId: t.id, newCaptainId: members[0]!.id });
+      await leaveTeam({ userId: user.id, teamId: t.id, now: NOW });
+      await raceSweeper(() => remove(user.id));
+      expect(await prisma.scrimRequest.count({ where: { seriesId, note: { not: null } } })).toBe(0);
+      expect(
+        await prisma.requestSeries.findUniqueOrThrow({ where: { id: seriesId } }),
+      ).toMatchObject({ note: null });
+    }
+  });
+
+  it("posts at most once while the captain ends the series", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team: t, captain } = await createFullyVerifiedTeam();
+      const seriesId = await series(captain.id, t.id);
+      await raceSweeper(() =>
+        endRequestSeries({ userId: captain.id, seriesId, now: REQUEST_STARTS_AT }),
+      );
+      expect((await postedNext(seriesId)).length).toBeLessThanOrEqual(1);
+      expect(
+        await prisma.requestSeries.findUniqueOrThrow({ where: { id: seriesId } }),
+      ).not.toMatchObject({ endedAt: null });
+    }
+  });
+
+  it("leaves neither an open request nor a running series of a team banned meanwhile", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team: t, captain } = await createFullyVerifiedTeam();
+      const seriesId = await series(captain.id, t.id);
+      await raceSweeper(() => banTeam({ adminId: admin.id, teamId: t.id, now: REQUEST_STARTS_AT }));
+      expect(
+        await prisma.scrimRequest.count({
+          where: { teamId: t.id, status: "OPEN", startsAt: { gt: REQUEST_STARTS_AT } },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.requestSeries.findUniqueOrThrow({ where: { id: seriesId } }),
+      ).not.toMatchObject({ endedAt: null });
+    }
+  });
+
+  it("posts each date once when two runs meet", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team: t, captain } = await createFullyVerifiedTeam();
+      const seriesId = await series(captain.id, t.id);
+      await raceSweeper(() => postSeriesRequests(REQUEST_STARTS_AT));
+      expect(await postedNext(seriesId)).toHaveLength(1);
+    }
+  });
+
+  it("never exceeds the limit of open requests with a request by hand", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team: t, captain } = await createFullyVerifiedTeam();
+      await series(captain.id, t.id);
+      // Four open requests when the next date is due, one place left.
+      for (let day = 1; day <= 4; day++) {
+        await createRequest({
+          ...REQUEST_INPUT,
+          date: `2026-12-0${day}`,
+          userId: captain.id,
+          teamId: t.id,
+          now: REQUEST_STARTS_AT,
+        });
+      }
+      await raceSweeper(() =>
+        createRequest({
+          ...REQUEST_INPUT,
+          date: "2026-12-05",
+          userId: captain.id,
+          teamId: t.id,
+          now: REQUEST_STARTS_AT,
+        }),
+      );
+      expect(
+        await prisma.scrimRequest.count({
+          where: { teamId: t.id, status: "OPEN", startsAt: { gt: REQUEST_STARTS_AT } },
+        }),
+      ).toBe(5);
     }
   });
 });

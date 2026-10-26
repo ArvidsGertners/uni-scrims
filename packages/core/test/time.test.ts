@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   START_TIME_SLOTS,
+  addBerlinWeeks,
   berlinDayRange,
   berlinToUtc,
   describeStart,
   describeStartDay,
   describeStartShort,
   describeStartTime,
+  daysBetweenDates,
   formatBerlinDate,
+  formatBerlinWeekday,
   formatDayHeading,
   formatWeekdayDate,
   isStartSlot,
@@ -66,6 +69,38 @@ describe("dates", () => {
 
   it("formats the Berlin date", () => {
     expect(toBerlinDateString(new Date("2026-10-21T23:00:00Z"))).toBe("2026-10-22");
+  });
+});
+
+describe("weeks and days for series (§5.27)", () => {
+  it("adds calendar weeks in Berlin, keeping the time across DST changes", () => {
+    // 20:00 CEST → 20:00 CET (end of summer time on 25.10.2026) and back on 28.03.2027.
+    expect(addBerlinWeeks(new Date("2026-10-22T18:00:00Z"), 1)).toEqual(
+      new Date("2026-10-29T19:00:00Z"),
+    );
+    expect(addBerlinWeeks(new Date("2027-03-25T19:00:00Z"), 1)).toEqual(
+      new Date("2027-04-01T18:00:00Z"),
+    );
+    expect(addBerlinWeeks(new Date("2026-10-29T19:00:00Z"), -1)).toEqual(
+      new Date("2026-10-22T18:00:00Z"),
+    );
+    // 01:00 after midnight stays 01:00.
+    expect(addBerlinWeeks(new Date("2026-10-22T23:00:00Z"), 1)).toEqual(
+      new Date("2026-10-30T00:00:00Z"),
+    );
+  });
+
+  it("counts calendar days between dates", () => {
+    expect(daysBetweenDates("2026-10-22", "2026-10-29")).toBe(7);
+    expect(daysBetweenDates("2026-10-22", "2027-02-11")).toBe(112);
+    expect(daysBetweenDates("2026-10-29", "2026-10-22")).toBe(-7);
+    expect(daysBetweenDates("2027-03-25", "2027-04-01")).toBe(7);
+  });
+
+  it("names the weekday in Berlin", () => {
+    // 23:30 UTC on Thursday is already Friday in Berlin.
+    expect(formatBerlinWeekday(new Date("2026-10-22T23:30:00Z"), "de")).toBe("Freitag");
+    expect(formatBerlinWeekday(new Date("2026-10-22T18:00:00Z"), "en")).toBe("Thursday");
   });
 });
 

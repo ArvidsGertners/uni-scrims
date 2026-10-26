@@ -3,6 +3,7 @@
 // alone, so after a bot outage the next run catches up. Also the heartbeats of both bot loops.
 import { NotifStatus, prisma } from "@uni-scrims/db";
 import { requireAdmin } from "./permissions.ts";
+import { postSeriesRequests } from "./request-series.ts";
 import { expireRequests } from "./requests.ts";
 import { openFeedback, resolveDeadlines } from "./scrims.ts";
 import { NO_OAUTH_TOKENS, finishInterruptedDeletions } from "./users.ts";
@@ -118,6 +119,7 @@ export async function runSweeper(now: Date, options: { purge: boolean }) {
   };
   return {
     expiredRequests: await step("expireRequests", () => expireRequests(now)),
+    postedSeriesRequests: await step("postSeriesRequests", () => postSeriesRequests(now)),
     openedFeedback: await step("openFeedback", () => openFeedback(now)),
     resolvedScrims: await step("resolveDeadlines", () => resolveDeadlines(now)),
     finishedDeletions: await step("finishInterruptedDeletions", () => finishInterruptedDeletions()),

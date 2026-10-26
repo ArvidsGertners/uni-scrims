@@ -1,7 +1,7 @@
 // Start times of requests in Europe/Berlin (SPEC P0-4, ARCHITECTURE §5.3).
 // Input is a Berlin calendar date and wall-clock time; core converts to UTC. No time logic in the browser.
 import { TZDate, tz } from "@date-fns/tz";
-import { format, subDays } from "date-fns";
+import { addWeeks, format, subDays } from "date-fns";
 import { de, enGB } from "date-fns/locale";
 import type { Locale } from "../config/locale.ts";
 
@@ -48,6 +48,15 @@ export function isValidDateString(date: string): boolean {
   return parseDate(date) !== null;
 }
 
+/** Calendar days from one valid "YYYY-MM-DD" to another, negative if `to` comes first. */
+export function daysBetweenDates(from: string, to: string): number {
+  const [a, b] = [parseDate(from), parseDate(to)];
+  if (!a || !b) throw new Error(`Invalid date: ${from} / ${to}`);
+  const utc = (date: { year: number; month: number; day: number }) =>
+    Date.UTC(date.year, date.month - 1, date.day);
+  return Math.round((utc(b) - utc(a)) / (24 * 60 * 60 * 1000));
+}
+
 /**
  * Berlin date ("YYYY-MM-DD") and time ("HH:MM") to a UTC instant. The date is always the calendar
  * date of the actual start: 2026-10-22 01:00 is the night from Wednesday to Thursday.
@@ -61,6 +70,14 @@ export function berlinToUtc(date: string, time: string): Date {
   return new Date(
     new TZDate(parsed.year, parsed.month - 1, parsed.day, hours, minutes, TIME_ZONE).getTime(),
   );
+}
+
+/**
+ * `weeks` calendar weeks later (or earlier) in Berlin, at the same wall-clock time also across a DST
+ * change (series, §5.27). Start slots never fall into the DST gap, so the time always exists.
+ */
+export function addBerlinWeeks(date: Date, weeks: number): Date {
+  return new Date(addWeeks(date, weeks, { in: tz(TIME_ZONE) }).getTime());
 }
 
 /** [start, end) of a Berlin calendar day in UTC, for the board's date filter. */
@@ -145,6 +162,11 @@ export function describeStartShort(startsAt: Date, locale: Locale): string {
 /** Day of the start only, e.g. "Do 22.10." / "Thu 22 Oct"; the time with describeStartTime. */
 export function describeStartDay(startsAt: Date, locale: Locale): string {
   return berlinFormat(startsAt, FORMATS[locale].day, locale);
+}
+
+/** Weekday in Berlin, e.g. "Donnerstag" / "Thursday" (series, §5.27). */
+export function formatBerlinWeekday(date: Date, locale: Locale): string {
+  return berlinFormat(date, "EEEE", locale);
 }
 
 /** Weekday and date in Berlin, e.g. "Donnerstag, 22.10." / "Thursday 22 Oct". */

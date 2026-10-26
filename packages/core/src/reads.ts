@@ -47,6 +47,7 @@ import {
   openRequestWhere,
   requestPostingProblems,
 } from "./requests.ts";
+import { nextSeriesStart, seriesPostsAt } from "./request-series.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
@@ -514,6 +515,8 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     rankMax: request.rankMax,
     maps: request.maps,
     note: request.note,
+    /** Posted by a weekly series; only the creating team sees that (SPEC N-25). */
+    weekly: isOwner && request.seriesId !== null,
     team: { ...toTeamCard(request.team, reliabilities), links: toTeamLinks(request.team) },
     /** The creating team admits only fully verified applicants (SPEC N-21). */
     verifiedApplicantsOnly: host.verifiedApplicantsOnly,
@@ -652,13 +655,21 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
   if (!ownTeam) {
-    return { hasTeam: false, team: null, upcoming: [], past: [], requests: [], applications: [] };
+    return {
+      hasTeam: false,
+      team: null,
+      upcoming: [],
+      past: [],
+      requests: [],
+      series: [],
+      applications: [],
+    };
   }
   const opponentSelect = {
     ...teamCardSelect,
     captain: { select: { id: true, name: true } },
   } satisfies Prisma.TeamSelect;
-  const [scrims, requests, applications, ownLogo] = await Promise.all([
+  const [scrims, requests, runningSeries, applications, ownLogo] = await Promise.all([
     prisma.scrim.findMany({
       where: { OR: [{ hostTeamId: ownTeam.id }, { guestTeamId: ownTeam.id }] },
       orderBy: { startsAt: "asc" },
@@ -673,6 +684,10 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       where: { ...openRequestWhere(input.now), teamId: ownTeam.id },
       orderBy: { startsAt: "asc" },
       include: { _count: { select: { applications: { where: { status: AppStatus.PENDING } } } } },
+    }),
+    prisma.requestSeries.findMany({
+      where: { teamId: ownTeam.id, endedAt: null },
+      orderBy: { nextStartsAt: "asc" },
     }),
     prisma.application.findMany({
       where: {
@@ -729,6 +744,30 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
   const captainDiscordIds = await Promise.all(
     upcoming.map((item) => getDiscordId(item.opponent.captainId)),
   );
+  // Running series with a date still to post (SPEC N-25). A due date waits for the reason the
+  // sweeper sees: requestPostingProblems for the current captain (§5.27).
+  const series = runningSeries.flatMap((entry) => {
+    const nextStartsAt = nextSeriesStart(entry, input.now);
+    return nextStartsAt ? [{ entry, nextStartsAt, postsAt: seriesPostsAt(nextStartsAt) }] : [];
+  });
+  const isCaptain = isCaptainOf(user, ownTeam);
+  const [blocked] = series.some(({ postsAt }) => postsAt <= input.now)
+    ? await requestPostingProblems(
+        isCaptain
+          ? user
+          : await prisma.user.findUniqueOrThrow({
+              where: { id: ownTeam.captainId },
+              select: { id: true, verifiedAt: true },
+            }),
+        ownTeam,
+        input.now,
+        prisma,
+      )
+    : [];
+  // Only the captain can ever end a series, so other members do not see it (§7).
+  const end: ActionOffer = isCaptain
+    ? { problem: actingCaptainProblem(user, ownTeam)?.text ?? null }
+    : null;
   return {
     hasTeam: true,
     team: {
@@ -750,6 +789,20 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       rankMax: request.rankMax,
       maps: request.maps,
       applicationCount: request._count.applications,
+      weekly: request.seriesId !== null,
+    })),
+    series: series.map(({ entry, nextStartsAt, postsAt }) => ({
+      id: entry.id,
+      nextStartsAt,
+      postsAt,
+      lastStartsAt: entry.lastStartsAt,
+      format: entry.format,
+      rankMin: entry.rankMin,
+      rankMax: entry.rankMax,
+      maps: entry.maps,
+      /** Why the due request waits (limit, unverified captain); null if it is not due yet. */
+      blocked: postsAt <= input.now ? (blocked?.kind ?? null) : null,
+      end,
     })),
     applications: applications.map((application) => ({
       id: application.id,

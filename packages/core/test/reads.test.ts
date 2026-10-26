@@ -579,6 +579,7 @@ describe("getScrimDetail and getMyScrims", () => {
       upcoming: [],
       past: [],
       requests: [],
+      series: [],
       applications: [],
     });
   });

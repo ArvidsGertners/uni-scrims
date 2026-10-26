@@ -335,6 +335,12 @@ export async function deleteAccount(input: {
     const notedIds = noted.map(({ id }) => id);
     await lockRetirements(tx, dissolved, input.now, notedIds);
     await tx.scrimRequest.updateMany({ where: { id: { in: notedIds } }, data: { note: null } });
+    // The same for the user's weekly series, also in teams the user has left (SPEC N-25). Their
+    // next requests copy the note; postSeriesRequests locks this user row before reading it (§5.27).
+    await tx.requestSeries.updateMany({
+      where: { createdById: user.id, note: { not: null } },
+      data: { note: null },
+    });
     for (const team of teams) {
       if (dissolved.includes(team.id)) {
         await dissolveTeam(team.id, input.now, tx);

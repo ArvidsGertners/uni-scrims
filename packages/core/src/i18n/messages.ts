@@ -14,6 +14,7 @@ import {
   RATING_MAX,
   RATING_MIN,
   REQUEST_NOTE_MAX,
+  SERIES_MAX_WEEKS,
   TEAM_LIMIT_REASON_MAX,
   TEAM_LIMIT_REASON_MIN,
   TEAM_LINK_MAX,
@@ -85,6 +86,8 @@ const de = {
     `„${team}“ nimmt nur Bewerbungen von vollständig verifizierten Teams an (mindestens ${FULLY_VERIFIED_PLAYER_COUNT} verifizierte Spieler oder Ersatzspieler).`,
   applicantTeamNotFullyVerified: ({ team }: { team: string }) =>
     `Das Team „${team}“ ist nicht vollständig verifiziert (weniger als ${FULLY_VERIFIED_PLAYER_COUNT} verifizierte Spieler oder Ersatzspieler), und ihr nehmt nur solche Teams an.`,
+  seriesNotFound: "Serie nicht gefunden.",
+  seriesEnded: "Die Serie ist schon beendet.",
 
   // Scrims and feedback
   scrimNotFound: "Scrim nicht gefunden.",
@@ -205,6 +208,9 @@ const de = {
   mapTwice: "Jede Map nur einmal auswählen.",
   noteTooLong: `Die Notiz darf höchstens ${REQUEST_NOTE_MAX} Zeichen haben.`,
   rankMinAboveMax: "Der Mindestrang darf nicht über dem Höchstrang liegen.",
+  repeatUntilInvalid: "Bitte gib ein gültiges Enddatum an.",
+  repeatUntilTooEarly: "Das Enddatum muss mindestens eine Woche nach dem ersten Termin liegen.",
+  repeatUntilTooLate: `Eine wöchentliche Anfrage läuft höchstens ${SERIES_MAX_WEEKS} Wochen. Wähle ein früheres Enddatum.`,
   messageTooLong: `Die Nachricht darf höchstens ${APPLICATION_MESSAGE_MAX} Zeichen haben.`,
   ratingRange: `Bitte bewerte den Gegner mit ${RATING_MIN} bis ${RATING_MAX} Sternen.`,
   chooseOutcome: "Bitte wähle aus, ob der Scrim stattgefunden hat.",
@@ -266,6 +272,8 @@ export const MESSAGES = dictionary(de, {
     `“${team}” only accepts applications from fully verified teams (at least ${FULLY_VERIFIED_PLAYER_COUNT} verified players or substitutes).`,
   applicantTeamNotFullyVerified: ({ team }) =>
     `The team “${team}” is not fully verified (fewer than ${FULLY_VERIFIED_PLAYER_COUNT} verified players or substitutes), and you only accept such teams.`,
+  seriesNotFound: "Series not found.",
+  seriesEnded: "The series has already ended.",
 
   scrimNotFound: "Scrim not found.",
   scrimNotCancellable: "The scrim can no longer be cancelled.",
@@ -377,6 +385,9 @@ export const MESSAGES = dictionary(de, {
   mapTwice: "Choose each map only once.",
   noteTooLong: `The note can have at most ${REQUEST_NOTE_MAX} characters.`,
   rankMinAboveMax: "The minimum rank can't be above the maximum rank.",
+  repeatUntilInvalid: "Please enter a valid end date.",
+  repeatUntilTooEarly: "The end date must be at least one week after the first date.",
+  repeatUntilTooLate: `A weekly request runs for at most ${SERIES_MAX_WEEKS} weeks. Choose an earlier end date.`,
   messageTooLong: `The message can have at most ${APPLICATION_MESSAGE_MAX} characters.`,
   ratingRange: `Please rate the opponent with ${RATING_MIN} to ${RATING_MAX} stars.`,
   chooseOutcome: "Please choose whether the scrim took place.",
