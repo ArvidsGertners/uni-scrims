@@ -110,6 +110,7 @@ export default async function ReadyPage() {
       ) : (
         <ReadyForm
           teamId={form.teamId}
+          evening={form.evening}
           times={form.starts.map(toBerlinTimeString)}
           range={form.rankRange}
         />
@@ -121,10 +122,12 @@ export default async function ReadyPage() {
 /** The start times as "HH:MM" of this evening in order, as createReadyWindow takes them. */
 async function ReadyForm({
   teamId,
+  evening,
   times,
   range,
 }: {
   teamId: string;
+  evening: string;
   times: string[];
   range: { rankMin: Rank; rankMax: Rank };
 }) {
@@ -155,6 +158,8 @@ async function ReadyForm({
     >
       {/* The team the form was shown for, so a switch in another tab changes nothing (§5.20). */}
       <input type="hidden" name="teamId" value={teamId} />
+      {/* The evening of the times: sent after 02:00 they would name the next one (§5.29). */}
+      <input type="hidden" name="evening" value={evening} />
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-3">
           <Field label={t.from}>

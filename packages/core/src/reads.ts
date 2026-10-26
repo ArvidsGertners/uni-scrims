@@ -19,7 +19,6 @@ import {
   canSeeApplications,
   canSeeRequest,
   captainProblem,
-  captainVerificationProblem,
   findOwnTeam,
   findOwnTeams,
   isCaptainOf,
@@ -64,7 +63,7 @@ import {
   teamUniversities,
   verifiedUniversityNames,
 } from "./teams.ts";
-import { berlinDayRange, isValidDateString } from "./time.ts";
+import { berlinDayRange, isValidDateString, scrimEveningDate } from "./time.ts";
 import { getDiscordId } from "./users.ts";
 
 // ─── Reliability ──────────────────────────────────────────────────────────────
@@ -545,9 +544,9 @@ function defaultRankRange(rank: Rank | null): { rankMin: Rank; rankMax: Rank } {
 }
 
 /**
- * Form "Heute spielbereit" (SPEC N-27): null without a team. problems are the reasons
- * createReadyWindow rejects regardless of the input, in actingCaptainProblem's order (no request
- * limit); running is the team's window, which has to end before a new one; starts are the start
+ * Form "Heute spielbereit" (SPEC N-27): null without a team. problems is the reason
+ * createReadyWindow rejects with regardless of the input (actingCaptainProblem, no request limit);
+ * running is the team's window, which has to end before a new one; starts are the start
  * times still to offer this evening, empty when it is too late (§5.29).
  */
 export async function getReadyWindowForm(input: { userId: string; now: Date }) {
@@ -561,15 +560,15 @@ export async function getReadyWindowForm(input: { userId: string; now: Date }) {
       select: { id: true, firstStartsAt: true, lastStartsAt: true },
     }),
   ]);
-  const blocking = captainProblem(user, ownTeam);
-  const problems = blocking
-    ? [blocking]
-    : [captainVerificationProblem(user)].filter((problem) => problem !== null);
+  // The one reason createReadyWindow throws regardless of the input (no request limit).
+  const problems = [actingCaptainProblem(user, ownTeam)].filter((problem) => problem !== null);
   return {
     /** The team the form announces: the active one (§5.20). */
     teamId: ownTeam.id,
     teamName: ownTeam.name,
     rankRange: defaultRankRange(rank),
+    /** The day of the evening the times belong to, sent back with them (createReadyWindow). */
+    evening: scrimEveningDate(input.now),
     starts: readyWindowStarts(input.now),
     running,
     problems: problems.map(({ kind, text }) => ({ kind, text })),

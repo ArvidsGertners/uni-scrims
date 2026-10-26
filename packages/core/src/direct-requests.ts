@@ -11,7 +11,11 @@ import { lockRequest, lockTeam, lockTeams } from "./locks.ts";
 import { queueNotifications } from "./notifications.ts";
 import { requireActingCaptain } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
-import { closeReadyWindow, lockReadyWindowRequests } from "./ready-windows.ts";
+import {
+  closeReadyWindows,
+  lockReadyWindowRequests,
+  unendedReadyWindowIds,
+} from "./ready-windows.ts";
 import {
   createScrimBooking,
   isRequestOpen,
@@ -41,7 +45,7 @@ async function findDirectRequestTeams(requestId: string, db: Db) {
 /**
  * The target team's captain accepts: the scrim is booked with the requesting team as host (§5.4,
  * §5.28). A proposed partnership is created in the same transaction and books its further dates in
- * the sweeper. A request from a ready window ends the window (§5.29). Returns the scrim.
+ * the sweeper. A request from a ready window ends the team's windows (§5.29). Returns the scrim.
  */
 export async function acceptDirectRequest(input: { userId: string; requestId: string; now: Date }) {
   const { now } = input;
@@ -52,10 +56,14 @@ export async function acceptDirectRequest(input: { userId: string; requestId: st
     // Both teams before the request (§4), as in confirmApplication: a ban or dissolution of either
     // team either commits first (seen below) or waits until the scrim is booked and cancels it.
     await lockTeams(tx, [teams.teamId, teams.targetTeamId]);
-    // From a ready window: all its open requests with this one, in id order (§4), as the others
-    // are declined below.
+    // From a ready window: the team has its opponent, so all its windows that have not ended close,
+    // also a newer one next to a run-out window with this request still open. Their open requests
+    // are locked with this one, in id order (§4), as they are declined below.
+    const windowIds = teams.readyWindowId
+      ? await unendedReadyWindowIds(tx, teams.targetTeamId)
+      : [];
     if (teams.readyWindowId) {
-      await lockReadyWindowRequests(tx, teams.readyWindowId, now, input.requestId);
+      await lockReadyWindowRequests(tx, windowIds, now, input.requestId);
     } else {
       await lockRequest(tx, input.requestId);
     }
@@ -95,12 +103,7 @@ export async function acceptDirectRequest(input: { userId: string; requestId: st
     }
     const scrim = await createScrimBooking(tx, { request, host, guest, now });
     if (request.readyWindowId) {
-      await closeReadyWindow(tx, {
-        windowId: request.readyWindowId,
-        teamName: guest.name,
-        reason: "BOOKED",
-        now,
-      });
+      await closeReadyWindows(tx, { windowIds, teamName: guest.name, reason: "BOOKED", now });
     }
     return scrim;
   });

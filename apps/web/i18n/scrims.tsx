@@ -92,6 +92,9 @@ export const scrimsPageMessages = dictionary(
     noRequestsForFilter: "Für diese Filter gibt es gerade keine offenen Anfragen anderer Teams.",
     beFirstTeam:
       "Seid das erste Team auf dem Board. Andere Uni-Teams können sich dann bei euch bewerben.",
+    /** Below teams "Heute spielbereit" (SPEC N-27) without any request. */
+    noRequestsBesideReady:
+      "Anfragen mit festem Termin erscheinen hier, sobald ein Team eine erstellt.",
     // Own tabs.
     confirmed: "Bestätigt",
     open: "Offen",
@@ -188,6 +191,7 @@ export const scrimsPageMessages = dictionary(
     noOpenRequests: "No open requests right now",
     noRequestsForFilter: "There are no open requests from other teams for these filters right now.",
     beFirstTeam: "Be the first team on the board. Other university teams can then apply to you.",
+    noRequestsBesideReady: "Requests for a fixed date show up here as soon as a team creates one.",
     confirmed: "Confirmed",
     open: "Open",
     pending: "Pending",
@@ -630,7 +634,6 @@ export const readyWindowMessages = dictionary(
         : count === 1
           ? "1 offene Anfrage"
           : `${count} offene Anfragen`,
-    toRequests: "Zu den Anfragen",
     end: "Beenden",
     confirmEnd:
       "Zeitfenster beenden? Ihr steht nicht mehr unter „Heute spielbereit“, und offene Anfragen dafür werden abgelehnt.",
@@ -658,7 +661,6 @@ export const readyWindowMessages = dictionary(
     ownTitle: "You're ready to play today",
     openRequests: (count) =>
       count === 0 ? "No requests yet" : count === 1 ? "1 open request" : `${count} open requests`,
-    toRequests: "Go to the requests",
     end: "End",
     confirmEnd:
       "End the window? You'll no longer be listed under “Ready today”, and open requests for it are declined.",

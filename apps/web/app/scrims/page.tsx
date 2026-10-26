@@ -245,7 +245,12 @@ async function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequest
             ) : null
           }
         >
-          {filtered ? t.noRequestsForFilter : t.beFirstTeam}
+          {/* Not "be the first" right below teams that are ready today (SPEC N-27). */}
+          {filtered
+            ? t.noRequestsForFilter
+            : board.readyWindows.length > 0
+              ? t.noRequestsBesideReady
+              : t.beFirstTeam}
         </EmptyState>
       ) : (
         <BoardRequestList requests={board.requests} />

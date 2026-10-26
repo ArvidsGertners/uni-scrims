@@ -258,8 +258,9 @@ const readyWindowFields = z.object({
   rankMin: z.string(),
   rankMax: z.string(),
   maps: z.array(z.string()),
-  // The team the form was shown for (§5.20).
+  // The team the form was shown for (§5.20), and the evening its times belong to.
   teamId: idSchema,
+  evening: z.string(),
 });
 
 export async function createReadyWindowAction(_state: ActionState, formData: FormData) {
@@ -272,6 +273,7 @@ export async function createReadyWindowAction(_state: ActionState, formData: For
     rankMax: formField(formData, "rankMax"),
     maps: formData.getAll("maps"),
     teamId: formField(formData, "teamId"),
+    evening: formField(formData, "evening"),
   });
   if (!parsed.success) return invalidInput();
   const input = parsed.data;

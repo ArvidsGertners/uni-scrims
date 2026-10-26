@@ -140,14 +140,21 @@ function shiftDate(date: string, days: number): string {
 }
 
 /**
- * All start times of the current scrim evening in START_TIME_SLOTS order ("Heute spielbereit",
- * SPEC N-27, §5.29): 10:00 to 23:45 of the Berlin day D, then 00:00 to 01:45 of the day after, the
- * calendar date of the actual start as for requests. D is the Berlin day of `now`, before 02:00 the
- * day before. The slots avoid the DST change, so every one of them exists.
+ * The Berlin day D of the current scrim evening ("Heute spielbereit", SPEC N-27, §5.29): the day of
+ * `now`, before 02:00 the day before, as the night up to 01:45 belongs to the evening before.
+ */
+export function scrimEveningDate(now: Date): string {
+  const today = toBerlinDateString(now);
+  return Number(format(now, "H", berlin)) <= LAST_NIGHT_HOUR ? shiftDate(today, -1) : today;
+}
+
+/**
+ * All start times of the current scrim evening in START_TIME_SLOTS order (§5.29): 10:00 to 23:45 of
+ * the day D of scrimEveningDate, then 00:00 to 01:45 of the day after, the calendar date of the
+ * actual start as for requests. The slots avoid the DST change, so every one of them exists.
  */
 export function scrimEveningStarts(now: Date): Date[] {
-  const today = toBerlinDateString(now);
-  const day = Number(format(now, "H", berlin)) <= LAST_NIGHT_HOUR ? shiftDate(today, -1) : today;
+  const day = scrimEveningDate(now);
   const nextDay = shiftDate(day, 1);
   return START_TIME_SLOTS.map((slot) =>
     berlinToUtc(Number(slot.slice(0, 2)) <= LAST_NIGHT_HOUR ? nextDay : day, slot),

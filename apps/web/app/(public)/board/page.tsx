@@ -87,7 +87,12 @@ export default async function PublicBoardPage({
           title={filtered ? page.noMatchingRequests : page.noOpenRequests}
           action={createAccount}
         >
-          {filtered ? t.noRequestsForFilter : t.beFirstTeam}
+          {/* Not "be the first" right below teams that are ready today (SPEC N-27). */}
+          {filtered
+            ? t.noRequestsForFilter
+            : board.readyWindows.length > 0
+              ? page.noRequestsBesideReady
+              : t.beFirstTeam}
         </EmptyState>
       ) : (
         // One card per row: the column of signed-out pages is too narrow for two (§5.26).

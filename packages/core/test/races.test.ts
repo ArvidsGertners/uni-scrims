@@ -950,7 +950,13 @@ describe("ready windows while their requests or teams change (§5.29)", () => {
   const TWENTY = new Date("2026-10-21T18:00:00Z");
 
   const announce = (team: Team) =>
-    createReadyWindow({ ...WINDOW, userId: team.captain.id, teamId: team.team.id, now: NOW });
+    createReadyWindow({
+      ...WINDOW,
+      userId: team.captain.id,
+      teamId: team.team.id,
+      evening: "2026-10-21",
+      now: NOW,
+    });
   const requestFor = (from: Team, windowId: string) =>
     requestReadyWindow({
       userId: from.captain.id,

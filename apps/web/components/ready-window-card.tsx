@@ -102,7 +102,12 @@ export async function ReadyWindowCard({
             className="flex items-center justify-between gap-2.5"
           >
             <Badge variant={window.ownRequest.open ? "accent" : "neutral"}>
-              {window.ownRequest.open ? t.ownRequest.OPEN : t.ownRequest[window.ownRequest.status]}
+              {window.ownRequest.open
+                ? t.ownRequest.OPEN
+                : // Still OPEN after its start until the sweeper expires it.
+                  t.ownRequest[
+                    window.ownRequest.status === "OPEN" ? "EXPIRED" : window.ownRequest.status
+                  ]}
             </Badge>
             <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
               {shared.view}

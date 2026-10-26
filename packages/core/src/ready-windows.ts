@@ -21,7 +21,12 @@ import {
   runningReadyWindowWhere,
 } from "./requests.ts";
 import { type ReadyWindowInput, parseInput, readyWindowInputSchema } from "./schemas.ts";
-import { scrimEveningStarts, toBerlinDateString, toBerlinTimeString } from "./time.ts";
+import {
+  scrimEveningDate,
+  scrimEveningStarts,
+  toBerlinDateString,
+  toBerlinTimeString,
+} from "./time.ts";
 
 const SLOT_MS = 15 * 60_000;
 
@@ -57,15 +62,17 @@ export function readyWindowStartOptions(
 /**
  * Announces the team the form was shown for (§5.20) as ready to play today. The captain must be
  * allowed to post (verified, not banned), but the window does not count to the request limit.
+ * `evening` is the day of the evening the form showed (scrimEveningDate): sent after 02:00, the
+ * same times would name the next evening.
  */
 export async function createReadyWindow(
-  input: ReadyWindowInput & { userId: string; teamId: string; now: Date },
+  input: ReadyWindowInput & { userId: string; teamId: string; evening: string; now: Date },
 ) {
   const { now } = input;
   return prisma.$transaction(async (tx) => {
     const { user, team } = await requireActingCaptain(input.userId, input.teamId, tx);
     const data = parseInput(readyWindowInputSchema, input);
-    const starts = readyWindowStarts(now);
+    const starts = input.evening === scrimEveningDate(now) ? readyWindowStarts(now) : [];
     const startAt = (time: string) => starts.find((start) => toBerlinTimeString(start) === time);
     const [first, last] = [startAt(data.from), startAt(data.to)];
     if (!first || !last) {
@@ -102,17 +109,32 @@ export async function createReadyWindow(
 }
 
 /**
- * Locks the open requests of a window, with `alsoId` (the request being accepted), in id order after
- * the team locks (§4). No request joins the window meanwhile: creating one needs the team's lock.
+ * The team's windows that have not ended, running or run out: accepting a request from any of them
+ * closes them all, as the team has its opponent (§5.29). Only holders of the team lock change them.
+ */
+export async function unendedReadyWindowIds(
+  tx: Prisma.TransactionClient,
+  teamId: string,
+): Promise<string[]> {
+  const windows = await tx.readyWindow.findMany({
+    where: { teamId, endedAt: null },
+    select: { id: true },
+  });
+  return windows.map(({ id }) => id);
+}
+
+/**
+ * Locks the open requests of the windows, with `alsoId` (the request being accepted), in id order
+ * after the team locks (§4). No request joins them meanwhile: creating one needs the team's lock.
  */
 export async function lockReadyWindowRequests(
   tx: Prisma.TransactionClient,
-  windowId: string,
+  windowIds: string[],
   now: Date,
   alsoId?: string,
 ): Promise<void> {
   const open = await tx.scrimRequest.findMany({
-    where: { readyWindowId: windowId, ...openRequestWhere(now) },
+    where: { readyWindowId: { in: windowIds }, ...openRequestWhere(now) },
     select: { id: true },
   });
   const ids = [...new Set([...open.map(({ id }) => id), ...(alsoId ? [alsoId] : [])])].sort();
@@ -120,21 +142,21 @@ export async function lockReadyWindowRequests(
 }
 
 /**
- * Ends the window and declines its open requests; their teams are told why (§5.29). The caller holds
- * the team lock and the requests (lockReadyWindowRequests). Requests withdrawn meanwhile stay as they
- * are.
+ * Ends the windows and declines their open requests; their teams are told why (§5.29). The caller
+ * holds the team lock and the requests (lockReadyWindowRequests). Requests withdrawn meanwhile stay
+ * as they are.
  */
-export async function closeReadyWindow(
+export async function closeReadyWindows(
   tx: Prisma.TransactionClient,
-  input: { windowId: string; teamName: string; reason: ReadyWindowDeclineReason; now: Date },
+  input: { windowIds: string[]; teamName: string; reason: ReadyWindowDeclineReason; now: Date },
 ): Promise<void> {
   const { now } = input;
   await tx.readyWindow.updateMany({
-    where: { id: input.windowId, endedAt: null },
+    where: { id: { in: input.windowIds }, endedAt: null },
     data: { endedAt: now },
   });
   const declined = await tx.scrimRequest.updateManyAndReturn({
-    where: { readyWindowId: input.windowId, ...openRequestWhere(now) },
+    where: { readyWindowId: { in: input.windowIds }, ...openRequestWhere(now) },
     data: { status: RequestStatus.DECLINED },
     select: { id: true, teamId: true, startsAt: true },
   });
@@ -174,12 +196,17 @@ export async function endReadyWindow(input: {
     await requireActingCaptain(input.userId, unlocked.teamId, tx);
     await lockTeam(tx, unlocked.teamId);
     const { team } = await requireActingCaptain(input.userId, unlocked.teamId, tx);
-    await lockReadyWindowRequests(tx, input.windowId, now);
+    await lockReadyWindowRequests(tx, [input.windowId], now);
     const window = await tx.readyWindow.findUniqueOrThrow({ where: { id: input.windowId } });
     if (!isReadyWindowRunning(window, now)) {
       throw new DomainError("CONFLICT", "readyWindowClosed");
     }
-    await closeReadyWindow(tx, { windowId: window.id, teamName: team.name, reason: "ENDED", now });
+    await closeReadyWindows(tx, {
+      windowIds: [window.id],
+      teamName: team.name,
+      reason: "ENDED",
+      now,
+    });
   });
 }
 

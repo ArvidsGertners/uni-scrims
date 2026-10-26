@@ -15,6 +15,7 @@ import {
   formatWeekdayDate,
   isStartSlot,
   isValidDateString,
+  scrimEveningDate,
   scrimEveningStarts,
   semesterLabel,
   toBerlinDateString,
@@ -120,6 +121,14 @@ describe("the current scrim evening (§5.29)", () => {
     expect(starts[0]).toEqual(new Date("2026-10-21T08:00:00Z"));
     expect(starts.at(-1)).toEqual(new Date("2026-10-21T23:45:00Z"));
     expect(starts.map(toBerlinTimeString)).toEqual(START_TIME_SLOTS);
+  });
+
+  it("names the day of the evening, before 02:00 the day before", () => {
+    expect(scrimEveningDate(new Date("2026-10-21T12:00:00Z"))).toBe("2026-10-21");
+    expect(scrimEveningDate(new Date("2026-10-21T23:59:00Z"))).toBe("2026-10-21");
+    expect(scrimEveningDate(new Date("2026-10-22T00:00:00Z"))).toBe("2026-10-22");
+    // Across a month and a year.
+    expect(scrimEveningDate(new Date("2027-01-01T00:30:00Z"))).toBe("2026-12-31");
   });
 
   it("keeps the night with the evening before until 02:00", () => {

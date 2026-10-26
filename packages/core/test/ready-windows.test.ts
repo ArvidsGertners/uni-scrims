@@ -62,12 +62,16 @@ const admin = useAdmin();
 
 type Team = Awaited<ReturnType<typeof createTeamWithMembers>>;
 
+/** This evening, as the form sends it back with its times. */
+const EVENING = "2026-10-21";
+
 async function announce(team: Team, overrides: Partial<typeof WINDOW> = {}, now = NOW) {
   return createReadyWindow({
     ...WINDOW,
     ...overrides,
     userId: team.captain.id,
     teamId: team.team.id,
+    evening: EVENING,
     now,
   });
 }
@@ -155,7 +159,13 @@ describe("createReadyWindow", () => {
   it("refuses members, unverified captains and banned teams", async () => {
     const a = await createFullyVerifiedTeam();
     await expect(
-      createReadyWindow({ ...WINDOW, userId: a.members[0]!.id, teamId: a.team.id, now: NOW }),
+      createReadyWindow({
+        ...WINDOW,
+        userId: a.members[0]!.id,
+        teamId: a.team.id,
+        evening: EVENING,
+        now: NOW,
+      }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     const unverified = await createTeamWithMembers({ verifiedCaptain: false });
     await expect(announce(unverified)).rejects.toMatchObject({ code: "NOT_VERIFIED" });
@@ -181,6 +191,25 @@ describe("createReadyWindow", () => {
     expect(await announce(a, { from: "14:30", to: "14:30" })).toMatchObject({
       firstStartsAt: new Date("2026-10-21T12:30:00Z"),
     });
+  });
+
+  it("refuses times of an evening that has passed since the form was shown", async () => {
+    const a = await createFullyVerifiedTeam();
+    // Shown on Thursday at 01:10 for Wednesday's evening, sent at 02:05: 01:45 would be Friday's.
+    const sent = new Date("2026-10-22T00:05:00Z");
+    await expect(announce(a, { from: "01:45", to: "01:45" }, sent)).rejects.toMatchObject({
+      code: "INVALID",
+      text: { key: "readyWindowTimeInvalid" },
+    });
+    expect(
+      await createReadyWindow({
+        ...WINDOW,
+        userId: a.captain.id,
+        teamId: a.team.id,
+        evening: "2026-10-22",
+        now: sent,
+      }),
+    ).toMatchObject({ firstStartsAt: new Date("2026-10-22T17:00:00Z") });
   });
 
   it("keeps one running window per team, a new one after the end or expiry", async () => {
@@ -513,6 +542,25 @@ describe("accepting and ending", () => {
     ).rejects.toMatchObject({ text: { key: "requestNotOpen" } });
   });
 
+  it("accepting from a run-out window also closes a newer one of the team", async () => {
+    const a = await createFullyVerifiedTeam();
+    const [b, c] = [await createFullyVerifiedTeam(), await createFullyVerifiedTeam()];
+    const old = await announce(a, { from: "15:00", to: "15:00" });
+    const fromB = await requestFor(b, old, new Date("2026-10-21T13:00:00Z"));
+    // 14:31 Berlin: 15:00 is too soon, the window has run out, but B's request is still open.
+    const later = new Date(NOW.getTime() + 31 * MINUTE);
+    const newer = await announce(a, {}, later);
+    const fromC = await requestFor(c, newer, TWENTY, later);
+    await acceptDirectRequest({ userId: a.captain.id, requestId: fromB.id, now: later });
+    const windows = await prisma.readyWindow.findMany({ where: { teamId: a.team.id } });
+    expect(windows.map((window) => window.endedAt)).toEqual([later, later]);
+    expect((await prisma.scrimRequest.findUniqueOrThrow({ where: { id: fromC.id } })).status).toBe(
+      RequestStatus.DECLINED,
+    );
+    const [declined] = await personalTo(c.team.id, NotifType.DIRECT_REQUEST_DECLINED);
+    expect(declined?.payload).toMatchObject({ readyWindow: "BOOKED" });
+  });
+
   it("lets the captain end the window, declining its open requests", async () => {
     const a = await createFullyVerifiedTeam();
     const b = await createFullyVerifiedTeam();
@@ -610,6 +658,7 @@ describe("reads", () => {
       problems: [],
     });
     expect(form!.starts).toEqual(readyWindowStarts(NOW));
+    expect(form!.evening).toBe(EVENING);
     const window = await announce(a);
     expect((await getReadyWindowForm({ userId: a.captain.id, now: NOW }))?.running).toEqual({
       id: window.id,
