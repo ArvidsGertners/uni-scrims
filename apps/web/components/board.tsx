@@ -12,13 +12,14 @@ import { CheckboxFilters } from "@/components/filter-checkbox";
 import { ListGroup } from "@/components/list-group";
 import { RankFilter } from "@/components/rank-filter";
 import { RankIcon } from "@/components/rank-icon";
+import { type CardReadyWindow, ReadyWindowCard } from "@/components/ready-window-card";
 import { type CardRequest, RequestCard } from "@/components/request-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
 import { getLocale, getMessages } from "@/lib/locale";
 import { list } from "@/lib/search-params";
-import { scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
+import { readyWindowMessages, scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
 
 // Filters and cards of the board, signed in on /scrims and without login on /board (§5.26).
 
@@ -137,5 +138,37 @@ export async function BoardRequestList({
         </ListGroup>
       ))}
     </>
+  );
+}
+
+/**
+ * The section "Heute spielbereit" above the requests (SPEC N-27); nothing without windows.
+ * `actingTeamId` is the team the board was shown for (§5.20), null without one; signed out, the
+ * cards lead to the login.
+ */
+export async function ReadyWindowList({
+  windows,
+  actingTeamId,
+  signedIn,
+  columns,
+}: {
+  windows: CardReadyWindow[];
+  actingTeamId: string | null;
+  signedIn: boolean;
+  columns?: string;
+}) {
+  if (windows.length === 0) return null;
+  const t = await getMessages(readyWindowMessages);
+  return (
+    <ListGroup title={t.sectionTitle} count={t.windowCount(windows.length)} className={columns}>
+      {windows.map((window) => (
+        <ReadyWindowCard
+          key={window.id}
+          window={window}
+          actingTeamId={actingTeamId}
+          signedIn={signedIn}
+        />
+      ))}
+    </ListGroup>
   );
 }

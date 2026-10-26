@@ -138,6 +138,8 @@ export const scrimsPageMessages = dictionary(
     confirmEndPartnership: (team: string) =>
       `Feste Partnerschaft mit ${team} beenden? Es werden keine weiteren Termine gebucht; schon gebuchte Scrims bleiben. ${team} bekommt Bescheid.`,
     rematch: "Nochmal anfragen",
+    // "Heute spielbereit" (SPEC N-27).
+    readyToday: "Heute spielbereit",
   },
   {
     title: "Scrims",
@@ -226,6 +228,7 @@ export const scrimsPageMessages = dictionary(
     confirmEndPartnership: (team) =>
       `End the fixed partnership with ${team}? No more dates will be booked; scrims already booked stay. ${team} will be notified.`,
     rematch: "Request again",
+    readyToday: "Ready today",
   },
 );
 
@@ -557,6 +560,9 @@ export const requestActionMessages = dictionary(
       `Feste Partnerschaft mit ${team ?? "dem Team"} vereinbart – der erste Scrim ist gebucht.`,
     directDeclined: "Direktanfrage abgelehnt",
     partnershipEnded: "Partnerschaft beendet",
+    // "Heute spielbereit" (SPEC N-27).
+    readyAnnounced: "Ihr seid heute spielbereit – andere Teams sehen euch auf dem Board",
+    readyEnded: "Zeitfenster beendet",
   },
   {
     requestCreated: "Your request is now on the board",
@@ -572,6 +578,8 @@ export const requestActionMessages = dictionary(
       `Fixed partnership with ${team ?? "the team"} agreed – the first scrim is booked.`,
     directDeclined: "Direct request declined",
     partnershipEnded: "Partnership ended",
+    readyAnnounced: "You're ready today – other teams see you on the board",
+    readyEnded: "Window ended",
   },
 );
 
@@ -586,5 +594,109 @@ export const requestCardMessages = dictionary(
     applicationCount: (count) =>
       count === 0 ? "No applications yet" : count === 1 ? "1 application" : `${count} applications`,
     applied: "Applied",
+  },
+);
+
+/**
+ * "Heute spielbereit" on the board (SPEC N-27): the section, the cards of other teams' windows
+ * (components/ready-window-card.tsx) and the own window on top.
+ */
+export const readyWindowMessages = dictionary(
+  {
+    sectionTitle: "Heute spielbereit",
+    windowCount: (count: number) => (count === 1 ? "1 Team" : `${count} Teams`),
+    /** The start times of a window, e.g. "Start zwischen 19:00 und 22:00 Uhr". */
+    startBetween: (from: string, to: string) =>
+      from === to ? `Start um ${from} Uhr` : `Start zwischen ${from} und ${to} Uhr`,
+    startTime: "Startzeit",
+    request: "Anfragen",
+    confirmRequest: (team: string) =>
+      `Direktanfrage an ${team} für die gewählte Startzeit senden? Das Team nimmt an oder lehnt ab.`,
+    /** The own team's request for the window, by its status. */
+    ownRequest: {
+      OPEN: "Angefragt",
+      BOOKED: "Gebucht",
+      CANCELLED: "Zurückgezogen",
+      EXPIRED: "Abgelaufen",
+      DECLINED: "Abgelehnt",
+    },
+    signInToRequest: "Zum Anfragen anmelden",
+    noTeam: "Mit einem Team könnt ihr anfragen.",
+    // The own window on top of the board.
+    ownTitle: "Ihr seid heute spielbereit",
+    openRequests: (count: number) =>
+      count === 0
+        ? "Noch keine Anfragen"
+        : count === 1
+          ? "1 offene Anfrage"
+          : `${count} offene Anfragen`,
+    toRequests: "Zu den Anfragen",
+    end: "Beenden",
+    confirmEnd:
+      "Zeitfenster beenden? Ihr steht nicht mehr unter „Heute spielbereit“, und offene Anfragen dafür werden abgelehnt.",
+    /** Badge of a direct request from a window. */
+    badge: "Heute spielbereit",
+  },
+  {
+    sectionTitle: "Ready today",
+    windowCount: (count) => (count === 1 ? "1 team" : `${count} teams`),
+    startBetween: (from, to) =>
+      from === to ? `Start at ${from}` : `Start between ${from} and ${to}`,
+    startTime: "Start time",
+    request: "Request",
+    confirmRequest: (team) =>
+      `Send a direct request to ${team} for the chosen start time? The team accepts or declines.`,
+    ownRequest: {
+      OPEN: "Requested",
+      BOOKED: "Booked",
+      CANCELLED: "Withdrawn",
+      EXPIRED: "Expired",
+      DECLINED: "Declined",
+    },
+    signInToRequest: "Sign in to request",
+    noTeam: "With a team, you can send a request.",
+    ownTitle: "You're ready to play today",
+    openRequests: (count) =>
+      count === 0 ? "No requests yet" : count === 1 ? "1 open request" : `${count} open requests`,
+    toRequests: "Go to the requests",
+    end: "End",
+    confirmEnd:
+      "End the window? You'll no longer be listed under “Ready today”, and open requests for it are declined.",
+    badge: "Ready today",
+  },
+);
+
+/** The form "Heute spielbereit" (app/ready/page.tsx, SPEC N-27); problem links from newRequest. */
+export const readyFormMessages = dictionary(
+  {
+    title: "Heute spielbereit melden",
+    intro:
+      "Gebt an, wann ihr heute starten könnt. Andere Teams sehen euch auf dem Board, wählen eine Startzeit und fragen euch direkt an; ihr nehmt an oder lehnt ab. Mit einer Zusage endet das Zeitfenster.",
+    from: "Frühester Start",
+    to: "Spätester Start",
+    /** `minutes`: the lead time a start needs (TIMING.MIN_REQUEST_LEAD). */
+    timeHint: (minutes: number) =>
+      `Uhrzeiten in deutscher Zeit, für heute Abend bis 01:45 Uhr in der Nacht. Wählbar sind Startzeiten ab ${minutes} Minuten von jetzt.`,
+    submit: "Spielbereit melden",
+    noStartsLeft:
+      "Für heute ist keine Startzeit mehr frei. Ab 02:00 Uhr könnt ihr euch für den neuen Tag melden.",
+    running: (from: string, to: string) =>
+      `Ihr seid heute schon spielbereit gemeldet (${from} bis ${to} Uhr). Beendet das Zeitfenster auf dem Board, um ein neues zu melden.`,
+    toBoard: "Zum Board",
+  },
+  {
+    title: "Announce ready today",
+    intro:
+      "Say when you can start today. Other teams see you on the board, pick a start time and send you a direct request; you accept or decline. Accepting one ends the window.",
+    from: "Earliest start",
+    to: "Latest start",
+    timeHint: (minutes) =>
+      `Times are German time, for tonight until 01:45. You can choose start times from ${minutes} minutes from now.`,
+    submit: "Announce ready",
+    noStartsLeft:
+      "There's no start time left for today. From 02:00 you can announce yourselves for the new day.",
+    running: (from, to) =>
+      `You're already ready to play today (${from} to ${to}). End that window on the board to announce a new one.`,
+    toBoard: "Go to the board",
   },
 );

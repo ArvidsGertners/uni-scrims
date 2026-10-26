@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   BoardFilterForm,
   BoardRequestList,
+  ReadyWindowList,
   isBoardFiltered,
   readBoardRanks,
 } from "@/components/board";
@@ -71,6 +72,14 @@ export default async function PublicBoardPage({
       </div>
 
       <BoardFilterForm filter={board.filter} action="/board" />
+
+      {/* Teams ready to play today (SPEC N-27); signed out, the cards lead to the login. */}
+      <ReadyWindowList
+        windows={board.readyWindows}
+        actingTeamId={null}
+        signedIn={false}
+        columns="grid grid-cols-1"
+      />
 
       {board.requests.length === 0 ? (
         <EmptyState

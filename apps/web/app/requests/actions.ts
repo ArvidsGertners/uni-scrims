@@ -4,10 +4,13 @@ import {
   acceptDirectRequest,
   applyToRequest,
   confirmApplication,
+  createReadyWindow,
   createRequest,
   declineDirectRequest,
   deleteRequest,
+  endReadyWindow,
   endRequestSeries,
+  requestReadyWindow,
   withdrawApplication,
 } from "@uni-scrims/core";
 import type { ValorantMap } from "@uni-scrims/core/config/maps";
@@ -244,4 +247,102 @@ export async function declineDirectRequestAction(_state: ActionState, formData: 
   const t = await getMessages(requestActionMessages);
   await setFlash(t.directDeclined);
   redirect("/scrims?tab=anfragen");
+}
+
+// ─── Heute spielbereit (SPEC N-27) ────────────────────────────────────────────
+
+const readyWindowFields = z.object({
+  from: z.string(),
+  to: z.string(),
+  format: z.string(),
+  rankMin: z.string(),
+  rankMax: z.string(),
+  maps: z.array(z.string()),
+  // The team the form was shown for (§5.20).
+  teamId: idSchema,
+});
+
+export async function createReadyWindowAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const parsed = readyWindowFields.safeParse({
+    from: formField(formData, "from"),
+    to: formField(formData, "to"),
+    format: formField(formData, "format"),
+    rankMin: formField(formData, "rankMin"),
+    rankMax: formField(formData, "rankMax"),
+    maps: formData.getAll("maps"),
+    teamId: formField(formData, "teamId"),
+  });
+  if (!parsed.success) return invalidInput();
+  const input = parsed.data;
+  const state = await runAction(async () => {
+    await createReadyWindow({
+      ...input,
+      format: input.format as ScrimFormat,
+      rankMin: input.rankMin as Rank,
+      rankMax: input.rankMax as Rank,
+      // Unknown map names are rejected by core's schema.
+      maps: input.maps as ValorantMap[],
+      userId,
+      now: new Date(),
+    });
+  });
+  if (!state.done) return state;
+  revalidatePath("/scrims");
+  const t = await getMessages(requestActionMessages);
+  await setFlash(t.readyAnnounced);
+  redirect("/scrims");
+}
+
+export async function endReadyWindowAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const windowId = idSchema.safeParse(formField(formData, "windowId"));
+  if (!windowId.success) return invalidInput();
+  const state = await runAction(async () => {
+    await endReadyWindow({ userId, windowId: windowId.data, now: new Date() });
+  });
+  if (state.done) {
+    const t = await getMessages(requestActionMessages);
+    await setFlash(t.readyEnded);
+  }
+  revalidatePath("/scrims");
+  return state;
+}
+
+/** One click on a window's card: a direct request for the chosen start time (§5.29). */
+export async function requestReadyWindowAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const parsed = z
+    .object({
+      windowId: idSchema,
+      // The team the board was shown for (§5.20).
+      teamId: idSchema,
+      // One of the window's start times as the page lists them; core checks it.
+      startsAt: z.iso.datetime(),
+      // Only for the toast text.
+      teamName: z.string().max(100).optional(),
+    })
+    .safeParse({
+      windowId: formField(formData, "windowId"),
+      teamId: formField(formData, "teamId"),
+      startsAt: formField(formData, "startsAt"),
+      teamName: formField(formData, "teamName"),
+    });
+  if (!parsed.success) return invalidInput();
+  const { windowId, teamId, startsAt, teamName } = parsed.data;
+  const state = await runAction(async () => {
+    await requestReadyWindow({
+      userId,
+      teamId,
+      windowId,
+      startsAt: new Date(startsAt),
+      now: new Date(),
+    });
+  });
+  if (state.done) {
+    const t = await getMessages(requestActionMessages);
+    await setFlash(t.directSent(teamName ?? ""));
+  }
+  revalidatePath("/scrims");
+  return state;
 }

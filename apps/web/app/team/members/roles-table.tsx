@@ -21,6 +21,7 @@ function rightRows(t: Text): { right: string; cells: [Cell, Cell, Cell, Cell] }[
     { right: t.rights.requestNotifications, cells: [true, false, false, false] },
     { right: t.rights.requests, cells: ["✓¹", false, false, false] },
     { right: t.rights.directRequests, cells: ["✓¹", false, false, false] },
+    { right: t.rights.readyToday, cells: ["✓¹", false, false, false] },
     { right: t.rights.editTeam, cells: [true, false, false, false] },
     { right: t.rights.listTeam, cells: [true, false, false, false] },
     { right: t.rights.verifiedApplicants, cells: [true, false, false, false] },

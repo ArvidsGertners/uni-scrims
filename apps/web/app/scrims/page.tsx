@@ -4,6 +4,7 @@ import {
   formatBerlinWeekday,
   getBoard,
   getMyScrims,
+  toBerlinTimeString,
 } from "@uni-scrims/core";
 import { TIMING } from "@uni-scrims/core/config/timing";
 import { cn } from "cn";
@@ -11,6 +12,7 @@ import Link from "next/link";
 import {
   BoardFilterForm,
   BoardRequestList,
+  ReadyWindowList,
   isBoardFiltered,
   readBoardRanks,
 } from "@/components/board";
@@ -24,6 +26,7 @@ import {
   ChevronRightIcon,
   MessageSquareIcon,
   PlusIcon,
+  ZapIcon,
 } from "@/components/icons";
 import { CARD_COLUMNS, ListGroup } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
@@ -44,8 +47,8 @@ import {
 import { getLocale, getMessages, getText } from "@/lib/locale";
 import { formatMessages } from "@/i18n/format";
 import { rematchHref } from "@/lib/rematch";
-import { endRequestSeriesAction } from "../requests/actions";
-import { scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
+import { endReadyWindowAction, endRequestSeriesAction } from "../requests/actions";
+import { readyWindowMessages, scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
 
 type Board = Awaited<ReturnType<typeof getBoard>>;
 type MyScrims = Awaited<ReturnType<typeof getMyScrims>>;
@@ -107,7 +110,8 @@ export default async function ScrimsPage({
     getMyScrims({ userId: user.id, now }),
   ]);
   const counts: Record<TabKey, number> = {
-    board: board.requests.length,
+    // Requests and windows "Heute spielbereit" of other teams (SPEC N-27).
+    board: board.requests.length + board.readyWindows.length,
     anstehend: mine.upcoming.length,
     // Own open requests and direct requests to the team (SPEC N-26).
     anfragen: mine.requests.length + mine.incoming.length,
@@ -123,10 +127,22 @@ export default async function ScrimsPage({
       <div className="flex flex-wrap items-end justify-between gap-5">
         <h1 className="type-h1">{t.title}</h1>
         {board.ownTeam?.isCaptain ? (
-          <Link href="/requests/new" className={buttonVariants({ className: "max-sm:basis-full" })}>
-            <PlusIcon size={18} strokeWidth={2.5} />
-            {shared.createRequest}
-          </Link>
+          <div className="flex flex-wrap gap-3 max-sm:basis-full">
+            {/* Hidden while the team's window runs: it is ended on the board (SPEC N-27). */}
+            {board.ownReadyWindow ? null : (
+              <Link
+                href="/ready"
+                className={buttonVariants({ variant: "outline", className: "max-sm:flex-1" })}
+              >
+                <ZapIcon size={18} strokeWidth={2.2} />
+                {t.readyToday}
+              </Link>
+            )}
+            <Link href="/requests/new" className={buttonVariants({ className: "max-sm:flex-1" })}>
+              <PlusIcon size={18} strokeWidth={2.5} />
+              {shared.createRequest}
+            </Link>
+          </div>
         ) : null}
       </div>
 
@@ -205,7 +221,13 @@ async function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequest
   const filtered = isBoardFiltered(board.filter);
   return (
     <>
+      {board.ownReadyWindow ? <OwnReadyWindow window={board.ownReadyWindow} /> : null}
       <BoardFilterForm filter={board.filter} action="/scrims" ownRank={board.ownTeam?.rank} />
+      <ReadyWindowList
+        windows={board.readyWindows}
+        actingTeamId={board.ownTeam?.id ?? null}
+        signedIn
+      />
 
       {board.requests.length === 0 && hasOwnRequests ? (
         <EmptyState title={filtered ? t.noMatchingOtherRequests : t.noOtherRequests}>
@@ -229,6 +251,62 @@ async function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequest
         <BoardRequestList requests={board.requests} />
       )}
     </>
+  );
+}
+
+/**
+ * The active team's window "Heute spielbereit" for all members (SPEC N-27), with its open requests
+ * and "Beenden" for the captain.
+ */
+async function OwnReadyWindow({ window }: { window: NonNullable<Board["ownReadyWindow"]> }) {
+  const locale = await getLocale();
+  const text = await getText();
+  const t = await getMessages(readyWindowMessages);
+  return (
+    <div className="flex flex-col gap-3 rounded-sm border border-primary bg-accent-soft px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <ZapIcon size={20} className="mt-0.5 shrink-0" />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="font-semibold">{t.ownTitle}</span>
+          <span className="text-[13px] text-pretty text-muted-foreground">
+            {t.startBetween(
+              toBerlinTimeString(window.firstStartsAt),
+              toBerlinTimeString(window.lastStartsAt),
+            )}{" "}
+            · {formatFormat(window.format, locale)} ·{" "}
+            <RankRangeLabel rankMin={window.rankMin} rankMax={window.rankMax} /> ·{" "}
+            {formatMaps(window.maps, locale)}
+          </span>
+          {window.openRequestCount > 0 ? (
+            <Link
+              href="/scrims?tab=anfragen"
+              className="text-[13px] font-semibold text-accent-text underline-offset-2 hover:underline"
+            >
+              {t.openRequests(window.openRequestCount)}
+            </Link>
+          ) : (
+            <span className="text-[13px] text-muted-foreground">{t.openRequests(0)}</span>
+          )}
+        </div>
+      </div>
+      {window.end ? (
+        window.end.problem === null ? (
+          <ActionForm
+            action={endReadyWindowAction}
+            submitLabel={t.end}
+            variant="outline"
+            size="sm"
+            confirmText={t.confirmEnd}
+            confirmDestructive
+            className="shrink-0"
+          >
+            <input type="hidden" name="windowId" value={window.id} />
+          </ActionForm>
+        ) : (
+          <p className="text-[13px] text-muted-foreground">{text(window.end.problem)}</p>
+        )
+      ) : null}
+    </div>
   );
 }
 
@@ -331,6 +409,7 @@ async function Requests({ mine }: { mine: MyScrims }) {
 async function IncomingRequests({ mine }: { mine: MyScrims }) {
   const locale = await getLocale();
   const t = await getMessages(scrimsPageMessages);
+  const ready = await getMessages(readyWindowMessages);
   return mine.incoming.map((request) => (
     <Link
       key={request.id}
@@ -353,7 +432,13 @@ async function IncomingRequests({ mine }: { mine: MyScrims }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-border pt-3.5">
-        {request.weeklyUntil ? <Badge>{t.weekly}</Badge> : <span />}
+        {request.readyWindow ? (
+          <Badge>{ready.badge}</Badge>
+        ) : request.weeklyUntil ? (
+          <Badge>{t.weekly}</Badge>
+        ) : (
+          <span />
+        )}
         <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
           {t.answerNow}
           <ChevronRightIcon strokeWidth={2.5} />
@@ -366,6 +451,7 @@ async function IncomingRequests({ mine }: { mine: MyScrims }) {
 async function OpenRequests({ mine }: { mine: MyScrims }) {
   const locale = await getLocale();
   const t = await getMessages(scrimsPageMessages);
+  const ready = await getMessages(readyWindowMessages);
   const shared = await getMessages(scrimSharedMessages);
   return (
     <>
@@ -391,6 +477,8 @@ async function OpenRequests({ mine }: { mine: MyScrims }) {
             </div>
             <span className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row">
               {request.weekly || request.weeklyUntil ? <Badge>{t.weekly}</Badge> : null}
+              {/* For a start time in another team's window (SPEC N-27). */}
+              {request.readyWindow ? <Badge>{ready.badge}</Badge> : null}
               <Badge variant="accent">{t.open}</Badge>
             </span>
           </div>

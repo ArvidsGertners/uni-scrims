@@ -38,7 +38,7 @@ import {
 } from "../actions";
 import { getLocale, getMessages, getText } from "@/lib/locale";
 import { formatMessages, fullyVerifiedMessages } from "@/i18n/format";
-import { requestDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
+import { readyWindowMessages, requestDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
 
 export default async function RequestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,6 +47,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const text = await getText();
   const locale = await getLocale();
   const t = await getMessages(requestDetailMessages);
+  const ready = await getMessages(readyWindowMessages);
   const shared = await getMessages(scrimSharedMessages);
   const verified = await getMessages(fullyVerifiedMessages);
   if (!request) notFound();
@@ -121,6 +122,10 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             {/* Only the own team learns that a request comes from a weekly series (SPEC N-25). */}
             {request.weekly ? (
               <Badge className="h-[22px] px-2 text-[12px]">{t.weekly}</Badge>
+            ) : null}
+            {/* For a start time in a window "Heute spielbereit" (SPEC N-27). */}
+            {direct?.readyWindow ? (
+              <Badge className="h-[22px] px-2 text-[12px]">{ready.badge}</Badge>
             ) : null}
           </span>
           <ReliabilityLine reliability={team.reliability} />

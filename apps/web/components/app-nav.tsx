@@ -105,7 +105,7 @@ function entries(nav: AppNavData, t: NavMessages) {
     key: "scrims",
     href: "/scrims",
     label: t.scrims,
-    sections: ["/scrims", "/requests"],
+    sections: ["/scrims", "/requests", "/ready"],
     leading: <LayersIcon size={17} />,
   };
   // All teams with their members (SPEC N-20); "/teams" is its own section next to "/team".
