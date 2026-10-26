@@ -309,22 +309,6 @@ export default async function RequestPage({
               </section>
             ) : null}
 
-            {request.apply || ownApplication?.status === "PENDING" ? (
-              <div className="flex flex-col gap-3.5">
-                <span className="type-label text-muted-foreground">{t.nextStepsTitle}</span>
-                <ol className="flex flex-col gap-3.5">
-                  {t.nextSteps.map((step, index) => (
-                    <li key={step} className="flex items-baseline gap-3.5">
-                      <span className="shrink-0 font-label text-[13px] font-bold text-accent-text">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <span className="text-[15px] text-pretty text-muted-foreground">{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
-
             {direct && directOpen ? (
               <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                 <h2 className="type-label text-muted-foreground">
@@ -414,6 +398,22 @@ export default async function RequestPage({
                   focus={chat === request.conversation.guestTeamId}
                 />
               </section>
+            ) : null}
+
+            {request.apply || ownApplication?.status === "PENDING" ? (
+              <div className="flex flex-col gap-3.5">
+                <span className="type-label text-muted-foreground">{t.nextStepsTitle}</span>
+                <ol className="flex flex-col gap-3.5">
+                  {t.nextSteps.map((step, index) => (
+                    <li key={step} className="flex items-baseline gap-3.5">
+                      <span className="shrink-0 font-label text-[13px] font-bold text-accent-text">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <span className="text-[15px] text-pretty text-muted-foreground">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             ) : null}
 
             {request.applications && !direct ? (

@@ -407,7 +407,7 @@ export const requestDetailMessages = dictionary(
     nextSteps: [
       "Das Team sieht eure Bewerbung und nimmt ein Team an.",
       "Bei einer Zusage bekommst du eine Discord-Nachricht.",
-      "Die Lobby klärt ihr direkt auf Discord.",
+      "Die Lobby klärt ihr in den Nachrichten hier oder auf Discord.",
     ],
     expired: "Abgelaufen",
     rank: "Rang",
@@ -482,7 +482,7 @@ export const requestDetailMessages = dictionary(
     nextSteps: [
       "The team sees your application and accepts one team.",
       "If you're accepted, you'll get a Discord message.",
-      "You sort out the lobby directly on Discord.",
+      "You sort out the lobby in the messages here or on Discord.",
     ],
     expired: "Expired",
     rank: "Rank",
