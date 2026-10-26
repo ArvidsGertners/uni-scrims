@@ -11,6 +11,7 @@ import {
   removeTeamLogo,
   setActiveTeam,
   setMemberRole,
+  setTeamListed,
   setTeamLogo,
   transferCaptain,
   updateTeam,
@@ -144,6 +145,22 @@ export async function updateTeamLinksAction(_state: ActionState, formData: FormD
     await updateTeamLinks({ userId, teamId: teamId.data, links: links.data, now: new Date() });
   });
   if (state.done) await setFlash((await getMessages(teamActionMessages)).linksSaved);
+  return finish(state);
+}
+
+export async function setTeamListedAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  const listed = z.enum(["true", "false"]).safeParse(formField(formData, "listed"));
+  if (!teamId.success || !listed.success) return invalidInput();
+  const state = await runAction(async () => {
+    await setTeamListed({ userId, teamId: teamId.data, listed: listed.data === "true" });
+  });
+  if (state.done) {
+    const t = await getMessages(teamActionMessages);
+    await setFlash(listed.data === "true" ? t.listed : t.unlisted);
+  }
+  // finish revalidates the whole layout, the teams list included (SPEC N-20).
   return finish(state);
 }
 

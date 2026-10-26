@@ -108,7 +108,15 @@ function entries(nav: AppNavData, t: NavMessages) {
     sections: ["/scrims", "/requests"],
     leading: <LayersIcon size={17} />,
   };
-  return { top: [scrims], team };
+  // All teams with their members (SPEC N-20); "/teams" is its own section next to "/team".
+  const teams: Entry = {
+    key: "teams",
+    href: "/teams",
+    label: t.teams,
+    sections: ["/teams"],
+    leading: <UsersIcon size={17} />,
+  };
+  return { top: [scrims, teams], team };
 }
 
 function accountItems(nav: AppNavData, t: NavMessages): AccountItem[] {

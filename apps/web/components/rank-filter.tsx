@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useMessages } from "@/components/locale-provider";
 import { Select, type SelectOption } from "@/components/ui/select";
-import { rankFilterMessages } from "@/i18n/scrims-client";
+import { rankFilterMessages } from "@/i18n/client";
 
 /**
- * Rank filter of the board with several ranks (SPEC P0-4). No rank chosen means all ranks, sent
- * as "ALL", because a form without any `rang` falls back to the own team rank.
+ * Rank filter with several ranks: board (SPEC P0-4) and teams list (SPEC N-20). No rank chosen
+ * means all ranks, sent as "ALL", because a board form without any `rang` falls back to the own
+ * team rank.
  */
 export function RankFilter({
   options,

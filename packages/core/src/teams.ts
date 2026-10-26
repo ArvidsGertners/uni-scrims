@@ -666,7 +666,7 @@ export async function getMyTeam(userId: string) {
     isCaptain: isCaptainOf(member, team),
     // Coaches need no verification (SPEC N-1); a coach as captain still does for scrim actions.
     needsVerification: member.id === team.captainId || role !== MemberRole.COACH,
-    // Only the own team sees the members' own ranks (SPEC N-16).
+    // The own team sees the members' own ranks (SPEC N-16); the teams list too (N-20).
     rank: member.rank,
     /** Whether the member's own rank counts for the team rank: players and substitutes. */
     countsForTeamRank: isPlayingRole(role),

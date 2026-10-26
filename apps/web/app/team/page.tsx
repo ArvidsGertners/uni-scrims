@@ -30,6 +30,7 @@ import {
   leaveTeamAction,
   regenerateInviteAction,
   removeTeamLogoAction,
+  setTeamListedAction,
   updateTeamAction,
   updateTeamLinksAction,
 } from "./actions";
@@ -182,6 +183,8 @@ export default async function TeamPage() {
                 },
                 { label: t.game, value: GAME_LABELS[team.game] ?? team.game },
                 { label: t.universities, value: formatUniversities(team.universities, locale) },
+                // Whether all signed-in users see the team and its members there (SPEC N-20).
+                { label: t.teamsList, value: team.listed ? t.listed : t.unlisted },
               ].map((row) => (
                 <div
                   key={row.label}
@@ -192,6 +195,22 @@ export default async function TeamPage() {
                 </div>
               ))}
             </dl>
+            {manage ? (
+              <div className="flex flex-col gap-2 border-t border-border pt-4">
+                <span className="text-[14px] font-medium">{t.teamsList}</span>
+                <p className="text-[13px] text-pretty text-muted-foreground">{t.teamsListHint}</p>
+                <ActionForm
+                  action={setTeamListedAction}
+                  submitLabel={team.listed ? t.hideFromList : t.showInList}
+                  variant="outline"
+                  size="sm"
+                  className="flex flex-col items-start"
+                >
+                  <input type="hidden" name="teamId" value={team.id} />
+                  <input type="hidden" name="listed" value={team.listed ? "false" : "true"} />
+                </ActionForm>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-2 border-t border-border pt-4">
               <span className="text-[14px] font-medium">{t.teamId}</span>
               <CopyValue value={team.id} />

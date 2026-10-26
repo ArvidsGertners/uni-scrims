@@ -21,6 +21,7 @@ function rightRows(t: Text): { right: string; cells: [Cell, Cell, Cell, Cell] }[
     { right: t.rights.requestNotifications, cells: [true, false, false, false] },
     { right: t.rights.requests, cells: ["✓¹", false, false, false] },
     { right: t.rights.editTeam, cells: [true, false, false, false] },
+    { right: t.rights.listTeam, cells: [true, false, false, false] },
     { right: t.rights.manageMembers, cells: [true, false, false, false] },
     { right: t.rights.linkChannel, cells: [true, false, false, false] },
     { right: t.rights.leave, cells: ["✓²", true, true, true] },

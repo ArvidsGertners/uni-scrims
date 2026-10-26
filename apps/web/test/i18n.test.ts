@@ -15,6 +15,7 @@ import * as scrims from "../i18n/scrims.tsx";
 import * as scrimsClient from "../i18n/scrims-client.ts";
 import * as team from "../i18n/team.tsx";
 import * as teamClient from "../i18n/team-client.ts";
+import * as teams from "../i18n/teams.tsx";
 
 const FILES = {
   account,
@@ -31,6 +32,7 @@ const FILES = {
   scrimsClient,
   team,
   teamClient,
+  teams,
 };
 
 /** Umlauts, ß and the German opening quote; English uses “ ” and straight apostrophes. */

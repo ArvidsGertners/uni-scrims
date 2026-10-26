@@ -21,6 +21,7 @@ import {
 } from "@/components/icons";
 import { CARD_COLUMNS, ListGroup } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
+import { RankFilter } from "@/components/rank-filter";
 import { RankIcon, RankRangeLabel } from "@/components/rank-icon";
 import { RequestCard } from "@/components/request-card";
 import { TabNav } from "@/components/tab-nav";
@@ -30,6 +31,7 @@ import { Badge, BadgeDot } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
+import { list, single } from "@/lib/search-params";
 import { requirePageUser } from "@/lib/session";
 import {
   SCRIM_STATUS_LABELS,
@@ -37,7 +39,6 @@ import {
   formatMaps,
   formatUniversities,
 } from "@/lib/scrim-format";
-import { RankFilter } from "./rank-filter";
 import { getLocale, getMessages } from "@/lib/locale";
 import { formatMessages } from "@/i18n/format";
 import { scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
@@ -76,14 +77,6 @@ function emptyStates(
     bewerbungen: { ...t.empty.applications, href: "/scrims" },
     vergangen: { ...t.empty.past, href: "/scrims" },
   };
-}
-
-function single(value: string | string[] | undefined): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-function list(value: string | string[] | undefined): string[] {
-  return value === undefined ? [] : typeof value === "string" ? [value] : value;
 }
 
 /** Requests by Berlin calendar day of their start; the list is sorted by start already. */

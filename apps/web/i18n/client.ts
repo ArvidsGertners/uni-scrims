@@ -20,6 +20,8 @@ export const appNavMessages = dictionary(
     mainMenu: "Hauptmenü",
     teamAndAccount: "Team und Konto",
     scrims: "Scrims",
+    /** The teams list below "Scrims" (SPEC N-20). */
+    teams: "Teams",
     team: "Team",
     /** Below "Team" without a team. */
     createOrJoin: "Gründen oder beitreten",
@@ -41,6 +43,7 @@ export const appNavMessages = dictionary(
     mainMenu: "Main menu",
     teamAndAccount: "Team and account",
     scrims: "Scrims",
+    teams: "Teams",
     team: "Team",
     createOrJoin: "Create or join",
     account: "Account",
@@ -79,6 +82,9 @@ export const copyValueMessages = dictionary(
     failed: "Copying didn't work. The text is selected, please copy it yourself.",
   },
 );
+
+/** The rank filter of the board and the teams list (components/rank-filter.tsx). */
+export const rankFilterMessages = dictionary({ allRanks: "Alle Ränge" }, { allRanks: "All ranks" });
 
 /** The dialog that asks before a final action (components/confirm-dialog.tsx). */
 export const confirmDialogMessages = dictionary({ cancel: "Abbrechen" }, { cancel: "Cancel" });

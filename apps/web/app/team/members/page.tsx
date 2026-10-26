@@ -127,7 +127,7 @@ export default async function TeamMembersPage() {
                       <span>{MEMBER_ROLE_LABELS[locale][member.role]}</span>
                     )}
                   </td>
-                  {/* Only the own team sees each member's rank (SPEC N-16). */}
+                  {/* The own team sees each member's rank (SPEC N-16), the teams list too (N-20). */}
                   <td className={cn(cellClass, "col-span-3")}>
                     <span className={cellLabel}>{t.columns.rank}</span>
                     <RankLabel rank={member.rank} />

@@ -1,9 +1,6 @@
 // Texts of the client components of the scrim pages (§5.21), one section per component.
 import { dictionary } from "@uni-scrims/core/config/locale";
 
-/** app/scrims/rank-filter.tsx */
-export const rankFilterMessages = dictionary({ allRanks: "Alle Ränge" }, { allRanks: "All ranks" });
-
 /** app/scrims/[id]/feedback-form.tsx */
 export const feedbackFormMessages = dictionary(
   {
