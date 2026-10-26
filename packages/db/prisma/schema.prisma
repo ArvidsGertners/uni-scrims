@@ -45,6 +45,8 @@ enum RequestStatus {
   BOOKED
   CANCELLED
   EXPIRED
+  // A direct request the target team declined (Phase 30, §5.28).
+  DECLINED
 }
 
 // Role of a team member (SPEC N-1); only players and substitutes count for readiness.
@@ -97,6 +99,10 @@ enum NotifType {
   REMINDER_1H
   FEEDBACK_PROMPT
   CHANNEL_BROKEN
+  // Phase 30 (§5.28): direct requests and fixed partners.
+  DIRECT_REQUEST_RECEIVED
+  DIRECT_REQUEST_DECLINED
+  PARTNERSHIP_ENDED
 }
 
 enum NotifChannel {
@@ -375,18 +381,21 @@ model Team {
   // Only fully verified teams may apply to this team's requests; the captain turns it on (Phase 25).
   verifiedApplicantsOnly Boolean   @default(false)
 
-  logos         TeamLogo[]
-  members       TeamMember[]
-  requests      ScrimRequest[]
-  requestSeries RequestSeries[]
-  applications  Application[]
-  hostScrims    Scrim[]         @relation("ScrimHostTeam")
-  guestScrims   Scrim[]         @relation("ScrimGuestTeam")
-  cancelled     Scrim[]         @relation("ScrimCancelledByTeam")
-  noShows       Scrim[]         @relation("ScrimNoShowTeam")
-  feedback      ScrimFeedback[]
-  notifications Notification[]
-  activeFor     User[]          @relation("UserActiveTeam")
+  logos                TeamLogo[]
+  members              TeamMember[]
+  requests             ScrimRequest[]
+  requestSeries        RequestSeries[]
+  // Phase 30: direct requests to this team and fixed partnerships with it as the partner.
+  directRequests       ScrimRequest[]  @relation("ScrimRequestTarget")
+  partnerRequestSeries RequestSeries[] @relation("RequestSeriesTarget")
+  applications         Application[]
+  hostScrims           Scrim[]         @relation("ScrimHostTeam")
+  guestScrims          Scrim[]         @relation("ScrimGuestTeam")
+  cancelled            Scrim[]         @relation("ScrimCancelledByTeam")
+  noShows              Scrim[]         @relation("ScrimNoShowTeam")
+  feedback             ScrimFeedback[]
+  notifications        Notification[]
+  activeFor            User[]          @relation("UserActiveTeam")
 
   @@index([captainId])
 }
@@ -429,23 +438,28 @@ model TeamMember {
 }
 
 model ScrimRequest {
-  id          String         @id @default(cuid())
-  teamId      String
-  team        Team           @relation(fields: [teamId], references: [id])
-  createdById String
-  createdBy   User           @relation(fields: [createdById], references: [id])
-  game        String         @default("valorant")
-  startsAt    DateTime       @db.Timestamptz(3)
-  format      ScrimFormat
-  rankMin     Rank
-  rankMax     Rank
-  maps        String[]
-  note        String?
-  status      RequestStatus
-  createdAt   DateTime       @db.Timestamptz(3)
+  id                 String         @id @default(cuid())
+  teamId             String
+  team               Team           @relation(fields: [teamId], references: [id])
+  createdById        String
+  createdBy          User           @relation(fields: [createdById], references: [id])
+  game               String         @default("valorant")
+  startsAt           DateTime       @db.Timestamptz(3)
+  format             ScrimFormat
+  rankMin            Rank
+  rankMax            Rank
+  maps               String[]
+  note               String?
+  status             RequestStatus
+  createdAt          DateTime       @db.Timestamptz(3)
   // Posted for a weekly series (Phase 29, §5.27); null = a single request.
-  seriesId    String?
-  series      RequestSeries? @relation(fields: [seriesId], references: [id])
+  seriesId           String?
+  series             RequestSeries? @relation(fields: [seriesId], references: [id])
+  // A direct request to this team, not on the board (Phase 30, §5.28); null = a board request.
+  targetTeamId       String?
+  targetTeam         Team?          @relation("ScrimRequestTarget", fields: [targetTeamId], references: [id])
+  // A direct request proposing a fixed partnership up to this last date (Phase 30, §5.28).
+  weeklyLastStartsAt DateTime?      @db.Timestamptz(3)
 
   applications  Application[]
   scrim         Scrim?
@@ -454,6 +468,7 @@ model ScrimRequest {
   @@unique([seriesId, startsAt])
   @@index([status, startsAt])
   @@index([teamId])
+  @@index([targetTeamId])
 }
 
 // A weekly recurring request (Phase 29, §5.27). The sweeper posts each date a week before its start,
@@ -476,12 +491,17 @@ model RequestSeries {
   lastStartsAt DateTime    @db.Timestamptz(3)
   // Ended by the captain, after the last date, by a ban or a dissolution; null = running.
   endedAt      DateTime?   @db.Timestamptz(3)
+  // A fixed partnership with this team, accepted when it was created; books instead of posting
+  // (Phase 30, §5.28).
+  targetTeamId String?
+  targetTeam   Team?       @relation("RequestSeriesTarget", fields: [targetTeamId], references: [id])
   createdAt    DateTime    @db.Timestamptz(3)
 
   requests ScrimRequest[]
 
   @@index([endedAt, nextStartsAt])
   @@index([teamId])
+  @@index([targetTeamId])
 }
 
 model Application {
