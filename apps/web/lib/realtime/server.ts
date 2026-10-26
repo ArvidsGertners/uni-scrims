@@ -59,7 +59,9 @@ function cookieHeaders(headers: IncomingHttpHeaders): Headers {
 }
 
 function reject(socket: Duplex, status: number, text: string): void {
-  socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+  if (!socket.destroyed) {
+    socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+  }
   socket.destroy();
 }
 
@@ -144,6 +146,10 @@ export function createRealtimeServer(deps: RealtimeDeps) {
   };
 
   http.on("upgrade", (request: IncomingMessage, socket: Duplex, head: Buffer) => {
+    // Node drops its own error handler before "upgrade", and ws adds one only in handleUpgrade: a
+    // client that resets the connection while the session is looked up must not crash the process.
+    const onSocketError = () => socket.destroy();
+    socket.on("error", onSocketError);
     void (async () => {
       try {
         const path = new URL(request.url ?? "/", "http://realtime").pathname;
@@ -156,6 +162,8 @@ export function createRealtimeServer(deps: RealtimeDeps) {
         if (!userId) return reject(socket, 401, "Unauthorized");
         const open = [...connections].filter((entry) => entry.userId === userId).length;
         if (open >= MAX_CONNECTIONS_PER_USER) return reject(socket, 429, "Too Many Requests");
+        if (socket.destroyed) return;
+        socket.off("error", onSocketError);
         wss.handleUpgrade(request, socket, head, (ws) => accept(ws, userId, headers));
       } catch (error) {
         console.error("Realtime handshake failed", error);
@@ -186,19 +194,19 @@ export function createRealtimeServer(deps: RealtimeDeps) {
         return;
       }
       for (const connection of [...connections]) {
-        if (!connection.alive) {
-          connection.socket.terminate();
-          continue;
-        }
-        connection.alive = false;
-        connection.socket.ping();
         try {
+          if (!connection.alive) {
+            connection.socket.terminate();
+            continue;
+          }
+          connection.alive = false;
+          connection.socket.ping();
           if ((await deps.sessionUserId(connection.headers)) !== connection.userId) {
             connection.socket.close(4401, "session ended");
           }
         } catch (error) {
-          // The database may be away for a moment; the next beat checks again.
-          console.error("Realtime session check failed", error);
+          // E.g. the database is away for a moment; the next beat checks again.
+          console.error("Realtime heartbeat failed", error);
         }
       }
     }

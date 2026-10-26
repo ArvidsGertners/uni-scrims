@@ -101,12 +101,13 @@ export function MessageThread({
   const atEnd = useRef(true);
   const count = conversation.messages.length;
   useEffect(() => {
+    // The thread a notification links to, also when it is empty by now.
+    if (focus) root.current?.scrollIntoView({ block: "center" });
     const element = list.current;
     if (!element) return;
     const divider = dividerId ? element.querySelector("[data-unread-divider]") : null;
     if (divider instanceof HTMLElement) element.scrollTop = divider.offsetTop - element.offsetTop;
     else element.scrollTop = element.scrollHeight;
-    if (focus) root.current?.scrollIntoView({ block: "center" });
   }, [dividerId, focus]);
   useEffect(() => {
     const element = list.current;

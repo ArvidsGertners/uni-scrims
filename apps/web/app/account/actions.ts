@@ -24,6 +24,7 @@ import { parseNotificationForm } from "@/lib/notification-form";
 import { allowAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 import { getMessages } from "@/lib/locale";
+import { publishConversationChanges } from "@/lib/realtime/bus";
 import { accountActionMessages } from "@/i18n/account";
 
 export async function deleteAccountAction(
@@ -35,7 +36,13 @@ export async function deleteAccountAction(
     return { error: (await getMessages(accountActionMessages)).confirmDeletion };
   }
   const state = await runAction(async () => {
-    await deleteAccount({ userId, uploadDir: resolveUploadDir(), now: new Date() });
+    const { conversations } = await deleteAccount({
+      userId,
+      uploadDir: resolveUploadDir(),
+      now: new Date(),
+    });
+    // The other teams' open threads lose the messages right away (SPEC N-28, §5.30).
+    publishConversationChanges(conversations);
   });
   if (state.error) return state;
   // The sessions are gone, so the user is logged out from here on.

@@ -170,6 +170,44 @@ describe("realtime server", () => {
     expect(await largeClose).toBe(1009);
   });
 
+  it("survives a client that resets the connection while the session is looked up", async () => {
+    let release: () => void = () => undefined;
+    const lookup = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { port } = await start({
+      sessionUserId: async () => {
+        await lookup;
+        return "user-1";
+      },
+    });
+    const { connect: rawConnect } = await import("node:net");
+    const raw = rawConnect(port, "127.0.0.1");
+    await new Promise<void>((resolve) => raw.once("connect", () => resolve()));
+    raw.write(
+      [
+        "GET /ws HTTP/1.1",
+        "Host: 127.0.0.1",
+        "Upgrade: websocket",
+        "Connection: Upgrade",
+        "Sec-WebSocket-Version: 13",
+        "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
+        `Origin: ${ORIGIN}`,
+        "",
+        "",
+      ].join("\r\n"),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    raw.resetAndDestroy();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Still serving.
+    const socket = connect(port);
+    await opened(socket);
+    socket.close();
+  });
+
   it("drops connections whose session ended at the next heartbeat", async () => {
     let valid = true;
     const { port } = await start({

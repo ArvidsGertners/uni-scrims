@@ -30,7 +30,7 @@ export function realtimeAddress(configured: string | null, location: Location): 
   return url.toString();
 }
 
-class RealtimeConnection {
+export class RealtimeConnection {
   private socket: WebSocket | null = null;
   private attempt = 0;
   private retry: ReturnType<typeof setTimeout> | null = null;
@@ -107,6 +107,8 @@ class RealtimeConnection {
       }
     });
     socket.addEventListener("close", () => {
+      // A socket closed by disconnect() may report it after a new one opened; that one stays.
+      if (this.socket !== socket) return;
       this.socket = null;
       this.notifyStatus();
       if (this.subscriptions.size === 0) return;

@@ -17,11 +17,11 @@ import { type Db, isForeignKeyViolation, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { lockConversation, lockUser } from "./locks.ts";
 import { type MessageContext, queueNotifications } from "./notifications.ts";
-import { requireAdmin, requireTeamMember } from "./permissions.ts";
+import { requireAdmin, requireTeamMember, requireUser } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
 import { isRequestOpen } from "./requests.ts";
 import { messageBodySchema, parseInput } from "./schemas.ts";
-import { getDiscordId } from "./users.ts";
+import { DISCORD_PROVIDER } from "./users.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -468,7 +468,13 @@ export async function deleteOwnMessage(input: {
     select: { authorId: true, teamId: true, ...messageKeySelect },
   });
   if (!message || message.authorId !== input.userId) throw messageNotFound();
-  await requireTeamMember(input.userId, message.teamId);
+  // Not banned, complete account; a former member learns as little as a stranger (§5.30).
+  const user = await requireUser(input.userId);
+  const membership = await prisma.teamMember.findFirst({
+    where: { teamId: message.teamId, userId: user.id, team: { dissolvedAt: null } },
+    select: { userId: true },
+  });
+  if (!membership) throw messageNotFound();
   const deleted = await prisma.message.deleteMany({
     where: { id: input.messageId, authorId: input.userId },
   });
@@ -548,29 +554,36 @@ export async function listMessageReports(adminId: string) {
       },
     },
   });
-  const entries = await Promise.all(
-    messages.map(async (message) => {
-      const { request, guestTeam } = message.conversation;
-      return {
-        id: message.id,
-        body: message.body,
-        createdAt: message.createdAt,
-        author: {
-          id: message.author.id,
-          name: message.author.name,
-          discordId: await getDiscordId(message.author.id),
-        },
-        team: message.team,
-        otherTeam: message.teamId === request.team.id ? guestTeam : request.team,
-        startsAt: request.startsAt,
-        reports: message.reports.map((report) => ({
-          id: report.id,
-          createdAt: report.createdAt,
-          team: report.team,
-        })),
-      };
-    }),
-  );
+  // The authors' Discord IDs in one query, for the search on the ban page.
+  const discordAccounts = await prisma.account.findMany({
+    where: {
+      providerId: DISCORD_PROVIDER,
+      userId: { in: messages.map((message) => message.author.id) },
+    },
+    select: { userId: true, accountId: true },
+  });
+  const discordIds = new Map(discordAccounts.map((entry) => [entry.userId, entry.accountId]));
+  const entries = messages.map((message) => {
+    const { request, guestTeam } = message.conversation;
+    return {
+      id: message.id,
+      body: message.body,
+      createdAt: message.createdAt,
+      author: {
+        id: message.author.id,
+        name: message.author.name,
+        discordId: discordIds.get(message.author.id) ?? null,
+      },
+      team: message.team,
+      otherTeam: message.teamId === request.team.id ? guestTeam : request.team,
+      startsAt: request.startsAt,
+      reports: message.reports.map((report) => ({
+        id: report.id,
+        createdAt: report.createdAt,
+        team: report.team,
+      })),
+    };
+  });
   return entries.sort(
     (a, b) => (a.reports[0]?.createdAt.getTime() ?? 0) - (b.reports[0]?.createdAt.getTime() ?? 0),
   );

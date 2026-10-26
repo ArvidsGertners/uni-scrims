@@ -389,8 +389,15 @@ describe("sendMessage and the notification", () => {
     const { guest, key } = await applied();
     const member = guest.members[0]!;
     await send(member, guest, key, "bin gleich weg");
+    const message = await prisma.message.findFirstOrThrow({
+      where: { body: "bin gleich weg", authorId: member.id },
+    });
     await leaveTeam({ userId: member.id, teamId: guest.team.id, now: NOW });
     await expect(view(member, guest, key)).rejects.toMatchObject({ text: { key: "notInTeam" } });
+    // Deleting the own message: as for a stranger.
+    await expect(
+      deleteOwnMessage({ userId: member.id, messageId: message.id }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND", text: { key: "messageNotFound" } });
   });
 });
 
