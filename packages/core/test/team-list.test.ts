@@ -35,7 +35,7 @@ const later = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000);
 
 async function list(search: string, ranks?: Rank[] | "ALL") {
   const viewer = await createUser();
-  return getTeamList({ userId: viewer.id, search, ranks });
+  return getTeamList({ now: NOW, userId: viewer.id, search, ranks });
 }
 
 describe("getTeamList (§5.23)", () => {
@@ -85,6 +85,8 @@ describe("getTeamList (§5.23)", () => {
         universities: { shown: [`Hochschule ${tok}`, `Uni ${tok} Nord`], more: 0 },
         // Only captain and player count as verified players, so no badge (SPEC N-21).
         fullyVerified: false,
+        // No scrims in the last 90 days (SPEC N-23).
+        reliability: { played: 0, noShows: 0, lateCancels: 0, avgRating: null },
         members: [
           {
             id: captain.id,
@@ -117,7 +119,12 @@ describe("getTeamList (§5.23)", () => {
         ],
       },
     ]);
-    expect(result.filter).toEqual({ search: tok, ranks: [], fullyVerifiedOnly: false });
+    expect(result.filter).toEqual({
+      search: tok,
+      ranks: [],
+      fullyVerifiedOnly: false,
+      reliableOnly: false,
+    });
   });
 
   it("leaves out banned, dissolved and hidden teams, also for their members", async () => {
@@ -134,7 +141,7 @@ describe("getTeamList (§5.23)", () => {
     await prisma.team.update({ where: { id: hidden.team.id }, data: { listed: false } });
 
     expect((await list(tok)).teams.map((team) => team.id)).toEqual([shown.team.id]);
-    const own = await getTeamList({ userId: hidden.captain.id, search: tok });
+    const own = await getTeamList({ now: NOW, userId: hidden.captain.id, search: tok });
     expect(own.teams.map((team) => team.id)).toEqual([shown.team.id]);
   });
 
@@ -197,19 +204,25 @@ describe("getTeamList (§5.23)", () => {
 
   it("trims the search and cuts it to the maximum length", async () => {
     const viewer = await createUser();
-    const trimmed = await getTeamList({ userId: viewer.id, search: "  abc  " });
+    const trimmed = await getTeamList({ now: NOW, userId: viewer.id, search: "  abc  " });
     expect(trimmed.filter.search).toBe("abc");
-    const long = await getTeamList({ userId: viewer.id, search: "x".repeat(TEAM_SEARCH_MAX + 50) });
+    const long = await getTeamList({
+      now: NOW,
+      userId: viewer.id,
+      search: "x".repeat(TEAM_SEARCH_MAX + 50),
+    });
     expect(long.filter.search).toHaveLength(TEAM_SEARCH_MAX);
-    const none = await getTeamList({ userId: viewer.id, search: "   " });
+    const none = await getTeamList({ now: NOW, userId: viewer.id, search: "   " });
     expect(none.filter.search).toBe("");
     // Cut by code points: no half emoji at the end, and no trailing space.
     const emoji = await getTeamList({
+      now: NOW,
       userId: viewer.id,
       search: "x".repeat(TEAM_SEARCH_MAX - 1) + "😀y",
     });
     expect(emoji.filter.search).toBe("x".repeat(TEAM_SEARCH_MAX - 1) + "😀");
     const space = await getTeamList({
+      now: NOW,
       userId: viewer.id,
       search: "x".repeat(TEAM_SEARCH_MAX - 1) + " y",
     });
@@ -218,13 +231,13 @@ describe("getTeamList (§5.23)", () => {
 
   it("is for active, complete accounts, verified or not", async () => {
     await expect(
-      getTeamList({ userId: (await createUser()).id, search: token() }),
+      getTeamList({ now: NOW, userId: (await createUser()).id, search: token() }),
     ).resolves.toMatchObject({ teams: [] });
     await expect(
-      getTeamList({ userId: (await createUser({ banned: true })).id }),
+      getTeamList({ now: NOW, userId: (await createUser({ banned: true })).id }),
     ).rejects.toMatchObject({ code: "BANNED" });
     await expect(
-      getTeamList({ userId: (await createUser({ legacy: true })).id }),
+      getTeamList({ now: NOW, userId: (await createUser({ legacy: true })).id }),
     ).rejects.toMatchObject({ code: "ACCOUNT_INCOMPLETE" });
   });
 });

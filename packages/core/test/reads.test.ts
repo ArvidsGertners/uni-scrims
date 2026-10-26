@@ -109,20 +109,20 @@ describe("getReliability (§5.7)", () => {
     expect(retired.status).toBe(ScrimStatus.SCHEDULED);
     await retireTeamActivity(team.team.id, NOW);
 
-    expect(await getReliability(team.team.id)).toEqual({
+    expect(await getReliability(team.team.id, NOW)).toEqual({
       played: 3,
       noShows: 1,
       lateCancels: 1,
       avgRating: 4,
     });
     // One rating is not enough for an average.
-    expect(await getReliability(opponents[0]!.team.id)).toEqual({
+    expect(await getReliability(opponents[0]!.team.id, NOW)).toEqual({
       played: 1,
       noShows: 0,
       lateCancels: 0,
       avgRating: null,
     });
-    expect((await getReliability(opponents[2]!.team.id)).lateCancels).toBe(1);
+    expect((await getReliability(opponents[2]!.team.id, NOW)).lateCancels).toBe(1);
   });
 });
 
@@ -647,7 +647,7 @@ describe("getTeamDashboard (§5.14)", () => {
     const team = await createFullyVerifiedTeam();
     const dashboard = await getTeamDashboard({ userId: team.members[0]!.id, now: NOW });
     expect(dashboard).toMatchObject({ id: team.team.id, nextScrim: null });
-    expect(dashboard?.reliability).toEqual(await getReliability(team.team.id));
+    expect(dashboard?.reliability).toEqual(await getReliability(team.team.id, NOW));
   });
 
   it("shows the earliest upcoming scheduled scrim, for both sides", async () => {

@@ -7,6 +7,10 @@ export const FULLY_VERIFIED_PLAYER_COUNT = 5;
 export const MAX_TEAM_MEMBERS = 10;
 /** Max. open requests per team (SPEC P0-4). */
 export const MAX_OPEN_REQUESTS = 5;
+/** Reliability counts the scrims that started in the last this many days (SPEC N-23). */
+export const RELIABILITY_WINDOW_DAYS = 90;
+/** A team is reliable below this no-show rate in that window (SPEC N-23). */
+export const RELIABLE_NO_SHOW_RATE = 0.1;
 
 export const TEAM_NAME_MIN = 2;
 export const TEAM_NAME_MAX = 40;

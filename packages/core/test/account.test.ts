@@ -409,12 +409,12 @@ describe("deleteAccount", () => {
       where: { id: scrim.id },
       data: { status: ScrimStatus.COMPLETED },
     });
-    const before = await getReliability(guest.team.id);
+    const before = await getReliability(guest.team.id, NOW);
     await remove(guest.members[0]!.id);
     expect(await prisma.scrim.findUnique({ where: { id: scrim.id } })).toMatchObject({
       status: ScrimStatus.COMPLETED,
     });
-    expect(await getReliability(guest.team.id)).toEqual(before);
+    expect(await getReliability(guest.team.id, NOW)).toEqual(before);
   });
 
   it("needs a login", async () => {

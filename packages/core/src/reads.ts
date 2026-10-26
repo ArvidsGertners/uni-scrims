@@ -7,7 +7,11 @@ import {
   ScrimStatus,
   prisma,
 } from "@uni-scrims/db";
-import { TEAM_SEARCH_MAX } from "../config/limits.ts";
+import {
+  RELIABILITY_WINDOW_DAYS,
+  RELIABLE_NO_SHOW_RATE,
+  TEAM_SEARCH_MAX,
+} from "../config/limits.ts";
 import type { Db } from "./db.ts";
 import type { Message } from "./i18n/render.ts";
 import {
@@ -60,6 +64,10 @@ import { getDiscordId } from "./users.ts";
 /** The average rating is only shown from this many ratings on (SPEC P0-8). */
 export const MIN_RATINGS_SHOWN = 3;
 
+export { RELIABILITY_WINDOW_DAYS, RELIABLE_NO_SHOW_RATE };
+
+const DAY = 24 * 60 * 60 * 1000;
+
 export type Reliability = {
   played: number;
   noShows: number;
@@ -68,12 +76,18 @@ export type Reliability = {
   avgRating: number | null;
 };
 
-/** Computed on read, never stored (§5.7). Batch variant for lists. */
+/**
+ * Computed on read, never stored (§5.7). Batch variant for lists. Since Phase 27 only scrims that
+ * start in the last RELIABILITY_WINDOW_DAYS count (SPEC N-23); late cancellations of future scrims
+ * count right away, so the window has no upper bound.
+ */
 export async function getReliabilities(
   teamIds: string[],
+  now: Date,
   db: Db = prisma,
 ): Promise<Map<string, Reliability>> {
   const ids = [...new Set(teamIds)];
+  const recent = { gte: new Date(now.getTime() - RELIABILITY_WINDOW_DAYS * DAY) };
   const result = new Map<string, Reliability>(
     ids.map((id) => [id, { played: 0, noShows: 0, lateCancels: 0, avgRating: null }]),
   );
@@ -82,6 +96,7 @@ export async function getReliabilities(
   const completed = await db.scrim.findMany({
     where: {
       status: ScrimStatus.COMPLETED,
+      startsAt: recent,
       OR: [{ hostTeamId: { in: ids } }, { guestTeamId: { in: ids } }],
     },
     select: {
@@ -109,7 +124,7 @@ export async function getReliabilities(
 
   const noShows = await db.scrim.groupBy({
     by: ["noShowTeamId"],
-    where: { status: ScrimStatus.NO_SHOW, noShowTeamId: { in: ids } },
+    where: { status: ScrimStatus.NO_SHOW, startsAt: recent, noShowTeamId: { in: ids } },
     _count: { _all: true },
   });
   for (const row of noShows) result.get(row.noShowTeamId!)!.noShows = row._count._all;
@@ -117,7 +132,12 @@ export async function getReliabilities(
   // Cancellations with more than 24 h lead and cancellations due to a ban have lateCancel = false.
   const lateCancels = await db.scrim.groupBy({
     by: ["cancelledByTeamId"],
-    where: { status: ScrimStatus.CANCELLED, lateCancel: true, cancelledByTeamId: { in: ids } },
+    where: {
+      status: ScrimStatus.CANCELLED,
+      lateCancel: true,
+      startsAt: recent,
+      cancelledByTeamId: { in: ids },
+    },
     _count: { _all: true },
   });
   for (const row of lateCancels) result.get(row.cancelledByTeamId!)!.lateCancels = row._count._all;
@@ -125,8 +145,22 @@ export async function getReliabilities(
   return result;
 }
 
-export async function getReliability(teamId: string, db: Db = prisma): Promise<Reliability> {
-  return (await getReliabilities([teamId], db)).get(teamId)!;
+export async function getReliability(
+  teamId: string,
+  now: Date,
+  db: Db = prisma,
+): Promise<Reliability> {
+  return (await getReliabilities([teamId], now, db)).get(teamId)!;
+}
+
+/**
+ * Reliable: a no-show rate below RELIABLE_NO_SHOW_RATE in the window, no-shows ÷ (played +
+ * no-shows); late cancellations do not count, and a team without scrims there is reliable (SPEC
+ * N-23).
+ */
+export function isReliable(reliability: Pick<Reliability, "played" | "noShows">): boolean {
+  const total = reliability.played + reliability.noShows;
+  return total === 0 || reliability.noShows / total < RELIABLE_NO_SHOW_RATE;
 }
 
 // ─── Team cards ───────────────────────────────────────────────────────────────
@@ -194,6 +228,8 @@ export type BoardInput = {
   ranks?: readonly Rank[] | "ALL" | null;
   /** Only requests of fully verified teams (SPEC N-21); missing or false = all. */
   fullyVerifiedOnly?: boolean | null;
+  /** Only requests of reliable teams (SPEC N-23); missing or false = all. */
+  reliableOnly?: boolean | null;
   now: Date;
 };
 
@@ -215,6 +251,7 @@ export async function getBoard(input: BoardInput) {
   const date = input.date && isValidDateString(input.date) ? input.date : null;
   const range = date ? berlinDayRange(date) : null;
   const fullyVerifiedOnly = input.fullyVerifiedOnly === true;
+  const reliableOnly = input.reliableOnly === true;
 
   const base: Prisma.ScrimRequestWhereInput = {
     ...openRequestWhere(input.now),
@@ -249,11 +286,18 @@ export async function getBoard(input: BoardInput) {
     include,
     orderBy: { startsAt: "asc" },
   });
-  // The badge is computed from the members, so this filter runs after loading (SPEC N-21).
-  const requests = fullyVerifiedOnly
+  // Badge and reliability are computed on read, so these filters run after loading (SPEC N-21,
+  // N-23); the reliabilities only for the requests the badge filter leaves.
+  const verified = fullyVerifiedOnly
     ? found.filter((request) => hasFullyVerifiedMembers(request.team.members))
     : found;
-  const reliabilities = await getReliabilities(requests.map((request) => request.teamId));
+  const reliabilities = await getReliabilities(
+    verified.map((request) => request.teamId),
+    input.now,
+  );
+  const requests = reliableOnly
+    ? verified.filter((request) => isReliable(reliabilities.get(request.teamId)!))
+    : verified;
   const ownApplications = ownTeam
     ? await prisma.application.findMany({
         where: { teamId: ownTeam.id, requestId: { in: requests.map((request) => request.id) } },
@@ -280,7 +324,7 @@ export async function getBoard(input: BoardInput) {
     ownTeam: ownTeam
       ? { id: ownTeam.id, rank: ownRank, isCaptain: isCaptainOf(user, ownTeam) }
       : null,
-    filter: { date, ranks, fullyVerifiedOnly },
+    filter: { date, ranks, fullyVerifiedOnly, reliableOnly },
     requests: requests.map(toCard),
   };
 }
@@ -386,7 +430,10 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   const countOwnPlayers =
     ownTeam !== null && offersApply && actionProblem === null && host.verifiedApplicantsOnly;
   const [reliabilities, ownFullyVerified, ownMemberCount] = await Promise.all([
-    getReliabilities([request.teamId, ...applications.map((application) => application.teamId)]),
+    getReliabilities(
+      [request.teamId, ...applications.map((application) => application.teamId)],
+      input.now,
+    ),
     countOwnPlayers ? isTeamFullyVerified(ownTeam.id) : null,
     offersApply ? prisma.teamMember.count({ where: { teamId: ownTeam.id } }) : null,
   ]);
@@ -698,7 +745,7 @@ export async function getTeamDashboard(input: { userId: string; now: Date }) {
   const team = await getMyTeam(input.userId);
   if (!team) return null;
   const [reliability, scrim] = await Promise.all([
-    getReliability(team.id),
+    getReliability(team.id, input.now),
     prisma.scrim.findFirst({
       where: {
         status: ScrimStatus.SCHEDULED,
@@ -785,6 +832,9 @@ export type TeamListInput = {
   ranks?: readonly Rank[] | "ALL" | null;
   /** Only fully verified teams (SPEC N-21); missing or false = all. */
   fullyVerifiedOnly?: boolean | null;
+  /** Only reliable teams (SPEC N-23); missing or false = all. */
+  reliableOnly?: boolean | null;
+  now: Date;
 };
 
 export type TeamListMember = {
@@ -805,6 +855,8 @@ export type TeamListEntry = {
   universities: { shown: string[]; more: number };
   /** At least 5 verified players or substitutes: the badge (SPEC N-21). */
   fullyVerified: boolean;
+  /** Of the last RELIABILITY_WINDOW_DAYS, like on the board (SPEC N-23). */
+  reliability: Reliability;
   members: TeamListMember[];
 };
 
@@ -849,6 +901,7 @@ export async function getTeamList(input: TeamListInput) {
   // In rank order, without duplicates; empty = all ranks.
   const ranks = chosen && chosen !== "ALL" ? RANKS.filter((rank) => chosen.includes(rank)) : [];
   const fullyVerifiedOnly = input.fullyVerifiedOnly === true;
+  const reliableOnly = input.reliableOnly === true;
   const needle = search.toLocaleLowerCase("de");
   const matches = (text: string | null) => !!text && text.toLocaleLowerCase("de").includes(needle);
 
@@ -856,14 +909,21 @@ export async function getTeamList(input: TeamListInput) {
     where: listedTeamWhere(),
     select: teamListSelect,
   });
+  // One batch for all shown teams, like the board (SPEC N-23).
+  const reliabilities = await getReliabilities(
+    rows.map((team) => team.id),
+    input.now,
+  );
   const teams: TeamListEntry[] = rows
     .map((team) => ({
       team,
       rank: teamRank(team.members),
       fullyVerified: hasFullyVerifiedMembers(team.members),
+      reliability: reliabilities.get(team.id)!,
     }))
     .filter(({ rank }) => ranks.length === 0 || (rank !== null && ranks.includes(rank)))
     .filter(({ fullyVerified }) => !fullyVerifiedOnly || fullyVerified)
+    .filter(({ reliability }) => !reliableOnly || isReliable(reliability))
     .filter(
       ({ team }) =>
         !needle ||
@@ -872,7 +932,7 @@ export async function getTeamList(input: TeamListInput) {
         verifiedUniversityNames(team.members).some(matches),
     )
     .sort((a, b) => a.team.name.localeCompare(b.team.name, "de"))
-    .map(({ team, rank, fullyVerified }) => ({
+    .map(({ team, rank, fullyVerified, reliability }) => ({
       id: team.id,
       name: team.name,
       tag: team.tag,
@@ -880,6 +940,7 @@ export async function getTeamList(input: TeamListInput) {
       logo: teamLogoInfo(team),
       universities: teamUniversities(team.members),
       fullyVerified,
+      reliability,
       members: team.members.map(({ role, user }) => ({
         id: user.id,
         name: user.name,
@@ -888,5 +949,5 @@ export async function getTeamList(input: TeamListInput) {
         rank: user.rank,
       })),
     }));
-  return { teams, filter: { search, ranks, fullyVerifiedOnly } };
+  return { teams, filter: { search, ranks, fullyVerifiedOnly, reliableOnly } };
 }

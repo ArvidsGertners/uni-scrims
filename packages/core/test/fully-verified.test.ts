@@ -122,7 +122,7 @@ describe("the badge and its filters", () => {
     await rename(unverified.team.id, `${tok} Gamma`);
     const viewer = await createUser();
 
-    const all = await getTeamList({ userId: viewer.id, search: tok });
+    const all = await getTeamList({ now: NOW, userId: viewer.id, search: tok });
     expect(all.filter.fullyVerifiedOnly).toBe(false);
     expect(all.teams.map((team) => [team.id, team.fullyVerified])).toEqual([
       [full.team.id, true],
@@ -130,7 +130,12 @@ describe("the badge and its filters", () => {
       [substitute.team.id, true],
       [unverified.team.id, false],
     ]);
-    const filtered = await getTeamList({ userId: viewer.id, search: tok, fullyVerifiedOnly: true });
+    const filtered = await getTeamList({
+      now: NOW,
+      userId: viewer.id,
+      search: tok,
+      fullyVerifiedOnly: true,
+    });
     expect(filtered.filter.fullyVerifiedOnly).toBe(true);
     expect(filtered.teams.map((team) => team.id)).toEqual([full.team.id, substitute.team.id]);
   });
