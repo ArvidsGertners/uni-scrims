@@ -491,6 +491,16 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Board und Teams-Liste haben den Filter „Nur zuverlässige Teams“ neben „Nur vollständig verifizierte Teams“. Er ist aus, bis man ihn wählt, und „Zurücksetzen“ nimmt ihn mit weg; der Text nennt die Regel kurz.
 - [x] Die Startseite sagt bei der Verbindlichkeit, in der Gegenüberstellung (N-22) und in der FAQ, dass die Zahlen die der letzten 90 Tage sind. Alles auf Deutsch und Englisch; die Seiten passen ab 320 px.
 
+**N-24 Board ohne Anmeldung** (Phase 28)
+- [ ] Unter `/board` sehen Besucher ohne Anmeldung die offenen Anfragen wie auf dem Board: alle offenen, künftigen Anfragen aktiver Teams (nicht gesperrt, nicht aufgelöst), nach Tag gruppiert, auch die von Teams, die ihr Captain aus der Teams-Liste ausgeblendet hat (N-20; die Liste zeigt Mitglieder, das Board nicht; Entscheidung des Nutzers). Die Karten zeigen dasselbe wie eingeloggt: Logo (sonst Kürzel), Name, Hochschulen, Format, Startzeit, Rang-Bereich, Maps, Team-Rang, Zuverlässigkeit der letzten 90 Tage, das Abzeichen „Vollständig verifiziert“, „Nur für vollständig verifizierte Teams“ und die Zahl der Bewerbungen; wie bisher keine Notiz und keinen Captain (Entscheidung des Nutzers).
+- [ ] Filter wie auf dem Board: Tag, Rang, „Nur vollständig verifizierte Teams“, „Nur zuverlässige Teams“ und „Zurücksetzen“. Ohne eigenes Team gibt es keinen Rang-Standard: Ohne Wahl stehen Anfragen aller Ränge da.
+- [ ] Das Board ist nur zum Lesen. Ein Klick auf eine Karte führt zur Anmeldung und danach direkt zur Anfrage (Entscheidung des Nutzers); die Anfrage selbst, Bewerbungen, Team-Links und die Teams-Liste bleiben für eingeloggte Nutzer. Oben stehen ein kurzer Hinweis, dass man zum Ansehen und Bewerben ein Konto braucht, sowie „Konto erstellen“ und „Anmelden“; beide führen danach aufs Board.
+- [ ] Wer angemeldet `/board` aufruft, landet wie bisher mit seinen Filtern auf `/scrims` (alte Links in Discord-Nachrichten).
+- [ ] Team-Logos lassen sich ohne Anmeldung nur abrufen, solange das Team eine offene Anfrage auf dem Board hat (Entscheidung des Nutzers: Karten mit Logo); sonst wie bisher nur eingeloggt.
+- [ ] Suchmaschinen werden gebeten, das Board nicht aufzunehmen (`noindex`, Entscheidung des Nutzers).
+- [ ] Die Startseite verlinkt das Board für Abgemeldete („Offene Anfragen ansehen“, im Hero und im Abschluss).
+- [ ] Die Datenschutzerklärung sagt, was Besucher ohne Anmeldung sehen. Alles auf Deutsch und Englisch; die Seite passt ab 320 px.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
@@ -556,7 +566,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Bewerbung außerhalb des Rang-Bereichs | Erlaubt, mit Hinweis. |
 | Neue-Anfragen-Benachrichtigung | Nach P1 verschoben. Dafür ist der editierbare Team-Rang im MVP (seit Phase 20 aus den Rängen der Spieler berechnet, N-16). |
 | Auth | Better Auth (siehe ARCHITECTURE). |
-| Sichtbarkeit | Board und Anfragen nur für eingeloggte Nutzer. |
+| Sichtbarkeit | Board und Anfragen nur für eingeloggte Nutzer. Seit Phase 28 sehen auch Besucher ohne Anmeldung die offenen Anfragen auf `/board`, nur lesend (N-24); Anfrage-Details samt Notiz, Bewerbungen, Team-Links und die Teams-Liste bleiben für eingeloggte Nutzer. |
 | Captain-Rechte | Scrim-Aktionen nur, wenn der Captain selbst verifiziert ist. Teamverwaltung geht auch ohne. Seit Phase 25 reicht das für Scrims; die Zahl verifizierter Spieler wird nicht mehr geprüft (N-21). |
 | Verifizierung der Spieler | Seit Phase 25 freiwillig. Mit 5 verifizierten Spielern oder Ersatzspielern bekommt ein Team das Abzeichen „Vollständig verifiziert“; andere Teams filtern danach oder lassen nur solche Teams als Bewerber zu (N-21). |
 | Entsperren | Nur manuell per Datenbank, kein Admin-Button. |
@@ -573,8 +583,9 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Nur Discord als Kanal | Blockierte DMs sind ein stiller Ausfall. Fallback: Team-Channel und Hinweis auf der Website. Seit Phase 18 kann jeder zusätzlich Mail einschalten (N-14). |
 | Eigener VPS | Du betreibst ein System, das kurzzeitig ausweisähnliche Dokumente hält: Updates, Zugangsschutz und Vorfallreaktion liegen bei dir. |
 | Altersbestätigung nur per Checkbox | Wer den Login-Endpunkt direkt aufruft, umgeht sie, und es wird kein Nachweis gespeichert. Im MVP bewusst akzeptiert. |
-| Team-Logos ohne Vorabprüfung | Ein unpassendes Logo ist sofort für alle Eingeloggten sichtbar, bis ein Admin es entfernt. Nach einer Wiederherstellung aus dem Backup kann ein entferntes Logo zurückkommen. |
+| Team-Logos ohne Vorabprüfung | Ein unpassendes Logo ist sofort für alle Eingeloggten sichtbar (seit Phase 28 auch ohne Anmeldung auf dem Board, solange das Team eine offene Anfrage hat, N-24), bis ein Admin es entfernt. Nach einer Wiederherstellung aus dem Backup kann ein entferntes Logo zurückkommen. |
 | Externe Team-Links ohne Vorabprüfung (seit Phase 19) | Geprüft wird nur, dass ein Link zur richtigen Plattform führt, nicht, was dort steht. Ein unpassender Link ist sofort für alle Eingeloggten sichtbar, bis ein Admin ihn entfernt; wie bei Logos kann er nach einer Wiederherstellung aus dem Backup zurückkommen. |
+| Board ohne Anmeldung (seit Phase 28) | Teamnamen, Logos, Hochschulen, Team-Ränge und Zuverlässigkeit von Teams mit offener Anfrage sind ohne Konto sichtbar und lassen sich automatisch abrufen; `noindex` ist nur eine Bitte an Suchmaschinen (N-24). |
 | Nur der Captain verifiziert (seit Phase 25) | Teams können Spieler mitbringen, die nicht studieren oder kein Konto haben, auch stärkere. Scrims sind Training; wem das wichtig ist, filtert nach vollständig verifizierten Teams oder lässt nur sie als Bewerber zu (N-21). Wer tatsächlich spielt, prüft die Plattform ohnehin nicht. |
 | Wiederherstellung aus dem Backup | Sperren und Kontolöschungen nach dem Backup (seit dem letzten gelungenen Backup, normalerweise höchstens ein Tag) werden aus der alten Datenbank nachgezogen. Ist sie verloren, fehlen sie: Gelöschte Konten stehen dann wieder mit den Daten vom Backup-Zeitpunkt in der Datenbank, bis sie erneut gelöscht werden, und Sperren müssen neu gesetzt werden. Steht in der Datenschutzerklärung. |
 
@@ -629,7 +640,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 25 | Ein verifizierter Captain reicht (N-21) | Ein Team, in dem nur der Captain verifiziert ist, postet, bewirbt sich und bestätigt; Teams mit 5 verifizierten Spielern tragen das Abzeichen „Vollständig verifiziert“ auf Board, Anfrage, Bewerbungen und Teams-Liste, und beide Listen filtern danach; der Captain lässt auf Wunsch nur vollständig verifizierte Bewerber zu |
 | 26 | Startseite „Warum Uni Scrims?“ (N-22) | Die Startseite stellt Scrim-Channel und Uni Scrims gegenüber und sagt in der FAQ, dass Uni Scrims andere Scrim-Seiten nicht ersetzen muss |
 | 27 | Zuverlässigkeit sichtbarer (N-23) | Die Zuverlässigkeit der letzten 90 Tage steht deutlich auf Board, Anfrage, Bewerbungen und in der Teams-Liste; beide Listen filtern nach Teams mit einer No-Show-Quote unter 10 % |
-| 28 | Board ohne Anmeldung (geplant) | Abgemeldete sehen die offenen Anfragen nur lesend; Bewerben führt zur Anmeldung |
+| 28 | Board ohne Anmeldung (N-24) | Abgemeldete sehen unter `/board` die offenen Anfragen mit denselben Karten (samt Logos) und Filtern nur lesend; ein Klick führt zur Anmeldung und danach zur Anfrage; Angemeldete landen auf `/scrims`; die Startseite verlinkt das Board |
 | 29 | Wiederkehrende Anfragen (geplant) | Ein Captain legt eine wöchentliche Anfrage an, und die nächste erscheint rechtzeitig von selbst |
 | 30 | Direktanfrage und feste Partner (geplant) | Ein Captain fragt ein bestimmtes Team direkt an, auch als „Nochmal gegen dieses Team“ und wöchentlich; das andere Team nimmt an oder lehnt ab |
 | 31 | Sofortsuche „Heute spielbereit“ (geplant) | Ein Team meldet ein Zeitfenster für heute, andere fragen darin mit einem Klick an |
