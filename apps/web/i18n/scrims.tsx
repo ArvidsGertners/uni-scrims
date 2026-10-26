@@ -121,7 +121,7 @@ export const scrimsPageMessages = dictionary(
     incomingTitle: "Direktanfragen an euch",
     ownRequestsTitle: "Eure Anfragen",
     directTo: (team: string) => `An ${team}`,
-    weeklyUntil: (date: string) => `Wöchentlich bis ${date}`,
+    partnershipUntil: (date: string) => `Feste Partnerschaft bis ${date}`,
     awaitingAnswer: "Wartet auf Antwort",
     answerNow: "Antworten",
     partner: (team: string) => `Fester Partner: ${team}`,
@@ -210,7 +210,7 @@ export const scrimsPageMessages = dictionary(
     incomingTitle: "Direct requests to you",
     ownRequestsTitle: "Your requests",
     directTo: (team) => `To ${team}`,
-    weeklyUntil: (date) => `Weekly until ${date}`,
+    partnershipUntil: (date) => `Fixed partnership until ${date}`,
     awaitingAnswer: "Awaiting reply",
     answerNow: "Reply",
     partner: (team) => `Fixed partner: ${team}`,
@@ -454,7 +454,7 @@ export const requestDetailMessages = dictionary(
     yourAnswer: "Eure Antwort",
     directStatus: "Direktanfrage",
     weeklyProposal: (date: string) =>
-      `Feste Partnerschaft: jede Woche zur selben Zeit bis ${date}. Mit der Zusage ist dieser Termin gebucht, jeder weitere wird eine Woche vorher von selbst gebucht.`,
+      `Feste Partnerschaft bis ${date}: Mit der Zusage ist dieser Termin gebucht, jeder weitere wird eine Woche vorher von selbst gebucht, am selben Wochentag zur selben Uhrzeit.`,
     awaitingAnswer: (team: string) =>
       `${team} hat noch nicht geantwortet. Bleibt die Anfrage unbeantwortet, verfällt sie zur Startzeit.`,
     captainAnswers: "Annehmen oder ablehnen kann nur euer Captain.",
@@ -524,7 +524,7 @@ export const requestDetailMessages = dictionary(
     yourAnswer: "Your answer",
     directStatus: "Direct request",
     weeklyProposal: (date) =>
-      `Fixed partnership: every week at the same time until ${date}. Accepting books this date; every further date is booked automatically a week ahead.`,
+      `Fixed partnership until ${date}: accepting books this date, and every further one is booked automatically a week ahead, on the same weekday at the same time.`,
     awaitingAnswer: (team) =>
       `${team} hasn't replied yet. If the request stays unanswered, it expires at the start time.`,
     captainAnswers: "Only your captain can accept or decline.",

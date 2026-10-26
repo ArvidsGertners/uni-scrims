@@ -135,15 +135,6 @@ async function TeamCard({ team }: { team: TeamListEntry }) {
             {formatUniversities(team.universities, locale)}
           </span>
         </div>
-        {/* A direct request to this team, for the captain (SPEC N-26). */}
-        {team.canRequest ? (
-          <Link
-            href={`/requests/new?team=${encodeURIComponent(team.id)}`}
-            className={buttonVariants({ variant: "outline", size: "sm", className: "shrink-0" })}
-          >
-            {t.directRequest}
-          </Link>
-        ) : null}
       </div>
       <div className="flex flex-col gap-0.5">
         <p className="text-[13px] text-muted-foreground">
@@ -151,6 +142,15 @@ async function TeamCard({ team }: { team: TeamListEntry }) {
         </p>
         <ReliabilityLine reliability={team.reliability} />
       </div>
+      {/* A direct request to this team, for the captain (SPEC N-26). */}
+      {team.canRequest ? (
+        <Link
+          href={`/requests/new?team=${encodeURIComponent(team.id)}`}
+          className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}
+        >
+          {t.directRequest}
+        </Link>
+      ) : null}
       <section className="flex flex-col gap-1 border-t border-border pt-3.5">
         <h3 className="type-label text-muted-foreground">
           {t.members} · {team.members.length}

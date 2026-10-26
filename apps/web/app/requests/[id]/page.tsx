@@ -78,7 +78,12 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     { label: shared.teamRank, value: <RankLabel rank={team.rank} /> },
   ];
   const ownApplication = request.ownApplication;
-  const hasActions = Boolean(request.apply || ownApplication || request.applications || direct);
+  // A direct request only has something to do while it is open (SPEC N-26); afterwards the head
+  // shows its status, and a booked one links to the scrim.
+  const directOpen = direct !== null && request.open;
+  const hasActions = Boolean(
+    request.apply || ownApplication || (request.applications && !direct) || directOpen,
+  );
 
   return (
     <PageMain width="wide" className="gap-7">
@@ -296,7 +301,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               </div>
             ) : null}
 
-            {direct ? (
+            {direct && directOpen ? (
               <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                 <h2 className="type-label text-muted-foreground">
                   {direct.incoming ? t.yourAnswer : t.directStatus}
@@ -306,11 +311,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     {t.weeklyProposal(describeStartDay(direct.weeklyUntil, locale))}
                   </p>
                 ) : null}
-                {request.open && !direct.incoming ? (
+                {direct.incoming ? null : (
                   <p className="text-[14px] text-pretty text-muted-foreground">
                     {t.awaitingAnswer(direct.target.name)}
                   </p>
-                ) : null}
+                )}
                 {request.accept?.problem === null ? (
                   <div className="flex flex-wrap gap-2.5">
                     <ActionForm
@@ -345,7 +350,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                   <p className="text-[14px] text-pretty text-muted-foreground">
                     {t.cannotAnswer(text(request.accept.problem))}
                   </p>
-                ) : request.open && direct.incoming ? (
+                ) : direct.incoming ? (
                   <p className="text-[14px] text-pretty text-muted-foreground">
                     {t.captainAnswers}
                   </p>

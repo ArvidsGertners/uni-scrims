@@ -345,14 +345,15 @@ async function IncomingRequests({ mine }: { mine: MyScrims }) {
             {describeStartShort(request.startsAt, locale)} · {formatFormat(request.format, locale)}{" "}
             · {formatMaps(request.maps, locale)}
           </span>
+          {request.weeklyUntil ? (
+            <span className="text-[13px] text-muted-foreground">
+              {t.partnershipUntil(describeStartDay(request.weeklyUntil, locale))}
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-border pt-3.5">
-        {request.weeklyUntil ? (
-          <Badge>{t.weeklyUntil(describeStartDay(request.weeklyUntil, locale))}</Badge>
-        ) : (
-          <span />
-        )}
+        {request.weeklyUntil ? <Badge>{t.weekly}</Badge> : <span />}
         <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
           {t.answerNow}
           <ChevronRightIcon strokeWidth={2.5} />
@@ -389,18 +390,22 @@ async function OpenRequests({ mine }: { mine: MyScrims }) {
               </span>
             </div>
             <span className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row">
-              {request.weekly ? <Badge>{t.weekly}</Badge> : null}
-              {request.weeklyUntil ? (
-                <Badge>{t.weeklyUntil(describeStartDay(request.weeklyUntil, locale))}</Badge>
-              ) : null}
+              {request.weekly || request.weeklyUntil ? <Badge>{t.weekly}</Badge> : null}
               <Badge variant="accent">{t.open}</Badge>
             </span>
           </div>
           {request.target ? (
             <div className="flex min-w-0 items-center gap-2.5">
               <TeamAvatar team={request.target} size="sm" />
-              <span className="min-w-0 text-[14px] font-semibold break-words">
-                {t.directTo(request.target.name)}
+              <span className="flex min-w-0 flex-col">
+                <span className="text-[14px] font-semibold break-words">
+                  {t.directTo(request.target.name)}
+                </span>
+                {request.weeklyUntil ? (
+                  <span className="text-[13px] text-muted-foreground">
+                    {t.partnershipUntil(describeStartDay(request.weeklyUntil, locale))}
+                  </span>
+                ) : null}
               </span>
             </div>
           ) : null}
