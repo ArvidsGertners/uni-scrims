@@ -16,7 +16,7 @@ export type ChannelSettings = { discord: boolean; email: boolean };
 
 type StoredChannels = { discord: boolean | null; email: boolean | null };
 
-export type NotificationCategoryKey = "verification" | "requests" | "scrims" | "team";
+export type NotificationCategoryKey = "verification" | "requests" | "scrims" | "messages" | "team";
 
 /**
  * The categories of the settings page, every type in exactly one of them, in this order. Titles and
@@ -51,6 +51,11 @@ export const NOTIFICATION_CATEGORIES: {
       { type: NotifType.REMINDER_1H, audience: "TEAM" },
       { type: NotifType.FEEDBACK_PROMPT, audience: "TEAM" },
     ],
+  },
+  {
+    // Phase 32 (SPEC N-28): like the scrim types, every member may switch it on.
+    key: "messages",
+    types: [{ type: NotifType.MESSAGE_RECEIVED, audience: "TEAM" }],
   },
   {
     key: "team",

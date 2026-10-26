@@ -11,6 +11,7 @@ import { z } from "zod";
 import { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../config/account.ts";
 import {
   APPLICATION_MESSAGE_MAX,
+  MESSAGE_MAX,
   RATING_MAX,
   RATING_MIN,
   REQUEST_NOTE_MAX,
@@ -151,7 +152,7 @@ export type RegistrationInput = z.input<typeof registrationSchema>;
 
 // ─── Requests, applications, feedback ─────────────────────────────────────────
 
-export { APPLICATION_MESSAGE_MAX, RATING_MAX, RATING_MIN, REQUEST_NOTE_MAX };
+export { APPLICATION_MESSAGE_MAX, MESSAGE_MAX, RATING_MAX, RATING_MIN, REQUEST_NOTE_MAX };
 
 /** Empty optional text becomes null. */
 function optionalText(max: number, message: PlainMessageKey) {
@@ -225,6 +226,13 @@ export const applicationMessageSchema = optionalText(
   APPLICATION_MESSAGE_MAX,
   key("messageTooLong"),
 );
+
+/** A message between teams (SPEC N-28): plain text, trimmed, not empty. */
+export const messageBodySchema = z
+  .string(key("messageEmpty"))
+  .trim()
+  .min(1, key("messageEmpty"))
+  .max(MESSAGE_MAX, key("messageBodyTooLong"));
 
 const RATING_RANGE_MESSAGE = key("ratingRange");
 

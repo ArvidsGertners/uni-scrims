@@ -3,8 +3,9 @@
 // FOR KEY SHARE locks that foreign key checks take. With FOR UPDATE, dissolving a team (holds the
 // Team lock, then locks its requests) deadlocked with applying to one of its requests (holds the
 // request lock, then inserts a notification referencing the Team).
-// Lock order in every transaction (ARCHITECTURE §4): Team → User → ScrimRequest → Scrim, several rows
-// of one table sorted by id; VerificationRequest, Application and Notification rows only after that.
+// Lock order in every transaction (ARCHITECTURE §4): Team → User → ScrimRequest → Scrim →
+// Conversation (Phase 32), several rows of one table sorted by id; VerificationRequest, Application
+// and Notification rows only after that.
 // RequestSeries rows have no lock of their own: only holders of their team's lock change them, except
 // deleteAccount clearing notes, which postSeriesRequests waits for on the creator's user row (§5.27).
 // A fixed partnership (Phase 30) has two teams: booking from it or ending it holds both team rows,
@@ -32,6 +33,14 @@ export async function lockRequest(tx: Prisma.TransactionClient, requestId: strin
 
 export async function lockScrim(tx: Prisma.TransactionClient, scrimId: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "Scrim" WHERE id = ${scrimId} FOR NO KEY UPDATE`;
+}
+
+/** A message thread (Phase 32, §5.30), after the user row. */
+export async function lockConversation(
+  tx: Prisma.TransactionClient,
+  conversationId: string,
+): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "Conversation" WHERE id = ${conversationId} FOR NO KEY UPDATE`;
 }
 
 /** Runs fn in the caller's transaction, or in a new one when db is the shared client. */

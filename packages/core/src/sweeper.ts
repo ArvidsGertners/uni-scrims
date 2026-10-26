@@ -2,6 +2,7 @@
 // also while it cannot log in to Discord. Every step is idempotent and derives from the database
 // alone, so after a bot outage the next run catches up. Also the heartbeats of both bot loops.
 import { NotifStatus, prisma } from "@uni-scrims/db";
+import { purgeOldConversations } from "./messages.ts";
 import { requireAdmin } from "./permissions.ts";
 import { postSeriesRequests } from "./request-series.ts";
 import { expireRequests } from "./requests.ts";
@@ -104,8 +105,8 @@ export async function recordHeartbeat(loop: BotLoop, now: Date): Promise<void> {
 
 /**
  * One sweeper run in the order of §6.3. A failing step is logged and does not stop the others;
- * the next run tries again. Old notifications are purged only with `purge` (hourly is enough), the
- * rest in every run. Counts are null for steps that failed or were skipped. The bot loop writes the
+ * the next run tries again. Old notifications and threads are purged only with `purge` (hourly is
+ * enough), the rest in every run. Counts are null for steps that failed or were skipped. The bot loop writes the
  * heartbeat afterwards, with the time the run ended.
  */
 export async function runSweeper(now: Date, options: { purge: boolean }) {
@@ -127,6 +128,10 @@ export async function runSweeper(now: Date, options: { purge: boolean }) {
     clearedTokens: await step("purgeStaleOAuthTokens", () => purgeStaleOAuthTokens(now)),
     purgedNotifications: options.purge
       ? await step("purgeOldNotifications", () => purgeOldNotifications(now))
+      : null,
+    // Phase 32 (§5.30): threads 30 days after their start, with the notifications' hourly purge.
+    purgedConversations: options.purge
+      ? await step("purgeOldConversations", () => purgeOldConversations(now))
       : null,
   };
 }

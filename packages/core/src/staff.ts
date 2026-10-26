@@ -237,8 +237,9 @@ export async function finishTwoFactorSetup(userId: string): Promise<boolean> {
 
 /**
  * Sidebar and overview of the admin area (§5.14): who is signed in, and what waits, by role. Every
- * role with 2FA; disputes, failed notifications, the bot and (since Phase 21) the requests for more
- * teams only for admins and the operator, otherwise null. Counts only, the pages show the entries.
+ * role with 2FA; disputes, failed notifications, the bot, (since Phase 21) the requests for more
+ * teams and (since Phase 32) the reported messages only for admins and the operator, otherwise
+ * null. Counts only, the pages show the entries.
  */
 export async function getAdminOverview(input: { staffId: string; now: Date }) {
   const staff = await requireStaff(input.staffId, STAFF_AREAS.queue);
@@ -254,6 +255,8 @@ export async function getAdminOverview(input: { staffId: string; now: Date }) {
           prisma.notification.count({ where: { status: NotifStatus.FAILED } }),
           getBotStatus(staff.id, input.now),
           prisma.teamLimitRequest.count({ where: { status: TeamLimitStatus.PENDING } }),
+          // Messages with an open report (SPEC N-28).
+          prisma.message.count({ where: { reports: { some: { dismissedAt: null } } } }),
         ])
       : null,
   ]);
@@ -270,5 +273,7 @@ export async function getAdminOverview(input: { staffId: string; now: Date }) {
     bot: admin ? admin[2] : null,
     /** Open requests for more teams (§5.20). */
     teamLimitRequests: admin ? admin[3] : null,
+    /** Reported messages waiting for a decision (§5.30). */
+    messageReports: admin ? admin[4] : null,
   };
 }

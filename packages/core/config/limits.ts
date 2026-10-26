@@ -24,6 +24,11 @@ export const APPLICATION_MESSAGE_MAX = 200;
 export const RATING_MIN = 1;
 export const RATING_MAX = 5;
 
+/** A message between teams (SPEC N-28). */
+export const MESSAGE_MAX = 1000;
+/** Threads are deleted this many days after the start of their request (SPEC N-28). */
+export const MESSAGE_RETENTION_DAYS = 30;
+
 export const TEAM_LINK_MAX = 300;
 /** Longer searches in the teams list are cut to this many characters (SPEC N-20). */
 export const TEAM_SEARCH_MAX = 100;

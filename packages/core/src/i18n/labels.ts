@@ -117,6 +117,7 @@ export const NOTIFICATION_TYPE_LABELS: Localized<Record<NotifType, string>> = di
     DIRECT_REQUEST_RECEIVED: "Neue Direktanfrage",
     DIRECT_REQUEST_DECLINED: "Direktanfrage abgelehnt",
     PARTNERSHIP_ENDED: "Feste Partnerschaft beendet",
+    MESSAGE_RECEIVED: "Neue Nachricht",
   },
   {
     VERIFICATION_RESULT: "Verification result",
@@ -133,6 +134,7 @@ export const NOTIFICATION_TYPE_LABELS: Localized<Record<NotifType, string>> = di
     DIRECT_REQUEST_RECEIVED: "New direct request",
     DIRECT_REQUEST_DECLINED: "Direct request declined",
     PARTNERSHIP_ENDED: "Fixed partnership ended",
+    MESSAGE_RECEIVED: "New message",
   },
 );
 

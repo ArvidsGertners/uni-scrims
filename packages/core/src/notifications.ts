@@ -26,6 +26,10 @@ const directRequestPayloadSchema = requestPayloadSchema.extend({
 export const READY_WINDOW_DECLINE_REASONS = ["BOOKED", "ENDED"] as const;
 export type ReadyWindowDeclineReason = (typeof READY_WINDOW_DECLINE_REASONS)[number];
 
+/** Where a thread stands (Phase 32, §5.30): at an application, a direct request or a booked scrim. */
+export const MESSAGE_CONTEXTS = ["APPLICATION", "DIRECT", "SCRIM"] as const;
+export type MessageContext = (typeof MESSAGE_CONTEXTS)[number];
+
 /** Display data of a scrim notification, from the receiving team's point of view. */
 const scrimPayloadSchema = z.object({
   opponentTeamName: z.string(),
@@ -62,6 +66,12 @@ export const notificationPayloadSchemas = {
   }),
   // teamName: the team that ended the partnership; startsAt: its next date, for weekday and time.
   PARTNERSHIP_ENDED: requestPayloadSchema,
+  // teamName: the sending team; never the text (Phase 32, §5.30). context and guestTeamId build the
+  // link: the scrim page, or the request page with the thread of this guest team.
+  MESSAGE_RECEIVED: requestPayloadSchema.extend({
+    context: z.enum(MESSAGE_CONTEXTS),
+    guestTeamId: z.string(),
+  }),
 } satisfies Record<NotifType, z.ZodType>;
 
 export type NotificationPayload<T extends NotifType> = z.infer<

@@ -7,6 +7,7 @@ import {
   APPLICATION_MESSAGE_MAX,
   FULLY_VERIFIED_PLAYER_COUNT,
   MAX_LOGO_SIDE,
+  MESSAGE_MAX,
   MAX_OPEN_REQUESTS,
   MAX_TEAM_LIMIT,
   MAX_TEAM_MEMBERS,
@@ -101,6 +102,15 @@ const de = {
   readyWindowOrder: "Die späteste Startzeit darf nicht vor der frühesten liegen.",
   startOutsideWindow: "Die Startzeit liegt nicht im Zeitfenster des Teams.",
   alreadyRequestedWindow: "Ihr habt dieses Team für sein Zeitfenster schon angefragt.",
+
+  // Messages between teams (Phase 32)
+  conversationNotFound: "Diesen Verlauf gibt es nicht.",
+  conversationClosed: "In diesem Verlauf kann niemand mehr schreiben.",
+  messageEmpty: "Bitte schreib eine Nachricht.",
+  messageBodyTooLong: `Eine Nachricht darf höchstens ${MESSAGE_MAX} Zeichen haben.`,
+  messageNotFound: "Diese Nachricht gibt es nicht mehr.",
+  reportOwnTeam: "Nachrichten des eigenen Teams könnt ihr nicht melden.",
+  alreadyReported: "Ihr habt diese Nachricht schon gemeldet.",
 
   // Scrims and feedback
   scrimNotFound: "Scrim nicht gefunden.",
@@ -298,6 +308,14 @@ export const MESSAGES = dictionary(de, {
   readyWindowOrder: "The latest start time can't be before the earliest.",
   startOutsideWindow: "The start time is not in the team's window.",
   alreadyRequestedWindow: "You've already sent this team a request for its window.",
+
+  conversationNotFound: "This conversation doesn't exist.",
+  conversationClosed: "Nobody can write in this conversation anymore.",
+  messageEmpty: "Please write a message.",
+  messageBodyTooLong: `A message can have at most ${MESSAGE_MAX} characters.`,
+  messageNotFound: "This message no longer exists.",
+  reportOwnTeam: "You can't report messages of your own team.",
+  alreadyReported: "You've already reported this message.",
 
   scrimNotFound: "Scrim not found.",
   scrimNotCancellable: "The scrim can no longer be cancelled.",

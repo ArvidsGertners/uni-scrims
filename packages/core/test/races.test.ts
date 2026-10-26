@@ -18,6 +18,9 @@ import sharp from "sharp";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   acceptDirectRequest,
+  deleteOwnMessage,
+  reportMessage,
+  sendMessage,
   createReadyWindow,
   endReadyWindow,
   requestReadyWindow,
@@ -1027,6 +1030,82 @@ describe("ready windows while their requests or teams change (§5.29)", () => {
       expect(await prisma.readyWindow.count({ where: { teamId: a.team.id, endedAt: null } })).toBe(
         0,
       );
+    }
+  });
+});
+
+describe("messages while the thread or its author change (§5.30)", () => {
+  async function thread() {
+    const host = await createTeamWithMembers({ extraMembers: 1, verifiedMembers: false });
+    const guest = await createTeamWithMembers({ extraMembers: 1, verifiedMembers: false });
+    const request = await createOpenRequest(host.captain.id);
+    await applyToRequest({
+      userId: guest.captain.id,
+      teamId: guest.team.id,
+      requestId: request.id,
+      now: NOW,
+    });
+    return { host, guest, key: { requestId: request.id, guestTeamId: guest.team.id } };
+  }
+
+  it("makes one thread and one notification of two first messages", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { host, guest, key } = await thread();
+      const results = await Promise.allSettled(
+        [guest.captain, guest.members[0]!].map((user) =>
+          sendMessage({ userId: user.id, teamId: guest.team.id, ...key, body: "hi", now: NOW }),
+        ),
+      );
+      expectOnlyDomainErrors(results);
+      expect(results.every((result) => result.status === "fulfilled")).toBe(true);
+      expect(await prisma.conversation.count({ where: key })).toBe(1);
+      expect(
+        await prisma.notification.count({
+          where: { type: NotifType.MESSAGE_RECEIVED, targetTeamId: host.team.id },
+        }),
+      ).toBe(1);
+    }
+  });
+
+  it("leaves no message of an account deleted meanwhile", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { guest, key } = await thread();
+      const member = guest.members[0]!;
+      const results = await Promise.allSettled([
+        sendMessage({ userId: member.id, teamId: guest.team.id, ...key, body: "hi", now: NOW }),
+        remove(member.id),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(await prisma.message.count({ where: { authorId: member.id } })).toBe(0);
+    }
+  });
+
+  it("does not fail on the foreign key when a report meets the deletion", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { host, guest, key } = await thread();
+      await sendMessage({
+        userId: guest.captain.id,
+        teamId: guest.team.id,
+        ...key,
+        body: "hi",
+        now: NOW,
+      });
+      const message = await prisma.message.findFirstOrThrow({
+        where: { authorId: guest.captain.id },
+      });
+      const results = await Promise.allSettled([
+        reportMessage({
+          userId: host.captain.id,
+          teamId: host.team.id,
+          messageId: message.id,
+          now: NOW,
+        }),
+        deleteOwnMessage({ userId: guest.captain.id, messageId: message.id }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(await prisma.messageReport.count({ where: { messageId: message.id } })).toBe(0);
     }
   });
 });

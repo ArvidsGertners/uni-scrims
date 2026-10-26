@@ -14,6 +14,7 @@ import {
 } from "../config/limits.ts";
 import type { Db } from "./db.ts";
 import type { Message } from "./i18n/render.ts";
+import { conversationKeyOf, conversationViews, unreadConversationKeys } from "./messages.ts";
 import {
   actingCaptainProblem,
   canSeeApplications,
@@ -678,7 +679,20 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   // it and the setting is on. Then it runs alongside the reliabilities; null means not counted.
   const countOwnPlayers =
     ownTeam !== null && offersApply && actionProblem === null && host.verifiedApplicantsOnly;
-  const [reliabilities, ownFullyVerified, ownMemberCount] = await Promise.all([
+  // The threads with the other team (SPEC N-28): of a direct request for both teams, of every
+  // application for the creating team, of the own application for an applicant.
+  const guestTeamIds = !ownTeam
+    ? []
+    : request.targetTeamId !== null
+      ? isOwner || isTarget
+        ? [request.targetTeamId]
+        : []
+      : isOwner
+        ? applications.map((application) => application.teamId)
+        : ownApplication
+          ? [ownTeam.id]
+          : [];
+  const [reliabilities, ownFullyVerified, ownMemberCount, threads] = await Promise.all([
     getReliabilities(
       [
         request.teamId,
@@ -689,7 +703,18 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     ),
     countOwnPlayers ? isTeamFullyVerified(ownTeam.id) : null,
     offersApply ? prisma.teamMember.count({ where: { teamId: ownTeam.id } }) : null,
+    ownTeam
+      ? conversationViews({
+          userId: user.id,
+          teamId: ownTeam.id,
+          requestId: request.id,
+          guestTeamIds,
+          now: input.now,
+        })
+      : [],
   ]);
+  const thread = (guestTeamId: string) =>
+    threads.find((entry) => entry.guestTeamId === guestTeamId) ?? null;
   const ruleProblem =
     ownFullyVerified === null ? null : applicantRuleProblem(host, ownFullyVerified);
 
@@ -770,6 +795,14 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     /** Own team rank outside the requested range: allowed, with a hint (SPEC P0-5, N-16). */
     outOfRange: isOutsideRange(ownRank, request),
     ownApplication,
+    /**
+     * The thread with the other team for an applicant or either team of a direct request (SPEC
+     * N-28); the creating team of a board request has one per application.
+     */
+    conversation:
+      ownTeam && !(isOwner && request.targetTeamId === null)
+        ? thread(request.targetTeamId ?? ownTeam.id)
+        : null,
     applications: showApplications
       ? applications.map((application) => ({
           id: application.id,
@@ -781,6 +814,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
             ...toTeamCard(application.team, reliabilities),
             links: toTeamLinks(application.team),
           },
+          conversation: thread(application.teamId),
           ...confirmOffer(application),
         }))
       : null,
@@ -843,7 +877,17 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
   const actionProblem = actingCaptainProblem(user, ownTeam)?.text ?? null;
   const ownFeedback = scrim.feedback.find((feedback) => feedback.teamId === ownTeam.id) ?? null;
   const feedbackClosed = feedbackClosedReason(scrim, input.now);
-  const opponentCaptainDiscordId = await getDiscordId(opponent.captain.id);
+  const [opponentCaptainDiscordId, threads] = await Promise.all([
+    getDiscordId(opponent.captain.id),
+    // The thread with the opponent, continued from the application or direct request (SPEC N-28).
+    conversationViews({
+      userId: user.id,
+      teamId: ownTeam.id,
+      requestId: scrim.requestId,
+      guestTeamIds: [scrim.guestTeamId],
+      now: input.now,
+    }),
+  ]);
 
   return {
     id: scrim.id,
@@ -893,6 +937,7 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
       captainProblem(user, ownTeam) === null &&
       isTeamActive(opponent) &&
       !isUpcomingScrim(scrim, input.now),
+    conversation: threads[0] ?? null,
   };
 }
 
@@ -990,6 +1035,20 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
     }),
     loadTeamLogoInfo(ownTeam),
   ]);
+  // Threads with unread messages of the other team (SPEC N-28), for the "Neu" markers.
+  const unread = await unreadConversationKeys(prisma, {
+    userId: user.id,
+    teamId: ownTeam.id,
+    requestIds: [
+      ...scrims.map((scrim) => scrim.requestId),
+      ...requests.map((request) => request.id),
+      ...incoming.map((request) => request.id),
+      ...applications.map((application) => application.request.id),
+    ],
+  });
+  const unreadRequestIds = new Set([...unread].map((key) => key.split(":")[0]));
+  const unreadAsGuest = (requestId: string) =>
+    unread.has(conversationKeyOf({ requestId, guestTeamId: ownTeam.id }));
   // Feedback is given by the acting captain only (SPEC P0-8), like on the scrim page.
   const mayGiveFeedback = actingCaptainProblem(user, ownTeam) === null;
   const isCaptain = isCaptainOf(user, ownTeam);
@@ -1023,6 +1082,10 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
         mayGiveFeedback && !feedbackGiven && feedbackClosedReason(scrim, input.now) === null,
       /** "Nochmal gegen dieses Team" for the captain, while the opponent is active (SPEC N-26). */
       rematch: mayRequest && isTeamActive(opponent) && !isUpcomingScrim(scrim, input.now),
+      /** Unread messages of the opponent in the scrim's thread (SPEC N-28). */
+      unread: unread.has(
+        conversationKeyOf({ requestId: scrim.requestId, guestTeamId: scrim.guestTeamId }),
+      ),
     };
   });
   const isUpcoming = (item: (typeof items)[number]) => isUpcomingScrim(item, input.now);
@@ -1095,6 +1158,8 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       weeklyUntil: request.weeklyLastStartsAt,
       /** For a start time in the target's window "Heute spielbereit" (SPEC N-27). */
       readyWindow: request.readyWindowId !== null,
+      /** Unread messages in any thread of the request (SPEC N-28). */
+      unread: unreadRequestIds.has(request.id),
     })),
     incoming: incoming.map((request) => ({
       id: request.id,
@@ -1104,6 +1169,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       weeklyUntil: request.weeklyLastStartsAt,
       readyWindow: request.readyWindowId !== null,
       team: smallTeam(request.team),
+      unread: unreadAsGuest(request.id),
     })),
     series: series.map(({ entry, nextStartsAt, postsAt }) => ({
       id: entry.id,
@@ -1139,6 +1205,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
         tag: application.request.team.tag,
         logo: teamLogoInfo(application.request.team),
       },
+      unread: unreadAsGuest(application.request.id),
     })),
   };
 }

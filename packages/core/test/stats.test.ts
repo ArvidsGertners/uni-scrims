@@ -35,6 +35,8 @@ async function clearDomainTables() {
   await prisma.scrimFeedback.deleteMany();
   await prisma.scrim.deleteMany();
   await prisma.application.deleteMany();
+  // Messages, read states and reports go with their threads (cascade).
+  await prisma.conversation.deleteMany();
   await prisma.scrimRequest.deleteMany();
   await prisma.requestSeries.deleteMany();
   await prisma.readyWindow.deleteMany();

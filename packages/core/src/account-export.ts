@@ -31,7 +31,7 @@ function notice(now: Date, privacyPolicyUrl: string): string {
   return [
     `Das sind alle Daten, die Uni Scrims zu deinem Konto speichert (Auskunft nach Art. 15 DSGVO), Stand ${now.toISOString()}.`,
     `Zwecke, Empfänger, Speicherdauer und deine Rechte stehen in der Datenschutzerklärung: ${privacyPolicyUrl}.`,
-    "Nicht in dieser Datei: Zugangsdaten (Passwort, Schlüssel und Backup-Codes der Zwei-Faktor-Anmeldung, die Tokens von Sitzungen und Mail-Links; dass es sie gibt, steht unter „konto“, „anmeldung“ und „sitzungen“), die Datei einer offenen Prüfung (nur ihre Angaben), Daten anderer Personen, Nachrichten an dein Team (sie hängen am Team, nicht an dir), Server-Logs und Backups (beschrieben in der Datenschutzerklärung).",
+    "Nicht in dieser Datei: Zugangsdaten (Passwort, Schlüssel und Backup-Codes der Zwei-Faktor-Anmeldung, die Tokens von Sitzungen und Mail-Links; dass es sie gibt, steht unter „konto“, „anmeldung“ und „sitzungen“), die Datei einer offenen Prüfung (nur ihre Angaben), Daten anderer Personen (auch deren Nachrichten an dein Team), Bewerbungsnachrichten deines Teams (sie hängen am Team, nicht an dir), Server-Logs und Backups (beschrieben in der Datenschutzerklärung).",
     "Zeitpunkte stehen in UTC (ISO 8601).",
   ].join(" ");
 }
@@ -273,6 +273,64 @@ export async function exportAccountData(input: {
         where: { userId: user.id },
         orderBy: { type: "asc" },
       });
+      // Messages between teams (SPEC N-28): the person's own, its reports and its read state. Only
+      // scalar chains per query and the team names in one query of their own, as above.
+      const threadSelect = {
+        guestTeamId: true,
+        request: { select: { teamId: true, startsAt: true } },
+      } satisfies Prisma.ConversationSelect;
+      const ownMessages = await tx.message.findMany({
+        where: { authorId: user.id },
+        orderBy: { createdAt: "asc" },
+        select: {
+          teamId: true,
+          body: true,
+          createdAt: true,
+          conversation: { select: threadSelect },
+        },
+      });
+      const reports = await tx.messageReport.findMany({
+        where: { reportedById: user.id },
+        orderBy: { createdAt: "asc" },
+        select: {
+          teamId: true,
+          createdAt: true,
+          dismissedAt: true,
+          message: { select: { teamId: true, conversation: { select: threadSelect } } },
+        },
+      });
+      const reads = await tx.conversationRead.findMany({
+        where: { userId: user.id },
+        orderBy: { readAt: "asc" },
+        select: { readAt: true, conversation: { select: threadSelect } },
+      });
+      const threadTeamIds = [
+        ...ownMessages.map(({ conversation }) => conversation),
+        ...reports.map(({ message }) => message.conversation),
+        ...reads.map(({ conversation }) => conversation),
+      ].flatMap((thread) => [thread.guestTeamId, thread.request.teamId]);
+      const threadTeams =
+        threadTeamIds.length === 0
+          ? []
+          : await tx.team.findMany({
+              where: { id: { in: threadTeamIds } },
+              select: { id: true, name: true },
+            });
+      const threadTeamNames = new Map(threadTeams.map(({ id, name }) => [id, name]));
+      const threadTeamName = (id: string) => threadTeamNames.get(id) ?? null;
+      /** The other team of a thread for a message or report of `teamId`. */
+      const otherThreadTeam = (
+        thread: { guestTeamId: string; request: { teamId: string } },
+        teamId: string,
+      ) =>
+        threadTeamName(
+          teamId === thread.request.teamId ? thread.guestTeamId : thread.request.teamId,
+        );
+      const dismissedReports = await tx.messageReport.findMany({
+        where: { dismissedById: user.id },
+        orderBy: { dismissedAt: "asc" },
+        select: { dismissedAt: true },
+      });
       // Own decisions as staff: date and result only, nothing about the person or the teams.
       const decidedReviews = await tx.verificationRequest.findMany({
         where: { decidedById: user.id },
@@ -466,6 +524,30 @@ export async function exportAccountData(input: {
           sterne: entry.rating,
           abgegebenAm: entry.createdAt,
         })),
+        // Since Phase 32 (SPEC N-28): the person's messages to other teams, its reports (without the
+        // other person's text) and how far it has read each thread.
+        teamNachrichten: ownMessages.map((message) => ({
+          team: threadTeamName(message.teamId),
+          anderesTeam: otherThreadTeam(message.conversation, message.teamId),
+          terminAm: message.conversation.request.startsAt,
+          geschriebenAm: message.createdAt,
+          text: message.body,
+        })),
+        gemeldeteNachrichten: reports.map((report) => ({
+          team: threadTeamName(report.teamId),
+          anderesTeam: threadTeamName(report.message.teamId),
+          terminAm: report.message.conversation.request.startsAt,
+          gemeldetAm: report.createdAt,
+          verworfenAm: report.dismissedAt,
+        })),
+        gelesen: reads.map((read) => ({
+          teams: [
+            threadTeamName(read.conversation.request.teamId),
+            threadTeamName(read.conversation.guestTeamId),
+          ],
+          terminAm: read.conversation.request.startsAt,
+          zuletztGelesenAm: read.readAt,
+        })),
         nachrichten: notifications.map((notification) => ({
           art: NOTIFICATION_TYPE_LABELS.de[notification.type],
           // Since Phase 18 also the person's copies of team notifications (§5.17).
@@ -497,6 +579,11 @@ export async function exportAccountData(input: {
           teamAnträge: decidedTeamLimits.map((request) => ({
             entschiedenAm: request.decidedAt,
             ergebnis: TEAM_LIMIT_STATUS_LABELS.de[request.status],
+          })),
+          // Since Phase 32: reports dismissed; a removed message leaves nothing behind.
+          meldungen: dismissedReports.map((report) => ({
+            entschiedenAm: report.dismissedAt,
+            ergebnis: "Meldung verworfen",
           })),
         },
       };

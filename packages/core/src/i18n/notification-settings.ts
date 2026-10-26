@@ -9,12 +9,14 @@ export const NOTIFICATION_CATEGORY_TITLES = dictionary<Record<NotificationCatego
     verification: "Verifizierung",
     requests: "Anfragen und Bewerbungen",
     scrims: "Scrims",
+    messages: "Nachrichten",
     team: "Team",
   },
   {
     verification: "Verification",
     requests: "Requests and applications",
     scrims: "Scrims",
+    messages: "Messages",
     team: "Team",
   },
 );
@@ -35,6 +37,7 @@ export const NOTIFICATION_SETTING_LABELS = dictionary<Record<NotifType, string>>
     DIRECT_REQUEST_RECEIVED: "Direktanfrage erhalten",
     DIRECT_REQUEST_DECLINED: "Direktanfrage abgelehnt",
     PARTNERSHIP_ENDED: "Feste Partnerschaft beendet",
+    MESSAGE_RECEIVED: "Neue Nachricht eines anderen Teams",
   },
   {
     VERIFICATION_RESULT: "Result of the review",
@@ -51,5 +54,6 @@ export const NOTIFICATION_SETTING_LABELS = dictionary<Record<NotifType, string>>
     DIRECT_REQUEST_RECEIVED: "Direct request received",
     DIRECT_REQUEST_DECLINED: "Direct request declined",
     PARTNERSHIP_ENDED: "Fixed partnership ended",
+    MESSAGE_RECEIVED: "New message from another team",
   },
 );

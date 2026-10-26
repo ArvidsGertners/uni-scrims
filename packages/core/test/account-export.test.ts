@@ -325,7 +325,12 @@ describe("exportAccountData", () => {
     expect(data.benachrichtigungen).toEqual([
       { art: "Scrim gebucht", discord: "Standard", eMail: "an" },
     ]);
-    expect(data.verwaltung).toEqual({ prüfungen: [], streitfälle: [], teamAnträge: [] });
+    expect(data.verwaltung).toEqual({
+      prüfungen: [],
+      streitfälle: [],
+      teamAnträge: [],
+      meldungen: [],
+    });
   });
 
   it("leaves out credentials and other people's data", async () => {
@@ -361,6 +366,7 @@ describe("exportAccountData", () => {
       prüfungen: [{ entschiedenAm: NOW, ergebnis: "Freigegeben" }],
       streitfälle: [{ entschiedenAm: NOW, ergebnis: "Gespielt" }],
       teamAnträge: [],
+      meldungen: [],
     });
     const json = JSON.stringify(data);
     const studentRow = await prisma.user.findUniqueOrThrow({ where: { id: student.id } });
@@ -661,6 +667,35 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     dedupeKey: KEY,
     createdAt: SHOWN,
     sentAt: SHOWN,
+  },
+  // Phase 32 (§5.30): messages between teams.
+  Conversation: {
+    id: KEY,
+    requestId: SHOWN,
+    guestTeamId: SHOWN,
+    hostReadAt: "Lesestand der Seite, Teamdaten",
+    guestReadAt: "Lesestand der Seite, Teamdaten",
+    hostNotifiedAt: "Benachrichtigungsstand der Seite, Teamdaten",
+    guestNotifiedAt: "Benachrichtigungsstand der Seite, Teamdaten",
+    createdAt: TEAM,
+  },
+  Message: {
+    id: KEY,
+    conversationId: SHOWN,
+    teamId: SHOWN,
+    authorId: SELF,
+    body: SHOWN,
+    createdAt: SHOWN,
+  },
+  ConversationRead: { conversationId: SHOWN, userId: SELF, readAt: SHOWN },
+  MessageReport: {
+    id: KEY,
+    messageId: SHOWN,
+    teamId: SHOWN,
+    reportedById: SELF,
+    createdAt: SHOWN,
+    dismissedAt: SHOWN,
+    dismissedById: "die Person selbst (unter verwaltung)",
   },
   NotificationPreference: { userId: SELF, type: SHOWN, discord: SHOWN, email: SHOWN },
   SystemStatus: { id: "Bot-Heartbeat, keine Personendaten", heartbeatAt: "Bot-Heartbeat" },

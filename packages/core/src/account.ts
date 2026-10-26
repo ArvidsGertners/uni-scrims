@@ -7,6 +7,7 @@ import { DomainError } from "./errors.ts";
 import { type Message } from "./i18n/render.ts";
 import { toDbLocale } from "./i18n/locale.ts";
 import { lockTeam, lockUser } from "./locks.ts";
+import { type ConversationKey, conversationKeyOf } from "./messages.ts";
 import {
   findOwnTeams,
   isCaptainOf,
@@ -281,18 +282,19 @@ export async function setPlayerRank(input: { userId: string; rank: string }): Pr
 }
 
 /**
- * Deletes all personal data: memberships, verification requests and their files, notes, notifications
- * to the user, sessions and the Discord link; name, email and avatar are replaced, deletedAt is set.
- * For a banned user the Discord account row moves to a new ban placeholder (§4), so a new login lands
- * on a banned user again, without any link to the deleted account's data.
+ * Deletes all personal data: memberships, verification requests and their files, notes, messages to
+ * other teams, notifications to the user, sessions and the Discord link; name, email and avatar are
+ * replaced, deletedAt is set. For a banned user the Discord account row moves to a new ban
+ * placeholder (§4), so a new login lands on a banned user again, without any link to the deleted
+ * account's data. Returns the threads that lost messages, for the live threads (§5.30).
  */
 export async function deleteAccount(input: {
   userId: string;
   uploadDir: string;
   now: Date;
-}): Promise<void> {
+}): Promise<{ conversations: ConversationKey[] }> {
   const user = await requireAccountUser(input.userId);
-  const files = await prisma.$transaction(async (tx) => {
+  const { files, conversations } = await prisma.$transaction(async (tx) => {
     // Teams before user (§4), in id order, as in leaveTeam, joinTeam and banUser, so they cannot
     // deadlock.
     const lockedIds = (await findOwnTeams(user.id, tx)).map((team) => team.id).sort();
@@ -350,6 +352,14 @@ export async function deleteAccount(input: {
     }
     // Requests for more teams hold free text (SPEC N-17).
     await tx.teamLimitRequest.deleteMany({ where: { userId: user.id } });
+    // Messages to other teams and the read state (SPEC N-28); reports on them go with them
+    // (cascade), the reports the user made stay with the anonymized account, like feedback.
+    const authored = await tx.message.findMany({
+      where: { authorId: user.id },
+      select: { conversation: { select: { requestId: true, guestTeamId: true } } },
+    });
+    await tx.message.deleteMany({ where: { authorId: user.id } });
+    await tx.conversationRead.deleteMany({ where: { userId: user.id } });
 
     const verifications = await tx.verificationRequest.findMany({
       where: { userId: user.id },
@@ -392,7 +402,14 @@ export async function deleteAccount(input: {
       }
       await tx.account.deleteMany({ where: { userId: user.id } });
     }
-    return verifications.flatMap(({ filePath }) => (filePath ? [filePath] : []));
+    return {
+      files: verifications.flatMap(({ filePath }) => (filePath ? [filePath] : [])),
+      conversations: [
+        ...new Map(
+          authored.map(({ conversation }) => [conversationKeyOf(conversation), conversation]),
+        ).values(),
+      ],
+    };
   });
   // After the commit, as in decideVerification. The account is already deleted, so a failure is
   // only logged; the janitor's orphan step removes leftovers.
@@ -403,4 +420,5 @@ export async function deleteAccount(input: {
       console.error(`Could not delete upload ${file} of a deleted account`, error);
     }
   }
+  return { conversations };
 }
