@@ -576,6 +576,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     seriesId: SHOWN,
     targetTeamId: SHOWN,
     weeklyLastStartsAt: SHOWN,
+    readyWindowId: SHOWN,
   },
   RequestSeries: {
     id: KEY,
@@ -591,6 +592,20 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     lastStartsAt: SHOWN,
     endedAt: SHOWN,
     targetTeamId: SHOWN,
+    createdAt: SHOWN,
+  },
+  ReadyWindow: {
+    id: KEY,
+    teamId: SHOWN,
+    createdById: SELF,
+    game: TEAM,
+    firstStartsAt: SHOWN,
+    lastStartsAt: SHOWN,
+    format: SHOWN,
+    rankMin: SHOWN,
+    rankMax: SHOWN,
+    maps: SHOWN,
+    endedAt: SHOWN,
     createdAt: SHOWN,
   },
   Application: {

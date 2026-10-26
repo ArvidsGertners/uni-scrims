@@ -85,6 +85,54 @@ export function boardRequestWhere(now: Date) {
   } satisfies Prisma.ScrimRequestWhereInput;
 }
 
+/**
+ * A ready window is running while it has not ended and its latest start time is not too soon
+ * (SPEC N-27, §5.29); expired windows keep endedAt null, every read applies this rule with `now`.
+ * The team's activity is checked separately (runningReadyWindowWhere, the target checks).
+ */
+export function isReadyWindowRunning(
+  window: { endedAt: Date | null; lastStartsAt: Date },
+  now: Date,
+): boolean {
+  return window.endedAt === null && !isStartTooSoon(window.lastStartsAt, now);
+}
+
+/** Running windows of active teams as a Prisma filter: the board, the form, the public logos. */
+export function runningReadyWindowWhere(now: Date) {
+  return {
+    endedAt: null,
+    lastStartsAt: { gte: new Date(now.getTime() + TIMING.MIN_REQUEST_LEAD) },
+    team: activeTeamWhere(),
+  } satisfies Prisma.ReadyWindowWhereInput;
+}
+
+/**
+ * Under both team locks of createRequest: the window belongs to the target and is running, the
+ * start lies in it and the team has not requested it yet (§5.29). Only holders of the target's
+ * lock change a window, so the check holds until the commit.
+ */
+async function requireReadyWindowStart(
+  tx: Prisma.TransactionClient,
+  input: { windowId: string; targetTeamId: string; teamId: string; startsAt: Date; now: Date },
+) {
+  const window = await tx.readyWindow.findUnique({ where: { id: input.windowId } });
+  if (!window || window.teamId !== input.targetTeamId || !isReadyWindowRunning(window, input.now)) {
+    throw new DomainError("CONFLICT", "readyWindowClosed");
+  }
+  if (input.startsAt < window.firstStartsAt || input.startsAt > window.lastStartsAt) {
+    throw new DomainError("INVALID", "startOutsideWindow");
+  }
+  const existing = await tx.scrimRequest.findUnique({
+    where: { readyWindowId_teamId: { readyWindowId: window.id, teamId: input.teamId } },
+    select: { id: true },
+  });
+  if (existing) throw alreadyRequestedWindow();
+}
+
+export function alreadyRequestedWindow(): DomainError {
+  return new DomainError("CONFLICT", "alreadyRequestedWindow");
+}
+
 /** Direct requests have no rank range; they store the whole range (§5.28). */
 const DIRECT_REQUEST_RANKS = { rankMin: RANKS[0]!, rankMax: RANKS[RANKS.length - 1]! };
 
@@ -192,7 +240,8 @@ export async function findApplicantTeamProblem(
  * Posts a request for `teamId`, the team the form was shown for (§5.20). With `repeatUntil` it is
  * the first date of a weekly series, created in the same transaction (SPEC N-25, §5.27). With
  * `targetTeamId` it is a direct request to that team, without a rank range; `repeatUntil` then only
- * proposes a fixed partnership, which accepting creates (SPEC N-26, §5.28).
+ * proposes a fixed partnership, which accepting creates (SPEC N-26, §5.28). With `readyWindowId` it is
+ * a direct request for a start time in that window of the target (SPEC N-27, §5.29).
  */
 export async function createRequest(
   input: Omit<RequestInput, "rankMin" | "rankMax"> &
@@ -200,6 +249,7 @@ export async function createRequest(
       userId: string;
       teamId: string;
       targetTeamId?: string | null;
+      readyWindowId?: string | null;
       now: Date;
     },
 ) {
@@ -228,6 +278,20 @@ export async function createRequest(
     const target = targetTeamId
       ? await requireDirectRequestTarget(team.id, targetTeamId, tx)
       : null;
+    // A window is always one of the target's and offers single dates only (§5.29).
+    const readyWindowId = input.readyWindowId || null;
+    if (readyWindowId && (!target || data.repeatUntil)) {
+      throw new DomainError("INVALID", "invalidInput");
+    }
+    if (readyWindowId && target) {
+      await requireReadyWindowStart(tx, {
+        windowId: readyWindowId,
+        targetTeamId: target.id,
+        teamId: team.id,
+        startsAt,
+        now: input.now,
+      });
+    }
     // The schema allows 7 days up to SERIES_MAX_WEEKS weeks, so there are 1 to 16 more dates.
     const lastStartsAt = data.repeatUntil
       ? addBerlinWeeks(startsAt, Math.floor(daysBetweenDates(data.date, data.repeatUntil) / 7))
@@ -249,6 +313,7 @@ export async function createRequest(
           startsAt,
           targetTeamId: target.id,
           weeklyLastStartsAt: lastStartsAt,
+          readyWindowId,
           status: RequestStatus.OPEN,
           createdAt: input.now,
         },
@@ -265,6 +330,7 @@ export async function createRequest(
             startsAt: startsAt.toISOString(),
             format: request.format,
             weeklyUntil: lastStartsAt?.toISOString() ?? null,
+            ...(readyWindowId ? { readyWindow: true } : {}),
           },
         },
       ]);

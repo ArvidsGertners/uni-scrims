@@ -194,6 +194,7 @@ export async function exportAccountData(input: {
           seriesId: true,
           targetTeam: { select: { name: true } },
           weeklyLastStartsAt: true,
+          readyWindowId: true,
         },
       });
       const series = await tx.requestSeries.findMany({
@@ -211,6 +212,21 @@ export async function exportAccountData(input: {
           maps: true,
           note: true,
           targetTeam: { select: { name: true } },
+        },
+      });
+      const readyWindows = await tx.readyWindow.findMany({
+        where: { createdById: user.id },
+        orderBy: { createdAt: "asc" },
+        select: {
+          team: { select: { name: true } },
+          createdAt: true,
+          firstStartsAt: true,
+          lastStartsAt: true,
+          format: true,
+          rankMin: true,
+          rankMax: true,
+          maps: true,
+          endedAt: true,
         },
       });
       const feedback = await tx.scrimFeedback.findMany({
@@ -407,6 +423,8 @@ export async function exportAccountData(input: {
           // fixed partnership.
           direktAn: request.targetTeam?.name ?? null,
           wöchentlichBis: request.weeklyLastStartsAt,
+          // For a start time in the requested team's window "Heute spielbereit" (SPEC N-27).
+          ausZeitfenster: request.readyWindowId !== null,
         })),
         // Weekly series (SPEC N-25): their requests are in anfragen with wöchentlich.
         wiederkehrendeAnfragen: series.map((entry) => ({
@@ -422,6 +440,19 @@ export async function exportAccountData(input: {
           notiz: entry.note,
           // A fixed partnership (SPEC N-26): the partner team.
           festerPartner: entry.targetTeam?.name ?? null,
+        })),
+        // Windows "Heute spielbereit" the person announced (SPEC N-27); the requests other teams
+        // sent for them belong to those teams.
+        heuteSpielbereit: readyWindows.map((window) => ({
+          team: window.team.name,
+          gemeldetAm: window.createdAt,
+          frühesterStartAm: window.firstStartsAt,
+          spätesterStartAm: window.lastStartsAt,
+          format: SCRIM_FORMAT_LABELS.de[window.format],
+          rangVon: RANK_LABELS[window.rankMin],
+          rangBis: RANK_LABELS[window.rankMax],
+          maps: window.maps,
+          beendetAm: window.endedAt,
         })),
         feedback: feedback.map((entry) => ({
           team: teamName(entry.teamId),

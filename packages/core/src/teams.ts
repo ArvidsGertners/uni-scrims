@@ -613,6 +613,9 @@ export async function retireTeamActivity(teamId: string, now: Date, db: Db = pri
       where: { OR: [{ teamId }, { targetTeamId: teamId }], endedAt: null },
       data: { endedAt: now },
     });
+    // Its ready window ends too (SPEC N-27); the open requests in it are direct requests to the
+    // team, which fall away below.
+    await tx.readyWindow.updateMany({ where: { teamId, endedAt: null }, data: { endedAt: now } });
 
     const requests = await tx.scrimRequest.findMany({
       where: { id: { in: requestIds }, teamId },

@@ -19,6 +19,7 @@ import {
   canSeeApplications,
   canSeeRequest,
   captainProblem,
+  captainVerificationProblem,
   findOwnTeam,
   findOwnTeams,
   isCaptainOf,
@@ -49,7 +50,9 @@ import {
   isRequestOpen,
   openRequestWhere,
   requestPostingProblems,
+  runningReadyWindowWhere,
 } from "./requests.ts";
+import { readyWindowStartOptions, readyWindowStarts } from "./ready-windows.ts";
 import { nextSeriesStart, seriesPostsAt, unverifiedCaptainTeams } from "./request-series.ts";
 import { feedbackClosedReason, isCancellable, isLateCancel } from "./scrims.ts";
 import { teamLinksSelect, toTeamLinks } from "./team-links.ts";
@@ -251,6 +254,25 @@ function chosenRanks(chosen: readonly Rank[] | "ALL" | null | undefined, fallbac
 }
 
 /**
+ * A rank range (rankMin to rankMax) that contains one of `ranks`, for requests and ready windows.
+ * Enums have no order in Prisma filters, so the bounds are matched against the rank list.
+ */
+function rankRangeWhere(ranks: Rank[]) {
+  return {
+    OR: ranks.map((rank) => ({
+      rankMin: { in: RANKS.slice(0, rankValue(rank)) },
+      rankMax: { in: RANKS.slice(rankValue(rank) - 1) },
+    })),
+  };
+}
+
+/** The board's date filter: a valid Berlin date and its day, or null for all days. */
+function boardDay(date: string | null | undefined) {
+  const valid = date && isValidDateString(date) ? date : null;
+  return { date: valid, range: valid ? berlinDayRange(valid) : null };
+}
+
+/**
  * Open, future requests of active teams with the board's filters, as cards (SPEC P0-4, §5.26);
  * `excludeTeamId` leaves out the own team's requests.
  */
@@ -263,8 +285,7 @@ async function loadBoardRequests(input: {
   now: Date;
 }) {
   const { ranks, fullyVerifiedOnly, reliableOnly } = input;
-  const date = input.date && isValidDateString(input.date) ? input.date : null;
-  const range = date ? berlinDayRange(date) : null;
+  const { date, range } = boardDay(input.date);
 
   // Each filter is its own AND entry, so none can overwrite a condition of the base.
   const filtered: Prisma.ScrimRequestWhereInput = {
@@ -272,17 +293,7 @@ async function loadBoardRequests(input: {
       boardRequestWhere(input.now),
       ...(range ? [{ startsAt: { gte: range.from, lt: range.to } }] : []),
       ...(input.excludeTeamId ? [{ teamId: { not: input.excludeTeamId } }] : []),
-      // Enums have no order in Prisma filters: rankMin ≤ rank ≤ rankMax via the rank list.
-      ...(ranks.length > 0
-        ? [
-            {
-              OR: ranks.map((rank) => ({
-                rankMin: { in: RANKS.slice(0, rankValue(rank)) },
-                rankMax: { in: RANKS.slice(rankValue(rank) - 1) },
-              })),
-            },
-          ]
-        : []),
+      ...(ranks.length > 0 ? [rankRangeWhere(ranks)] : []),
     ],
   };
   const include = {
@@ -325,36 +336,150 @@ async function loadBoardRequests(input: {
   };
 }
 
+/**
+ * Running ready windows of active teams with the board's filters, as cards (SPEC N-27, §5.29),
+ * ordered by their earliest start time still to request. The day filter keeps windows with such a
+ * start time on that day; badge and reliability filter after loading, as for requests.
+ */
+async function loadReadyWindows(input: {
+  date: string | null | undefined;
+  ranks: Rank[];
+  fullyVerifiedOnly: boolean;
+  reliableOnly: boolean;
+  excludeTeamId: string | null;
+  now: Date;
+}) {
+  const { range } = boardDay(input.date);
+  const found = await prisma.readyWindow.findMany({
+    where: {
+      AND: [
+        runningReadyWindowWhere(input.now),
+        ...(input.excludeTeamId ? [{ teamId: { not: input.excludeTeamId } }] : []),
+        ...(input.ranks.length > 0 ? [rankRangeWhere(input.ranks)] : []),
+      ],
+    },
+    include: { team: { select: teamCardSelect } },
+  });
+  const withOptions = found
+    .map((window) => ({ window, startOptions: readyWindowStartOptions(window, input.now) }))
+    .filter(
+      ({ startOptions }) =>
+        startOptions.length > 0 &&
+        (!range || startOptions.some((start) => start >= range.from && start < range.to)),
+    )
+    .filter(
+      ({ window }) => !input.fullyVerifiedOnly || hasFullyVerifiedMembers(window.team.members),
+    )
+    .sort((a, b) => a.startOptions[0]!.getTime() - b.startOptions[0]!.getTime());
+  const reliabilities = await getReliabilities(
+    withOptions.map(({ window }) => window.teamId),
+    input.now,
+  );
+  return withOptions
+    .filter(({ window }) => !input.reliableOnly || isReliable(reliabilities.get(window.teamId)!))
+    .map(({ window, startOptions }) => ({
+      id: window.id,
+      /** The start times still to request, from the earliest; never empty. */
+      startOptions,
+      lastStartsAt: window.lastStartsAt,
+      format: window.format,
+      rankMin: window.rankMin,
+      rankMax: window.rankMax,
+      maps: window.maps,
+      team: toTeamCard(window.team, reliabilities),
+    }));
+}
+
+/** The running ready window of a team, with its open requests counted (SPEC N-27). */
+async function loadOwnReadyWindow(teamId: string, now: Date) {
+  return prisma.readyWindow.findFirst({
+    where: { teamId, ...runningReadyWindowWhere(now) },
+    include: { _count: { select: { requests: { where: openRequestWhere(now) } } } },
+  });
+}
+
 /** Open, future requests of other active teams (SPEC P0-4); the own ones are in getMyScrims. */
 export async function getBoard(input: BoardInput) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
   const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
-  const { filter, requests } = await loadBoardRequests({
+  const filters = {
     date: input.date,
     ranks: chosenRanks(input.ranks, ownRank ? [ownRank] : []),
     fullyVerifiedOnly: input.fullyVerifiedOnly === true,
     reliableOnly: input.reliableOnly === true,
     excludeTeamId: ownTeam?.id ?? null,
     now: input.now,
-  });
-  const ownApplications = ownTeam
-    ? await prisma.application.findMany({
-        where: { teamId: ownTeam.id, requestId: { in: requests.map((request) => request.id) } },
-        select: { requestId: true, status: true },
-      })
-    : [];
+  };
+  const [{ filter, requests }, readyWindows, ownReadyWindow] = await Promise.all([
+    loadBoardRequests(filters),
+    loadReadyWindows(filters),
+    ownTeam ? loadOwnReadyWindow(ownTeam.id, input.now) : null,
+  ]);
+  const [ownApplications, ownWindowRequests, [postingProblem]] = ownTeam
+    ? await Promise.all([
+        prisma.application.findMany({
+          where: { teamId: ownTeam.id, requestId: { in: requests.map((request) => request.id) } },
+          select: { requestId: true, status: true },
+        }),
+        prisma.scrimRequest.findMany({
+          where: {
+            teamId: ownTeam.id,
+            readyWindowId: { in: readyWindows.map((window) => window.id) },
+          },
+          select: { id: true, readyWindowId: true, status: true, startsAt: true },
+        }),
+        // Requesting from a window is a direct request: the reasons of the request form (§7).
+        readyWindows.length > 0
+          ? requestPostingProblems(user, ownTeam, input.now, prisma)
+          : Promise.resolve([]),
+      ])
+    : [[], [], []];
+  const isCaptain = ownTeam !== null && isCaptainOf(user, ownTeam);
 
   return {
-    ownTeam: ownTeam
-      ? { id: ownTeam.id, rank: ownRank, isCaptain: isCaptainOf(user, ownTeam) }
-      : null,
+    ownTeam: ownTeam ? { id: ownTeam.id, rank: ownRank, isCaptain } : null,
     filter,
     requests: requests.map((request) => ({
       ...request,
       ownApplicationStatus:
         ownApplications.find((application) => application.requestId === request.id)?.status ?? null,
     })),
+    /** Other teams' windows for today (SPEC N-27), with what the active team can do there. */
+    readyWindows: readyWindows.map((window) => {
+      const ownRequest = ownWindowRequests.find((request) => request.readyWindowId === window.id);
+      return {
+        ...window,
+        /** The active team's request for this window: one per team, also after a decline. */
+        ownRequest: ownRequest
+          ? {
+              id: ownRequest.id,
+              status: ownRequest.status,
+              open: isRequestOpen(ownRequest, input.now),
+            }
+          : null,
+        /** Requesting a start time; null without a team or once the team has requested. */
+        request: (ownTeam && !ownRequest
+          ? { problem: postingProblem?.text ?? null }
+          : null) satisfies ActionOffer,
+      };
+    }),
+    /** The active team's running window, shown to all members; ending it only for the captain. */
+    ownReadyWindow: ownReadyWindow
+      ? {
+          id: ownReadyWindow.id,
+          firstStartsAt: ownReadyWindow.firstStartsAt,
+          lastStartsAt: ownReadyWindow.lastStartsAt,
+          format: ownReadyWindow.format,
+          rankMin: ownReadyWindow.rankMin,
+          rankMax: ownReadyWindow.rankMax,
+          maps: ownReadyWindow.maps,
+          openRequestCount: ownReadyWindow._count.requests,
+          end: (isCaptain
+            ? { problem: actingCaptainProblem(user, ownTeam!)?.text ?? null }
+            : null) satisfies ActionOffer,
+        }
+      : null,
   };
 }
 
@@ -363,14 +488,19 @@ export async function getBoard(input: BoardInput) {
  * everyone, without user, own team or rank default; open to all like the landing page (§7).
  */
 export async function getPublicBoard(input: PublicBoardInput) {
-  return loadBoardRequests({
+  const filters = {
     date: input.date,
     ranks: chosenRanks(input.ranks, []),
     fullyVerifiedOnly: input.fullyVerifiedOnly === true,
     reliableOnly: input.reliableOnly === true,
     excludeTeamId: null,
     now: input.now,
-  });
+  };
+  const [{ filter, requests }, readyWindows] = await Promise.all([
+    loadBoardRequests(filters),
+    loadReadyWindows(filters),
+  ]);
+  return { filter, requests, readyWindows };
 }
 
 // ─── Request form ─────────────────────────────────────────────────────────────
@@ -403,9 +533,45 @@ export async function getRequestForm(input: {
     teamName: ownTeam.name,
     rank,
     /** Where the range of a new request starts: the team rank, without one Iron to Radiant (SPEC N-16). */
-    rankRange: rank
-      ? { rankMin: rank, rankMax: rank }
-      : { rankMin: RANKS[0]!, rankMax: RANKS[RANKS.length - 1]! },
+    rankRange: defaultRankRange(rank),
+    problems: problems.map(({ kind, text }) => ({ kind, text })),
+  };
+}
+
+function defaultRankRange(rank: Rank | null): { rankMin: Rank; rankMax: Rank } {
+  return rank
+    ? { rankMin: rank, rankMax: rank }
+    : { rankMin: RANKS[0]!, rankMax: RANKS[RANKS.length - 1]! };
+}
+
+/**
+ * Form "Heute spielbereit" (SPEC N-27): null without a team. problems are the reasons
+ * createReadyWindow rejects regardless of the input, in actingCaptainProblem's order (no request
+ * limit); running is the team's window, which has to end before a new one; starts are the start
+ * times still to offer this evening, empty when it is too late (§5.29).
+ */
+export async function getReadyWindowForm(input: { userId: string; now: Date }) {
+  const user = await requireUser(input.userId);
+  const ownTeam = await findOwnTeam(user.id);
+  if (!ownTeam) return null;
+  const [rank, running] = await Promise.all([
+    loadTeamRank(ownTeam.id),
+    prisma.readyWindow.findFirst({
+      where: { teamId: ownTeam.id, ...runningReadyWindowWhere(input.now) },
+      select: { id: true, firstStartsAt: true, lastStartsAt: true },
+    }),
+  ]);
+  const blocking = captainProblem(user, ownTeam);
+  const problems = blocking
+    ? [blocking]
+    : [captainVerificationProblem(user)].filter((problem) => problem !== null);
+  return {
+    /** The team the form announces: the active one (§5.20). */
+    teamId: ownTeam.id,
+    teamName: ownTeam.name,
+    rankRange: defaultRankRange(rank),
+    starts: readyWindowStarts(input.now),
+    running,
     problems: problems.map(({ kind, text }) => ({ kind, text })),
   };
 }
@@ -583,6 +749,8 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
           },
           weeklyUntil: request.weeklyLastStartsAt,
           incoming: isTarget,
+          /** For a start time in the requested team's window "Heute spielbereit" (SPEC N-27). */
+          readyWindow: request.readyWindowId !== null,
         }
       : null,
     /** Accept or decline a direct request, for the requested team's captain. */
@@ -926,6 +1094,8 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       target: request.targetTeam ? smallTeam(request.targetTeam) : null,
       /** The last date of a proposed fixed partnership, or null. */
       weeklyUntil: request.weeklyLastStartsAt,
+      /** For a start time in the target's window "Heute spielbereit" (SPEC N-27). */
+      readyWindow: request.readyWindowId !== null,
     })),
     incoming: incoming.map((request) => ({
       id: request.id,
@@ -933,6 +1103,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       format: request.format,
       maps: request.maps,
       weeklyUntil: request.weeklyLastStartsAt,
+      readyWindow: request.readyWindowId !== null,
       team: smallTeam(request.team),
     })),
     series: series.map(({ entry, nextStartsAt, postsAt }) => ({

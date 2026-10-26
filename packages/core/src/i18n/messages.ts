@@ -92,6 +92,15 @@ const de = {
   ownTeamTarget: "Ihr könnt nicht euer eigenes Team anfragen.",
   requestingTeamInactive: ({ team }: { team: string }) =>
     `Das anfragende Team „${team}“ ist nicht mehr aktiv.`,
+  readyWindowNotFound: "Dieses Zeitfenster gibt es nicht.",
+  readyWindowClosed: "Das Zeitfenster ist nicht mehr offen.",
+  readyWindowExists:
+    "Ihr seid heute schon spielbereit gemeldet. Beendet das Zeitfenster, um ein neues zu melden.",
+  readyWindowTimeInvalid: ({ minutes }: { minutes: number }) =>
+    `Bitte wähle Startzeiten von heute Abend, die mindestens ${minutes} Minuten in der Zukunft liegen.`,
+  readyWindowOrder: "Die späteste Startzeit darf nicht vor der frühesten liegen.",
+  startOutsideWindow: "Die Startzeit liegt nicht im Zeitfenster des Teams.",
+  alreadyRequestedWindow: "Ihr habt dieses Team für sein Zeitfenster schon angefragt.",
 
   // Scrims and feedback
   scrimNotFound: "Scrim nicht gefunden.",
@@ -281,6 +290,14 @@ export const MESSAGES = dictionary(de, {
   targetTeamNotFound: "The requested team doesn't exist or is no longer active.",
   ownTeamTarget: "You can't send a request to your own team.",
   requestingTeamInactive: ({ team }) => `The requesting team “${team}” is no longer active.`,
+  readyWindowNotFound: "This window doesn't exist.",
+  readyWindowClosed: "The window is no longer open.",
+  readyWindowExists: "You're already ready to play today. End that window to announce a new one.",
+  readyWindowTimeInvalid: ({ minutes }) =>
+    `Please choose start times of this evening that are at least ${minutes} minutes in the future.`,
+  readyWindowOrder: "The latest start time can't be before the earliest.",
+  startOutsideWindow: "The start time is not in the team's window.",
+  alreadyRequestedWindow: "You've already sent this team a request for its window.",
 
   scrimNotFound: "Scrim not found.",
   scrimNotCancellable: "The scrim can no longer be cancelled.",

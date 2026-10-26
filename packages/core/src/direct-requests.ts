@@ -2,6 +2,7 @@
 // target; they are not on the board and take no applications. The target team's captain accepts
 // (books the scrim like confirmApplication) or declines. A proposed fixed partnership becomes a
 // RequestSeries only when the first date is accepted, so every series with a target is accepted.
+// Accepting a request from a ready window ends the window and declines its other requests (§5.29).
 import { NotifChannel, NotifType, RequestStatus, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
@@ -10,6 +11,7 @@ import { lockRequest, lockTeam, lockTeams } from "./locks.ts";
 import { queueNotifications } from "./notifications.ts";
 import { requireActingCaptain } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
+import { closeReadyWindow, lockReadyWindowRequests } from "./ready-windows.ts";
 import {
   createScrimBooking,
   isRequestOpen,
@@ -19,20 +21,27 @@ import {
 } from "./requests.ts";
 import { addBerlinWeeks } from "./time.ts";
 
-/** Requesting and target team of a direct request; both never change, so unlocked reads suffice. */
+/**
+ * Requesting and target team of a direct request and its ready window; none of them ever changes,
+ * so unlocked reads suffice.
+ */
 async function findDirectRequestTeams(requestId: string, db: Db) {
   const request = await db.scrimRequest.findUnique({
     where: { id: requestId },
-    select: { teamId: true, targetTeamId: true },
+    select: { teamId: true, targetTeamId: true, readyWindowId: true },
   });
   if (!request?.targetTeamId) throw requestNotFound();
-  return { teamId: request.teamId, targetTeamId: request.targetTeamId };
+  return {
+    teamId: request.teamId,
+    targetTeamId: request.targetTeamId,
+    readyWindowId: request.readyWindowId,
+  };
 }
 
 /**
  * The target team's captain accepts: the scrim is booked with the requesting team as host (§5.4,
  * §5.28). A proposed partnership is created in the same transaction and books its further dates in
- * the sweeper. Returns the scrim.
+ * the sweeper. A request from a ready window ends the window (§5.29). Returns the scrim.
  */
 export async function acceptDirectRequest(input: { userId: string; requestId: string; now: Date }) {
   const { now } = input;
@@ -43,7 +52,13 @@ export async function acceptDirectRequest(input: { userId: string; requestId: st
     // Both teams before the request (§4), as in confirmApplication: a ban or dissolution of either
     // team either commits first (seen below) or waits until the scrim is booked and cancels it.
     await lockTeams(tx, [teams.teamId, teams.targetTeamId]);
-    await lockRequest(tx, input.requestId);
+    // From a ready window: all its open requests with this one, in id order (§4), as the others
+    // are declined below.
+    if (teams.readyWindowId) {
+      await lockReadyWindowRequests(tx, teams.readyWindowId, now, input.requestId);
+    } else {
+      await lockRequest(tx, input.requestId);
+    }
     const request = await tx.scrimRequest.findUniqueOrThrow({
       where: { id: input.requestId },
       include: { team: true },
@@ -78,7 +93,16 @@ export async function acceptDirectRequest(input: { userId: string; requestId: st
       });
       await tx.scrimRequest.update({ where: { id: request.id }, data: { seriesId: series.id } });
     }
-    return createScrimBooking(tx, { request, host, guest, now });
+    const scrim = await createScrimBooking(tx, { request, host, guest, now });
+    if (request.readyWindowId) {
+      await closeReadyWindow(tx, {
+        windowId: request.readyWindowId,
+        teamName: guest.name,
+        reason: "BOOKED",
+        now,
+      });
+    }
+    return scrim;
   });
 }
 

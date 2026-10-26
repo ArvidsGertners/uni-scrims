@@ -9,11 +9,22 @@ import type { Db } from "./db.ts";
 /** Display data of a request notification: the other team and the start. */
 const requestPayloadSchema = z.object({ teamName: z.string(), startsAt: z.iso.datetime() });
 
-/** A new direct request (§5.28): weeklyUntil is the last date of a proposed partnership, or null. */
+/**
+ * A new direct request (§5.28): weeklyUntil is the last date of a proposed partnership, or null;
+ * readyWindow: sent for a start time in the receiving team's window (Phase 31, §5.29).
+ */
 const directRequestPayloadSchema = requestPayloadSchema.extend({
   format: z.enum(ScrimFormat),
   weeklyUntil: z.iso.datetime().nullable(),
+  readyWindow: z.boolean().optional(),
 });
+
+/**
+ * Why the other requests of a ready window were declined (Phase 31, §5.29): the team accepted one of
+ * them or ended the window.
+ */
+export const READY_WINDOW_DECLINE_REASONS = ["BOOKED", "ENDED"] as const;
+export type ReadyWindowDeclineReason = (typeof READY_WINDOW_DECLINE_REASONS)[number];
 
 /** Display data of a scrim notification, from the receiving team's point of view. */
 const scrimPayloadSchema = z.object({
@@ -45,8 +56,10 @@ export const notificationPayloadSchemas = {
   CHANNEL_BROKEN: z.object({ teamName: z.string() }),
   // teamName: the requesting team.
   DIRECT_REQUEST_RECEIVED: directRequestPayloadSchema,
-  // teamName: the team that declined.
-  DIRECT_REQUEST_DECLINED: requestPayloadSchema,
+  // teamName: the team that declined; readyWindow: declined with the end of its window (Phase 31).
+  DIRECT_REQUEST_DECLINED: requestPayloadSchema.extend({
+    readyWindow: z.enum(READY_WINDOW_DECLINE_REASONS).optional(),
+  }),
   // teamName: the team that ended the partnership; startsAt: its next date, for weekday and time.
   PARTNERSHIP_ENDED: requestPayloadSchema,
 } satisfies Record<NotifType, z.ZodType>;

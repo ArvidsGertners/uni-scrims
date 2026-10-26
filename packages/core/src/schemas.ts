@@ -163,17 +163,31 @@ function optionalText(max: number, message: PlainMessageKey) {
     .transform((value) => value || null);
 }
 
+/** Fields a request and a ready window share (SPEC P0-4, N-27). */
+const scrimFields = {
+  format: z.enum(ScrimFormat, key("chooseFormat")),
+  rankMin: z.enum(Rank, key("chooseRankMin")),
+  rankMax: z.enum(Rank, key("chooseRankMax")),
+  maps: z
+    .array(mapSchema, key("unknownMap"))
+    .default([])
+    .refine((maps) => new Set(maps).size === maps.length, key("mapTwice")),
+};
+
+const startTimeSchema = z.string(key("timeMissing")).refine(isStartSlot, key("timeOutOfRange"));
+
+/** The minimum rank is not above the maximum rank. */
+function rankOrderValid(input: { rankMin: Rank; rankMax: Rank }): boolean {
+  return rankValue(input.rankMin) <= rankValue(input.rankMax);
+}
+
+const RANK_ORDER_ISSUE = { message: key("rankMinAboveMax"), path: ["rankMin"] };
+
 export const requestInputSchema = z
   .object({
     date: z.string(key("dateMissing")).refine(isValidDateString, key("dateInvalid")),
-    time: z.string(key("timeMissing")).refine(isStartSlot, key("timeOutOfRange")),
-    format: z.enum(ScrimFormat, key("chooseFormat")),
-    rankMin: z.enum(Rank, key("chooseRankMin")),
-    rankMax: z.enum(Rank, key("chooseRankMax")),
-    maps: z
-      .array(mapSchema, key("unknownMap"))
-      .default([])
-      .refine((maps) => new Set(maps).size === maps.length, key("mapTwice")),
+    time: startTimeSchema,
+    ...scrimFields,
     note: optionalText(REQUEST_NOTE_MAX, key("noteTooLong")),
     // Repeat weekly up to this Berlin date, like `date` the day of the actual start (SPEC N-25);
     // empty = a single request. In the base object: zod cannot extend a refined schema.
@@ -182,10 +196,7 @@ export const requestInputSchema = z
       .nullish()
       .transform((value) => value || null),
   })
-  .refine((input) => rankValue(input.rankMin) <= rankValue(input.rankMax), {
-    message: key("rankMinAboveMax"),
-    path: ["rankMin"],
-  })
+  .refine(rankOrderValid, RANK_ORDER_ISSUE)
   .superRefine((input, ctx) => {
     // An invalid date already has its issue, which does not stop this refinement in zod 4.
     if (input.repeatUntil === null || !isValidDateString(input.date)) return;
@@ -199,6 +210,16 @@ export const requestInputSchema = z
   });
 
 export type RequestInput = z.input<typeof requestInputSchema>;
+
+/**
+ * "Heute spielbereit" (SPEC N-27): the earliest and the latest start time of this evening as
+ * "HH:MM"; whether they are still ahead, core checks with `now` (§5.29).
+ */
+export const readyWindowInputSchema = z
+  .object({ from: startTimeSchema, to: startTimeSchema, ...scrimFields })
+  .refine(rankOrderValid, RANK_ORDER_ISSUE);
+
+export type ReadyWindowInput = z.input<typeof readyWindowInputSchema>;
 
 export const applicationMessageSchema = optionalText(
   APPLICATION_MESSAGE_MAX,

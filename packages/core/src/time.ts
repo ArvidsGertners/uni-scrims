@@ -130,6 +130,30 @@ export function toBerlinTimeString(date: Date): string {
   return format(date, "HH:mm", berlin);
 }
 
+/** A valid "YYYY-MM-DD" shifted by whole calendar days. */
+function shiftDate(date: string, days: number): string {
+  const parsed = parseDate(date);
+  if (!parsed) throw new Error(`Invalid date: ${date}`);
+  return new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day + days))
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * All start times of the current scrim evening in START_TIME_SLOTS order ("Heute spielbereit",
+ * SPEC N-27, §5.29): 10:00 to 23:45 of the Berlin day D, then 00:00 to 01:45 of the day after, the
+ * calendar date of the actual start as for requests. D is the Berlin day of `now`, before 02:00 the
+ * day before. The slots avoid the DST change, so every one of them exists.
+ */
+export function scrimEveningStarts(now: Date): Date[] {
+  const today = toBerlinDateString(now);
+  const day = Number(format(now, "H", berlin)) <= LAST_NIGHT_HOUR ? shiftDate(today, -1) : today;
+  const nextDay = shiftDate(day, 1);
+  return START_TIME_SLOTS.map((slot) =>
+    berlinToUtc(Number(slot.slice(0, 2)) <= LAST_NIGHT_HOUR ? nextDay : day, slot),
+  );
+}
+
 /** A Berlin calendar date, e.g. "22.10.2026" / "22 Oct 2026" (joined, team members). */
 export function formatBerlinDate(date: Date, locale: Locale): string {
   return berlinFormat(date, FORMATS[locale].date, locale);

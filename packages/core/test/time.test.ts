@@ -15,6 +15,7 @@ import {
   formatWeekdayDate,
   isStartSlot,
   isValidDateString,
+  scrimEveningStarts,
   semesterLabel,
   toBerlinDateString,
   toBerlinTimeString,
@@ -108,6 +109,44 @@ describe("weeks and days for series (§5.27)", () => {
     // 23:30 UTC on Thursday is already Friday in Berlin.
     expect(formatBerlinWeekday(new Date("2026-10-22T23:30:00Z"), "de")).toBe("Freitag");
     expect(formatBerlinWeekday(new Date("2026-10-22T18:00:00Z"), "en")).toBe("Thursday");
+  });
+});
+
+describe("the current scrim evening (§5.29)", () => {
+  it("runs from 10:00 to 01:45 of the next night", () => {
+    // Wednesday 14:00 Berlin.
+    const starts = scrimEveningStarts(new Date("2026-10-21T12:00:00Z"));
+    expect(starts).toHaveLength(START_TIME_SLOTS.length);
+    expect(starts[0]).toEqual(new Date("2026-10-21T08:00:00Z"));
+    expect(starts.at(-1)).toEqual(new Date("2026-10-21T23:45:00Z"));
+    expect(starts.map(toBerlinTimeString)).toEqual(START_TIME_SLOTS);
+  });
+
+  it("keeps the night with the evening before until 02:00", () => {
+    // Thursday 01:30 Berlin: still Wednesday's evening; 02:00: Thursday's.
+    expect(scrimEveningStarts(new Date("2026-10-21T23:30:00Z"))[0]).toEqual(
+      new Date("2026-10-21T08:00:00Z"),
+    );
+    expect(scrimEveningStarts(new Date("2026-10-22T00:00:00Z"))[0]).toEqual(
+      new Date("2026-10-22T08:00:00Z"),
+    );
+  });
+
+  it("keeps the wall-clock times on the days of a DST change", () => {
+    // Summer time ends on Sunday 25.10.2026 at 03:00: Saturday's night is still summer time.
+    expect(scrimEveningStarts(new Date("2026-10-24T22:00:00Z")).at(-1)).toEqual(
+      new Date("2026-10-24T23:45:00Z"),
+    );
+    const sunday = scrimEveningStarts(new Date("2026-10-25T06:00:00Z"));
+    expect(sunday[0]).toEqual(new Date("2026-10-25T09:00:00Z"));
+    expect(sunday.at(-1)).toEqual(new Date("2026-10-26T00:45:00Z"));
+    // Summer time starts on Sunday 28.03.2027 at 02:00.
+    expect(scrimEveningStarts(new Date("2027-03-27T20:00:00Z")).at(-1)).toEqual(
+      new Date("2027-03-28T00:45:00Z"),
+    );
+    expect(scrimEveningStarts(new Date("2027-03-28T05:00:00Z"))[0]).toEqual(
+      new Date("2027-03-28T08:00:00Z"),
+    );
   });
 });
 

@@ -18,6 +18,9 @@ import sharp from "sharp";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   acceptDirectRequest,
+  createReadyWindow,
+  endReadyWindow,
+  requestReadyWindow,
   autoRejectStaleVerifications,
   banTeam,
   declineDirectRequest,
@@ -929,6 +932,95 @@ describe("direct requests while the request or its teams change (§5.28)", () =>
       const booked = await prisma.scrim.count({ where: { request: { seriesId }, startsAt: NEXT } });
       if (ending) expect(booked).toBeLessThanOrEqual(1);
       else expect(booked).toBe(1);
+    }
+  });
+});
+
+describe("ready windows while their requests or teams change (§5.29)", () => {
+  type Team = Awaited<ReturnType<typeof createFullyVerifiedTeam>>;
+  // Wednesday 19:00 to 22:00 Berlin, NOW being 14:00.
+  const WINDOW = {
+    from: "19:00",
+    to: "22:00",
+    format: REQUEST_INPUT.format,
+    rankMin: REQUEST_INPUT.rankMin,
+    rankMax: REQUEST_INPUT.rankMax,
+    maps: [],
+  };
+  const TWENTY = new Date("2026-10-21T18:00:00Z");
+
+  const announce = (team: Team) =>
+    createReadyWindow({ ...WINDOW, userId: team.captain.id, teamId: team.team.id, now: NOW });
+  const requestFor = (from: Team, windowId: string) =>
+    requestReadyWindow({
+      userId: from.captain.id,
+      teamId: from.team.id,
+      windowId,
+      startsAt: TWENTY,
+      now: NOW,
+    });
+  const accept = (to: Team, requestId: string) =>
+    acceptDirectRequest({ userId: to.captain.id, requestId, now: NOW });
+
+  it("books once when two requests of one window are accepted", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createFullyVerifiedTeam();
+      const window = await announce(a);
+      const fromB = await requestFor(await createFullyVerifiedTeam(), window.id);
+      const fromC = await requestFor(await createFullyVerifiedTeam(), window.id);
+      const results = await Promise.allSettled([accept(a, fromB.id), accept(a, fromC.id)]);
+      expectOnlyDomainErrors(results);
+      expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+      expect(await prisma.scrim.count({ where: { requestId: { in: [fromB.id, fromC.id] } } })).toBe(
+        1,
+      );
+      expect(
+        await prisma.scrimRequest.count({ where: { readyWindowId: window.id, status: "OPEN" } }),
+      ).toBe(0);
+    }
+  });
+
+  it("leaves no open request in a window ended or booked meanwhile", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createFullyVerifiedTeam();
+      const window = await announce(a);
+      const first = await requestFor(await createFullyVerifiedTeam(), window.id);
+      const late = await createFullyVerifiedTeam();
+      const results = await Promise.allSettled([
+        requestFor(late, window.id),
+        round % 2 === 0
+          ? endReadyWindow({ userId: a.captain.id, windowId: window.id, now: NOW })
+          : accept(a, first.id),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(
+        await prisma.scrimRequest.count({ where: { readyWindowId: window.id, status: "OPEN" } }),
+      ).toBe(0);
+    }
+  });
+
+  it("keeps one running window when a team announces twice", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createFullyVerifiedTeam();
+      const results = await Promise.allSettled([announce(a), announce(a)]);
+      expectOnlyDomainErrors(results);
+      expect(await prisma.readyWindow.count({ where: { teamId: a.team.id } })).toBe(1);
+    }
+  });
+
+  it("leaves no running window of a team banned meanwhile", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const a = await createFullyVerifiedTeam();
+      const results = await Promise.allSettled([
+        announce(a),
+        banTeam({ adminId: admin.id, teamId: a.team.id, now: NOW }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(await prisma.readyWindow.count({ where: { teamId: a.team.id, endedAt: null } })).toBe(
+        0,
+      );
     }
   });
 });
