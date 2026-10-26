@@ -384,6 +384,9 @@ describe("getSuccessMetrics", () => {
 
     // The opponent played all of them but has no verified captain, so it is in neither number.
     const { metrics } = await metricsAt();
+    expect(metrics.verifiedCaptainTeams).toMatchObject({ now: { value: 3, cases: 4 } });
+    // Its 3 verified players do not make it fully verified either.
+    expect(metrics.fullyVerifiedTeams).toMatchObject({ now: { value: 3, cases: 4 } });
     expect(metrics.activeTeams).toMatchObject({
       now: { value: 1 / 3, cases: 3, reached: false, stretchReached: null },
     });

@@ -99,7 +99,8 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           <span className="text-[13px] text-muted-foreground">
             {formatReliability(team.reliability, locale)}
           </span>
-          {request.verifiedApplicantsOnly ? (
+          {/* The current setting; only meaningful while the request takes applications. */}
+          {request.open && request.verifiedApplicantsOnly ? (
             <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <ShieldCheckIcon size={14} />
               {verified.applicantsOnly}

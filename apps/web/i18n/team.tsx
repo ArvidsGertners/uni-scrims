@@ -181,7 +181,7 @@ export const teamPageMessages = dictionary(
     leaveConfirm: "Really leave the team?",
     notVerified: {
       captain: "Not verified yet? As captain, you need verification for scrims.",
-      player: "Not verified yet? Then you count towards the “Fully verified” badge.",
+      player: "Not verified yet? Verify to count towards the “Fully verified” badge.",
     },
     toVerification: "Go to verification",
   },

@@ -119,7 +119,7 @@ async function TeamCard({ team }: { team: TeamListEntry }) {
         <TeamAvatar team={team} className="border-border" />
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="text-[16px] font-semibold break-words">
+            <h2 className="min-w-0 text-[16px] font-semibold break-words">
               {team.name} <span className="font-label text-[13px] text-faint">{team.tag}</span>
             </h2>
             {team.fullyVerified ? <FullyVerifiedBadge /> : null}
