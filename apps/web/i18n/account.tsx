@@ -101,7 +101,7 @@ export const accountPageMessages = dictionary(
     /** What the deletion does, in the confirmation dialog (SPEC P0-10). */
     consequences: {
       deleted:
-        "Gelöscht werden dein Name, deine E-Mail-Adresse, dein Passwort und dein Avatar, deine Verifizierung samt Prüfungen und Dateien, Nachrichten an dich und deine Anmeldungen.",
+        "Gelöscht werden dein Name, deine E-Mail-Adresse, dein Passwort und dein Avatar, deine Verifizierung samt Prüfungen und Dateien, Nachrichten an dich, deine Nachrichten an andere Teams und deine Anmeldungen.",
       discordIdKept:
         "Deine Discord-ID bleibt mit der Sperre gespeichert, damit sie bei einer neuen Anmeldung weiter gilt.",
       discordUnlinked: "Die Verknüpfung mit deinem Discord-Konto wird gelöscht.",
@@ -189,7 +189,7 @@ export const accountPageMessages = dictionary(
     chooseNewCaptain: "Choose a new captain…",
     consequences: {
       deleted:
-        "Your name, email address, password and avatar, your verification with its reviews and files, messages to you and your sessions will be deleted.",
+        "Your name, email address, password and avatar, your verification with its reviews and files, messages to you, your messages to other teams and your sessions will be deleted.",
       discordIdKept:
         "Your Discord ID stays stored with the ban, so the ban still applies if you sign in again.",
       discordUnlinked: "The link to your Discord account will be deleted.",
