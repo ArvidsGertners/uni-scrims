@@ -17,6 +17,8 @@ import type { Message } from "./i18n/render.ts";
 import {
   actingCaptainProblem,
   canSeeApplications,
+  canSeeRequest,
+  captainProblem,
   findOwnTeam,
   findOwnTeams,
   isCaptainOf,
@@ -454,31 +456,32 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
   if (!request || !isTeamActive(request.team)) return null;
   // The user's memberships in the request's teams: the creating one and, for a direct request, the
   // requested one (dissolved teams have no memberships left, the filter covers leftovers).
-  const memberOf = await prisma.teamMember.findMany({
-    where: {
-      userId: user.id,
-      teamId: { in: [request.teamId, request.targetTeamId].filter((id) => id !== null) },
-      team: { dissolvedAt: null },
-    },
-    select: { teamId: true },
-  });
-  const isMemberOf = (teamId: string | null) => memberOf.some((entry) => entry.teamId === teamId);
-  if (request.targetTeamId && memberOf.length === 0) return null;
+  const [memberOf, ownTeam] = await Promise.all([
+    prisma.teamMember.findMany({
+      where: {
+        userId: user.id,
+        teamId: { in: [request.teamId, request.targetTeamId].filter((id) => id !== null) },
+        team: { dissolvedAt: null },
+      },
+      select: { teamId: true },
+    }),
+    findOwnTeam(user.id),
+  ]);
+  const memberTeamIds = memberOf.map((entry) => entry.teamId);
+  if (!canSeeRequest(memberTeamIds, request)) return null;
 
-  const ownTeam = await findOwnTeam(user.id);
   const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
   const isOwner = ownTeam?.id === request.teamId;
   const isTarget = request.targetTeamId !== null && ownTeam?.id === request.targetTeamId;
   // Created by, or for a direct request sent to, another of the user's teams: the page offers to
-  // switch to that team (§5.20).
-  const otherTeam =
-    isOwner || isTarget
-      ? null
-      : isMemberOf(request.teamId)
-        ? request.team
-        : isMemberOf(request.targetTeamId)
-          ? request.targetTeam
-          : null;
+  // switch to that team (§5.20). The requested team is never pointed away from its answer.
+  const otherTeam = isTarget
+    ? null
+    : !isOwner && memberTeamIds.includes(request.teamId)
+      ? request.team
+      : request.targetTeamId && memberTeamIds.includes(request.targetTeamId)
+        ? request.targetTeam
+        : null;
   const otherOwnTeam = otherTeam ? { id: otherTeam.id, name: otherTeam.name } : null;
   const showApplications = canSeeApplications(ownTeam?.id, request);
   // Only one of the two ever runs: the creating team sees all applications, others their own.
@@ -720,7 +723,9 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
      * while the opponent is active. The page prefills format, maps and time from the scrim.
      */
     rematch:
-      isCaptainOf(user, ownTeam) && isTeamActive(opponent) && !isUpcomingScrim(scrim, input.now),
+      captainProblem(user, ownTeam) === null &&
+      isTeamActive(opponent) &&
+      !isUpcomingScrim(scrim, input.now),
   };
 }
 
@@ -821,6 +826,9 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
   // Feedback is given by the acting captain only (SPEC P0-8), like on the scrim page.
   const mayGiveFeedback = actingCaptainProblem(user, ownTeam) === null;
   const isCaptain = isCaptainOf(user, ownTeam);
+  // "Nochmal gegen dieses Team" for the captain of a team that is not banned (SPEC N-26), like
+  // "Direkt anfragen" on the teams list; a missing verification the form names.
+  const mayRequest = captainProblem(user, ownTeam) === null;
   const items = scrims.map((scrim) => {
     const opponent = scrim.hostTeamId === ownTeam.id ? scrim.guestTeam : scrim.hostTeam;
     const feedbackGiven = scrim.feedback.some((feedback) => feedback.teamId === ownTeam.id);
@@ -847,7 +855,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       canGiveFeedback:
         mayGiveFeedback && !feedbackGiven && feedbackClosedReason(scrim, input.now) === null,
       /** "Nochmal gegen dieses Team" for the captain, while the opponent is active (SPEC N-26). */
-      rematch: isCaptain && isTeamActive(opponent) && !isUpcomingScrim(scrim, input.now),
+      rematch: mayRequest && isTeamActive(opponent) && !isUpcomingScrim(scrim, input.now),
     };
   });
   const isUpcoming = (item: (typeof items)[number]) => isUpcomingScrim(item, input.now);
@@ -1136,8 +1144,7 @@ export async function getTeamList(input: TeamListInput) {
   // "Direkt anfragen" for the captain of the active team, not banned, on every other card (SPEC
   // N-26); a missing verification the form names (getRequestForm).
   const ownTeam = await findOwnTeam(user.id);
-  const requestingTeamId =
-    ownTeam && !ownTeam.bannedAt && isCaptainOf(user, ownTeam) ? ownTeam.id : null;
+  const requestingTeamId = ownTeam && captainProblem(user, ownTeam) === null ? ownTeam.id : null;
   // Cut by code points, then trimmed again: no half emoji, no trailing space.
   const search = Array.from((input.search ?? "").trim())
     .slice(0, TEAM_SEARCH_MAX)

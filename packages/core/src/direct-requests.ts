@@ -10,16 +10,14 @@ import { lockRequest, lockTeam, lockTeams } from "./locks.ts";
 import { queueNotifications } from "./notifications.ts";
 import { requireActingCaptain } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
-import { createScrimBooking, isRequestOpen, openRequestWhere } from "./requests.ts";
+import {
+  createScrimBooking,
+  isRequestOpen,
+  notOpen,
+  openRequestWhere,
+  requestNotFound,
+} from "./requests.ts";
 import { addBerlinWeeks } from "./time.ts";
-
-function requestNotFound(): DomainError {
-  return new DomainError("NOT_FOUND", "requestNotFound");
-}
-
-function notOpen(): DomainError {
-  return new DomainError("CONFLICT", "requestNotOpen");
-}
 
 /** Requesting and target team of a direct request; both never change, so unlocked reads suffice. */
 async function findDirectRequestTeams(requestId: string, db: Db) {

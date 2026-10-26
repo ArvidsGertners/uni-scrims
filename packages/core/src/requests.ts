@@ -41,11 +41,11 @@ import { addBerlinWeeks, berlinToUtc, daysBetweenDates } from "./time.ts";
 
 export { MAX_OPEN_REQUESTS };
 
-function notOpen(): DomainError {
+export function notOpen(): DomainError {
   return new DomainError("CONFLICT", "requestNotOpen");
 }
 
-function requestNotFound(): DomainError {
+export function requestNotFound(): DomainError {
   return new DomainError("NOT_FOUND", "requestNotFound");
 }
 
@@ -325,14 +325,18 @@ export async function closeOpenRequest(
     status === RequestStatus.CANCELLED ? NotifType.REQUEST_DELETED : NotifType.REQUEST_EXPIRED;
   const payload = { teamName: request.team.name, startsAt: request.startsAt.toISOString() };
   await queueNotifications(tx, now, [
-    ...rejected.map((application) => ({
-      type,
-      channel: NotifChannel.PERSONAL,
-      entityId: request.id,
-      targetTeamId: application.teamId,
-      requestId: request.id,
-      payload,
-    })),
+    // A direct request has no applications (applyToRequest refuses them); the filter only keeps
+    // a second entry for its target from colliding on the dedupe key.
+    ...rejected
+      .filter((application) => application.teamId !== request.targetTeamId)
+      .map((application) => ({
+        type,
+        channel: NotifChannel.PERSONAL,
+        entityId: request.id,
+        targetTeamId: application.teamId,
+        requestId: request.id,
+        payload,
+      })),
     ...(status === RequestStatus.CANCELLED && request.targetTeamId
       ? [
           {
@@ -407,7 +411,8 @@ export async function applyToRequest(input: {
       await lockTeam(tx, ownTeam.id);
       await lockRequest(tx, input.requestId);
       const request = await tx.scrimRequest.findUnique({ where: { id: input.requestId } });
-      if (!request) throw requestNotFound();
+      // A direct request takes no applications (SPEC N-26); for others it does not exist at all.
+      if (!request || request.targetTeamId !== null) throw requestNotFound();
       // Read again under the lock: role, ban, verification or membership may have changed meanwhile.
       const { team } = await requireActingCaptain(input.userId, ownTeam.id, tx);
       const message = parseInput(applicationMessageSchema, input.message);
@@ -513,10 +518,10 @@ export async function confirmApplication(input: {
       where: { id: input.applicationId, requestId: input.requestId },
       select: { teamId: true },
     });
-    const teamIds = [unlockedRequest.teamId, unlockedApplication?.teamId]
-      .filter((id): id is string => id !== undefined)
-      .sort();
-    for (const teamId of new Set(teamIds)) await lockTeam(tx, teamId);
+    await lockTeams(
+      tx,
+      [unlockedRequest.teamId, unlockedApplication?.teamId].filter((id) => id !== undefined),
+    );
     await lockRequest(tx, input.requestId);
     const request = await tx.scrimRequest.findUnique({ where: { id: input.requestId } });
     if (!request) throw requestNotFound();

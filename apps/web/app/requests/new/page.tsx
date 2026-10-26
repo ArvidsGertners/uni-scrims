@@ -50,7 +50,7 @@ function readDefaults(params: Record<string, string | string[] | undefined>): Fo
   const format = single(params.format);
   const time = single(params.time);
   return {
-    format: format && format in ScrimFormat ? (format as ScrimFormat) : null,
+    format: Object.values(ScrimFormat).find((value) => value === format) ?? null,
     maps: MAP_POOL.filter((map) => list(params.maps).includes(map)),
     time: time && START_TIME_SLOTS.includes(time) ? time : null,
   };

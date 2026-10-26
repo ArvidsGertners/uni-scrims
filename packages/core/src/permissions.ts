@@ -292,6 +292,18 @@ export function isScrimTeam(teamId: string | null | undefined, scrim: ScrimTeams
   return !!teamId && (teamId === scrim.hostTeamId || teamId === scrim.guestTeamId);
 }
 
+/**
+ * §7: a board request for every logged-in user, a direct request only for members of the
+ * requesting and the requested team (SPEC N-26); `memberTeamIds` are the user's teams among them.
+ */
+export function canSeeRequest(
+  memberTeamIds: readonly string[],
+  request: { teamId: string; targetTeamId: string | null },
+): boolean {
+  if (request.targetTeamId === null) return true;
+  return memberTeamIds.some((id) => id === request.teamId || id === request.targetTeamId);
+}
+
 /** §7: the applications of a request only for members of the creating team. */
 export function canSeeApplications(
   teamId: string | null | undefined,

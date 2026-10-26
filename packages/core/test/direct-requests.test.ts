@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   type RequestInput,
   acceptDirectRequest,
+  applyToRequest,
   banTeam,
   cancelScrim,
   createRequest,
@@ -213,6 +214,28 @@ describe("createRequest with a target", () => {
   });
 });
 
+describe("applications to direct requests", () => {
+  it("are refused in core, so withdrawing and bans keep working (SPEC N-26)", async () => {
+    const a = await createFullyVerifiedTeam();
+    const b = await createFullyVerifiedTeam();
+    const other = await createFullyVerifiedTeam();
+    const request = await sendDirect(a, b.team);
+    for (const team of [b, other]) {
+      await expect(
+        applyToRequest({
+          userId: team.captain.id,
+          teamId: team.team.id,
+          requestId: request.id,
+          now: NOW,
+        }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+    expect(await prisma.application.count({ where: { requestId: request.id } })).toBe(0);
+    await deleteRequest({ userId: a.captain.id, requestId: request.id, now: NOW });
+    expect(await notificationsTo(b.team.id, NotifType.REQUEST_DELETED)).toHaveLength(1);
+  });
+});
+
 describe("getRequestDetail and getRequestForm for direct requests", () => {
   it("shows a direct request only to both teams, with the answers for the target's captain", async () => {
     const a = await createTeamWithMembers({ extraMembers: 1 });
@@ -268,6 +291,19 @@ describe("getRequestDetail and getRequestForm for direct requests", () => {
       data: { teamId: second.id, userId: b.captain.id, joinedAt: new Date(NOW.getTime() + 1) },
     });
     await prisma.user.update({ where: { id: b.captain.id }, data: { activeTeamId: second.id } });
+    expect(
+      await getRequestDetail({ userId: b.captain.id, requestId: request.id, now: NOW }),
+    ).toMatchObject({ otherOwnTeam: { id: b.team.id }, accept: null });
+  });
+
+  it("offers the requested team to a member of both teams viewing it as the requesting one", async () => {
+    const a = await createFullyVerifiedTeam();
+    const b = await createFullyVerifiedTeam();
+    const request = await sendDirect(a, b.team);
+    // B's captain joins A, which is then the active team (the last joined, §5.20).
+    await prisma.teamMember.create({
+      data: { teamId: a.team.id, userId: b.captain.id, joinedAt: new Date(NOW.getTime() + 1) },
+    });
     expect(
       await getRequestDetail({ userId: b.captain.id, requestId: request.id, now: NOW }),
     ).toMatchObject({ otherOwnTeam: { id: b.team.id }, accept: null });
@@ -605,6 +641,10 @@ describe("reads for the entry points", () => {
     expect(await detail(host.captain.id, NOW)).toMatchObject({ rematch: false });
     expect(await detail(host.captain.id, after)).toMatchObject({ rematch: true });
     expect(await detail(host.members[0]!.id, after)).toMatchObject({ rematch: false });
+    // Not for a banned own team, like "Direkt anfragen" on the teams list.
+    await prisma.team.update({ where: { id: host.team.id }, data: { bannedAt: NOW } });
+    expect(await detail(host.captain.id, after)).toMatchObject({ rematch: false });
+    await prisma.team.update({ where: { id: host.team.id }, data: { bannedAt: null } });
     const past = (await getMyScrims({ userId: guest.captain.id, now: after })).past;
     expect(past.find(({ id }) => id === scrim.id)).toMatchObject({ rematch: true });
     await banTeam({ adminId: admin.id, teamId: guest.team.id, now: after });
