@@ -73,7 +73,8 @@ export default async function LandingPage({
     </Alert>
   ) : null;
 
-  // Banned accounts get no way in; signed in only the board, else register and sign in.
+  // Banned accounts get no way in; signed in only the board, else register, sign in and the public
+  // board (SPEC N-24).
   const actions = (className?: string): ReactNode =>
     gesperrt ? null : loggedIn ? (
       <Link href="/scrims" className={buttonVariants({ size: "xl", className: "max-sm:w-full" })}>
@@ -92,6 +93,12 @@ export default async function LandingPage({
           className={buttonVariants({ size: "xl", variant: "outline", className: "max-sm:w-full" })}
         >
           {t.signIn}
+        </Link>
+        <Link
+          href="/board"
+          className={buttonVariants({ size: "xl", variant: "ghost", className: "max-sm:w-full" })}
+        >
+          {t.viewBoard}
         </Link>
       </div>
     );

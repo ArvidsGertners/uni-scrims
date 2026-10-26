@@ -19,7 +19,7 @@ import { getLocale, getMessages } from "@/lib/locale";
 import { formatMessages, fullyVerifiedMessages } from "@/i18n/format";
 import { requestCardMessages, scrimSharedMessages } from "@/i18n/scrims";
 
-type CardRequest = {
+export type CardRequest = {
   startsAt: Date;
   format: ScrimFormat;
   rankMin: Rank;
@@ -29,7 +29,8 @@ type CardRequest = {
   team: TeamCardData;
   /** The team admits only fully verified applicants (SPEC N-21). */
   verifiedApplicantsOnly: boolean;
-  ownApplicationStatus: AppStatus | null;
+  /** Missing on the public board, which has no own team (SPEC N-24). */
+  ownApplicationStatus?: AppStatus | null;
 };
 
 type Props =

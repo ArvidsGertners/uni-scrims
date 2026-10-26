@@ -11,3 +11,13 @@ export function single(value: ParamValue): string | undefined {
 export function list(value: ParamValue): string[] {
   return value === undefined ? [] : typeof value === "string" ? [value] : value;
 }
+
+/** The parameters as a query string with "?", repeated values kept; "" without any. */
+export function toQueryString(params: Record<string, ParamValue>): string {
+  const query = new URLSearchParams();
+  for (const [name, value] of Object.entries(params)) {
+    for (const item of list(value)) query.append(name, item);
+  }
+  const text = query.toString();
+  return text ? `?${text}` : "";
+}

@@ -152,6 +152,28 @@ export const scrimsPageMessages = dictionary(
   },
 );
 
+/** The board without login (app/(public)/board/page.tsx, SPEC N-24); filters from scrimsPage. */
+export const publicBoardMessages = dictionary(
+  {
+    title: "Scrim-Board",
+    lead: "Offene Scrim-Anfragen von Uni-Teams. Um eine Anfrage anzusehen und euch zu bewerben, brauchst du ein Konto; für Scrims muss der Captain eures Teams verifiziert sein.",
+    createAccount: "Konto erstellen",
+    signIn: "Anmelden",
+    noRequestsForFilter: "Für diese Filter gibt es gerade keine offenen Anfragen.",
+    beFirstTeam:
+      "Mit einem Konto postet ihr eure eigene Anfrage, und andere Uni-Teams bewerben sich bei euch.",
+  },
+  {
+    title: "Scrim board",
+    lead: "Open scrim requests from university teams. To view a request and apply, you need an account; for scrims, your team's captain has to be verified.",
+    createAccount: "Create account",
+    signIn: "Sign in",
+    noRequestsForFilter: "There are no open requests for these filters right now.",
+    beFirstTeam:
+      "With an account, you post your own request and other university teams apply to you.",
+  },
+);
+
 /** A scrim (app/scrims/[id]/page.tsx), including its feedback screen. */
 export const scrimDetailMessages = dictionary(
   {
