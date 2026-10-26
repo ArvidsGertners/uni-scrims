@@ -17,6 +17,7 @@ import {
   isValidDateString,
   semesterLabel,
   toBerlinDateString,
+  toBerlinTimeString,
 } from "../src/index.ts";
 
 describe("start time slots", () => {
@@ -69,6 +70,12 @@ describe("dates", () => {
 
   it("formats the Berlin date", () => {
     expect(toBerlinDateString(new Date("2026-10-21T23:00:00Z"))).toBe("2026-10-22");
+  });
+
+  it("formats the Berlin time as a start slot, in summer and winter time", () => {
+    expect(toBerlinTimeString(new Date("2026-10-22T18:00:00Z"))).toBe("20:00");
+    expect(toBerlinTimeString(new Date("2026-10-29T19:00:00Z"))).toBe("20:00");
+    expect(toBerlinTimeString(new Date("2026-10-21T23:45:00Z"))).toBe("01:45");
   });
 });
 

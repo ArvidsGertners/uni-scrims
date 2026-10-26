@@ -125,6 +125,11 @@ export function toBerlinDateString(date: Date): string {
   return format(date, "yyyy-MM-dd", berlin);
 }
 
+/** Berlin time of an instant as "HH:mm", like START_TIME_SLOTS (to prefill a rematch, SPEC N-26). */
+export function toBerlinTimeString(date: Date): string {
+  return format(date, "HH:mm", berlin);
+}
+
 /** A Berlin calendar date, e.g. "22.10.2026" / "22 Oct 2026" (joined, team members). */
 export function formatBerlinDate(date: Date, locale: Locale): string {
   return berlinFormat(date, FORMATS[locale].date, locale);

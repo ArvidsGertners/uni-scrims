@@ -662,7 +662,7 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
     include: {
       hostTeam: { select: scrimTeamSelect },
       guestTeam: { select: scrimTeamSelect },
-      request: { select: { note: true } },
+      request: { select: { note: true, targetTeamId: true } },
       feedback: { select: { teamId: true, outcome: true, rating: true } },
     },
   });
@@ -684,6 +684,8 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
     note: scrim.request.note,
     feedbackDeadline: scrim.feedbackDeadline,
     isHost,
+    /** Booked from a direct request (SPEC N-26): the host asked the guest directly. */
+    direct: scrim.request.targetTeamId !== null,
     ownTeam: { id: ownTeam.id, name: ownTeam.name, tag: ownTeam.tag },
     /** The opponent's current captain is visible after booking (SPEC P0-6). */
     opponent: {
@@ -770,7 +772,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       include: {
         hostTeam: { select: opponentSelect },
         guestTeam: { select: opponentSelect },
-        request: { select: { rankMin: true, rankMax: true } },
+        request: { select: { rankMin: true, rankMax: true, targetTeamId: true } },
         feedback: { select: { teamId: true } },
       },
     }),
@@ -826,9 +828,12 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       id: scrim.id,
       startsAt: scrim.startsAt,
       format: scrim.format,
+      maps: scrim.maps,
       status: scrim.status,
       rankMin: scrim.request.rankMin,
       rankMax: scrim.request.rankMax,
+      /** From a direct request: no rank range to show (SPEC N-26). */
+      direct: scrim.request.targetTeamId !== null,
       opponent: {
         id: opponent.id,
         name: opponent.name,
