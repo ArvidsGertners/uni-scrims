@@ -687,7 +687,7 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
     }),
     prisma.requestSeries.findMany({
       where: { teamId: ownTeam.id, endedAt: null },
-      orderBy: { nextStartsAt: "asc" },
+      orderBy: { id: "asc" },
     }),
     prisma.application.findMany({
       where: {
@@ -746,10 +746,13 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
   );
   // Running series with a date still to post (SPEC N-25). A due date waits for the reason the
   // sweeper sees: requestPostingProblems for the current captain (§5.27).
-  const series = runningSeries.flatMap((entry) => {
-    const nextStartsAt = nextSeriesStart(entry, input.now);
-    return nextStartsAt ? [{ entry, nextStartsAt, postsAt: seriesPostsAt(nextStartsAt) }] : [];
-  });
+  // Sorted by the date shown: the stored pointer may still name a date already too late.
+  const series = runningSeries
+    .flatMap((entry) => {
+      const nextStartsAt = nextSeriesStart(entry, input.now);
+      return nextStartsAt ? [{ entry, nextStartsAt, postsAt: seriesPostsAt(nextStartsAt) }] : [];
+    })
+    .sort((a, b) => a.nextStartsAt.getTime() - b.nextStartsAt.getTime());
   const isCaptain = isCaptainOf(user, ownTeam);
   const [blocked] = series.some(({ postsAt }) => postsAt <= input.now)
     ? await requestPostingProblems(
@@ -800,6 +803,8 @@ export async function getMyScrims(input: { userId: string; now: Date }) {
       rankMin: entry.rankMin,
       rankMax: entry.rankMax,
       maps: entry.maps,
+      /** The request is due: it appears with the next sweeper run, unless it is blocked. */
+      due: postsAt <= input.now,
       /** Why the due request waits (limit, unverified captain); null if it is not due yet. */
       blocked: postsAt <= input.now ? (blocked?.kind ?? null) : null,
       end,

@@ -187,7 +187,8 @@ export const requestInputSchema = z
     path: ["rankMin"],
   })
   .superRefine((input, ctx) => {
-    if (input.repeatUntil === null) return;
+    // An invalid date already has its issue, which does not stop this refinement in zod 4.
+    if (input.repeatUntil === null || !isValidDateString(input.date)) return;
     const issue = (message: PlainMessageKey) =>
       ctx.addIssue({ code: "custom", path: ["repeatUntil"], message: key(message) });
     if (!isValidDateString(input.repeatUntil)) return issue("repeatUntilInvalid");

@@ -106,12 +106,14 @@ export const scrimsPageMessages = dictionary(
     nextDate: "Nächster Termin",
     lastDate: "Letzter Termin",
     postsAt: (when: string) => `Die Anfrage erscheint am ${when} auf dem Board.`,
-    /** Why the due request waits; the sweeper tries again until 30 minutes before the start. */
+    postsSoon: "Die Anfrage erscheint in Kürze auf dem Board.",
+    /** Why the due request waits; the sweeper tries again until `minutes` before the start. */
     blocked: {
-      REQUEST_LIMIT: `Wartet: Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Die Anfrage erscheint, sobald eine frei wird, bis 30 Minuten vor dem Start; sonst entfällt dieser Termin.`,
-      CAPTAIN_NOT_VERIFIED:
-        "Wartet: Euer Captain ist nicht verifiziert. Die Anfrage erscheint, sobald das geklärt ist, bis 30 Minuten vor dem Start; sonst entfällt dieser Termin.",
-    } as Partial<Record<ProblemKind, string>>,
+      REQUEST_LIMIT: (minutes: number) =>
+        `Wartet: Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Die Anfrage erscheint, sobald eine frei wird, bis ${minutes} Minuten vor dem Start; sonst entfällt dieser Termin.`,
+      CAPTAIN_NOT_VERIFIED: (minutes: number) =>
+        `Wartet: Euer Captain ist nicht verifiziert. Die Anfrage erscheint, sobald das geklärt ist, bis ${minutes} Minuten vor dem Start; sonst entfällt dieser Termin.`,
+    } as Partial<Record<ProblemKind, (minutes: number) => string>>,
     endSeries: "Serie beenden",
     confirmEndSeries:
       "Serie beenden? Es erscheinen keine weiteren Anfragen. Offene Anfragen bleiben stehen.",
@@ -175,10 +177,12 @@ export const scrimsPageMessages = dictionary(
     nextDate: "Next date",
     lastDate: "Last date",
     postsAt: (when) => `The request goes on the board on ${when}.`,
+    postsSoon: "The request goes on the board shortly.",
     blocked: {
-      REQUEST_LIMIT: `Waiting: you already have ${MAX_OPEN_REQUESTS} open requests. The request shows up as soon as one is free, until 30 minutes before the start; otherwise this date is dropped.`,
-      CAPTAIN_NOT_VERIFIED:
-        "Waiting: your captain isn't verified. The request shows up once that's sorted, until 30 minutes before the start; otherwise this date is dropped.",
+      REQUEST_LIMIT: (minutes) =>
+        `Waiting: you already have ${MAX_OPEN_REQUESTS} open requests. The request shows up as soon as one is free, until ${minutes} minutes before the start; otherwise this date is dropped.`,
+      CAPTAIN_NOT_VERIFIED: (minutes) =>
+        `Waiting: your captain isn't verified. The request shows up once that's sorted, until ${minutes} minutes before the start; otherwise this date is dropped.`,
     },
     endSeries: "End series",
     confirmEndSeries: "End the series? No more requests will be posted. Open requests stay.",

@@ -5,6 +5,7 @@ import {
   getBoard,
   getMyScrims,
 } from "@uni-scrims/core";
+import { TIMING } from "@uni-scrims/core/config/timing";
 import { cn } from "cn";
 import Link from "next/link";
 import {
@@ -353,7 +354,9 @@ async function SeriesList({ series }: { series: MyScrims["series"] }) {
   return (
     <ListGroup title={t.seriesTitle} count={String(series.length)}>
       {series.map((entry) => {
-        const blocked = entry.blocked ? t.blocked[entry.blocked] : undefined;
+        const blocked = entry.blocked
+          ? t.blocked[entry.blocked]?.(Math.round(TIMING.MIN_REQUEST_LEAD / 60_000))
+          : undefined;
         return (
           <div
             key={entry.id}
@@ -385,7 +388,8 @@ async function SeriesList({ series }: { series: MyScrims["series"] }) {
                 blocked ? "text-warning" : "text-muted-foreground",
               )}
             >
-              {blocked ?? t.postsAt(describeStartShort(entry.postsAt, locale))}
+              {blocked ??
+                (entry.due ? t.postsSoon : t.postsAt(describeStartShort(entry.postsAt, locale)))}
             </p>
             {entry.end ? (
               <div className="border-t border-border pt-3.5">

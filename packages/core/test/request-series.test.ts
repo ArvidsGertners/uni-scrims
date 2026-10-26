@@ -169,6 +169,10 @@ describe("createRequest with repeatUntil", () => {
         text: { key },
       });
     }
+    // An invalid first date is reported as such, not as a server error.
+    await expect(
+      createSeries(captain.id, { date: "2026-02-30", repeatUntil: "2026-03-20" }),
+    ).rejects.toMatchObject({ code: "INVALID", text: { key: "dateInvalid" } });
     expect(await prisma.scrimRequest.count({ where: { teamId: team.id } })).toBe(0);
   });
 
@@ -450,6 +454,7 @@ describe("reads", () => {
         rankMin: REQUEST_INPUT.rankMin,
         rankMax: REQUEST_INPUT.rankMax,
         maps: ["Haven"],
+        due: false,
         blocked: null,
         end: { problem: null },
       },
@@ -464,7 +469,7 @@ describe("reads", () => {
     // Due and waiting: the reason the sweeper sees, for the current captain.
     await fillUpToLimit(captain.id, team.id, W0);
     const full = await getMyScrims({ userId: members[0]!.id, now: W0 });
-    expect(full.series).toEqual([expect.objectContaining({ blocked: "REQUEST_LIMIT" })]);
+    expect(full.series).toEqual([expect.objectContaining({ due: true, blocked: "REQUEST_LIMIT" })]);
     await prisma.user.update({ where: { id: captain.id }, data: { verifiedAt: null } });
     const unverified = await getMyScrims({ userId: captain.id, now: W0 });
     expect(unverified.series).toEqual([
@@ -472,6 +477,31 @@ describe("reads", () => {
         blocked: "CAPTAIN_NOT_VERIFIED",
         end: { problem: expect.objectContaining({ key: "captainNotVerified" }) },
       }),
+    ]);
+  });
+
+  it("sorts the series by the next date shown, also before the sweeper skips a date", async () => {
+    const { captain } = await createFullyVerifiedTeam();
+    const thursdays = await createSeries(captain.id);
+    // Fridays at 20:00 from 23.10. on, so the next date is 30.10.
+    const fridays = await createSeries(captain.id, {
+      date: "2026-10-23",
+      repeatUntil: "2026-11-20",
+    });
+    const atNow = await getMyScrims({ userId: captain.id, now: NOW });
+    expect(atNow.series.map((entry) => entry.id)).toEqual([
+      thursdays.series!.id,
+      fridays.series!.id,
+    ]);
+    // 29 minutes before W1 the Thursday date is too late: the next one shown is W2, after Friday,
+    // and only due when W1 starts.
+    const later = await getMyScrims({
+      userId: captain.id,
+      now: new Date(W1.getTime() - 29 * MINUTE),
+    });
+    expect(later.series).toEqual([
+      expect.objectContaining({ id: fridays.series!.id, due: true, blocked: null }),
+      expect.objectContaining({ id: thursdays.series!.id, nextStartsAt: W2, due: false }),
     ]);
   });
 
