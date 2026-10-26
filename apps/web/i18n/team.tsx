@@ -26,7 +26,7 @@ export const teamPageMessages = dictionary(
     fullyVerified: "Vollständig verifiziert",
     missingToBadge: (missing: number) => `Noch ${missing} bis zum Abzeichen`,
     /** The reliability tile counts the last days only (SPEC N-23). */
-    played: (days: number) => `Gespielt · ${days} Tage`,
+    played: (days: number) => `Gespielt · letzte ${days} Tage`,
     nextScrim: "Nächstes Scrim",
     nextScrimDetails: (time: string, opponent: string, format: string) =>
       `${time} · gegen ${opponent} · ${format}`,
@@ -46,7 +46,7 @@ export const teamPageMessages = dictionary(
     listed: "Angezeigt",
     unlisted: "Ausgeblendet",
     teamsListHint:
-      "In der Teams-Liste sehen alle Eingeloggten euer Team mit den Discord-Namen, Rollen und Rängen der Mitglieder.",
+      "In der Teams-Liste sehen alle Eingeloggten euer Team mit seiner Zuverlässigkeit und den Discord-Namen, Rollen und Rängen der Mitglieder.",
     hideFromList: "Aus der Teams-Liste nehmen",
     showInList: "In der Teams-Liste zeigen",
     /** Who may apply to the team's requests (SPEC N-21). */
@@ -132,7 +132,7 @@ export const teamPageMessages = dictionary(
     listed: "Shown",
     unlisted: "Hidden",
     teamsListHint:
-      "On the teams list, everyone signed in sees your team with the members' Discord names, roles and ranks.",
+      "On the teams list, everyone signed in sees your team with its reliability and the members' Discord names, roles and ranks.",
     hideFromList: "Remove from the teams list",
     showInList: "Show on the teams list",
     applicants: "Applications",

@@ -506,7 +506,7 @@ Test: Zwei parallele `submitFeedback` mit PLAYED ergeben sofort `COMPLETED`.
 
 ### 5.7 Zuverlässigkeit
 
-`getReliability(teamId)` liefert:
+`getReliability(teamId)` liefert (seit Phase 27 `getReliability(teamId, now)`, §5.25):
 
 - `played`: Scrims im Status `COMPLETED`, an denen das Team beteiligt war
 - `noShows`: Scrims mit `NO_SHOW` und `noShowTeamId = team`
@@ -868,7 +868,7 @@ Damit stammt jede Session, die den Admin-Bereich sieht, aus einer Anmeldung mit 
 
 **Lesen:**
 - `getBoard({ …, reliableOnly })`: nach dem Filter „vollständig verifiziert“ werden die Zuverlässigkeiten wie bisher für die übrigen Anfragen geladen, dann filtert `reliableOnly` in JS; Rückgabe in `filter.reliableOnly`. Parameter `?zuverlaessig=1`.
-- `getTeamList({ …, reliableOnly, now })`: lädt die Zuverlässigkeit aller angezeigten Teams in einem Batch (`getReliabilities`), liefert sie je Team (`reliability`) und filtert in JS wie die übrigen Filter.
+- `getTeamList({ …, reliableOnly, now })`: lädt die Zuverlässigkeit in einem Batch (`getReliabilities`) für die Teams, die Rang-, Abzeichen- und Suchfilter übrig lassen, liefert sie je Team (`reliability`) und filtert danach nach `reliableOnly`.
 
 **Web:**
 - `ReliabilityLine` (`components/reliability-line.tsx`): „Letzte 90 Tage: x gespielt · y No-Shows · z kurzfristige Absagen · Ø 4,2 ★“, No-Shows und kurzfristige Absagen über 0 in `text-warning`. Auf `RequestCard`, im Kopf der Anfrage, bei jeder Bewerbung und auf den Karten von `/teams`; ersetzt dort `formatReliability`.
@@ -1010,7 +1010,7 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Ab Phase 21: mehr Teams beantragen und den Stand sehen (`/support`) | eingeloggt, nicht gesperrt, vollständiges Konto; nur der eigene Antrag |
 | Ab Phase 21: Anträge auf mehr Teams sehen und entscheiden (`/team-limits`) | Admin, Betreiber, mit 2FA |
 | Ab Phase 22: Sprache wählen (`setLocaleAction`) | alle (Cookie); angemeldet zusätzlich am eigenen Konto (`setLocalePreference`), auch gesperrt oder mit unvollständigem Konto |
-| Ab Phase 24: Teams-Liste (`/teams`, `getTeamList`) mit Hochschulen, Team-Rang und den Mitgliedern (Discord-Name, Rolle, eigener Rang) aller aktiven, nicht ausgeblendeten Teams | eingeloggt, nicht gesperrt, vollständiges Konto (`requireUser`, wie das Board) |
+| Ab Phase 24: Teams-Liste (`/teams`, `getTeamList`) mit Hochschulen, Team-Rang, ab Phase 27 der Zuverlässigkeit (§5.25), und den Mitgliedern (Discord-Name, Rolle, eigener Rang) aller aktiven, nicht ausgeblendeten Teams | eingeloggt, nicht gesperrt, vollständiges Konto (`requireUser`, wie das Board) |
 | Ab Phase 24: Team in der Teams-Liste zeigen oder ausblenden (`setTeamListed`) | aktueller Captain eines nicht gesperrten Teams (Verifizierung nicht nötig) |
 | Ab Phase 25: Bewerbungen auf vollständig verifizierte Teams beschränken (`setVerifiedApplicantsOnly`) | aktueller Captain eines nicht gesperrten Teams (Verifizierung nicht nötig) |
 

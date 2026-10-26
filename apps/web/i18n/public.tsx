@@ -96,7 +96,7 @@ export const landingMessages = dictionary(
         },
         {
           channel: "Suchen heißt scrollen",
-          uniScrims: "Filter nach Tag, Rang und vollständig verifizierten Teams",
+          uniScrims: "Filter nach Tag, Rang, vollständig verifizierten und zuverlässigen Teams",
         },
         {
           channel: "Ob ein Uni-Team anfragt, weiß niemand",
@@ -234,7 +234,7 @@ export const landingMessages = dictionary(
         },
         {
           channel: "Searching means scrolling",
-          uniScrims: "Filters by day, rank and fully verified teams",
+          uniScrims: "Filters by day, rank, fully verified and reliable teams",
         },
         {
           channel: "Nobody knows if a university team is asking",

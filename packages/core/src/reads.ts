@@ -886,9 +886,10 @@ const teamListSelect = {
 } satisfies Prisma.TeamSelect;
 
 /**
- * All active teams their captain has not hidden, with universities, team rank and members (SPEC
- * N-20, §5.23), for every active account like the board. Search, rank and badge filter run after
- * loading, because team rank and badge are computed on read (§5.19, §5.24).
+ * All active teams their captain has not hidden, with universities, team rank, reliability and
+ * members (SPEC N-20, N-23, §5.23), for every active account like the board. All filters run after
+ * loading, because team rank, badge and reliability are computed on read (§5.19, §5.24, §5.25);
+ * the reliabilities only for the teams the other filters leave.
  */
 export async function getTeamList(input: TeamListInput) {
   await requireUser(input.userId);
@@ -909,28 +910,29 @@ export async function getTeamList(input: TeamListInput) {
     where: listedTeamWhere(),
     select: teamListSelect,
   });
-  // One batch for all shown teams, like the board (SPEC N-23).
-  const reliabilities = await getReliabilities(
-    rows.map((team) => team.id),
-    input.now,
-  );
-  const teams: TeamListEntry[] = rows
+  const candidates = rows
     .map((team) => ({
       team,
       rank: teamRank(team.members),
       fullyVerified: hasFullyVerifiedMembers(team.members),
-      reliability: reliabilities.get(team.id)!,
     }))
     .filter(({ rank }) => ranks.length === 0 || (rank !== null && ranks.includes(rank)))
     .filter(({ fullyVerified }) => !fullyVerifiedOnly || fullyVerified)
-    .filter(({ reliability }) => !reliableOnly || isReliable(reliability))
     .filter(
       ({ team }) =>
         !needle ||
         matches(team.name) ||
         matches(team.tag) ||
         verifiedUniversityNames(team.members).some(matches),
-    )
+    );
+  // One batch for the teams left, like the board (SPEC N-23).
+  const reliabilities = await getReliabilities(
+    candidates.map(({ team }) => team.id),
+    input.now,
+  );
+  const teams: TeamListEntry[] = candidates
+    .map((entry) => ({ ...entry, reliability: reliabilities.get(entry.team.id)! }))
+    .filter(({ reliability }) => !reliableOnly || isReliable(reliability))
     .sort((a, b) => a.team.name.localeCompare(b.team.name, "de"))
     .map(({ team, rank, fullyVerified, reliability }) => ({
       id: team.id,

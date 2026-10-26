@@ -11,6 +11,8 @@ import {
   RELIABILITY_WINDOW_DAYS,
   getBoard,
   getReliability,
+  getRequestDetail,
+  getTeamDashboard,
   getTeamList,
   isReliable,
 } from "../src/index.ts";
@@ -238,5 +240,31 @@ describe("the reliability filter", () => {
     });
     expect(filtered.filter.reliableOnly).toBe(true);
     expect(filtered.teams.map((team) => team.id)).toEqual([fresh.team.id, recovered.team.id]);
+  });
+});
+
+describe("callers pass their now through (§5.25)", () => {
+  it("dates the window of the team dashboard and the request page by now", async () => {
+    const team = await createTeamWithMembers();
+    const opponent = await createTeamWithMembers();
+    await scrim({
+      host: team,
+      guest: opponent,
+      status: ScrimStatus.NO_SHOW,
+      startsAt: new Date(NOW.getTime() - 2 * DAY),
+      noShow: team,
+    });
+    const request = await createOpenRequest(team.captain.id);
+    const viewer = await createUser();
+    // 100 days later the no-show has left the window.
+    const later = new Date(NOW.getTime() + 100 * DAY);
+
+    const dashboard = (now: Date) => getTeamDashboard({ userId: team.captain.id, now });
+    expect((await dashboard(NOW))?.reliability.noShows).toBe(1);
+    expect((await dashboard(later))?.reliability.noShows).toBe(0);
+    const detail = (now: Date) =>
+      getRequestDetail({ userId: viewer.id, requestId: request.id, now });
+    expect((await detail(NOW))?.team.reliability.noShows).toBe(1);
+    expect((await detail(later))?.team.reliability.noShows).toBe(0);
   });
 });
