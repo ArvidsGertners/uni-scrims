@@ -42,6 +42,7 @@ import {
 import {
   applicantRuleProblem,
   applicantTeamProblem,
+  boardRequestWhere,
   isRequestOpen,
   openRequestWhere,
   requestPostingProblems,
@@ -261,14 +262,10 @@ async function loadBoardRequests(input: {
   const date = input.date && isValidDateString(input.date) ? input.date : null;
   const range = date ? berlinDayRange(date) : null;
 
-  const base: Prisma.ScrimRequestWhereInput = {
-    ...openRequestWhere(input.now),
-    team: activeTeamWhere(),
-  };
-  // Each filter is its own AND entry, so none can overwrite a condition of base.
+  // Each filter is its own AND entry, so none can overwrite a condition of the base.
   const filtered: Prisma.ScrimRequestWhereInput = {
     AND: [
-      base,
+      boardRequestWhere(input.now),
       ...(range ? [{ startsAt: { gte: range.from, lt: range.to } }] : []),
       ...(input.excludeTeamId ? [{ teamId: { not: input.excludeTeamId } }] : []),
       // Enums have no order in Prisma filters: rankMin ≤ rank ≤ rankMax via the rank list.

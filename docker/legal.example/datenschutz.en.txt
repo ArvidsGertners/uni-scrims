@@ -10,7 +10,7 @@ TODO: as in the German version: Accept-Language is read and not stored; the cook
 TODO: as in the German version: in the teams list all signed-in users see the Discord names, roles and ranks of the members, unless the captain hides the team
 
 ## Public board
-TODO: as in the German version: open requests with the team's name, logo, universities, team rank, reliability and badge are visible to anyone without signing in on the public board (/board, noindex)
+TODO: as in the German version: open requests (time, format, maps, rank range, number of applications) with the team's name, logo, universities, team rank, reliability and badge are visible to anyone without signing in on the public board (/board, noindex), also of teams hidden on the teams list
 
 ## Your rights
 TODO: access (Art. 15), rectification, erasure, complaint to a supervisory authority

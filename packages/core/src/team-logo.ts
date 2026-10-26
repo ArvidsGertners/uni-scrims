@@ -10,8 +10,7 @@ import { DomainError } from "./errors.ts";
 import { type PlainMessageKey, key } from "./i18n/render.ts";
 import { lockTeam } from "./locks.ts";
 import { requireCaptain, requireUser } from "./permissions.ts";
-import { activeTeamWhere } from "./readiness.ts";
-import { openRequestWhere } from "./requests.ts";
+import { boardRequestWhere } from "./requests.ts";
 import { parseInput } from "./schemas.ts";
 
 export { MAX_LOGO_BYTES };
@@ -279,8 +278,8 @@ export async function getTeamLogo(input: {
 }
 
 /**
- * Without login only the logos the public board can show (SPEC N-24, §5.26): of active teams with
- * an open request; others are NOT_FOUND, like a missing logo.
+ * Without login only the logos the public board can show (SPEC N-24, §5.26): of teams with a
+ * request on the board, by the board's own rule; others are NOT_FOUND, like a missing logo.
  */
 export async function getPublicTeamLogo(input: {
   teamId: string;
@@ -288,11 +287,7 @@ export async function getPublicTeamLogo(input: {
   now: Date;
 }): Promise<StoredLogo> {
   return loadLogo(
-    {
-      id: input.teamId,
-      ...activeTeamWhere(),
-      requests: { some: openRequestWhere(input.now) },
-    },
+    { id: input.teamId, requests: { some: boardRequestWhere(input.now) } },
     input.background,
   );
 }

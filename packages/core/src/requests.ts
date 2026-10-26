@@ -35,7 +35,7 @@ import {
   parseInput,
   requestInputSchema,
 } from "./schemas.ts";
-import { isTeamActive, isTeamFullyVerified } from "./readiness.ts";
+import { activeTeamWhere, isTeamActive, isTeamFullyVerified } from "./readiness.ts";
 import { berlinToUtc } from "./time.ts";
 
 export { MAX_OPEN_REQUESTS };
@@ -61,6 +61,17 @@ export function openRequestWhere(now: Date) {
   return {
     status: RequestStatus.OPEN,
     startsAt: { gt: now },
+  } satisfies Prisma.ScrimRequestWhereInput;
+}
+
+/**
+ * The requests the board shows, signed in or not: open ones of active teams (SPEC P0-4, N-24). The
+ * public logos follow the same rule (§5.26).
+ */
+export function boardRequestWhere(now: Date) {
+  return {
+    ...openRequestWhere(now),
+    team: activeTeamWhere(),
   } satisfies Prisma.ScrimRequestWhereInput;
 }
 

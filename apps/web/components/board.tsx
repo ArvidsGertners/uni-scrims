@@ -1,4 +1,10 @@
-import { RANK_LABELS, RANKS, formatDayHeading, toBerlinDateString } from "@uni-scrims/core";
+import {
+  RANK_LABELS,
+  RANKS,
+  formatDayHeading,
+  type getPublicBoard,
+  toBerlinDateString,
+} from "@uni-scrims/core";
 import type { Locale } from "@uni-scrims/core/config/locale";
 import type { Rank } from "@uni-scrims/db";
 import Link from "next/link";
@@ -16,12 +22,8 @@ import { scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
 
 // Filters and cards of the board, signed in on /scrims and without login on /board (§5.26).
 
-export type BoardFilter = {
-  date: string | null;
-  ranks: Rank[];
-  fullyVerifiedOnly: boolean;
-  reliableOnly: boolean;
-};
+/** The applied filters, as getBoard and getPublicBoard return them. */
+export type BoardFilter = Awaited<ReturnType<typeof getPublicBoard>>["filter"];
 
 /** The `?rang=` values for getBoard/getPublicBoard: "ALL" if sent, else the known ranks. */
 export function readBoardRanks(value: string | string[] | undefined): Rank[] | "ALL" {

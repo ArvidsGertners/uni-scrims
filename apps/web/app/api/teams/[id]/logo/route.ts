@@ -8,6 +8,21 @@ const BACKGROUNDS = new Map<string | null, LogoBackground>([
   ["light", "LIGHT"],
 ]);
 
+/**
+ * With a user getTeamLogo, else the public rule. A session left of a deleted account counts as
+ * none, as on the pages (getSignedInUser), so the public board keeps its logos.
+ */
+async function loadLogo(userId: string | null, teamId: string, background: LogoBackground) {
+  if (userId) {
+    try {
+      return await getTeamLogo({ userId, teamId, background });
+    } catch (error) {
+      if (!isDomainError(error) || error.code !== "UNAUTHENTICATED") throw error;
+    }
+  }
+  return getPublicTeamLogo({ teamId, background, now: new Date() });
+}
+
 // Team logo for one background (`bg`) for logged-in users (SPEC N-6, N-7, ARCHITECTURE §5.11),
 // without login only of teams on the public board (SPEC N-24, §5.26). A URL with the current
 // version may stay in the browser cache for good, as a new logo gets a new URL; any other version
@@ -24,9 +39,7 @@ export async function GET(
 
   let logo: Awaited<ReturnType<typeof getTeamLogo>>;
   try {
-    logo = userId
-      ? await getTeamLogo({ userId, teamId: id, background })
-      : await getPublicTeamLogo({ teamId: id, background, now: new Date() });
+    logo = await loadLogo(userId, id, background);
   } catch (error) {
     if (isDomainError(error)) {
       return new Response(null, { status: statusForDomainError(error) });
@@ -40,6 +53,8 @@ export async function GET(
       // Always the WebP the server made itself (§5.11).
       "Content-Type": "image/webp",
       "X-Content-Type-Options": "nosniff",
+      // Like the public board itself, the logos on it are not for search engines (SPEC N-24).
+      "X-Robots-Tag": "noindex",
       "Cache-Control": current ? "private, max-age=31536000, immutable" : "no-store",
     },
   });
