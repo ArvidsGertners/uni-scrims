@@ -15,6 +15,9 @@ TODO: as in the German version: weekday, time, format, rank range, maps, note, e
 ## Ready today
 TODO: as in the German version: earliest and latest start time for the evening, format, rank range, maps and who announced it (no note); while it runs, anyone sees it without signing in on the public board, with the team's name, logo, universities, team rank, reliability and badge
 
+## Messages between teams
+TODO: as in the German version: text, who wrote it for which team and when, read state; only the members of both teams see them; live over a WebSocket connection without a further cookie; notifications without the text; own messages can be deleted; reports (reporting team, who, when), admins see only reported messages (legal basis Art. 6(1)(f)); deleted 30 days after the date, up to 14 more days in the backups; deleted with the account
+
 ## Public board
 TODO: as in the German version: open requests (time, format, maps, rank range, number of applications) with the team's name, logo, universities, team rank, reliability and badge are visible to anyone without signing in on the public board (/board, noindex), also of teams hidden on the teams list
 

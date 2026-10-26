@@ -9,6 +9,7 @@ TODO: Name, Anschrift, E-Mail
 - TODO: Teams, Anfragen, Scrims und Feedback; in der Teams-Liste sehen alle eingeloggten Nutzer die Discord-Namen, Rollen und Ränge der Mitglieder, solange der Captain das Team nicht ausblendet; offene Anfragen (Termin, Format, Maps, Rang-Bereich, Zahl der Bewerbungen) mit Name, Logo, Hochschulen, Team-Rang, Zuverlässigkeit und Abzeichen des Teams sieht jeder ohne Anmeldung auf dem öffentlichen Board (/board, noindex), auch von Teams, die in der Teams-Liste ausgeblendet sind
 - TODO: wöchentlich wiederkehrende Anfragen (Wochentag, Uhrzeit, Format, Rang-Bereich, Maps, Notiz, Enddatum, wer sie angelegt hat); jede Woche entsteht daraus eine neue Anfrage, bis zum Enddatum oder bis der Captain sie beendet
 - TODO: „Heute spielbereit“ (früheste und späteste Startzeit für den Abend, Format, Rang-Bereich, Maps, wer es gemeldet hat; keine Notiz); solange es läuft, sieht jeder es ohne Anmeldung auf dem öffentlichen Board, mit Name, Logo, Hochschulen, Team-Rang, Zuverlässigkeit und Abzeichen des Teams
+- TODO: Nachrichten zwischen Teams (Text, wer für welches Team und wann, Lesestand); nur die Mitglieder der beiden Teams sehen sie; live über eine WebSocket-Verbindung ohne weiteres Cookie; Benachrichtigung ohne Text; eigene Nachrichten löschbar; Meldungen (meldendes Team, wer, wann), Admins sehen nur gemeldete Nachrichten (Rechtsgrundlage lit. f); gelöscht 30 Tage nach dem Termin, im Backup bis zu 14 Tage länger
 - TODO: Sperren: offene Prüfung wird abgelehnt und die Datei gelöscht
 
 ## Upload der Immatrikulationsbescheinigung
@@ -33,7 +34,7 @@ TODO: Browsersprache (Accept-Language) wird gelesen, nicht gespeichert; Cookie �
 TODO: 16 Jahre
 
 ## Kontolöschung
-TODO: Was gelöscht wird (auch die Notizen eigener Scrim-Anfragen und wiederkehrender Anfragen), was anonymisiert bleibt (Bewerbungsnachrichten gehören zum Team); kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert (getrennt vom gelöschten Konto, bis die Sperre aufgehoben wird)
+TODO: Was gelöscht wird (auch die Notizen eigener Scrim-Anfragen und wiederkehrender Anfragen, die eigenen Nachrichten an andere Teams und der Lesestand), was anonymisiert bleibt (Bewerbungsnachrichten gehören zum Team); kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert (getrennt vom gelöschten Konto, bis die Sperre aufgehoben wird)
 
 ## Backups
 TODO: Datenbank-Backups 14 Tage (scheitert die Sicherung, bleibt das letzte Backup bis zur nächsten gelungenen), gelöschte Konten bis zum Ablauf enthalten; nach einer Wiederherstellung werden Löschungen seit dem Backup nachgezogen, ist das nicht möglich, ist ein gelöschtes Konto mit dem Stand des Backups wieder vorhanden
