@@ -64,6 +64,40 @@ export const landingMessages = dictionary(
       reminder: "Reminder",
       feedback: "Feedback",
     },
+    /** Scrim channel and Uni Scrims side by side (SPEC N-22); only what exists. */
+    why: {
+      eyebrow: "Warum Uni Scrims?",
+      title: "Mehr als ein Scrim-Channel.",
+      channel: "Im Scrim-Channel",
+      uniScrims: "Auf Uni Scrims",
+      rows: [
+        {
+          channel: "Alte Anfragen bleiben stehen",
+          uniScrims: "Anfragen verfallen zur Startzeit, Gebuchtes verschwindet vom Board",
+        },
+        {
+          channel: "Zusagen gehen im Chat unter",
+          uniScrims:
+            "Teams bewerben sich, ihr nehmt eins an, alle anderen bekommen automatisch Bescheid",
+        },
+        {
+          channel: "An den Termin denkt jeder selbst",
+          uniScrims: "Erinnerung 24 h und 1 h vor dem Scrim",
+        },
+        {
+          channel: "No-Shows haben keine Folgen",
+          uniScrims: "Gespielte Scrims, No-Shows und kurzfristige Absagen stehen am Team",
+        },
+        {
+          channel: "Suchen heißt scrollen",
+          uniScrims: "Filter nach Tag, Rang und vollständig verifizierten Teams",
+        },
+        {
+          channel: "Wer studiert, weiß niemand",
+          uniScrims: "Verifizierter Captain, Abzeichen für vollständig verifizierte Teams",
+        },
+      ],
+    },
     reliability: "Verbindlichkeit",
     reliabilityTitle: "No-Shows werden",
     reliabilityAccent: "sichtbar.",
@@ -81,6 +115,12 @@ export const landingMessages = dictionary(
         question: "Wer kann mitmachen?",
         answer:
           "Teams deutscher Hochschulen, alle ab 16. Wer ein Team als Captain führt, lädt die eigene Immatrikulationsbescheinigung hoch; sie wird von Hand geprüft und direkt danach gelöscht. Mitspieler können sich genauso verifizieren, müssen es aber nicht.",
+      },
+      {
+        // Next to other scrim sites, not against them; no names (SPEC N-22).
+        question: "Ersetzt Uni Scrims andere Scrim-Seiten?",
+        answer:
+          "Muss es nicht. Uni Scrims ist für Scrims gegen andere Uni-Teams, zur Vorbereitung auf die Uniliga. Für alle anderen Scrims nutzt ihr weiter, was ihr kennt.",
       },
       {
         question: "Brauche ich Discord?",
@@ -164,6 +204,38 @@ export const landingMessages = dictionary(
       reminder: "Reminder",
       feedback: "Feedback",
     },
+    why: {
+      eyebrow: "Why Uni Scrims?",
+      title: "More than a scrim channel.",
+      channel: "In a scrim channel",
+      uniScrims: "On Uni Scrims",
+      rows: [
+        {
+          channel: "Old requests stay up",
+          uniScrims: "Requests expire at their start time, booked ones leave the board",
+        },
+        {
+          channel: "Confirmations get lost in the chat",
+          uniScrims: "Teams apply, you accept one, all others are notified automatically",
+        },
+        {
+          channel: "Everyone has to remember the date",
+          uniScrims: "Reminders 24 h and 1 h before the scrim",
+        },
+        {
+          channel: "No-shows have no consequences",
+          uniScrims: "Played scrims, no-shows and late cancellations show on the team",
+        },
+        {
+          channel: "Searching means scrolling",
+          uniScrims: "Filters by day, rank and fully verified teams",
+        },
+        {
+          channel: "Nobody knows who's a student",
+          uniScrims: "Verified captain, badge for fully verified teams",
+        },
+      ],
+    },
     reliability: "Reliability",
     reliabilityTitle: "No-shows become",
     reliabilityAccent: "visible.",
@@ -181,6 +253,11 @@ export const landingMessages = dictionary(
         question: "Who can join?",
         answer:
           "Teams from German universities, everyone aged 16 or over. Whoever leads a team as captain uploads their own enrolment certificate; it is reviewed by hand and deleted right afterwards. Teammates can verify the same way, but don't have to.",
+      },
+      {
+        question: "Does Uni Scrims replace other scrim sites?",
+        answer:
+          "It doesn't have to. Uni Scrims is for scrims against other university teams, to prepare for the Uniliga. For all other scrims, keep using what you already know.",
       },
       {
         question: "Do I need Discord?",

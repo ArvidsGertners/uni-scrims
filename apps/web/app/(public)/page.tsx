@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { DiscordIcon } from "@/components/brand-icons";
 import { StatusDot } from "@/components/detail-rows";
-import { ChevronDownIcon, FileIcon, ShieldCheckIcon } from "@/components/icons";
+import { CheckIcon, ChevronDownIcon, FileIcon, ShieldCheckIcon, XIcon } from "@/components/icons";
 import { LoginNote } from "@/components/login-note";
 import { PageMain } from "@/components/page-main";
 import { RankIcon } from "@/components/rank-icon";
@@ -257,6 +257,54 @@ export default async function LandingPage({
             </div>
           </Card>
         </div>
+      </section>
+
+      <section aria-labelledby="landing-why" className={cn(COLUMN, "py-[72px]")}>
+        <SectionHead id="landing-why" eyebrow={t.why.eyebrow} title={t.why.title} />
+        {/* Not in the handoff (SPEC N-22). The heads are a legend for the eye; every cell names its
+            side for screen readers. From 640 px two columns, on phones one block per row. */}
+        <Card className="mt-8 gap-0 overflow-hidden p-0">
+          <div
+            aria-hidden
+            className="flex flex-wrap gap-x-5 gap-y-1 border-b border-border px-5 py-3 type-label sm:grid sm:grid-cols-2 sm:gap-0 sm:p-0"
+          >
+            <span className="flex items-center gap-2 text-muted-foreground sm:px-5 sm:py-3">
+              <XIcon size={14} strokeWidth={2.5} className="text-faint" />
+              {t.why.channel}
+            </span>
+            <span className="flex items-center gap-2 text-accent-text sm:border-l sm:border-border sm:px-5 sm:py-3">
+              <CheckIcon size={14} strokeWidth={2.5} />
+              {t.why.uniScrims}
+            </span>
+          </div>
+          <ul>
+            {t.why.rows.map((row) => (
+              <li
+                key={row.uniScrims}
+                className="grid border-b border-border py-2 last:border-b-0 sm:grid-cols-2 sm:py-0"
+              >
+                <p className="flex gap-2.5 px-5 py-1.5 text-pretty text-muted-foreground sm:py-4">
+                  <XIcon size={16} strokeWidth={2.5} className="mt-[3px] shrink-0 text-faint" />
+                  <span>
+                    <span className="sr-only">{t.why.channel}: </span>
+                    {row.channel}
+                  </span>
+                </p>
+                <p className="flex gap-2.5 px-5 py-1.5 text-pretty sm:border-l sm:border-border sm:py-4">
+                  <CheckIcon
+                    size={16}
+                    strokeWidth={2.5}
+                    className="mt-[3px] shrink-0 text-accent-text"
+                  />
+                  <span>
+                    <span className="sr-only">{t.why.uniScrims}: </span>
+                    {row.uniScrims}
+                  </span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Card>
       </section>
 
       <section aria-labelledby="landing-reliability" className={cn(COLUMN, "py-[72px]")}>
