@@ -492,14 +492,14 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Startseite sagt bei der Verbindlichkeit, in der Gegenüberstellung (N-22) und in der FAQ, dass die Zahlen die der letzten 90 Tage sind. Alles auf Deutsch und Englisch; die Seiten passen ab 320 px.
 
 **N-24 Board ohne Anmeldung** (Phase 28)
-- [ ] Unter `/board` sehen Besucher ohne Anmeldung die offenen Anfragen wie auf dem Board: alle offenen, künftigen Anfragen aktiver Teams (nicht gesperrt, nicht aufgelöst), nach Tag gruppiert, auch die von Teams, die ihr Captain aus der Teams-Liste ausgeblendet hat (N-20; die Liste zeigt Mitglieder, das Board nicht; Entscheidung des Nutzers). Die Karten zeigen dasselbe wie eingeloggt: Logo (sonst Kürzel), Name, Hochschulen, Format, Startzeit, Rang-Bereich, Maps, Team-Rang, Zuverlässigkeit der letzten 90 Tage, das Abzeichen „Vollständig verifiziert“, „Nur für vollständig verifizierte Teams“ und die Zahl der Bewerbungen; wie bisher keine Notiz und keinen Captain (Entscheidung des Nutzers).
-- [ ] Filter wie auf dem Board: Tag, Rang, „Nur vollständig verifizierte Teams“, „Nur zuverlässige Teams“ und „Zurücksetzen“. Ohne eigenes Team gibt es keinen Rang-Standard: Ohne Wahl stehen Anfragen aller Ränge da.
-- [ ] Das Board ist nur zum Lesen. Ein Klick auf eine Karte führt zur Anmeldung und danach direkt zur Anfrage (Entscheidung des Nutzers); die Anfrage selbst, Bewerbungen, Team-Links und die Teams-Liste bleiben für eingeloggte Nutzer. Oben stehen ein kurzer Hinweis, dass man zum Ansehen und Bewerben ein Konto braucht, sowie „Konto erstellen“ und „Anmelden“; beide führen danach aufs Board.
-- [ ] Wer angemeldet `/board` aufruft, landet wie bisher mit seinen Filtern auf `/scrims` (alte Links in Discord-Nachrichten).
-- [ ] Team-Logos lassen sich ohne Anmeldung nur abrufen, solange das Team eine offene Anfrage auf dem Board hat (Entscheidung des Nutzers: Karten mit Logo); sonst wie bisher nur eingeloggt.
-- [ ] Suchmaschinen werden gebeten, das Board nicht aufzunehmen (`noindex`, Entscheidung des Nutzers).
-- [ ] Die Startseite verlinkt das Board für Abgemeldete („Offene Anfragen ansehen“, im Hero und im Abschluss).
-- [ ] Die Datenschutzerklärung sagt, was Besucher ohne Anmeldung sehen. Alles auf Deutsch und Englisch; die Seite passt ab 320 px.
+- [x] Unter `/board` sehen Besucher ohne Anmeldung die offenen Anfragen wie auf dem Board: alle offenen, künftigen Anfragen aktiver Teams (nicht gesperrt, nicht aufgelöst), nach Tag gruppiert, auch die von Teams, die ihr Captain aus der Teams-Liste ausgeblendet hat (N-20; die Liste zeigt Mitglieder, das Board nicht; Entscheidung des Nutzers). Die Karten zeigen dasselbe wie eingeloggt: Logo (sonst Kürzel), Name, Hochschulen, Format, Startzeit, Rang-Bereich, Maps, Team-Rang, Zuverlässigkeit der letzten 90 Tage, das Abzeichen „Vollständig verifiziert“, „Nur für vollständig verifizierte Teams“ und die Zahl der Bewerbungen; wie bisher keine Notiz und keinen Captain (Entscheidung des Nutzers).
+- [x] Filter wie auf dem Board: Tag, Rang, „Nur vollständig verifizierte Teams“, „Nur zuverlässige Teams“ und „Zurücksetzen“. Ohne eigenes Team gibt es keinen Rang-Standard: Ohne Wahl stehen Anfragen aller Ränge da.
+- [x] Das Board ist nur zum Lesen. Ein Klick auf eine Karte führt zur Anmeldung und danach direkt zur Anfrage (Entscheidung des Nutzers); die Anfrage selbst, Bewerbungen, Team-Links und die Teams-Liste bleiben für eingeloggte Nutzer. Oben stehen ein kurzer Hinweis, dass man zum Ansehen und Bewerben ein Konto braucht, sowie „Konto erstellen“ und „Anmelden“; beide führen danach aufs Board.
+- [x] Wer angemeldet `/board` aufruft, landet wie bisher mit seinen Filtern auf `/scrims` (alte Links in Discord-Nachrichten).
+- [x] Team-Logos lassen sich ohne Anmeldung nur abrufen, solange das Team eine offene Anfrage auf dem Board hat (Entscheidung des Nutzers: Karten mit Logo); sonst wie bisher nur eingeloggt.
+- [x] Suchmaschinen werden gebeten, das Board nicht aufzunehmen (`noindex`, Entscheidung des Nutzers).
+- [x] Die Startseite verlinkt das Board für Abgemeldete („Offene Anfragen ansehen“, im Hero und im Abschluss).
+- [x] Die Datenschutzerklärung sagt, was Besucher ohne Anmeldung sehen. Alles auf Deutsch und Englisch; die Seite passt ab 320 px.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
