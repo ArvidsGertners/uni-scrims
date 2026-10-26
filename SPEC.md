@@ -106,6 +106,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 42. Als Captain will ich Scrims anfragen, ohne dass sich alle Spieler anmelden müssen, und spontan eine Aushilfe mitbringen können, wenn jemand ausfällt; als Team, dem Verifizierung wichtig ist, will ich nach vollständig verifizierten Teams filtern und nur sie als Bewerber zulassen.
 43. Als Captain, der bisher im Scrim-Channel sucht, will ich auf der Startseite sofort sehen, was Uni Scrims mir darüber hinaus bringt, und dass ich andere Scrim-Seiten dafür nicht aufgeben muss.
 44. Als Captain will ich auf einen Blick sehen, wie zuverlässig ein Team in letzter Zeit war, und nur zuverlässige Teams anzeigen lassen.
+45. Als Captain, dessen Team jede Woche zur selben Zeit scrimmt, will ich eine Anfrage einmal anlegen und bis zu einem Enddatum jede Woche wiederkommen lassen, damit ich sie nicht jede Woche neu posten muss.
 
 ### Edge Cases
 - Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen. Seit Phase 25 kann es das doch, sobald der Captain verifiziert ist; ihm fehlt nur das Abzeichen „Vollständig verifiziert“ (N-21).
@@ -118,7 +119,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 - Ein Team bewirbt sich außerhalb des Rang-Bereichs: erlaubt, mit Hinweis. Der Ersteller entscheidet.
 - Ein Team hat seine Bewerbung zurückgezogen: Es kann sich auf dieselbe Anfrage nicht erneut bewerben.
 - Der Captain verlässt das Team: nur nach Übertragung der Captain-Rolle. Ist er das einzige Mitglied, wird das Team beim Verlassen aufgelöst.
-- Ein Team wird gesperrt oder aufgelöst: Seine offenen Anfragen werden gelöscht, seine offenen Bewerbungen zurückgezogen und seine künftigen Scrims abgesagt. Das Gegnerteam bekommt Bescheid, und die Absage zählt für niemanden als kurzfristig. Anfragen, deren Startzeit schon vorbei ist, verfallen wie sonst auch.
+- Ein Team wird gesperrt oder aufgelöst: Seine offenen Anfragen werden gelöscht, seine offenen Bewerbungen zurückgezogen und seine künftigen Scrims abgesagt. Das Gegnerteam bekommt Bescheid, und die Absage zählt für niemanden als kurzfristig. Anfragen, deren Startzeit schon vorbei ist, verfallen wie sonst auch. Seit Phase 29 enden auch seine wiederkehrenden Anfragen (N-25).
 - Ein Spieler wird gesperrt: Er wird aus seinem Team entfernt. Ein gesperrter Captain bleibt im Team, das Team wird mitgesperrt (seit Phase 21 für jedes seiner Teams: aus Teams, in denen er nicht Captain ist, wird er entfernt, Teams, in denen er Captain ist, werden mitgesperrt, N-17). Die übrigen Mitglieder können das gesperrte Team verlassen und ein neues gründen oder einem anderen beitreten. Eine offene Prüfung seiner Bescheinigung wird ohne Nachricht abgelehnt und die Datei gelöscht.
 - Der Captain ist selbst noch nicht verifiziert: Er kann das Team verwalten und einladen, aber keine Scrim-Aktionen ausführen.
 - Der Bot ist nicht auf dem Team-Server: Benachrichtigungen gehen dann nur per DM an den Captain.
@@ -256,7 +257,7 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 
 **P0-10 Rechtliches und Datenschutz**
 - [x] Seiten für Impressum und Datenschutzerklärung; Inhalt wird aus einer Config-Datei geladen
-- [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert; Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Bis Phase 6 wurden bei einer erneuten Anmeldung nach der Löschung Discord-Name, Avatar und Session an diesem Platzhalter gespeichert; seit Phase 7 speichert eine Anmeldung über Discord dort nichts mehr, und der Platzhalter bleibt abgemeldet (N-3). Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
+- [x] Konto löschen löscht alle personenbezogenen Daten; vergangene Scrims bleiben anonymisiert für die Team-Statistik. Die Notizen der Anfragen, die der Nutzer selbst erstellt hat, werden geleert (seit Phase 29 auch die seiner wiederkehrenden Anfragen, N-25); Bewerbungsnachrichten gehören zum Team und bleiben. Auch gesperrte Nutzer können ihr Konto löschen; bei ihnen bleibt nur die Discord-ID mit der Sperre gespeichert (an einem eigenen Platzhalter, ohne Verbindung zu den Daten des gelöschten Kontos), damit die Sperre nicht durch Löschen und Neuanmeldung umgangen werden kann. Bis Phase 6 wurden bei einer erneuten Anmeldung nach der Löschung Discord-Name, Avatar und Session an diesem Platzhalter gespeichert; seit Phase 7 speichert eine Anmeldung über Discord dort nichts mehr, und der Platzhalter bleibt abgemeldet (N-3). Als Captain nur nach Übertragung der Rolle oder als einziges Mitglied (dann wird das Team aufgelöst). Ein gesperrtes Team kann die Rolle nicht übertragen; löscht sein Captain das Konto, wird das Team aufgelöst.
 - [x] Nur nötige Daten speichern: keine Matrikelnummer, kein Geburtsdatum, keine Kopie der Bescheinigung nach der Prüfung, keine Discord-Zugriffstokens über den Login hinaus. Seit Phase 7 zusätzlich E-Mail-Adresse, Passwort (nur als Hash) und Vor- und Nachname (N-3); seit Phase 10 ein optionales Team-Logo, nur als vom Server neu erzeugtes Bild ohne Metadaten (N-6); seit Phase 19 optionale Links des Teams, die der Captain angibt (N-15); seit Phase 20 der selbst angegebene Rang (N-16); seit Phase 24, ob das Team in der Teams-Liste steht (N-20)
 - [x] Server-Logs werden begrenzt aufbewahrt (Rotation)
 
@@ -501,13 +502,23 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Startseite verlinkt das Board für Abgemeldete („Offene Anfragen ansehen“, im Hero und im Abschluss).
 - [x] Die Datenschutzerklärung sagt, was Besucher ohne Anmeldung sehen. Alles auf Deutsch und Englisch; die Seite passt ab 320 px.
 
+**N-25 Wiederkehrende Anfragen** (Phase 29)
+- [ ] Beim Erstellen einer Anfrage kann der Captain „Jede Woche wiederholen bis …“ mit einem Enddatum wählen. Es liegt mindestens 7 Tage und höchstens 16 Wochen nach dem Datum der ersten Anfrage (Entscheidung des Nutzers) und meint wie dieses den Kalendertag des tatsächlichen Starts. Wiederholt wird nur wöchentlich, am selben Wochentag zur selben deutschen Uhrzeit, auch über eine Zeitumstellung. Ohne Enddatum bleibt es eine einzelne Anfrage.
+- [ ] Die erste Anfrage entsteht sofort nach denselben Regeln wie eine einzelne (P0-4: verifizierter Captain, aktives Team, höchstens 5 offene Anfragen, mindestens 30 Minuten Vorlauf). Scheitert sie, entsteht auch keine Serie.
+- [ ] Jede weitere Anfrage erscheint von selbst, sobald die vorige beginnt, also eine Woche vor ihrem Start (Entscheidung des Nutzers); eine Serie hat deshalb höchstens eine offene Anfrage. Sie übernimmt Format, Rang-Bereich, Maps und Notiz der Serie, steht wie jede andere auf dem Board und verfällt, wird gebucht oder gelöscht wie jede andere. Ein eigenes Limit für Serien gibt es nicht; das Limit von 5 offenen Anfragen gilt.
+- [ ] Hat das Team schon 5 offene Anfragen oder ist sein Captain nicht verifiziert, wartet die Anfrage: Sie erscheint, sobald das wieder geht, spätestens 30 Minuten vor ihrem Start; danach entfällt dieser Termin, und die Serie macht mit der nächsten Woche weiter. Dafür gibt es keine Benachrichtigung; der Tab „Anfragen“ nennt den Grund (Entscheidungen des Nutzers).
+- [ ] Die Serie gehört dem Team: Nach einer Übertragung der Captain-Rolle läuft sie weiter, mit den Regeln für den neuen Captain. Wird das Team gesperrt oder aufgelöst, endet sie.
+- [ ] Der Tab „Anfragen“ zeigt allen Mitgliedern die laufenden Serien des Teams: Wochentag und Uhrzeit, Format, Rang-Bereich, Maps, das Enddatum, den nächsten Termin und wann dessen Anfrage erscheint oder warum sie wartet. Anfragen einer Serie tragen dort und auf der Anfrage-Seite für das eigene Team „Wöchentlich“; andere Teams sehen das nicht.
+- [ ] Mit „Serie beenden“ (nur der verifizierte Captain, mit Rückfrage) erscheinen keine weiteren Anfragen; schon offene bleiben stehen und lassen sich wie bisher einzeln löschen (Entscheidung des Nutzers). Eine Serie lässt sich nicht bearbeiten, nur beenden und neu anlegen. Nach ihrem letzten Termin endet sie von selbst.
+- [ ] Löscht der Captain eine einzelne Anfrage einer Serie, kommt dieser Termin nicht wieder; die Serie läuft weiter.
+- [ ] Die Datenauskunft nennt die Serien, die Kontolöschung leert ihre Notizen wie die der Anfragen (P0-10), und die Datenschutzerklärung nennt wiederkehrende Anfragen. „Rollen und Rechte“ nennt das Recht des Captains. Alles auf Deutsch und Englisch; Formular und Tab passen ab 320 px.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
 - **Bot-Commands zum Posten und Suchen:** `/scrim posten`, `/scrims` direkt in Discord.
 - **Feedback-Kommentar** als Freitext, mit Admin-Ansicht.
 - **Uniliga-Division** als optionales Team-Feld und als Filter.
-- **Wiederkehrende Anfragen**, z. B. "jeden Dienstag 20 Uhr".
 
 ### P2: Später, aber jetzt schon mitdenken
 - **Weitere Games:** `game` als Feld an Team und Anfrage, auch wenn es vorerst nur `valorant` gibt.
@@ -568,6 +579,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Auth | Better Auth (siehe ARCHITECTURE). |
 | Sichtbarkeit | Board und Anfragen nur für eingeloggte Nutzer. Seit Phase 28 sehen auch Besucher ohne Anmeldung die offenen Anfragen auf `/board`, nur lesend (N-24); Anfrage-Details samt Notiz, Bewerbungen, Team-Links und die Teams-Liste bleiben für eingeloggte Nutzer. |
 | Captain-Rechte | Scrim-Aktionen nur, wenn der Captain selbst verifiziert ist. Teamverwaltung geht auch ohne. Seit Phase 25 reicht das für Scrims; die Zahl verifizierter Spieler wird nicht mehr geprüft (N-21). |
+| Wiederkehrende Anfragen | Seit Phase 29 nur wöchentlich und bis zu einem Enddatum, höchstens 16 Wochen nach dem ersten Termin. Jede Anfrage erscheint eine Woche vor ihrem Start; am Limit oder ohne verifizierten Captain wartet sie bis 30 Minuten vor dem Start, dann entfällt der Termin ohne Nachricht. Kein eigenes Limit für Serien, keine Bearbeitung (N-25). |
 | Verifizierung der Spieler | Seit Phase 25 freiwillig. Mit 5 verifizierten Spielern oder Ersatzspielern bekommt ein Team das Abzeichen „Vollständig verifiziert“; andere Teams filtern danach oder lassen nur solche Teams als Bewerber zu (N-21). |
 | Entsperren | Nur manuell per Datenbank, kein Admin-Button. |
 | Altersbestätigung | 16+ per Checkbox vor dem Discord-Login. |
@@ -641,7 +653,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 26 | Startseite „Warum Uni Scrims?“ (N-22) | Die Startseite stellt Scrim-Channel und Uni Scrims gegenüber und sagt in der FAQ, dass Uni Scrims andere Scrim-Seiten nicht ersetzen muss |
 | 27 | Zuverlässigkeit sichtbarer (N-23) | Die Zuverlässigkeit der letzten 90 Tage steht deutlich auf Board, Anfrage, Bewerbungen und in der Teams-Liste; beide Listen filtern nach Teams mit einer No-Show-Quote unter 10 % |
 | 28 | Board ohne Anmeldung (N-24) | Abgemeldete sehen unter `/board` die offenen Anfragen mit denselben Karten (samt Logos) und Filtern nur lesend; ein Klick führt zur Anmeldung und danach zur Anfrage; Angemeldete landen auf `/scrims`; die Startseite verlinkt das Board |
-| 29 | Wiederkehrende Anfragen (geplant) | Ein Captain legt eine wöchentliche Anfrage an, und die nächste erscheint rechtzeitig von selbst |
+| 29 | Wiederkehrende Anfragen (N-25) | Ein Captain legt eine Anfrage an, die jede Woche bis zu einem Enddatum wiederkommt; die nächste erscheint von selbst, sobald die vorige beginnt, und wartet am Limit bis 30 Minuten vor dem Start; der Captain beendet die Serie im Tab „Anfragen“ |
 | 30 | Direktanfrage und feste Partner (geplant) | Ein Captain fragt ein bestimmtes Team direkt an, auch als „Nochmal gegen dieses Team“ und wöchentlich; das andere Team nimmt an oder lehnt ab |
 | 31 | Sofortsuche „Heute spielbereit“ (geplant) | Ein Team meldet ein Zeitfenster für heute, andere fragen darin mit einem Klick an |
 | 32 | Nachrichten zwischen den Teams (geplant) | Ersteller- und Bewerber-Team bzw. beide Scrim-Teams schreiben sich auf der Seite; Benachrichtigung ohne Inhalt |
