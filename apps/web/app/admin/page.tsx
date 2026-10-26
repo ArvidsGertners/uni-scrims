@@ -11,7 +11,7 @@ const BOT_LOOPS = ["sweeper", "outbox"] as const;
 /** Start page of the admin area (SPEC N-10): what waits, by role. */
 export default async function AdminOverviewPage() {
   const { overview } = await requireAdminShellPage("/", "queue");
-  const { queue, disputes, failedNotifications, bot, teamLimitRequests } = overview;
+  const { queue, disputes, failedNotifications, bot, teamLimitRequests, messageReports } = overview;
   const locale = await getLocale();
   const t = await getMessages(adminOverviewMessages);
   const lastSeen = (heartbeatAt: Date | null) =>
@@ -50,6 +50,17 @@ export default async function AdminOverviewPage() {
             tone={teamLimitRequests ? "text-warning" : undefined}
           >
             {teamLimitRequests ? t.moreTeamsRequested : t.noTeamRequests}
+          </StatTile>
+        ) : null}
+        {/* Reported messages between teams (SPEC N-28). */}
+        {messageReports !== null ? (
+          <StatTile
+            href={adminHref("/reports")}
+            label={t.reports}
+            value={messageReports}
+            tone={messageReports ? "text-warning" : undefined}
+          >
+            {messageReports ? t.reportsWaiting : t.noReports}
           </StatTile>
         ) : null}
         {failedNotifications !== null ? (

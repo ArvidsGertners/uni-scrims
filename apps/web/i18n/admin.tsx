@@ -11,6 +11,7 @@ export const adminShellMessages = dictionary(
       queue: "Prüf-Queue",
       disputes: "Streitfälle",
       teamLimits: "Anträge",
+      reports: "Meldungen",
       bans: "Sperren",
       notifications: "Nachrichten",
       stats: "Statistik",
@@ -32,6 +33,7 @@ export const adminShellMessages = dictionary(
       queue: "Review queue",
       disputes: "Disputes",
       teamLimits: "Team requests",
+      reports: "Reports",
       bans: "Bans",
       notifications: "Messages",
       stats: "Statistics",
@@ -59,6 +61,9 @@ export const adminOverviewMessages = dictionary(
     teamRequests: "Anträge",
     moreTeamsRequested: "Mehr Teams beantragt",
     noTeamRequests: "Keine offenen Anträge",
+    reports: "Meldungen",
+    reportsWaiting: "Gemeldete Nachrichten warten",
+    noReports: "Keine offenen Meldungen",
     messages: "Nachrichten",
     messagesFailed: "Fehlgeschlagen, nicht zugestellt",
     noneFailed: "Keine fehlgeschlagen",
@@ -83,6 +88,9 @@ export const adminOverviewMessages = dictionary(
     teamRequests: "Team requests",
     moreTeamsRequested: "More teams requested",
     noTeamRequests: "No open requests",
+    reports: "Reports",
+    reportsWaiting: "Reported messages waiting",
+    noReports: "No open reports",
     messages: "Messages",
     messagesFailed: "Failed, not delivered",
     noneFailed: "None failed",
@@ -157,6 +165,47 @@ export const adminDisputesMessages = dictionary(
     versus: (host, guest) => `${host} vs ${guest}`,
     captain: (name) => `Captain (Discord): ${name}`,
     noAnswer: "No answer",
+  },
+);
+
+/** Reported messages between teams (SPEC N-28): only these, never the rest of a thread. */
+export const adminReportsMessages = dictionary(
+  {
+    title: "Meldungen",
+    intro:
+      "Nachrichten, die das andere Team gemeldet hat. Du siehst nur die gemeldete Nachricht, nicht den übrigen Verlauf. Entfernen löscht sie für beide Teams; Verwerfen lässt sie stehen, und dasselbe Team kann sie nicht erneut melden. Sperren geht wie immer über die Sperren-Seite.",
+    empty: "Keine offenen Meldungen.",
+    from: (author: string, team: string) => `${author} (${team})`,
+    to: (team: string, start: string) => `an ${team} · Termin ${start}`,
+    written: (date: string) => `Geschrieben am ${date}`,
+    reportedBy: (team: string, date: string) => `Gemeldet von ${team} am ${date}`,
+    ids: (profileId: string, discordId: string) =>
+      `Profil-ID ${profileId} · Discord-ID ${discordId}`,
+    noDiscord: "ohne Discord",
+    findUser: "Verfasser auf der Sperren-Seite suchen",
+    quoted: (text: string) => `„${text}“`,
+    remove: "Nachricht entfernen",
+    confirmRemove: "Nachricht entfernen? Sie verschwindet für beide Teams.",
+    dismiss: "Meldung verwerfen",
+    confirmDismiss: "Meldung verwerfen? Die Nachricht bleibt stehen.",
+  },
+  {
+    title: "Reports",
+    intro:
+      "Messages the other team reported. You only see the reported message, not the rest of the conversation. Removing deletes it for both teams; dismissing keeps it, and the same team can't report it again. Bans work as always on the Bans page.",
+    empty: "No open reports.",
+    from: (author, team) => `${author} (${team})`,
+    to: (team, start) => `to ${team} · date ${start}`,
+    written: (date) => `Written on ${date}`,
+    reportedBy: (team, date) => `Reported by ${team} on ${date}`,
+    ids: (profileId, discordId) => `Profile ID ${profileId} · Discord ID ${discordId}`,
+    noDiscord: "no Discord",
+    findUser: "Find the author on the Bans page",
+    quoted: (text) => `“${text}”`,
+    remove: "Remove message",
+    confirmRemove: "Remove this message? It disappears for both teams.",
+    dismiss: "Dismiss report",
+    confirmDismiss: "Dismiss this report? The message stays.",
   },
 );
 

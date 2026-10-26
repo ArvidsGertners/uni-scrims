@@ -6,6 +6,8 @@ import {
   banUser,
   decideTeamLimitRequest,
   decideVerification,
+  dismissMessageReports,
+  removeReportedMessage,
   removeTeamLinksAsAdmin,
   removeTeamLogoAsAdmin,
   resolveDispute,
@@ -14,6 +16,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
+import { publishConversationChanges } from "@/lib/realtime/bus";
 import { getSessionUserId } from "@/lib/session";
 
 const schema = z.object({
@@ -163,5 +166,36 @@ export async function removeTeamLinksAction(
     });
   });
   revalidatePath("/admin/bans");
+  return state;
+}
+
+/** A reported message goes for both teams (SPEC N-28); open threads lose it right away. */
+export async function removeReportedMessageAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const adminId = (await getSessionUserId()) ?? "";
+  const messageId = idSchema.safeParse(formField(formData, "messageId"));
+  if (!messageId.success) return invalidInput();
+  const state = await runAction(async () => {
+    publishConversationChanges([
+      await removeReportedMessage({ adminId, messageId: messageId.data }),
+    ]);
+  });
+  revalidatePath("/admin/reports");
+  return state;
+}
+
+export async function dismissMessageReportsAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const adminId = (await getSessionUserId()) ?? "";
+  const messageId = idSchema.safeParse(formField(formData, "messageId"));
+  if (!messageId.success) return invalidInput();
+  const state = await runAction(async () => {
+    await dismissMessageReports({ adminId, messageId: messageId.data, now: new Date() });
+  });
+  revalidatePath("/admin/reports");
   return state;
 }

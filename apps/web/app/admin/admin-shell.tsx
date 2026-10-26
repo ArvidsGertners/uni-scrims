@@ -12,6 +12,7 @@ import {
   BanIcon,
   BarChartIcon,
   FileIcon,
+  FlagIcon,
   LayoutGridIcon,
   MessageSquareIcon,
   ShieldCheckIcon,
@@ -62,6 +63,13 @@ const AREAS: {
     area: "admin",
     icon: FileIcon,
     count: (o) => o.teamLimitRequests,
+  },
+  {
+    path: "/reports",
+    labelKey: "reports",
+    area: "admin",
+    icon: FlagIcon,
+    count: (o) => o.messageReports,
   },
   { path: "/bans", labelKey: "bans", area: "admin", icon: BanIcon },
   {
