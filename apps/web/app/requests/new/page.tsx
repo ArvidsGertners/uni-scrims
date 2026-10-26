@@ -142,6 +142,18 @@ async function RequestForm({
         </div>
         <p className="text-[13px] text-pretty text-muted-foreground">{t.timeHint}</p>
       </div>
+      {/* Empty = a single request; without JavaScript it stays empty (SPEC N-25). */}
+      <div className="flex flex-col gap-2">
+        <Field label={t.repeatUntil}>
+          <DatePicker
+            name="repeatUntil"
+            placeholder={t.repeatNever}
+            clearable
+            min={toBerlinDateString(new Date())}
+          />
+        </Field>
+        <p className="text-[13px] text-pretty text-muted-foreground">{t.repeatHint}</p>
+      </div>
       <Field label={shared.format}>
         <Select
           name="format"

@@ -1,4 +1,10 @@
-import { describeStartShort, getBoard, getMyScrims } from "@uni-scrims/core";
+import {
+  describeStartDay,
+  describeStartShort,
+  formatBerlinWeekday,
+  getBoard,
+  getMyScrims,
+} from "@uni-scrims/core";
 import { cn } from "cn";
 import Link from "next/link";
 import {
@@ -7,6 +13,7 @@ import {
   isBoardFiltered,
   readBoardRanks,
 } from "@/components/board";
+import { ActionForm } from "@/components/action-form";
 import { DiscordContact } from "@/components/discord-contact";
 import { EmptyState } from "@/components/empty-state";
 import { readCheckboxFilters } from "@/components/filter-checkbox";
@@ -17,7 +24,7 @@ import {
   MessageSquareIcon,
   PlusIcon,
 } from "@/components/icons";
-import { CARD_COLUMNS } from "@/components/list-group";
+import { CARD_COLUMNS, ListGroup } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
 import { RankRangeLabel } from "@/components/rank-icon";
 import { TabNav } from "@/components/tab-nav";
@@ -33,8 +40,9 @@ import {
   formatMaps,
   formatUniversities,
 } from "@/lib/scrim-format";
-import { getLocale, getMessages } from "@/lib/locale";
+import { getLocale, getMessages, getText } from "@/lib/locale";
 import { formatMessages } from "@/i18n/format";
+import { endRequestSeriesAction } from "../requests/actions";
 import { scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
 
 type Board = Awaited<ReturnType<typeof getBoard>>;
@@ -155,7 +163,7 @@ export default async function ScrimsPage({
             ))}
           </span>
         </Alert>
-      ) : counts[tab] === 0 ? (
+      ) : counts[tab] === 0 && !(tab === "anfragen" && mine.series.length > 0) ? (
         <EmptyState
           compact
           title={empty[tab].title}
@@ -278,7 +286,22 @@ async function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam
   );
 }
 
+/** Own open requests, then the running weekly series (SPEC N-25); the tab counts the requests. */
 async function Requests({ mine }: { mine: MyScrims }) {
+  const t = await getMessages(scrimsPageMessages);
+  return (
+    <div className="flex flex-col gap-8">
+      {mine.requests.length > 0 ? (
+        <OpenRequests mine={mine} />
+      ) : (
+        <p className="text-[14px] text-pretty text-muted-foreground">{t.noOpenRequestNow}</p>
+      )}
+      {mine.series.length > 0 ? <SeriesList series={mine.series} /> : null}
+    </div>
+  );
+}
+
+async function OpenRequests({ mine }: { mine: MyScrims }) {
   const locale = await getLocale();
   const t = await getMessages(scrimsPageMessages);
   const shared = await getMessages(scrimSharedMessages);
@@ -299,7 +322,10 @@ async function Requests({ mine }: { mine: MyScrims }) {
                 {formatMaps(request.maps, locale)}
               </span>
             </div>
-            <Badge variant="accent">{t.open}</Badge>
+            <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+              {request.weekly ? <Badge>{t.weekly}</Badge> : null}
+              <Badge variant="accent">{t.open}</Badge>
+            </span>
           </div>
           <div className="flex items-center justify-between border-t border-border pt-3.5">
             <span className="type-label text-muted-foreground">
@@ -313,6 +339,79 @@ async function Requests({ mine }: { mine: MyScrims }) {
         </Link>
       ))}
     </div>
+  );
+}
+
+/**
+ * Running series: when the next request appears or why it waits, and "Serie beenden" for the
+ * captain. Not links, unlike the request cards, because they hold a form.
+ */
+async function SeriesList({ series }: { series: MyScrims["series"] }) {
+  const locale = await getLocale();
+  const t = await getMessages(scrimsPageMessages);
+  const text = await getText();
+  return (
+    <ListGroup title={t.seriesTitle} count={String(series.length)}>
+      {series.map((entry) => {
+        const blocked = entry.blocked ? t.blocked[entry.blocked] : undefined;
+        return (
+          <div
+            key={entry.id}
+            className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5"
+          >
+            <div className="flex items-start justify-between gap-2.5">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="type-h2">
+                  {t.everyWeekday(formatBerlinWeekday(entry.nextStartsAt, locale))}
+                </span>
+                <span className="text-[13px] text-muted-foreground">
+                  {formatFormat(entry.format, locale)} ·{" "}
+                  <RankRangeLabel rankMin={entry.rankMin} rankMax={entry.rankMax} /> ·{" "}
+                  {formatMaps(entry.maps, locale)}
+                </span>
+              </div>
+              <Badge>{t.weekly}</Badge>
+            </div>
+            <dl className="grid grid-cols-2 gap-3 text-[14px]">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <dt className="type-label text-muted-foreground">{t.nextDate}</dt>
+                <dd className="font-semibold">{describeStartShort(entry.nextStartsAt, locale)}</dd>
+              </div>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <dt className="type-label text-muted-foreground">{t.lastDate}</dt>
+                <dd className="font-semibold">{describeStartDay(entry.lastStartsAt, locale)}</dd>
+              </div>
+            </dl>
+            <p
+              className={cn(
+                "text-[13px] text-pretty",
+                blocked ? "text-warning" : "text-muted-foreground",
+              )}
+            >
+              {blocked ?? t.postsAt(describeStartShort(entry.postsAt, locale))}
+            </p>
+            {entry.end ? (
+              <div className="border-t border-border pt-3.5">
+                {entry.end.problem === null ? (
+                  <ActionForm
+                    action={endRequestSeriesAction}
+                    submitLabel={t.endSeries}
+                    variant="outline"
+                    size="sm"
+                    confirmText={t.confirmEndSeries}
+                    confirmDestructive
+                  >
+                    <input type="hidden" name="seriesId" value={entry.id} />
+                  </ActionForm>
+                ) : (
+                  <p className="text-[13px] text-muted-foreground">{text(entry.end.problem)}</p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </ListGroup>
   );
 }
 

@@ -335,7 +335,8 @@ export const rolesTableMessages = dictionary(
       seeActivity: "Scrims, Anfragen und Bewerbungen des Teams sehen",
       scrimNotifications: "Benachrichtigungen zu Scrims (Buchung, Absage, Erinnerung, Feedback)",
       requestNotifications: "Benachrichtigungen zu Anfragen und Bewerbungen",
-      requests: "Anfragen erstellen, bewerben, bestätigen, absagen, Feedback geben",
+      requests:
+        "Anfragen erstellen (auch wöchentliche) und beenden, bewerben, bestätigen, absagen, Feedback geben",
       editTeam: "Team, Logos und Links bearbeiten, Einladungslink",
       listTeam: "Team in der Teams-Liste zeigen oder ausblenden",
       verifiedApplicants: "Bewerbungen auf vollständig verifizierte Teams beschränken",
@@ -366,7 +367,8 @@ export const rolesTableMessages = dictionary(
       seeActivity: "See the team's scrims, requests and applications",
       scrimNotifications: "Notifications about scrims (booking, cancellation, reminder, feedback)",
       requestNotifications: "Notifications about requests and applications",
-      requests: "Create requests, apply, accept, cancel, give feedback",
+      requests:
+        "Create requests (also weekly ones) and end them, apply, accept, cancel, give feedback",
       editTeam: "Edit team, logos and links, invite link",
       listTeam: "Show or hide the team on the teams list",
       verifiedApplicants: "Admit only fully verified teams as applicants",

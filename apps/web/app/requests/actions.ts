@@ -5,6 +5,7 @@ import {
   confirmApplication,
   createRequest,
   deleteRequest,
+  endRequestSeries,
   withdrawApplication,
 } from "@uni-scrims/core";
 import type { ValorantMap } from "@uni-scrims/core/config/maps";
@@ -27,6 +28,8 @@ const requestFields = z.object({
   rankMax: z.string(),
   maps: z.array(z.string()),
   note: z.string().optional(),
+  // A weekly series up to this date (SPEC N-25); empty = a single request.
+  repeatUntil: z.string().optional(),
   // The team the form was shown for (§5.20).
   teamId: idSchema,
 });
@@ -41,11 +44,13 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
     rankMax: formField(formData, "rankMax"),
     maps: formData.getAll("maps"),
     note: formField(formData, "note"),
+    repeatUntil: formField(formData, "repeatUntil"),
     teamId: formField(formData, "teamId"),
   });
   if (!parsed.success) return invalidInput();
+  let weekly = false;
   const state = await runAction(async () => {
-    await createRequest({
+    const request = await createRequest({
       ...parsed.data,
       format: parsed.data.format as ScrimFormat,
       rankMin: parsed.data.rankMin as Rank,
@@ -55,13 +60,29 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
       userId,
       now: new Date(),
     });
+    weekly = request.seriesId !== null;
   });
   if (!state.done) return state;
   // redirect() throws, so it must stay outside runAction.
   revalidatePath("/scrims");
   const t = await getMessages(requestActionMessages);
-  await setFlash(t.requestCreated);
+  await setFlash(weekly ? t.seriesCreated : t.requestCreated);
   redirect("/scrims?tab=anfragen");
+}
+
+export async function endRequestSeriesAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const seriesId = idSchema.safeParse(formField(formData, "seriesId"));
+  if (!seriesId.success) return invalidInput();
+  const state = await runAction(async () => {
+    await endRequestSeries({ userId, seriesId: seriesId.data, now: new Date() });
+  });
+  if (state.done) {
+    const t = await getMessages(requestActionMessages);
+    await setFlash(t.seriesEnded);
+  }
+  revalidatePath("/scrims");
+  return state;
 }
 
 export async function deleteRequestAction(_state: ActionState, formData: FormData) {

@@ -1,5 +1,7 @@
 // Texts of the scrim and request pages (§5.21): board, own scrims, scrim and request details.
+import { MAX_OPEN_REQUESTS, SERIES_MAX_WEEKS } from "@uni-scrims/core/config/limits";
 import { dictionary } from "@uni-scrims/core/config/locale";
+import type { ProblemKind } from "@uni-scrims/core";
 import type { ReactNode } from "react";
 
 /** Texts used on several of the scrim and request pages. */
@@ -96,6 +98,23 @@ export const scrimsPageMessages = dictionary(
     pending: "Ausstehend",
     giveFeedback: "Feedback geben",
     feedbackGiven: "Feedback gegeben",
+    // Weekly series in the requests tab (SPEC N-25).
+    weekly: "Wöchentlich",
+    seriesTitle: "Wiederkehrende Anfragen",
+    noOpenRequestNow: "Gerade keine offene Anfrage. Die nächste erscheint von selbst.",
+    everyWeekday: (day: string) => `Jeden ${day}`,
+    nextDate: "Nächster Termin",
+    lastDate: "Letzter Termin",
+    postsAt: (when: string) => `Die Anfrage erscheint am ${when} auf dem Board.`,
+    /** Why the due request waits; the sweeper tries again until 30 minutes before the start. */
+    blocked: {
+      REQUEST_LIMIT: `Wartet: Ihr habt schon ${MAX_OPEN_REQUESTS} offene Anfragen. Die Anfrage erscheint, sobald eine frei wird, bis 30 Minuten vor dem Start; sonst entfällt dieser Termin.`,
+      CAPTAIN_NOT_VERIFIED:
+        "Wartet: Euer Captain ist nicht verifiziert. Die Anfrage erscheint, sobald das geklärt ist, bis 30 Minuten vor dem Start; sonst entfällt dieser Termin.",
+    } as Partial<Record<ProblemKind, string>>,
+    endSeries: "Serie beenden",
+    confirmEndSeries:
+      "Serie beenden? Es erscheinen keine weiteren Anfragen. Offene Anfragen bleiben stehen.",
   },
   {
     title: "Scrims",
@@ -149,6 +168,20 @@ export const scrimsPageMessages = dictionary(
     pending: "Pending",
     giveFeedback: "Give feedback",
     feedbackGiven: "Feedback given",
+    weekly: "Weekly",
+    seriesTitle: "Recurring requests",
+    noOpenRequestNow: "No open request right now. The next one shows up by itself.",
+    everyWeekday: (day) => `Every ${day}`,
+    nextDate: "Next date",
+    lastDate: "Last date",
+    postsAt: (when) => `The request goes on the board on ${when}.`,
+    blocked: {
+      REQUEST_LIMIT: `Waiting: you already have ${MAX_OPEN_REQUESTS} open requests. The request shows up as soon as one is free, until 30 minutes before the start; otherwise this date is dropped.`,
+      CAPTAIN_NOT_VERIFIED:
+        "Waiting: your captain isn't verified. The request shows up once that's sorted, until 30 minutes before the start; otherwise this date is dropped.",
+    },
+    endSeries: "End series",
+    confirmEndSeries: "End the series? No more requests will be posted. Open requests stay.",
   },
 );
 
@@ -256,6 +289,9 @@ export const newRequestMessages = dictionary(
     to: "bis",
     note: "Notiz",
     notePlaceholder: "Was sollten andere Teams wissen?",
+    repeatUntil: "Jede Woche wiederholen bis",
+    repeatNever: "Nicht wiederholen",
+    repeatHint: `Optional, höchstens ${SERIES_MAX_WEEKS} Wochen. Die nächste Anfrage erscheint jeweils von selbst, sobald die vorige beginnt, am selben Wochentag zur selben Uhrzeit.`,
   },
   {
     problemLinks: {
@@ -279,6 +315,9 @@ export const newRequestMessages = dictionary(
     to: "to",
     note: "Note",
     notePlaceholder: "What should other teams know?",
+    repeatUntil: "Repeat every week until",
+    repeatNever: "Don't repeat",
+    repeatHint: `Optional, at most ${SERIES_MAX_WEEKS} weeks. Each next request shows up by itself as soon as the previous one starts, on the same weekday at the same time.`,
   },
 );
 
@@ -334,6 +373,9 @@ export const requestDetailMessages = dictionary(
       `Scrim mit ${team} buchen? Alle anderen Bewerbungen werden abgelehnt.`,
     withdrawRequest: "Anfrage zurückziehen",
     confirmWithdrawRequest: "Anfrage zurückziehen? Offene Bewerbungen werden abgelehnt.",
+    weekly: "Wöchentlich",
+    confirmWithdrawWeeklyRequest:
+      "Anfrage zurückziehen? Offene Bewerbungen werden abgelehnt. Die wöchentliche Anfrage läuft weiter, nur dieser Termin entfällt.",
   },
   {
     nextSteps: [
@@ -381,6 +423,9 @@ export const requestDetailMessages = dictionary(
       `Book the scrim with ${team}? All other applications will be rejected.`,
     withdrawRequest: "Withdraw request",
     confirmWithdrawRequest: "Withdraw the request? Open applications will be rejected.",
+    weekly: "Weekly",
+    confirmWithdrawWeeklyRequest:
+      "Withdraw the request? Open applications will be rejected. The weekly request goes on; only this date is dropped.",
   },
 );
 
@@ -388,6 +433,8 @@ export const requestDetailMessages = dictionary(
 export const requestActionMessages = dictionary(
   {
     requestCreated: "Anfrage ist jetzt auf dem Board",
+    seriesCreated: "Wöchentliche Anfrage ist jetzt auf dem Board",
+    seriesEnded: "Serie beendet",
     requestWithdrawn: "Anfrage zurückgezogen",
     applicationSent: (team: string | undefined) =>
       team ? `Bewerbung an ${team} gesendet` : "Bewerbung gesendet",
@@ -396,6 +443,8 @@ export const requestActionMessages = dictionary(
   },
   {
     requestCreated: "Your request is now on the board",
+    seriesCreated: "Your weekly request is now on the board",
+    seriesEnded: "Series ended",
     requestWithdrawn: "Request withdrawn",
     applicationSent: (team) => (team ? `Application sent to ${team}` : "Application sent"),
     applicationAccepted: (team) => `${team ?? "Team"} accepted – both teams get a Discord message.`,

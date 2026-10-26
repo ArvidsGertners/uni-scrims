@@ -7,6 +7,7 @@ TODO: Name, Anschrift, E-Mail
 - TODO: Discord-Login (Discord-ID, Username, Avatar); das Zugriffstoken wird direkt nach dem Server-Beitritt gelöscht, spätestens nach 10 Minuten
 - TODO: Sitzungen mit IP-Adresse und User-Agent; laufen spätestens 7 Tage nach der letzten Nutzung ab und werden dann innerhalb einer Stunde gelöscht
 - TODO: Teams, Anfragen, Scrims und Feedback; in der Teams-Liste sehen alle eingeloggten Nutzer die Discord-Namen, Rollen und Ränge der Mitglieder, solange der Captain das Team nicht ausblendet; offene Anfragen (Termin, Format, Maps, Rang-Bereich, Zahl der Bewerbungen) mit Name, Logo, Hochschulen, Team-Rang, Zuverlässigkeit und Abzeichen des Teams sieht jeder ohne Anmeldung auf dem öffentlichen Board (/board, noindex), auch von Teams, die in der Teams-Liste ausgeblendet sind
+- TODO: wöchentlich wiederkehrende Anfragen (Wochentag, Uhrzeit, Format, Rang-Bereich, Maps, Notiz, Enddatum, wer sie angelegt hat); jede Woche entsteht daraus eine neue Anfrage, bis zum Enddatum oder bis der Captain sie beendet
 - TODO: Sperren: offene Prüfung wird abgelehnt und die Datei gelöscht
 
 ## Upload der Immatrikulationsbescheinigung
@@ -31,7 +32,7 @@ TODO: Browsersprache (Accept-Language) wird gelesen, nicht gespeichert; Cookie �
 TODO: 16 Jahre
 
 ## Kontolöschung
-TODO: Was gelöscht wird (auch die Notizen eigener Scrim-Anfragen), was anonymisiert bleibt (Bewerbungsnachrichten gehören zum Team); kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert (getrennt vom gelöschten Konto, bis die Sperre aufgehoben wird)
+TODO: Was gelöscht wird (auch die Notizen eigener Scrim-Anfragen und wiederkehrender Anfragen), was anonymisiert bleibt (Bewerbungsnachrichten gehören zum Team); kein automatischer Kick vom Uni-Scrims-Server; bei gesperrten Nutzern bleibt die Discord-ID zur Durchsetzung der Sperre gespeichert (getrennt vom gelöschten Konto, bis die Sperre aufgehoben wird)
 
 ## Backups
 TODO: Datenbank-Backups 14 Tage (scheitert die Sicherung, bleibt das letzte Backup bis zur nächsten gelungenen), gelöschte Konten bis zum Ablauf enthalten; nach einer Wiederherstellung werden Löschungen seit dem Backup nachgezogen, ist das nicht möglich, ist ein gelöschtes Konto mit dem Stand des Backups wieder vorhanden

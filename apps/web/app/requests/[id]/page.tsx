@@ -95,6 +95,10 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             {formatUniversities(team.universities, locale)}
             {team.fullyVerified ? <FullyVerifiedBadge /> : null}
             {status ? <Badge className="h-[22px] px-2 text-[12px]">{status}</Badge> : null}
+            {/* Only the own team learns that a request comes from a weekly series (SPEC N-25). */}
+            {request.weekly ? (
+              <Badge className="h-[22px] px-2 text-[12px]">{t.weekly}</Badge>
+            ) : null}
           </span>
           <ReliabilityLine reliability={team.reliability} />
           {/* The current setting; only meaningful while the request takes applications. */}
@@ -361,7 +365,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       variant="link"
                       size="bare"
                       submitClassName="min-h-10"
-                      confirmText={t.confirmWithdrawRequest}
+                      confirmText={
+                        request.weekly ? t.confirmWithdrawWeeklyRequest : t.confirmWithdrawRequest
+                      }
                       confirmDestructive
                     >
                       <input type="hidden" name="requestId" value={request.id} />
