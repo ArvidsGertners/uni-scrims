@@ -1,5 +1,6 @@
 import {
   APPLICATION_MESSAGE_MAX,
+  describeStartDay,
   describeStartTime,
   formatWeekdayDate,
   getRequestDetail,
@@ -28,8 +29,10 @@ import {
   formatUniversities,
 } from "@/lib/scrim-format";
 import {
+  acceptDirectRequestAction,
   applyAction,
   confirmApplicationAction,
+  declineDirectRequestAction,
   deleteRequestAction,
   withdrawApplicationAction,
 } from "../actions";
@@ -48,7 +51,10 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const verified = await getMessages(fullyVerifiedMessages);
   if (!request) notFound();
 
-  const { team } = request;
+  const { direct } = request;
+  // A direct request shows the other team in the head (SPEC N-26): the requesting team to the
+  // requested one, the requested team to everyone else.
+  const team = direct && !direct.incoming ? direct.target : request.team;
   const ownRequest = request.applications !== null;
   const status = request.open
     ? null
@@ -60,32 +66,44 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
     { label: shared.time, value: describeStartTime(request.startsAt, locale) },
     { label: shared.format, value: formatFormat(request.format, locale) },
     { label: shared.maps, value: formatMaps(request.maps, locale) },
-    {
-      label: t.rank,
-      value: <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} />,
-    },
+    // A direct request has no rank range (SPEC N-26).
+    ...(direct
+      ? []
+      : [
+          {
+            label: t.rank,
+            value: <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} />,
+          },
+        ]),
     { label: shared.teamRank, value: <RankLabel rank={team.rank} /> },
   ];
   const ownApplication = request.ownApplication;
-  const hasActions = Boolean(request.apply || ownApplication || request.applications);
+  const hasActions = Boolean(request.apply || ownApplication || request.applications || direct);
 
   return (
     <PageMain width="wide" className="gap-7">
       {/* The own requests are in the Anfragen tab, not on the board (SPEC N-9). */}
-      {ownRequest ? (
+      {ownRequest || direct ? (
         <BackLink href="/scrims?tab=anfragen">{t.backToOwnRequests}</BackLink>
       ) : (
         <BackLink href="/scrims">{shared.backToBoard}</BackLink>
       )}
       {request.otherOwnTeam ? (
         <SwitchTeamHint team={request.otherOwnTeam} returnTo={`/requests/${request.id}`}>
-          {t.otherOwnTeam(request.otherOwnTeam.name)}
+          {direct?.target.id === request.otherOwnTeam.id
+            ? t.otherOwnTeamDirect(request.otherOwnTeam.name)
+            : t.otherOwnTeam(request.otherOwnTeam.name)}
         </SwitchTeamHint>
       ) : null}
 
       <div className="flex items-center gap-4">
-        <TeamAvatar team={team} size="lg" own={ownRequest} />
+        <TeamAvatar team={team} size="lg" own={ownRequest && !direct} />
         <div className="flex min-w-0 flex-col gap-1.5">
+          {direct ? (
+            <span className="type-label text-muted-foreground">
+              {direct.incoming ? t.directFrom : t.directTo}
+            </span>
+          ) : null}
           {/* The team's external links next to its name (SPEC N-15). */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h1 className="min-w-0 type-h1 break-words">{team.name}</h1>
@@ -102,7 +120,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
           </span>
           <ReliabilityLine reliability={team.reliability} />
           {/* The current setting; only meaningful while the request takes applications. */}
-          {request.open && request.verifiedApplicantsOnly ? (
+          {request.open && request.verifiedApplicantsOnly && !direct ? (
             <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <ShieldCheckIcon size={14} />
               {verified.applicantsOnly}
@@ -278,7 +296,83 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               </div>
             ) : null}
 
-            {request.applications ? (
+            {direct ? (
+              <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+                <h2 className="type-label text-muted-foreground">
+                  {direct.incoming ? t.yourAnswer : t.directStatus}
+                </h2>
+                {direct.weeklyUntil ? (
+                  <p className="text-[14px] text-pretty">
+                    {t.weeklyProposal(describeStartDay(direct.weeklyUntil, locale))}
+                  </p>
+                ) : null}
+                {request.open && !direct.incoming ? (
+                  <p className="text-[14px] text-pretty text-muted-foreground">
+                    {t.awaitingAnswer(direct.target.name)}
+                  </p>
+                ) : null}
+                {request.accept?.problem === null ? (
+                  <div className="flex flex-wrap gap-2.5">
+                    <ActionForm
+                      action={acceptDirectRequestAction}
+                      submitLabel={t.accept}
+                      size="sm"
+                      confirmText={
+                        direct.weeklyUntil
+                          ? t.confirmAcceptPartnership(
+                              request.team.name,
+                              describeStartDay(direct.weeklyUntil, locale),
+                            )
+                          : t.confirmAcceptDirect(request.team.name)
+                      }
+                    >
+                      <input type="hidden" name="requestId" value={request.id} />
+                      <input type="hidden" name="teamName" value={request.team.name} />
+                      {direct.weeklyUntil ? <input type="hidden" name="weekly" value="1" /> : null}
+                    </ActionForm>
+                    <ActionForm
+                      action={declineDirectRequestAction}
+                      submitLabel={t.decline}
+                      variant="outline"
+                      size="sm"
+                      confirmText={t.confirmDecline(request.team.name)}
+                      confirmDestructive
+                    >
+                      <input type="hidden" name="requestId" value={request.id} />
+                    </ActionForm>
+                  </div>
+                ) : request.accept ? (
+                  <p className="text-[14px] text-pretty text-muted-foreground">
+                    {t.cannotAnswer(text(request.accept.problem))}
+                  </p>
+                ) : request.open && direct.incoming ? (
+                  <p className="text-[14px] text-pretty text-muted-foreground">
+                    {t.captainAnswers}
+                  </p>
+                ) : null}
+                {request.remove ? (
+                  request.remove.problem === null ? (
+                    <ActionForm
+                      action={deleteRequestAction}
+                      submitLabel={t.withdrawRequest}
+                      variant="link"
+                      size="bare"
+                      submitClassName="min-h-10 self-start"
+                      confirmText={t.confirmWithdrawDirect(direct.target.name)}
+                      confirmDestructive
+                    >
+                      <input type="hidden" name="requestId" value={request.id} />
+                    </ActionForm>
+                  ) : (
+                    <p className="text-[14px] text-muted-foreground">
+                      {text(request.remove.problem)}
+                    </p>
+                  )
+                ) : null}
+              </section>
+            ) : null}
+
+            {request.applications && !direct ? (
               <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                 <h2 className="type-label text-muted-foreground">
                   {shared.applicationsWithCount(request.applications.length)}

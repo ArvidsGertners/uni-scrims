@@ -17,6 +17,8 @@ export const teamsPageMessages = dictionary(
     noMatches: "Keine passenden Teams",
     noMatchesText:
       "Für diese Suche und diese Filter gibt es keine Teams. Probier einen anderen Filter.",
+    /** A direct request to the team (SPEC N-26). */
+    directRequest: "Direkt anfragen",
   },
   {
     title: "Teams",
@@ -32,5 +34,6 @@ export const teamsPageMessages = dictionary(
     noTeamsText: "Teams show up here as soon as they are created.",
     noMatches: "No matching teams",
     noMatchesText: "No teams match this search and these filters. Try another filter.",
+    directRequest: "Request directly",
   },
 );

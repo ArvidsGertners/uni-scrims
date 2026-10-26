@@ -8,6 +8,7 @@ import {
 } from "@uni-scrims/core";
 import type { FeedbackOutcome } from "@uni-scrims/db";
 import { cn } from "cn";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
@@ -17,7 +18,9 @@ import { SwitchTeamHint } from "@/components/switch-team-hint";
 import { TeamLinks } from "@/components/team-links";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { rematchHref } from "@/lib/rematch";
 import { SCRIM_STATUS_LABELS, formatFormat, formatMaps } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import { cancelScrimAction } from "../actions";
@@ -116,6 +119,19 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
           </Badge>
           {result}
         </span>
+        {/* "Nochmal gegen dieses Team" once the scrim no longer comes up (SPEC N-26). */}
+        {scrim.rematch ? (
+          <Link
+            href={rematchHref(scrim)}
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className: "mt-1 self-start",
+            })}
+          >
+            {t.rematch}
+          </Link>
+        ) : null}
       </div>
 
       {/* From 1024 px the details left, feedback and cancelling right (SPEC N-12). */}
@@ -131,7 +147,13 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
             <span className="type-label text-muted-foreground">{shared.maps}</span>
             <p>{formatMaps(scrim.maps, locale)}</p>
             <p className="text-[14px] text-muted-foreground">
-              {scrim.isHost ? t.youRequested : t.youApplied}
+              {scrim.direct
+                ? scrim.isHost
+                  ? t.youRequestedDirectly
+                  : t.requestedYouDirectly
+                : scrim.isHost
+                  ? t.youRequested
+                  : t.youApplied}
             </p>
           </div>
 

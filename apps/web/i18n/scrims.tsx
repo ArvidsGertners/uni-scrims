@@ -117,6 +117,27 @@ export const scrimsPageMessages = dictionary(
     endSeries: "Serie beenden",
     confirmEndSeries:
       "Serie beenden? Es erscheinen keine weiteren Anfragen. Offene Anfragen bleiben stehen.",
+    // Direct requests and fixed partners (SPEC N-26).
+    incomingTitle: "Direktanfragen an euch",
+    ownRequestsTitle: "Eure Anfragen",
+    directTo: (team: string) => `An ${team}`,
+    weeklyUntil: (date: string) => `Wöchentlich bis ${date}`,
+    awaitingAnswer: "Wartet auf Antwort",
+    answerNow: "Antworten",
+    partner: (team: string) => `Fester Partner: ${team}`,
+    booksAt: (when: string) => `Der Termin wird am ${when} gebucht.`,
+    booksSoon: "Der Termin wird in Kürze gebucht.",
+    /** Why the due date of a partnership waits; tried again until `minutes` before the start. */
+    partnerBlocked: {
+      CAPTAIN_NOT_VERIFIED: (minutes: number) =>
+        `Wartet: Euer Captain ist nicht verifiziert. Der Termin wird gebucht, sobald das geklärt ist, bis ${minutes} Minuten vor dem Start; sonst entfällt er.`,
+      PARTNER_CAPTAIN_NOT_VERIFIED: (minutes: number) =>
+        `Wartet: Der Captain des Partner-Teams ist nicht verifiziert. Der Termin wird gebucht, sobald das geklärt ist, bis ${minutes} Minuten vor dem Start; sonst entfällt er.`,
+    } as Record<string, (minutes: number) => string>,
+    endPartnership: "Partnerschaft beenden",
+    confirmEndPartnership: (team: string) =>
+      `Feste Partnerschaft mit ${team} beenden? Es werden keine weiteren Termine gebucht; schon gebuchte Scrims bleiben. ${team} bekommt Bescheid.`,
+    rematch: "Nochmal anfragen",
   },
   {
     title: "Scrims",
@@ -186,6 +207,25 @@ export const scrimsPageMessages = dictionary(
     },
     endSeries: "End series",
     confirmEndSeries: "End the series? No more requests will be posted. Open requests stay.",
+    incomingTitle: "Direct requests to you",
+    ownRequestsTitle: "Your requests",
+    directTo: (team) => `To ${team}`,
+    weeklyUntil: (date) => `Weekly until ${date}`,
+    awaitingAnswer: "Awaiting reply",
+    answerNow: "Reply",
+    partner: (team) => `Fixed partner: ${team}`,
+    booksAt: (when) => `The date is booked on ${when}.`,
+    booksSoon: "The date is booked shortly.",
+    partnerBlocked: {
+      CAPTAIN_NOT_VERIFIED: (minutes) =>
+        `Waiting: your captain isn't verified. The date is booked once that's sorted, until ${minutes} minutes before the start; otherwise it's dropped.`,
+      PARTNER_CAPTAIN_NOT_VERIFIED: (minutes) =>
+        `Waiting: the partner team's captain isn't verified. The date is booked once that's sorted, until ${minutes} minutes before the start; otherwise it's dropped.`,
+    },
+    endPartnership: "End partnership",
+    confirmEndPartnership: (team) =>
+      `End the fixed partnership with ${team}? No more dates will be booked; scrims already booked stay. ${team} will be notified.`,
+    rematch: "Request again",
   },
 );
 
@@ -235,6 +275,10 @@ export const scrimDetailMessages = dictionary(
     cancelPossible: "Möglich bis zum Start. Das andere Team bekommt eine Discord-Nachricht.",
     confirmLateCancel: "Scrim absagen? Die Absage zählt als kurzfristig.",
     confirmCancel: "Scrim absagen?",
+    // A scrim from a direct request (SPEC N-26).
+    youRequestedDirectly: "Ihr habt das Team direkt angefragt.",
+    requestedYouDirectly: "Das Team hat euch direkt angefragt.",
+    rematch: "Nochmal gegen dieses Team",
   },
   {
     scrims: "Scrims",
@@ -257,6 +301,9 @@ export const scrimDetailMessages = dictionary(
     cancelPossible: "You can cancel until the start. The other team gets a Discord message.",
     confirmLateCancel: "Cancel the scrim? This counts as a late cancellation.",
     confirmCancel: "Cancel the scrim?",
+    youRequestedDirectly: "You requested this team directly.",
+    requestedYouDirectly: "This team requested you directly.",
+    rematch: "Play this team again",
   },
 );
 
@@ -296,6 +343,16 @@ export const newRequestMessages = dictionary(
     repeatUntil: "Jede Woche wiederholen bis",
     repeatNever: "Nicht wiederholen",
     repeatHint: `Optional, höchstens ${SERIES_MAX_WEEKS} Wochen. Die nächste Anfrage erscheint jeweils von selbst, sobald die vorige beginnt, am selben Wochentag zur selben Uhrzeit.`,
+    // A direct request to one team (SPEC N-26).
+    directTitle: "Direktanfrage stellen",
+    directIntro: (team: string) =>
+      `Nur ${team} sieht diese Anfrage und kann sie annehmen oder ablehnen; sie steht nicht auf dem Board.`,
+    directTo: "Anfrage an",
+    sendDirect: "Direktanfrage senden",
+    weeklyUntil: "Jede Woche bis (fester Partner)",
+    weeklyHint: (team: string) =>
+      `Optional, höchstens ${SERIES_MAX_WEEKS} Wochen. Nimmt ${team} an, wird jeder weitere Termin eine Woche vorher von selbst gebucht, am selben Wochentag zur selben Uhrzeit.`,
+    toTeamsList: "Zur Teams-Liste",
   },
   {
     problemLinks: {
@@ -322,6 +379,15 @@ export const newRequestMessages = dictionary(
     repeatUntil: "Repeat every week until",
     repeatNever: "Don't repeat",
     repeatHint: `Optional, at most ${SERIES_MAX_WEEKS} weeks. Each next request shows up by itself as soon as the previous one starts, on the same weekday at the same time.`,
+    directTitle: "Send a direct request",
+    directIntro: (team) =>
+      `Only ${team} sees this request and can accept or decline it; it isn't on the board.`,
+    directTo: "Request to",
+    sendDirect: "Send direct request",
+    weeklyUntil: "Every week until (fixed partner)",
+    weeklyHint: (team) =>
+      `Optional, at most ${SERIES_MAX_WEEKS} weeks. If ${team} accepts, every further date is booked automatically a week ahead, on the same weekday at the same time.`,
+    toTeamsList: "Go to the teams list",
   },
 );
 
@@ -380,6 +446,27 @@ export const requestDetailMessages = dictionary(
     weekly: "Wöchentlich",
     confirmWithdrawWeeklyRequest:
       "Anfrage zurückziehen? Offene Bewerbungen werden abgelehnt. Die wöchentliche Anfrage läuft weiter, nur dieser Termin entfällt.",
+    // Direct requests (SPEC N-26).
+    directTo: "Direktanfrage an",
+    directFrom: "Direktanfrage von",
+    otherOwnTeamDirect: (team: string) =>
+      `Diese Direktanfrage ist an dein Team ${team} gerichtet. Annehmen oder ablehnen kannst du sie als ${team}.`,
+    yourAnswer: "Eure Antwort",
+    directStatus: "Direktanfrage",
+    weeklyProposal: (date: string) =>
+      `Feste Partnerschaft: jede Woche zur selben Zeit bis ${date}. Mit der Zusage ist dieser Termin gebucht, jeder weitere wird eine Woche vorher von selbst gebucht.`,
+    awaitingAnswer: (team: string) =>
+      `${team} hat noch nicht geantwortet. Bleibt die Anfrage unbeantwortet, verfällt sie zur Startzeit.`,
+    captainAnswers: "Annehmen oder ablehnen kann nur euer Captain.",
+    cannotAnswer: (problem: string) => `Antworten geht gerade nicht: ${problem}`,
+    decline: "Ablehnen",
+    confirmAcceptDirect: (team: string) =>
+      `Scrim mit ${team} buchen? Beide Teams bekommen Bescheid.`,
+    confirmAcceptPartnership: (team: string, date: string) =>
+      `Feste Partnerschaft mit ${team} bis ${date} vereinbaren? Dieser Termin wird jetzt gebucht, jeder weitere eine Woche vorher von selbst.`,
+    confirmDecline: (team: string) => `Anfrage von ${team} ablehnen? ${team} bekommt Bescheid.`,
+    confirmWithdrawDirect: (team: string) =>
+      `Direktanfrage zurückziehen? ${team} bekommt Bescheid.`,
   },
   {
     nextSteps: [
@@ -430,6 +517,24 @@ export const requestDetailMessages = dictionary(
     weekly: "Weekly",
     confirmWithdrawWeeklyRequest:
       "Withdraw the request? Open applications will be rejected. The weekly request goes on; only this date is dropped.",
+    directTo: "Direct request to",
+    directFrom: "Direct request from",
+    otherOwnTeamDirect: (team) =>
+      `This direct request is for your team ${team}. You can accept or decline it as ${team}.`,
+    yourAnswer: "Your answer",
+    directStatus: "Direct request",
+    weeklyProposal: (date) =>
+      `Fixed partnership: every week at the same time until ${date}. Accepting books this date; every further date is booked automatically a week ahead.`,
+    awaitingAnswer: (team) =>
+      `${team} hasn't replied yet. If the request stays unanswered, it expires at the start time.`,
+    captainAnswers: "Only your captain can accept or decline.",
+    cannotAnswer: (problem) => `You can't reply right now: ${problem}`,
+    decline: "Decline",
+    confirmAcceptDirect: (team) => `Book the scrim with ${team}? Both teams will be notified.`,
+    confirmAcceptPartnership: (team, date) =>
+      `Agree on a fixed partnership with ${team} until ${date}? This date is booked now, every further one automatically a week ahead.`,
+    confirmDecline: (team) => `Decline the request from ${team}? ${team} will be notified.`,
+    confirmWithdrawDirect: (team) => `Withdraw the direct request? ${team} will be notified.`,
   },
 );
 
@@ -444,6 +549,14 @@ export const requestActionMessages = dictionary(
       team ? `Bewerbung an ${team} gesendet` : "Bewerbung gesendet",
     applicationAccepted: (team: string | undefined) =>
       `${team ?? "Team"} angenommen – beide Teams bekommen eine Discord-Nachricht.`,
+    directSent: (team: string) => `Direktanfrage an ${team} gesendet`,
+    partnershipProposed: (team: string) => `Feste Partnerschaft bei ${team} angefragt`,
+    directAccepted: (team: string | undefined) =>
+      `Scrim mit ${team ?? "dem Team"} gebucht – beide Teams bekommen Bescheid.`,
+    partnershipAccepted: (team: string | undefined) =>
+      `Feste Partnerschaft mit ${team ?? "dem Team"} vereinbart – der erste Scrim ist gebucht.`,
+    directDeclined: "Direktanfrage abgelehnt",
+    partnershipEnded: "Partnerschaft beendet",
   },
   {
     requestCreated: "Your request is now on the board",
@@ -452,6 +565,13 @@ export const requestActionMessages = dictionary(
     requestWithdrawn: "Request withdrawn",
     applicationSent: (team) => (team ? `Application sent to ${team}` : "Application sent"),
     applicationAccepted: (team) => `${team ?? "Team"} accepted – both teams get a Discord message.`,
+    directSent: (team) => `Direct request sent to ${team}`,
+    partnershipProposed: (team) => `Fixed partnership proposed to ${team}`,
+    directAccepted: (team) => `Scrim with ${team ?? "the team"} booked – both teams are notified.`,
+    partnershipAccepted: (team) =>
+      `Fixed partnership with ${team ?? "the team"} agreed – the first scrim is booked.`,
+    directDeclined: "Direct request declined",
+    partnershipEnded: "Partnership ended",
   },
 );
 

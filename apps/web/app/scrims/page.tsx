@@ -43,6 +43,7 @@ import {
 } from "@/lib/scrim-format";
 import { getLocale, getMessages, getText } from "@/lib/locale";
 import { formatMessages } from "@/i18n/format";
+import { rematchHref } from "@/lib/rematch";
 import { endRequestSeriesAction } from "../requests/actions";
 import { scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
 
@@ -108,7 +109,8 @@ export default async function ScrimsPage({
   const counts: Record<TabKey, number> = {
     board: board.requests.length,
     anstehend: mine.upcoming.length,
-    anfragen: mine.requests.length,
+    // Own open requests and direct requests to the team (SPEC N-26).
+    anfragen: mine.requests.length + mine.incoming.length,
     bewerbungen: mine.applications.length,
     vergangen: mine.past.length,
   };
@@ -270,8 +272,14 @@ async function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam
                 </span>
                 <span className="text-[13px] text-muted-foreground">
                   {formatUniversities(scrim.opponent.universities, locale)} ·{" "}
-                  {formatFormat(scrim.format, locale)} ·{" "}
-                  <RankRangeLabel rankMin={scrim.rankMin} rankMax={scrim.rankMax} />
+                  {formatFormat(scrim.format, locale)}
+                  {/* A scrim from a direct request has no rank range (SPEC N-26). */}
+                  {scrim.direct ? null : (
+                    <>
+                      {" "}
+                      · <RankRangeLabel rankMin={scrim.rankMin} rankMax={scrim.rankMax} />
+                    </>
+                  )}
                 </span>
               </div>
             </div>
@@ -287,19 +295,71 @@ async function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam
   );
 }
 
-/** Own open requests, then the running weekly series (SPEC N-25); the tab counts the requests. */
+/**
+ * Direct requests to the team (SPEC N-26), own open requests, then the running weekly series and
+ * fixed partnerships (SPEC N-25, N-26); the tab counts the open and the incoming requests.
+ */
 async function Requests({ mine }: { mine: MyScrims }) {
   const t = await getMessages(scrimsPageMessages);
+  const incoming = mine.incoming.length > 0;
   return (
     <div className="flex flex-col gap-8">
+      {incoming ? (
+        <ListGroup title={t.incomingTitle} count={String(mine.incoming.length)}>
+          <IncomingRequests mine={mine} />
+        </ListGroup>
+      ) : null}
       {mine.requests.length > 0 ? (
-        <OpenRequests mine={mine} />
-      ) : (
+        incoming ? (
+          <ListGroup title={t.ownRequestsTitle} count={String(mine.requests.length)}>
+            <OpenRequests mine={mine} />
+          </ListGroup>
+        ) : (
+          <div className={cn(CARD_COLUMNS, "gap-6")}>
+            <OpenRequests mine={mine} />
+          </div>
+        )
+      ) : mine.series.some((entry) => entry.partner === null) ? (
         <p className="text-[14px] text-pretty text-muted-foreground">{t.noOpenRequestNow}</p>
-      )}
+      ) : null}
       {mine.series.length > 0 ? <SeriesList series={mine.series} /> : null}
     </div>
   );
+}
+
+/** Direct requests to the team: open the request page to accept or decline (SPEC N-26). */
+async function IncomingRequests({ mine }: { mine: MyScrims }) {
+  const locale = await getLocale();
+  const t = await getMessages(scrimsPageMessages);
+  return mine.incoming.map((request) => (
+    <Link
+      key={request.id}
+      href={`/requests/${request.id}`}
+      className="flex flex-col gap-4 rounded-lg border border-primary bg-card p-5 hover:bg-secondary"
+    >
+      <div className="flex items-center gap-3">
+        <TeamAvatar team={request.team} />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="font-semibold break-words">{request.team.name}</span>
+          <span className="text-[13px] text-muted-foreground">
+            {describeStartShort(request.startsAt, locale)} · {formatFormat(request.format, locale)}{" "}
+            · {formatMaps(request.maps, locale)}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-border pt-3.5">
+        {request.weeklyUntil ? (
+          <Badge>{t.weeklyUntil(describeStartDay(request.weeklyUntil, locale))}</Badge>
+        ) : (
+          <span />
+        )}
+        <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
+          {t.answerNow}
+          <ChevronRightIcon strokeWidth={2.5} />
+        </span>
+      </div>
+    </Link>
+  ));
 }
 
 async function OpenRequests({ mine }: { mine: MyScrims }) {
@@ -307,7 +367,7 @@ async function OpenRequests({ mine }: { mine: MyScrims }) {
   const t = await getMessages(scrimsPageMessages);
   const shared = await getMessages(scrimSharedMessages);
   return (
-    <div className={cn(CARD_COLUMNS, "gap-6")}>
+    <>
       {mine.requests.map((request) => (
         <Link
           key={request.id}
@@ -315,22 +375,40 @@ async function OpenRequests({ mine }: { mine: MyScrims }) {
           className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 hover:border-border-strong hover:bg-secondary"
         >
           <div className="flex items-start justify-between gap-2.5">
-            <div className="flex flex-col gap-0.5">
+            <div className="flex min-w-0 flex-col gap-0.5">
               <span className="type-h2">{describeStartShort(request.startsAt, locale)}</span>
               <span className="text-[13px] text-muted-foreground">
                 {formatFormat(request.format, locale)} ·{" "}
-                <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} /> ·{" "}
+                {/* A direct request has no rank range (SPEC N-26). */}
+                {request.target ? null : (
+                  <>
+                    <RankRangeLabel rankMin={request.rankMin} rankMax={request.rankMax} /> ·{" "}
+                  </>
+                )}
                 {formatMaps(request.maps, locale)}
               </span>
             </div>
             <span className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row">
               {request.weekly ? <Badge>{t.weekly}</Badge> : null}
+              {request.weeklyUntil ? (
+                <Badge>{t.weeklyUntil(describeStartDay(request.weeklyUntil, locale))}</Badge>
+              ) : null}
               <Badge variant="accent">{t.open}</Badge>
             </span>
           </div>
+          {request.target ? (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <TeamAvatar team={request.target} size="sm" />
+              <span className="min-w-0 text-[14px] font-semibold break-words">
+                {t.directTo(request.target.name)}
+              </span>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between border-t border-border pt-3.5">
             <span className="type-label text-muted-foreground">
-              {shared.applicationsWithCount(request.applicationCount)}
+              {request.target
+                ? t.awaitingAnswer
+                : shared.applicationsWithCount(request.applicationCount)}
             </span>
             <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
               {shared.view}
@@ -339,7 +417,7 @@ async function OpenRequests({ mine }: { mine: MyScrims }) {
           </div>
         </Link>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -354,9 +432,20 @@ async function SeriesList({ series }: { series: MyScrims["series"] }) {
   return (
     <ListGroup title={t.seriesTitle} count={String(series.length)}>
       {series.map((entry) => {
-        const blocked = entry.blocked
-          ? t.blocked[entry.blocked]?.(Math.round(TIMING.MIN_REQUEST_LEAD / 60_000))
-          : undefined;
+        const minutes = Math.round(TIMING.MIN_REQUEST_LEAD / 60_000);
+        // A fixed partnership books its dates and waits only for verified captains (SPEC N-26).
+        const blocked = !entry.blocked
+          ? undefined
+          : entry.partner
+            ? t.partnerBlocked[entry.blocked]?.(minutes)
+            : t.blocked[entry.blocked as keyof typeof t.blocked]?.(minutes);
+        const posts = entry.partner
+          ? entry.due
+            ? t.booksSoon
+            : t.booksAt(describeStartShort(entry.postsAt, locale))
+          : entry.due
+            ? t.postsSoon
+            : t.postsAt(describeStartShort(entry.postsAt, locale));
         return (
           <div
             key={entry.id}
@@ -366,9 +455,21 @@ async function SeriesList({ series }: { series: MyScrims["series"] }) {
               <span className="type-h2">
                 {t.everyWeekday(formatBerlinWeekday(entry.nextStartsAt, locale))}
               </span>
+              {entry.partner ? (
+                <span className="flex min-w-0 items-center gap-2 py-1">
+                  <TeamAvatar team={entry.partner} size="sm" />
+                  <span className="min-w-0 text-[14px] font-semibold break-words">
+                    {t.partner(entry.partner.name)}
+                  </span>
+                </span>
+              ) : null}
               <span className="text-[13px] text-muted-foreground">
                 {formatFormat(entry.format, locale)} ·{" "}
-                <RankRangeLabel rankMin={entry.rankMin} rankMax={entry.rankMax} /> ·{" "}
+                {entry.partner ? null : (
+                  <>
+                    <RankRangeLabel rankMin={entry.rankMin} rankMax={entry.rankMax} /> ·{" "}
+                  </>
+                )}
                 {formatMaps(entry.maps, locale)}
               </span>
             </div>
@@ -388,21 +489,25 @@ async function SeriesList({ series }: { series: MyScrims["series"] }) {
                 blocked ? "text-warning" : "text-muted-foreground",
               )}
             >
-              {blocked ??
-                (entry.due ? t.postsSoon : t.postsAt(describeStartShort(entry.postsAt, locale)))}
+              {blocked ?? posts}
             </p>
             {entry.end ? (
               <div className="border-t border-border pt-3.5">
                 {entry.end.problem === null ? (
                   <ActionForm
                     action={endRequestSeriesAction}
-                    submitLabel={t.endSeries}
+                    submitLabel={entry.partner ? t.endPartnership : t.endSeries}
                     variant="outline"
                     size="sm"
-                    confirmText={t.confirmEndSeries}
+                    confirmText={
+                      entry.partner
+                        ? t.confirmEndPartnership(entry.partner.name)
+                        : t.confirmEndSeries
+                    }
                     confirmDestructive
                   >
                     <input type="hidden" name="seriesId" value={entry.id} />
+                    {entry.partner ? <input type="hidden" name="partnership" value="1" /> : null}
                   </ActionForm>
                 ) : (
                   <p className="text-[13px] text-muted-foreground">{text(entry.end.problem)}</p>
@@ -451,30 +556,56 @@ async function Past({ mine }: { mine: MyScrims }) {
   const shared = await getMessages(scrimSharedMessages);
   return (
     <div className={cn(CARD_COLUMNS, "gap-2.5")}>
-      {mine.past.map((scrim) => (
-        <Link key={scrim.id} href={`/scrims/${scrim.id}`} className={cn(rowClass, "flex-wrap")}>
-          <TeamAvatar team={scrim.opponent} />
-          <div className="flex min-w-[140px] flex-1 flex-col">
-            <span className="font-semibold">{shared.versus(scrim.opponent.name)}</span>
-            <span className="text-[13px] text-muted-foreground">
-              {describeStartShort(scrim.startsAt, locale)} · {formatFormat(scrim.format, locale)}
-              {scrim.status === "SCHEDULED"
-                ? ""
-                : ` · ${SCRIM_STATUS_LABELS[locale][scrim.status]}`}
-            </span>
+      {mine.past.map((scrim) => {
+        const row = (
+          <>
+            <TeamAvatar team={scrim.opponent} />
+            <div className="flex min-w-[140px] flex-1 flex-col">
+              <span className="font-semibold">{shared.versus(scrim.opponent.name)}</span>
+              <span className="text-[13px] text-muted-foreground">
+                {describeStartShort(scrim.startsAt, locale)} · {formatFormat(scrim.format, locale)}
+                {scrim.status === "SCHEDULED"
+                  ? ""
+                  : ` · ${SCRIM_STATUS_LABELS[locale][scrim.status]}`}
+              </span>
+            </div>
+            {scrim.canGiveFeedback ? (
+              <span className={buttonVariants({ size: "sm", className: "shrink-0" })}>
+                {t.giveFeedback}
+              </span>
+            ) : scrim.feedbackGiven ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] text-success">
+                <CheckIcon size={14} strokeWidth={3} />
+                {t.feedbackGiven}
+              </span>
+            ) : null}
+          </>
+        );
+        // "Nochmal gegen dieses Team" next to the row, as a link of its own (SPEC N-26).
+        return scrim.rematch ? (
+          <div
+            key={scrim.id}
+            className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4"
+          >
+            <Link
+              href={`/scrims/${scrim.id}`}
+              className="flex min-w-[220px] flex-1 flex-wrap items-center gap-3 hover:underline"
+            >
+              {row}
+            </Link>
+            <Link
+              href={rematchHref(scrim)}
+              className={buttonVariants({ variant: "outline", size: "sm", className: "shrink-0" })}
+            >
+              {t.rematch}
+            </Link>
           </div>
-          {scrim.canGiveFeedback ? (
-            <span className={buttonVariants({ size: "sm", className: "shrink-0" })}>
-              {t.giveFeedback}
-            </span>
-          ) : scrim.feedbackGiven ? (
-            <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] text-success">
-              <CheckIcon size={14} strokeWidth={3} />
-              {t.feedbackGiven}
-            </span>
-          ) : null}
-        </Link>
-      ))}
+        ) : (
+          <Link key={scrim.id} href={`/scrims/${scrim.id}`} className={cn(rowClass, "flex-wrap")}>
+            {row}
+          </Link>
+        );
+      })}
     </div>
   );
 }

@@ -1,9 +1,11 @@
 "use server";
 
 import {
+  acceptDirectRequest,
   applyToRequest,
   confirmApplication,
   createRequest,
+  declineDirectRequest,
   deleteRequest,
   endRequestSeries,
   withdrawApplication,
@@ -24,14 +26,18 @@ const requestFields = z.object({
   date: z.string(),
   time: z.string(),
   format: z.string(),
-  rankMin: z.string(),
-  rankMax: z.string(),
+  // A direct request has no rank range (SPEC N-26); core asks for one otherwise.
+  rankMin: z.string().optional(),
+  rankMax: z.string().optional(),
   maps: z.array(z.string()),
   note: z.string().optional(),
   // A weekly series up to this date (SPEC N-25); empty = a single request.
   repeatUntil: z.string().optional(),
   // The team the form was shown for (§5.20).
   teamId: idSchema,
+  // A direct request to this team (SPEC N-26), and its name only for the toast text.
+  targetTeamId: idSchema.optional(),
+  targetTeamName: z.string().max(100).optional(),
 });
 
 export async function createRequestAction(_state: ActionState, formData: FormData) {
@@ -46,27 +52,39 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
     note: formField(formData, "note"),
     repeatUntil: formField(formData, "repeatUntil"),
     teamId: formField(formData, "teamId"),
+    targetTeamId: formField(formData, "targetTeamId"),
+    targetTeamName: formField(formData, "targetTeamName"),
   });
   if (!parsed.success) return invalidInput();
+  const { targetTeamName, ...input } = parsed.data;
   let weekly = false;
   const state = await runAction(async () => {
     const request = await createRequest({
-      ...parsed.data,
-      format: parsed.data.format as ScrimFormat,
-      rankMin: parsed.data.rankMin as Rank,
-      rankMax: parsed.data.rankMax as Rank,
+      ...input,
+      format: input.format as ScrimFormat,
+      rankMin: input.rankMin as Rank | undefined,
+      rankMax: input.rankMax as Rank | undefined,
       // Unknown map names are rejected by core's schema.
-      maps: parsed.data.maps as ValorantMap[],
+      maps: input.maps as ValorantMap[],
       userId,
       now: new Date(),
     });
-    weekly = request.seriesId !== null;
+    weekly = request.seriesId !== null || request.weeklyLastStartsAt !== null;
   });
   if (!state.done) return state;
   // redirect() throws, so it must stay outside runAction.
   revalidatePath("/scrims");
   const t = await getMessages(requestActionMessages);
-  await setFlash(weekly ? t.seriesCreated : t.requestCreated);
+  const target = targetTeamName ?? "";
+  await setFlash(
+    input.targetTeamId
+      ? weekly
+        ? t.partnershipProposed(target)
+        : t.directSent(target)
+      : weekly
+        ? t.seriesCreated
+        : t.requestCreated,
+  );
   redirect("/scrims?tab=anfragen");
 }
 
@@ -79,7 +97,8 @@ export async function endRequestSeriesAction(_state: ActionState, formData: Form
   });
   if (state.done) {
     const t = await getMessages(requestActionMessages);
-    await setFlash(t.seriesEnded);
+    // A fixed partnership (SPEC N-26) has a toast of its own.
+    await setFlash(formField(formData, "partnership") ? t.partnershipEnded : t.seriesEnded);
   }
   revalidatePath("/scrims");
   return state;
@@ -176,4 +195,53 @@ export async function confirmApplicationAction(_state: ActionState, formData: Fo
   const t = await getMessages(requestActionMessages);
   await setFlash(t.applicationAccepted(teamName));
   redirect(`/scrims/${scrimId}`);
+}
+
+/** Accepting a direct request books the scrim (SPEC N-26); then to the scrim, like a confirmation. */
+export async function acceptDirectRequestAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const parsed = z
+    .object({
+      requestId: idSchema,
+      // Only for the toast text.
+      teamName: z.string().max(100).optional(),
+      weekly: z.string().optional(),
+    })
+    .safeParse({
+      requestId: formField(formData, "requestId"),
+      teamName: formField(formData, "teamName"),
+      weekly: formField(formData, "weekly"),
+    });
+  if (!parsed.success) return invalidInput();
+  const { requestId, teamName, weekly } = parsed.data;
+  let scrimId = "";
+  const state = await runAction(async () => {
+    const scrim = await acceptDirectRequest({ userId, requestId, now: new Date() });
+    scrimId = scrim.id;
+  });
+  if (!state.done) {
+    revalidatePath(`/requests/${requestId}`);
+    return state;
+  }
+  revalidatePath("/scrims");
+  const t = await getMessages(requestActionMessages);
+  await setFlash(weekly ? t.partnershipAccepted(teamName) : t.directAccepted(teamName));
+  redirect(`/scrims/${scrimId}`);
+}
+
+export async function declineDirectRequestAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const requestId = idSchema.safeParse(formField(formData, "requestId"));
+  if (!requestId.success) return invalidInput();
+  const state = await runAction(async () => {
+    await declineDirectRequest({ userId, requestId: requestId.data, now: new Date() });
+  });
+  if (!state.done) {
+    revalidatePath(`/requests/${requestId.data}`);
+    return state;
+  }
+  revalidatePath("/scrims");
+  const t = await getMessages(requestActionMessages);
+  await setFlash(t.directDeclined);
+  redirect("/scrims?tab=anfragen");
 }

@@ -337,6 +337,8 @@ export const rolesTableMessages = dictionary(
       requestNotifications: "Benachrichtigungen zu Anfragen und Bewerbungen",
       requests:
         "Anfragen erstellen (auch wöchentliche) und beenden, bewerben, bestätigen, absagen, Feedback geben",
+      directRequests:
+        "Direktanfragen stellen, annehmen und ablehnen, feste Partnerschaften beenden",
       editTeam: "Team, Logos und Links bearbeiten, Einladungslink",
       listTeam: "Team in der Teams-Liste zeigen oder ausblenden",
       verifiedApplicants: "Bewerbungen auf vollständig verifizierte Teams beschränken",
@@ -369,6 +371,7 @@ export const rolesTableMessages = dictionary(
       requestNotifications: "Notifications about requests and applications",
       requests:
         "Create requests (also weekly ones) and end them, apply, accept, cancel, give feedback",
+      directRequests: "Send, accept and decline direct requests, end fixed partnerships",
       editTeam: "Edit team, logos and links, invite link",
       listTeam: "Show or hide the team on the teams list",
       verifiedApplicants: "Admit only fully verified teams as applicants",

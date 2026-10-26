@@ -135,6 +135,15 @@ async function TeamCard({ team }: { team: TeamListEntry }) {
             {formatUniversities(team.universities, locale)}
           </span>
         </div>
+        {/* A direct request to this team, for the captain (SPEC N-26). */}
+        {team.canRequest ? (
+          <Link
+            href={`/requests/new?team=${encodeURIComponent(team.id)}`}
+            className={buttonVariants({ variant: "outline", size: "sm", className: "shrink-0" })}
+          >
+            {t.directRequest}
+          </Link>
+        ) : null}
       </div>
       <div className="flex flex-col gap-0.5">
         <p className="text-[13px] text-muted-foreground">
