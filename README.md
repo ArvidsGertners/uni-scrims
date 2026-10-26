@@ -349,7 +349,7 @@ Production wurde nach Phase 4 einmal deployt und wieder gestoppt (ARCHITECTURE �
 3. Mit vorhandenem nginx: Server-Blöcke mit den Logs in `/var/log/uni-scrims/` und `/etc/logrotate.d/uni-scrims` wie unten anlegen, dann `nginx -t && systemctl reload nginx` und `logrotate -d /etc/logrotate.d/uni-scrims`.
 4. Backups einrichten (Schlüssel, Cron mit `MAILTO`, siehe Backups), `docker/backup.sh` einmal von Hand laufen lassen, prüfen, dass das Backup extern liegt, und es auf deinem Rechner probeweise entschlüsseln: `gpg --decrypt uniscrims-<zeit>.dump.gpg | head -c 5` zeigt `PGDMP`.
 5. Prüfen wie oben (Health über HTTPS, Rechtstexte, Login, „Bot läuft“), dazu: Der Login fügt dich dem Hub-Server hinzu, eine DM des Bots kommt an (z. B. das Prüfergebnis), und eine Bescheinigung knapp unter 5 MB lässt sich hochladen (Body-Limit von Caddy bzw. nginx).
-6. Abnahme aus ARCHITECTURE §11 (Phase 4): Posten, Bewerben und Bestätigen brauchen spielbereite Teams (je mindestens 5 verifizierte Spieler, SPEC P0-3). Zwei solche Teams aus echten Accounts buchen einen Scrim, bekommen Buchung und Reminder per Discord und geben Feedback.
+6. Abnahme aus ARCHITECTURE §11 (Phase 4): Seit Phase 25 brauchen Posten, Bewerben und Bestätigen nur ein Team mit verifiziertem Captain (SPEC N-21). Zwei solche Teams aus echten Accounts (es reichen zwei verifizierte Captains) buchen einen Scrim, bekommen Buchung und Reminder per Discord und geben Feedback.
 
 ### Variante: Server mit vorhandenem nginx
 

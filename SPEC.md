@@ -17,7 +17,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 
 ## 2. Ziele
 
-1. **Uni-exklusiv:** Nur Studierende mit geprüfter Immatrikulationsbescheinigung können Teams bilden und scrimmen.
+1. **Uni-exklusiv:** Nur Studierende mit geprüfter Immatrikulationsbescheinigung können Teams bilden und scrimmen. Seit Phase 25 muss nur der Captain verifiziert sein; dass sich Mitspieler verifizieren, ist freiwillig und zeigt das Abzeichen „Vollständig verifiziert“ (N-21).
 2. **Schnell zum Scrim:** Ein Captain kann in unter 2 Minuten eine Anfrage posten oder sich auf eine bewerben.
 3. **Verbindlichkeit:** No-Shows werden sichtbar, damit die Show-up-Rate über 90 % liegt.
 4. **Wenig Reibung:** Bewerbungen, Bestätigungen und Reminder kommen automatisch über Discord, wo die Teams eh sind.
@@ -48,7 +48,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 ## 4. Personas
 
 - **Captain:** Organisiert Scrims für sein Team. Hauptnutzer.
-- **Spieler:** Mitglied im Team, muss sich verifizieren.
+- **Spieler:** Mitglied im Team, muss sich verifizieren (seit Phase 25 freiwillig; nur der Captain braucht die Verifizierung für Scrims, N-21).
 - **Admin:** Du bzw. ein kleines Team. Prüft Immatrikulationsbescheinigungen, klärt Streitfälle, sperrt Teams. Seit Phase 8 drei Rollen: Betreiber (du), Admins und Prüfer, die nur Bescheinigungen prüfen (N-4).
 
 ---
@@ -83,7 +83,7 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 21. Als Admin will ich sehen, welche Benachrichtigungen dauerhaft nicht zugestellt werden konnten.
 
 ### Nach dem MVP
-22. Als Captain will ich jedem Mitglied die Rolle Spieler, Ersatzspieler oder Coach geben, damit unser Kader stimmt und nur Spieler zur Spielbereitschaft zählen.
+22. Als Captain will ich jedem Mitglied die Rolle Spieler, Ersatzspieler oder Coach geben, damit unser Kader stimmt und nur Spieler zur Spielbereitschaft zählen (seit Phase 25 zum Abzeichen „Vollständig verifiziert“, N-21).
 23. Als Spieler will ich ein Konto mit E-Mail, Passwort und meinem Namen anlegen und danach Discord verknüpfen, damit der Prüfer meine Bescheinigung meinem Namen zuordnen kann.
 24. Als Spieler will ich mein Passwort per E-Mail zurücksetzen können, wenn ich es vergessen habe.
 25. Als Prüfer will ich den Namen der Person neben ihrer Bescheinigung sehen, damit ich prüfen kann, ob beide übereinstimmen.
@@ -103,13 +103,14 @@ Uni-Valorant-Teams (v. a. im Umfeld der Uniliga) suchen Scrims über große, all
 39. Als Studierender, der kein Deutsch spricht, will ich die ganze Seite oben rechts auf Englisch umstellen, und mit englischem Browser will ich sie gleich auf Englisch sehen.
 40. Als Spieler mit englischer Sprachwahl will ich auch die Mails und Discord-Nachrichten von Uni Scrims auf Englisch bekommen, und als Captain will ich `/setup` auf Englisch bedienen können.
 41. Als Spieler will ich alle Teams mit ihren Hochschulen, ihrem Rang und ihren Spielern sehen, um passende Gegner zu finden, und als Captain will ich unser Team dort ausblenden können.
+42. Als Captain will ich Scrims anfragen, ohne dass sich alle Spieler anmelden müssen, und spontan eine Aushilfe mitbringen können, wenn jemand ausfällt; als Team, dem Verifizierung wichtig ist, will ich nach vollständig verifizierten Teams filtern und nur sie als Bewerber zulassen.
 
 ### Edge Cases
-- Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen.
+- Ein Team hat weniger als 5 verifizierte Spieler (Rolle Spieler oder Ersatzspieler; Coaches zählen nicht): Es kann nicht posten, sich bewerben oder Bewerbungen bestätigen. Das Team sieht, wer noch fehlt bzw. in Prüfung ist. Bereits gebuchte Scrims bleiben bestehen. Seit Phase 25 kann es das doch, sobald der Captain verifiziert ist; ihm fehlt nur das Abzeichen „Vollständig verifiziert“ (N-21).
 - Ein Spieler ist noch in Prüfung: Er ist schon im Team, zählt aber nicht als verifiziert.
 - Der Ersteller bestätigt eine Bewerbung: Alle anderen Bewerbungen werden automatisch abgelehnt, und die Teams bekommen Bescheid.
 - Zwei Bestätigungen gleichzeitig (Doppelklick, zwei Tabs): Es zählt nur die erste.
-- Das Bewerber-Team ist zum Zeitpunkt der Bestätigung nicht mehr spielbereit oder gesperrt: Bestätigung schlägt mit klarer Meldung fehl, die Bewerbung bleibt offen.
+- Das Bewerber-Team ist zum Zeitpunkt der Bestätigung nicht mehr spielbereit oder gesperrt: Bestätigung schlägt mit klarer Meldung fehl, die Bewerbung bleibt offen. Seit Phase 25 statt „nicht mehr spielbereit“: nicht (mehr) vollständig verifiziert, obwohl das Ersteller-Team nur solche Bewerber zulässt (N-21).
 - Bis zur Startzeit wurde keine Bewerbung bestätigt: Die Anfrage verfällt, alle Bewerber bekommen Bescheid.
 - Ein Team bewirbt sich auf die eigene Anfrage: wird verhindert.
 - Ein Team bewirbt sich außerhalb des Rang-Bereichs: erlaubt, mit Hinweis. Der Ersteller entscheidet.
@@ -202,23 +203,23 @@ Die Tabelle gilt symmetrisch (A und B vertauschbar). Antworten nach der Auswertu
 - [x] Max. 10 Mitglieder pro Team; ein Nutzer ist in max. 1 Team (seit Phase 21 in bis zu 5 Teams, mehr auf Antrag, N-17)
 - [x] Genau ein Captain pro Team; Captain-Rolle übertragen; Mitglieder entfernen
 - [x] Mitglieder können das Team verlassen; Captain nur nach Übertragung, als einziges Mitglied löst er das Team damit auf
-- [x] Ein Team ist **spielbereit** ab 5 verifizierten Spielern (Rolle Spieler oder Ersatzspieler, siehe „Nach dem MVP“; Coaches zählen nicht). Geprüft wird nur beim Posten, Bewerben und Bestätigen.
+- [x] Ein Team ist **spielbereit** ab 5 verifizierten Spielern (Rolle Spieler oder Ersatzspieler, siehe „Nach dem MVP“; Coaches zählen nicht). Geprüft wird nur beim Posten, Bewerben und Bestätigen. Seit Phase 25 ist das keine Voraussetzung mehr, sondern das Abzeichen „Vollständig verifiziert“ (N-21).
 - [x] **Scrim-Aktionen** (Anfragen, Bewerbungen, Bestätigen, Absagen, Feedback) setzen voraus, dass der Captain **selbst verifiziert** ist. Team verwalten und einladen geht auch ohne (siehe Berechtigungstabelle in ARCHITECTURE §7).
 - [x] Aufgelöste Teams verschwinden überall, ihr Einladungslink funktioniert nicht mehr und ihr Name ist wieder frei. Der ehemalige Captain kann ein neues Team gründen.
 
 **P0-4 Scrim-Anfragen und Board**
 - [x] Felder: Datum, Startzeit (Europe/Berlin, 15-Minuten-Raster, 10:00–01:45 Uhr, mindestens 30 Minuten in der Zukunft; das Datum ist immer das Kalenderdatum des tatsächlichen Starts, die UI zeigt bei Startzeiten nach Mitternacht "(Nacht auf Mi, 22.10.)"), Format (`1 Map`, `2 Maps`, `BO3`), Rang-Bereich min–max, Maps (optional, Mehrfachauswahl aus festem Map-Pool), Notiz (max. 300 Zeichen)
-- [x] Nur spielbereite Teams können posten; max. 5 offene Anfragen pro Team
+- [x] Nur spielbereite Teams können posten (seit Phase 25 jedes aktive Team mit verifiziertem Captain, N-21); max. 5 offene Anfragen pro Team
 - [x] Board zeigt offene, zukünftige Anfragen; Filter nach Datum und Rang; Standardfilter: Anfragen, deren Rang-Bereich den eigenen Team-Rang enthält (seit Phase 20 ohne Team-Rang kein Standardfilter, N-16). Im Rang-Filter sind mehrere Ränge wählbar: Es erscheinen Anfragen, deren Rang-Bereich einen davon enthält; ohne Auswahl alle Ränge
 - [x] Jede Karte zeigt Team, Hochschulen, Rang, Zuverlässigkeit und die Anzahl der Bewerbungen
 - [x] Ersteller kann eine offene Anfrage löschen; offene Bewerbungen werden abgelehnt und die Bewerber bekommen Bescheid
 - [x] Anfragen ohne bestätigte Bewerbung verfallen zur Startzeit; Bewerber bekommen Bescheid
 
 **P0-5 Bewerbungen und Bestätigung**
-- [x] Spielbereite Teams können sich bewerben, optional mit Nachricht (max. 200 Zeichen); nicht auf eigene Anfragen; max. 1 Bewerbung pro Team und Anfrage, auch nach Zurückziehen
+- [x] Spielbereite Teams (seit Phase 25 jedes aktive Team mit verifiziertem Captain, außer das Ersteller-Team lässt nur vollständig verifizierte Teams zu, N-21) können sich bewerben, optional mit Nachricht (max. 200 Zeichen); nicht auf eigene Anfragen; max. 1 Bewerbung pro Team und Anfrage, auch nach Zurückziehen
 - [x] Bewerbung außerhalb des Rang-Bereichs ist erlaubt, mit Hinweis beim Bewerben und beim Ersteller (seit Phase 20 nur, wenn das Team einen Rang hat, N-16)
 - [x] Ersteller sieht alle Bewerbungen mit Rang, Hochschulen und Zuverlässigkeit
-- [x] Bestätigen prüft, dass beide Teams spielbereit und aktiv sind (nicht gesperrt, nicht aufgelöst); genau eine Bewerbung wird angenommen, alle anderen automatisch abgelehnt
+- [x] Bestätigen prüft, dass beide Teams spielbereit und aktiv sind (nicht gesperrt, nicht aufgelöst; seit Phase 25 nur noch aktiv und, wenn das Ersteller-Team nur vollständig verifizierte Bewerber zulässt, das Bewerber-Team vollständig verifiziert, N-21); genau eine Bewerbung wird angenommen, alle anderen automatisch abgelehnt
 - [x] Bewerber können zurückziehen, solange nicht bestätigt
 - [x] Bot-DM an den Ersteller bei jeder neuen Bewerbung; Bot-DM an Bewerber bei Bestätigung oder Absage (seit Phase 18 je nach Einstellung des Captains per DM und/oder Mail, N-14)
 
@@ -264,7 +265,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 **N-1 Ersatzspieler und Coach** (Phase 5)
 - [x] Jedes Mitglied hat eine Rolle: Spieler, Ersatzspieler oder Coach. Wer beitritt oder ein Team gründet, ist Spieler.
 - [x] Der Captain setzt die Rolle jedes Mitglieds, auch seine eigene. Verifizierung ist dafür nicht nötig (Teamverwaltung); in einem gesperrten Team geht es nicht.
-- [x] Spielbereit machen nur verifizierte Spieler und Ersatzspieler; Coaches zählen nie, auch wenn sie verifiziert sind. Coaches brauchen keine Verifizierung.
+- [x] Spielbereit machen nur verifizierte Spieler und Ersatzspieler; Coaches zählen nie, auch wenn sie verifiziert sind. Coaches brauchen keine Verifizierung. Seit Phase 25 gilt das für das Abzeichen „Vollständig verifiziert“ (N-21).
 - [x] Keine Grenzen pro Rolle; es bleibt bei max. 10 Mitgliedern insgesamt.
 - [x] Die Captain-Rolle ist davon unabhängig: Auch ein Coach kann Captain sein und braucht für Scrim-Aktionen weiterhin selbst eine Verifizierung.
 - [x] Die Team-Seite zeigt die Rollen; ein Rollenwechsel ändert nichts an schon gebuchten Scrims.
@@ -272,9 +273,9 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 **N-2 Statistik-Seite** (Phase 6)
 - [x] Seite „Statistik“ im Admin-Bereich, nur für Admins
 - [x] Zeigt alle Kennzahlen aus §8 nach deren Definitionen, jeweils mit Ziel und Stretch, und markiert, ob sie erreicht sind
-- [x] Zwei Zeiträume: die letzten 28 Tage und gesamt. „Spielbereite Teams“ und „Teams mit ≥ 2 Scrims pro Monat“ sind Momentaufnahmen und stehen nur einmal da.
+- [x] Zwei Zeiträume: die letzten 28 Tage und gesamt. „Spielbereite Teams“ und „Teams mit ≥ 2 Scrims pro Monat“ sind Momentaufnahmen und stehen nur einmal da (seit Phase 25 statt „Spielbereite Teams“ „Teams mit verifiziertem Captain“ und „Vollständig verifizierte Teams“, N-21).
 - [x] In einen Zeitraum fällt eine Prüfung mit ihrer Entscheidung, eine Anfrage mit ihrer Startzeit, die Zeit bis Bestätigung mit der Buchung und alle Scrim-Kennzahlen mit dem Start des Scrims
-- [x] Jede Kennzahl mit ihrer Fallzahl; ohne Fälle steht „–“ statt einer Zahl. Ausnahme „Spielbereite Teams“: eine Anzahl, die auch ohne aktive Teams 0 ist.
+- [x] Jede Kennzahl mit ihrer Fallzahl; ohne Fälle steht „–“ statt einer Zahl. Ausnahme „Spielbereite Teams“ (seit Phase 25 die beiden Anzahlen von Teams): eine Anzahl, die auch ohne aktive Teams 0 ist.
 - [x] Werte werden auf die angezeigte Genauigkeit abgerundet (0,1 h, 0,1 %, 0,1 Sterne), damit eine Zahl nie über einem Ziel zu liegen scheint, das als verfehlt markiert ist, oder umgekehrt
 - [x] Nur Summen, keine Namen oder anderen personenbezogenen Daten. Die Seite sagt, dass Prüfungen gelöschter Konten fehlen (sie werden mit dem Konto gelöscht).
 
@@ -365,7 +366,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Kontolöschung löscht die Kopie. Die Datenauskunft enthält das Bild selbst und den Zeitpunkt der Kopie.
 
 **N-9 Navigation und Admin-Bereich auf eigener Adresse** (Phase 13)
-- [x] Das Hauptmenü hat nur noch drei Punkte: Scrims, Team, Konto. Der Warnpunkt für eine fehlende Verifizierung steht an „Konto“. Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“.
+- [x] Das Hauptmenü hat nur noch drei Punkte: Scrims, Team, Konto. Der Warnpunkt für eine fehlende Verifizierung steht an „Konto“ (seit Phase 25 nur für Captains, N-21). Gesperrte und unvollständige Konten sehen wie bisher nur „Konto“.
 - [x] „Abmelden“ steht nur noch auf der Konto-Seite (oben, neben der Überschrift), nicht mehr im Kopf oder Menü. Seit Phase 17 steht es im Konto-Menü (N-13).
 - [x] Board und Meine Scrims sind eine Seite „Scrims“ mit den Tabs Board, Anstehend, Anfragen, Bewerbungen, Vergangen. Board ist der erste Tab und zeigt die Anfragen anderer Teams mit den Filtern aus P0-4; die eigenen offenen Anfragen stehen nur im Tab Anfragen. Der Feedback-Hinweis steht über den Tabs, „Anfrage erstellen“ (nur für den Captain) oben auf der Seite. Ohne Team ist das Board nutzbar; die anderen Tabs zeigen den Hinweis auf die Team-Seite. Alte Links auf das Board (auch in Discord-Nachrichten) führen auf den Tab Board, mit denselben Filtern.
 - [x] Die Verifizierung gehört zu „Konto“: Die Konto-Seite zeigt den Studierendenstatus als ersten Kasten, mit einem Knopf zur Verifizierungsseite (je nach Status „Bescheinigung hochladen“, „Status ansehen“ oder „Details“). Die Verifizierungsseite bleibt eine eigene Seite mit Zurück-Link zum Konto; im Menü ist dort „Konto“ markiert.
@@ -377,7 +378,7 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Im Kopf steht neben „Konto“ das eigene Profilbild (die Kopie aus N-8; ohne Kopie die Initialen), auf dem Desktop und im Handy-Menü. Der Warnpunkt bleibt.
 - [x] Der Admin-Bereich hat am Desktop (ab 1024 px) links eine feste Seitenleiste: Übersicht, Prüf-Queue, Streitfälle, Sperren, Nachrichten, Statistik, Rollen (jeweils nur, was die Rolle sieht), mit der Anzahl offener Prüfungen, Streitfälle und fehlgeschlagener Nachrichten und darunter dem Bot-Status. Ganz unten stehen das eigene Profilbild, der Name, darunter die Rolle (Betreiber, Admin, Prüfer), und „Abmelden“. Auf dem Handy werden die Bereiche zu Tabs zum Wischen, Abmelden bleibt dort im Kopf.
 - [x] Startseite des Admin-Bereichs ist eine Übersicht mit Kacheln: offene Prüfungen (und seit wann die älteste wartet), Streitfälle, fehlgeschlagene Nachrichten und der Bot-Status; die Kacheln der drei Bereiche führen dorthin, die Bot-Kachel zeigt nur den Stand der beiden Schleifen. Prüfer sehen nur die Kachel der Prüf-Queue. Die Prüf-Queue liegt unter /queue. Die Warnung zu fehlenden Rechtstexten bleibt für Admins sichtbar.
-- [x] Die Team-Seite zeigt oben Kacheln: Mitglieder (x von 10), verifizierte Spieler (x von 5, spielbereit oder wie viele fehlen), Zuverlässigkeit (gespielt, No-Shows, kurzfristige Absagen, Ø Bewertung; dieselben Werte, die andere Teams auf dem Board sehen) und das nächste anstehende Scrim (verlinkt; ohne Scrim ein Link zum Board). Darunter am Desktop zwei Spalten: links der Kader, rechts Einladen und Team bearbeiten (nur für den Captain). Auf dem Handy bleibt alles untereinander. Funktionen und Rechte der Team-Seite ändern sich nicht. Seit Phase 19 auf die Tabs „Team“ und „Mitglieder“ verteilt (N-15).
+- [x] Die Team-Seite zeigt oben Kacheln: Mitglieder (x von 10), verifizierte Spieler (x von 5, spielbereit oder wie viele fehlen; seit Phase 25 vollständig verifiziert oder wie viele bis zum Abzeichen fehlen, N-21), Zuverlässigkeit (gespielt, No-Shows, kurzfristige Absagen, Ø Bewertung; dieselben Werte, die andere Teams auf dem Board sehen) und das nächste anstehende Scrim (verlinkt; ohne Scrim ein Link zum Board). Darunter am Desktop zwei Spalten: links der Kader, rechts Einladen und Team bearbeiten (nur für den Captain). Auf dem Handy bleibt alles untereinander. Funktionen und Rechte der Team-Seite ändern sich nicht. Seit Phase 19 auf die Tabs „Team“ und „Mitglieder“ verteilt (N-15).
 
 
 **N-11 Die ganze Seite im Dashboard-Layout** (Phase 15)
@@ -458,11 +459,23 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Die Datenschutzerklärung nennt die Übernahme der Sprache bei der Anmeldung und dass Mails und Discord-Nachrichten in der gespeicherten Sprache kommen.
 
 **N-20 Teams-Liste** (Phase 24)
-- [x] In der Leiste steht unter „Scrims“ der Eintrag „Teams“ (auf dem Handy im Menü an derselben Stelle). Er öffnet die Seite `/teams` mit allen aktiven Teams (nicht gesperrt, nicht aufgelöst), die ihr Captain nicht ausgeblendet hat, auch Teams, die noch nicht spielbereit sind, und die eigenen. Sortiert nach Teamnamen. Sehen dürfen sie alle eingeloggten, nicht gesperrten Nutzer mit vollständigem Konto, auch unverifizierte (wie das Board).
-- [x] Jedes Team steht als Karte: Logo (oder Kürzel), Name, Kürzel, Hochschulen (wie auf dem Board die der verifizierten Mitglieder, höchstens drei und „+n“) und der Team-Rang (N-16, sonst „Ohne Rang“). Darunter alle Mitglieder in der Reihenfolge des Tabs „Mitglieder“ mit Discord-Name, „Captain“ beim Captain, Rolle (Spieler, Ersatz, Coach) und dem eigenen Rang (sonst „Ohne Rang“). Keine Profilbilder, kein Klarname, kein Verifizierungsstatus.
+- [x] In der Leiste steht unter „Scrims“ der Eintrag „Teams“ (auf dem Handy im Menü an derselben Stelle). Er öffnet die Seite `/teams` mit allen aktiven Teams (nicht gesperrt, nicht aufgelöst), die ihr Captain nicht ausgeblendet hat, auch Teams, die noch nicht spielbereit (seit Phase 25: nicht vollständig verifiziert, N-21) sind, und die eigenen. Sortiert nach Teamnamen. Sehen dürfen sie alle eingeloggten, nicht gesperrten Nutzer mit vollständigem Konto, auch unverifizierte (wie das Board).
+- [x] Jedes Team steht als Karte: Logo (oder Kürzel), Name, Kürzel, Hochschulen (wie auf dem Board die der verifizierten Mitglieder, höchstens drei und „+n“) und der Team-Rang (N-16, sonst „Ohne Rang“). Darunter alle Mitglieder in der Reihenfolge des Tabs „Mitglieder“ mit Discord-Name, „Captain“ beim Captain, Rolle (Spieler, Ersatz, Coach) und dem eigenen Rang (sonst „Ohne Rang“). Keine Profilbilder, kein Klarname, kein Verifizierungsstatus (seit Phase 25 steht am Team das Abzeichen „Vollständig verifiziert“, N-21).
 - [x] Oben ein Suchfeld und ein Rang-Filter. Die Suche findet Teams, deren Name, Kürzel oder eine der Hochschulen verifizierter Mitglieder den Text enthält (Groß- und Kleinschreibung egal, auch Hochschulen, die die Karte unter „+n“ zusammenfasst). Im Rang-Filter sind mehrere Ränge wählbar: Es erscheinen Teams, deren Team-Rang einer davon ist; Teams ohne Rang nur ohne Rang-Filter. Ohne Auswahl gibt es keinen Rang-Filter. Ohne Treffer sagt die Seite das.
 - [x] Der Captain eines nicht gesperrten Teams blendet das Team im Tab „Team“ aus der Teams-Liste aus und wieder ein (auch ohne eigene Verifizierung). Ein ausgeblendetes Team fehlt in der Liste für alle, auch für seine Mitglieder. Alle Mitglieder sehen im Tab „Team“, ob das Team in der Liste steht. Neue und bestehende Teams stehen in der Liste, bis der Captain sie ausblendet (Entscheidung des Nutzers). Die Tabelle „Rollen und Rechte“ nennt das Recht.
 - [x] Die Datenauskunft nennt beim Team, ob es in der Teams-Liste steht. Die Datenschutzerklärung nennt, dass in der Teams-Liste Discord-Namen, Rollen und Ränge der Mitglieder für alle eingeloggten Nutzer sichtbar sind, solange der Captain das Team nicht ausblendet.
+
+**N-21 Ein verifizierter Captain reicht** (Phase 25)
+- [ ] Posten, Bewerben und Bestätigen brauchen nur noch ein aktives Team (nicht gesperrt, nicht aufgelöst) und einen verifizierten Captain. Wie viele Spieler verifiziert sind, spielt dafür keine Rolle mehr. Für Spieler und Ersatzspieler ist die Verifizierung freiwillig. Ein Team darf Spieler ohne Konto mitbringen, etwa eine Aushilfe, wenn jemand ausfällt; die Plattform prüft nicht, wer tatsächlich spielt. Spieler ohne Konto trägt niemand ein; wer per Einladungslink beitritt, steht wie bisher im Team und in der Teams-Liste. Alles andere (Limit offener Anfragen, Sperren, Rang-Hinweis) bleibt. Der Team-Rang ergibt sich weiter aus den angemeldeten Spielern und Ersatzspielern (N-16).
+- [ ] Ein Team ist **vollständig verifiziert**, solange mindestens 5 seiner Mitglieder verifiziert sind und die Rolle Spieler oder Ersatzspieler haben (die bisherige Regel für „spielbereit“; Coaches zählen nie). Das wird beim Anzeigen berechnet. Das Wort „spielbereit“ verschwindet aus der Oberfläche.
+- [ ] Vollständig verifizierte Teams tragen das Abzeichen „Vollständig verifiziert“: auf den Karten des Boards, im Kopf einer Anfrage, bei jeder Bewerbung und auf den Karten der Teams-Liste (N-20). Teams ohne Abzeichen bekommen keinen Gegen-Hinweis.
+- [ ] Board und Teams-Liste haben den Filter „Nur vollständig verifizierte Teams“ (auf dem Board bezogen auf das Team der Anfrage). Er ist aus, bis man ihn wählt, und „Zurücksetzen“ nimmt ihn mit weg.
+- [ ] Der Captain eines nicht gesperrten Teams stellt im Tab „Team“ ein, ob sich nur vollständig verifizierte Teams auf die Anfragen des Teams bewerben dürfen (auch ohne eigene Verifizierung). Standard ist aus, auch für bestehende Teams. Alle Mitglieder sehen im Tab „Team“, wie es eingestellt ist. Die Einstellung gilt für alle offenen und künftigen Anfragen des Teams; eine eigene Einstellung pro Anfrage gibt es nicht. Die Tabelle „Rollen und Rechte“ nennt das Recht.
+- [ ] Ist die Einstellung an, steht auf der Karte und im Kopf der Anfrage „Nur für vollständig verifizierte Teams“. Ein Team ohne Abzeichen kann sich nicht bewerben und sieht dort den Grund statt des Knopfs. Beim Bestätigen wird es erneut geprüft: Ist das Bewerber-Team nicht (mehr) vollständig verifiziert, schlägt die Bestätigung mit klarer Meldung fehl, die Bewerbung bleibt offen und ihre Zeile nennt den Grund. Schaltet der Captain die Einstellung ein, werden offene Bewerbungen nicht abgelehnt. Gebuchte Scrims bleiben unberührt.
+- [ ] Der Tab „Team“ zeigt in der Kachel der verifizierten Spieler, ob das Team vollständig verifiziert ist oder wie viele bis zum Abzeichen fehlen. Der Hinweis, dass ohne 5 verifizierte Spieler keine Scrims gehen, entfällt.
+- [ ] Der Warnpunkt für eine fehlende Verifizierung (an „Konto“ und am Tab „Verifizierung“) erscheint nur noch, wenn man nicht verifiziert und Captain mindestens eines aktiven Teams ist. Unverifizierte Spieler und Ersatzspieler sehen im Tab „Team“ weiter den Hinweis zur Verifizierung, mit dem Zusatz, dass sie damit für das Abzeichen zählen.
+- [ ] Die Statistik zeigt statt „Spielbereite Teams“ die Momentaufnahmen „Teams mit verifiziertem Captain“ (Ziel und Stretch wie bisher) und „Vollständig verifizierte Teams“ (ohne Ziel, nur zur Info); „Teams mit ≥ 2 Scrims pro Monat“ bezieht sich auf die Teams mit verifiziertem Captain (§8).
+- [ ] Startseite, Team-Seite, Verifizierungsseite und „Rollen und Rechte“ beschreiben die neue Regel auf Deutsch und Englisch. Die Datenauskunft nennt beim Team die Einstellung. Die Datenschutzerklärung sagt, dass nur Captains die Verifizierung für Scrims brauchen, und dass alle eingeloggten Nutzer sehen, ob ein Team vollständig verifiziert ist.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
@@ -488,7 +501,8 @@ Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind 
 
 | Metrik | Definition | Ziel | Stretch |
 |---|---|---|---|
-| Spielbereite Teams | aktive Teams mit ≥ 5 verifizierten Spielern (Spieler oder Ersatzspieler), Stand jetzt | 15 | 30 |
+| Teams mit verifiziertem Captain | aktive Teams, deren Captain verifiziert ist, Stand jetzt (bis Phase 24 „Spielbereite Teams“: aktive Teams mit ≥ 5 verifizierten Spielern, N-21) | 15 | 30 |
+| Vollständig verifizierte Teams | aktive Teams mit ≥ 5 verifizierten Spielern (Spieler oder Ersatzspieler), Stand jetzt; seit Phase 25, nur zur Info (N-21) | – | – |
 | Prüfzeit | Median von Upload bis Entscheidung, nur von Hand entschiedene Prüfungen (ohne automatische Ablehnung und Ablehnung durch Sperre) | < 24 h | < 6 h |
 | Bestätigungsquote | bestätigte Anfragen ÷ (bestätigte + verfallene), nur Anfragen, deren Startzeit vorbei ist; eine noch offene Anfrage nach ihrem Start zählt als verfallen, gelöschte Anfragen zählen nicht | ≥ 50 % | ≥ 70 % |
 | Zeit bis Bestätigung | Median von Anfrage erstellt bis Scrim gebucht | < 24 h | < 6 h |
@@ -499,7 +513,7 @@ Gemessen ab Launch. Bei einem Markt von wenigen hundert Valorant-Uni-Teams sind 
 
 | Metrik | Definition | Ziel |
 |---|---|---|
-| Teams mit ≥ 2 Scrims pro Monat | spielbereite Teams mit ≥ 2 gespielten Scrims (Start in den letzten 30 Tagen) ÷ spielbereite Teams, Stand jetzt | ≥ 50 % |
+| Teams mit ≥ 2 Scrims pro Monat | Teams mit verifiziertem Captain mit ≥ 2 gespielten Scrims (Start in den letzten 30 Tagen) ÷ Teams mit verifiziertem Captain, Stand jetzt (bis Phase 24 spielbereite Teams, N-21) | ≥ 50 % |
 | No-Show-Rate | No-Show ÷ (Gespielt + No-Show) | < 10 % |
 | Durchschnittsbewertung | alle Bewertungen aus gespielten Scrims | ≥ 4,0 |
 
@@ -529,7 +543,8 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Neue-Anfragen-Benachrichtigung | Nach P1 verschoben. Dafür ist der editierbare Team-Rang im MVP (seit Phase 20 aus den Rängen der Spieler berechnet, N-16). |
 | Auth | Better Auth (siehe ARCHITECTURE). |
 | Sichtbarkeit | Board und Anfragen nur für eingeloggte Nutzer. |
-| Captain-Rechte | Scrim-Aktionen nur, wenn der Captain selbst verifiziert ist. Teamverwaltung geht auch ohne. |
+| Captain-Rechte | Scrim-Aktionen nur, wenn der Captain selbst verifiziert ist. Teamverwaltung geht auch ohne. Seit Phase 25 reicht das für Scrims; die Zahl verifizierter Spieler wird nicht mehr geprüft (N-21). |
+| Verifizierung der Spieler | Seit Phase 25 freiwillig. Mit 5 verifizierten Spielern oder Ersatzspielern bekommt ein Team das Abzeichen „Vollständig verifiziert“; andere Teams filtern danach oder lassen nur solche Teams als Bewerber zu (N-21). |
 | Entsperren | Nur manuell per Datenbank, kein Admin-Button. |
 | Altersbestätigung | 16+ per Checkbox vor dem Discord-Login. |
 | Discord-ID | Wird nicht doppelt am Nutzer gespeichert, sondern aus der Discord-Verknüpfung von Better Auth gelesen. |
@@ -546,6 +561,7 @@ Gespielt heißt Status `COMPLETED`, also auch nach einer Streitfall-Entscheidung
 | Altersbestätigung nur per Checkbox | Wer den Login-Endpunkt direkt aufruft, umgeht sie, und es wird kein Nachweis gespeichert. Im MVP bewusst akzeptiert. |
 | Team-Logos ohne Vorabprüfung | Ein unpassendes Logo ist sofort für alle Eingeloggten sichtbar, bis ein Admin es entfernt. Nach einer Wiederherstellung aus dem Backup kann ein entferntes Logo zurückkommen. |
 | Externe Team-Links ohne Vorabprüfung (seit Phase 19) | Geprüft wird nur, dass ein Link zur richtigen Plattform führt, nicht, was dort steht. Ein unpassender Link ist sofort für alle Eingeloggten sichtbar, bis ein Admin ihn entfernt; wie bei Logos kann er nach einer Wiederherstellung aus dem Backup zurückkommen. |
+| Nur der Captain verifiziert (seit Phase 25) | Teams können Spieler mitbringen, die nicht studieren oder kein Konto haben, auch stärkere. Scrims sind Training; wem das wichtig ist, filtert nach vollständig verifizierten Teams oder lässt nur sie als Bewerber zu (N-21). Wer tatsächlich spielt, prüft die Plattform ohnehin nicht. |
 | Wiederherstellung aus dem Backup | Sperren und Kontolöschungen nach dem Backup (seit dem letzten gelungenen Backup, normalerweise höchstens ein Tag) werden aus der alten Datenbank nachgezogen. Ist sie verloren, fehlen sie: Gelöschte Konten stehen dann wieder mit den Daten vom Backup-Zeitpunkt in der Datenbank, bis sie erneut gelöscht werden, und Sperren müssen neu gesetzt werden. Steht in der Datenschutzerklärung. |
 
 **Vor dem Launch geklärt** (Texte liegen außerhalb von Git in `LEGAL_DIR`, siehe ARCHITECTURE §8)
@@ -596,6 +612,7 @@ Die Phasen sind in `ARCHITECTURE.md` Abschnitt 11 im Detail beschrieben. **3–4
 | 22 | Deutsch und Englisch (N-18) | Oben rechts wechselt ein Menü mit Flaggen auf jeder Seite die Sprache; auf Englisch sind alle Seiten samt Admin-Bereich, Meldungen, Datumsangaben und Rechtstexten englisch, auf Deutsch bleibt alles wie bisher; ohne Wahl gilt die Browsersprache; die Wahl gilt im Browser und mit Konto auf allen Geräten |
 | 23 | Mails und Discord-Nachrichten in der Sprache des Empfängers (N-19) | DMs, Mails und Konto-Mails kommen in der Sprache des Kontos, Team-Channel-Posts in der des Captains, ohne Sprache auf Deutsch; `/setup` antwortet auf Englisch für englische Konten und Discord-Apps; Konten ohne Sprache bekommen sie bei der nächsten Anmeldung |
 | 24 | Teams-Liste (N-20) | Unter „Scrims“ öffnet „Teams“ eine Liste aller aktiven Teams mit Hochschulen, Team-Rang und Mitgliedern (Discord-Name, Rolle, Rang); Suche und Rang-Filter grenzen sie ein; der Captain blendet sein Team aus und wieder ein |
+| 25 | Ein verifizierter Captain reicht (N-21) | Ein Team, in dem nur der Captain verifiziert ist, postet, bewirbt sich und bestätigt; Teams mit 5 verifizierten Spielern tragen das Abzeichen „Vollständig verifiziert“ auf Board, Anfrage, Bewerbungen und Teams-Liste, und beide Listen filtern danach; der Captain lässt auf Wunsch nur vollständig verifizierte Bewerber zu |
 
 Danach: Test mit deinem DHBW-Team und 2–3 befreundeten Teams, noch in diesem Wintersemester.
 
