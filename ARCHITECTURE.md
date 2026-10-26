@@ -354,7 +354,7 @@ Message                                   # Phase 32
   Index: (conversationId, createdAt), (authorId)
 
 ConversationRead                          # Phase 32: Lesestand je Person
-  conversationId ──► Conversation (onDelete Cascade), userId ──► User   # unique(conversationId, userId)
+  conversationId ──► Conversation (onDelete Cascade), userId ──► User   # PK (conversationId, userId)
   readAt
   Index: (userId)
 

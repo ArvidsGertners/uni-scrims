@@ -103,6 +103,8 @@ enum NotifType {
   DIRECT_REQUEST_RECEIVED
   DIRECT_REQUEST_DECLINED
   PARTNERSHIP_ENDED
+  // Phase 32 (§5.30): a new message in a thread, without its text.
+  MESSAGE_RECEIVED
 }
 
 enum NotifChannel {
@@ -212,6 +214,11 @@ model User {
   submittedFeedback    ScrimFeedback[]
   resolvedScrims       Scrim[]               @relation("ScrimResolvedBy")
   notifications        Notification[]
+  // Phase 32 (§5.30): messages between teams, read states and reports.
+  messages             Message[]
+  conversationReads    ConversationRead[]
+  messageReports       MessageReport[]       @relation("MessageReportReportedBy")
+  dismissedReports     MessageReport[]       @relation("MessageReportDismissedBy")
 
   @@unique([email])
   @@map("user")
@@ -399,6 +406,10 @@ model Team {
   feedback             ScrimFeedback[]
   notifications        Notification[]
   activeFor            User[]          @relation("UserActiveTeam")
+  // Phase 32 (§5.30): threads it is the guest of, its messages and its reports.
+  guestConversations   Conversation[]
+  messages             Message[]
+  messageReports       MessageReport[]
 
   @@index([captainId])
 }
@@ -470,6 +481,8 @@ model ScrimRequest {
   applications  Application[]
   scrim         Scrim?
   notifications Notification[]
+  // Phase 32: one thread per guest team (§5.30).
+  conversations Conversation[]
 
   @@unique([seriesId, startsAt])
   // One request per team and window, also after a decline or withdrawal (§5.29).
@@ -609,6 +622,83 @@ model ScrimFeedback {
   createdAt     DateTime        @db.Timestamptz(3)
 
   @@unique([scrimId, teamId])
+}
+
+// Messages between the two teams of a request (Phase 32, §5.30). The host is always the request's
+// team, the guest the applicant, the target of a direct request or the scrim's guest, so the thread
+// of an application or direct request is the scrim's after booking. Created with the first message.
+model Conversation {
+  id              String       @id @default(cuid())
+  requestId       String
+  request         ScrimRequest @relation(fields: [requestId], references: [id])
+  guestTeamId     String
+  guestTeam       Team         @relation(fields: [guestTeamId], references: [id])
+  // Last read by a member of that side; a new message notifies a side again once it has read.
+  hostReadAt      DateTime?    @db.Timestamptz(3)
+  guestReadAt     DateTime?    @db.Timestamptz(3)
+  // Last MESSAGE_RECEIVED to that side.
+  hostNotifiedAt  DateTime?    @db.Timestamptz(3)
+  guestNotifiedAt DateTime?    @db.Timestamptz(3)
+  createdAt       DateTime     @db.Timestamptz(3)
+
+  messages Message[]
+  reads    ConversationRead[]
+
+  @@unique([requestId, guestTeamId])
+  @@index([guestTeamId])
+}
+
+// Children of a thread cascade, so deleting needs no thread lock and a report racing a deletion does
+// not fail on the foreign key (§4).
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // The sending team.
+  teamId         String
+  team           Team         @relation(fields: [teamId], references: [id])
+  authorId       String
+  author         User         @relation(fields: [authorId], references: [id])
+  // 1–1000 characters of plain text.
+  body           String
+  createdAt      DateTime     @db.Timestamptz(3)
+
+  reports MessageReport[]
+
+  @@index([conversationId, createdAt])
+  @@index([authorId])
+}
+
+// Up to when a person has read a thread ("Neu" markers).
+model ConversationRead {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  readAt         DateTime     @db.Timestamptz(3)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+// A report of a message by the other team; admins see only reported messages (§5.30).
+model MessageReport {
+  id            String    @id @default(cuid())
+  messageId     String
+  message       Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  // The reporting team and who reported.
+  teamId        String
+  team          Team      @relation(fields: [teamId], references: [id])
+  reportedById  String
+  reportedBy    User      @relation("MessageReportReportedBy", fields: [reportedById], references: [id])
+  createdAt     DateTime  @db.Timestamptz(3)
+  // Dismissed by an admin; the same team cannot report the message again.
+  dismissedAt   DateTime? @db.Timestamptz(3)
+  dismissedById String?
+  dismissedBy   User?     @relation("MessageReportDismissedBy", fields: [dismissedById], references: [id])
+
+  @@unique([messageId, teamId])
+  @@index([dismissedAt])
 }
 
 // Outbox, see ARCHITECTURE.md §6.
