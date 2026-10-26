@@ -20,24 +20,21 @@ export function formatMaps(maps: string[], locale: Locale): string {
   return maps.length > 0 ? maps.join(" · ") : formatMessages[locale].anyMap;
 }
 
+/** "Ø 4,2 ★" */
+export function formatRating(avgRating: number, locale: Locale): string {
+  const rating = avgRating.toLocaleString(INTL_LOCALES[locale], {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 1,
+  });
+  return `Ø ${rating} ★`;
+}
+
 /** Everything after "gespielt", for the team page tile that shows the played count large. */
 export function formatReliabilityDetails(reliability: Reliability, locale: Locale): string {
   const t = formatMessages[locale];
   const parts = [t.noShows(reliability.noShows), t.lateCancels(reliability.lateCancels)];
-  if (reliability.avgRating !== null) {
-    const rating = reliability.avgRating.toLocaleString(INTL_LOCALES[locale], {
-      maximumFractionDigits: 1,
-      minimumFractionDigits: 1,
-    });
-    parts.push(`Ø ${rating} ★`);
-  }
+  if (reliability.avgRating !== null) parts.push(formatRating(reliability.avgRating, locale));
   return parts.join(" · ");
-}
-
-/** "3 gespielt · 1 No-Show · 0 kurzfristige Absagen · Ø 4,2 ★" */
-export function formatReliability(reliability: Reliability, locale: Locale): string {
-  const played = formatMessages[locale].played(reliability.played);
-  return `${played} · ${formatReliabilityDetails(reliability, locale)}`;
 }
 
 export function formatUniversities(

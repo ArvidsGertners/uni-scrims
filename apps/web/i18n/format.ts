@@ -82,3 +82,16 @@ export const fullyVerifiedMessages = dictionary(
     filter: "Only fully verified teams",
   },
 );
+
+/** The reliability of the last days and its filter (SPEC N-23). */
+export const reliabilityMessages = dictionary(
+  {
+    lastDays: (days: number) => `Letzte ${days} Tage:`,
+    filter: (rate: number, days: number) =>
+      `Nur zuverlässige Teams (unter ${rate} % No-Shows in ${days} Tagen)`,
+  },
+  {
+    lastDays: (days) => `Last ${days} days:`,
+    filter: (rate, days) => `Only reliable teams (under ${rate}% no-shows in ${days} days)`,
+  },
+);

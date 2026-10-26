@@ -14,6 +14,7 @@ import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
 import { CheckIcon, ShieldCheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
+import { ReliabilityLine } from "@/components/reliability-line";
 import { TeamAvatar } from "@/components/team-avatar";
 import { SwitchTeamHint } from "@/components/switch-team-hint";
 import { TeamLinks } from "@/components/team-links";
@@ -24,7 +25,6 @@ import {
   REQUEST_STATUS_LABELS,
   formatFormat,
   formatMaps,
-  formatReliability,
   formatUniversities,
 } from "@/lib/scrim-format";
 import {
@@ -96,9 +96,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             {team.fullyVerified ? <FullyVerifiedBadge /> : null}
             {status ? <Badge className="h-[22px] px-2 text-[12px]">{status}</Badge> : null}
           </span>
-          <span className="text-[13px] text-muted-foreground">
-            {formatReliability(team.reliability, locale)}
-          </span>
+          <ReliabilityLine reliability={team.reliability} />
           {/* The current setting; only meaningful while the request takes applications. */}
           {request.open && request.verifiedApplicantsOnly ? (
             <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
@@ -322,10 +320,12 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-[13px] text-muted-foreground">
-                      {shared.teamRank} <RankLabel rank={application.team.rank} /> ·{" "}
-                      {formatReliability(application.team.reliability, locale)}
-                    </p>
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-[13px] text-muted-foreground">
+                        {shared.teamRank} <RankLabel rank={application.team.rank} />
+                      </p>
+                      <ReliabilityLine reliability={application.team.reliability} />
+                    </div>
                     {application.outOfRange ? (
                       <p className="text-[13px] text-warning">{t.rankOutOfRange}</p>
                     ) : null}

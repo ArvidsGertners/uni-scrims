@@ -1,6 +1,10 @@
 // Texts of the public pages (§5.21): landing page, login, registration, password, support, legal
 // pages and the dev login. Sentences with a link are render props, so the markup stays in the page.
-import { FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS } from "@uni-scrims/core/config/limits";
+import {
+  FULLY_VERIFIED_PLAYER_COUNT,
+  MAX_TEAM_MEMBERS,
+  RELIABILITY_WINDOW_DAYS,
+} from "@uni-scrims/core/config/limits";
 import { dictionary } from "@uni-scrims/core/config/locale";
 import type { ReactNode } from "react";
 
@@ -88,7 +92,7 @@ export const landingMessages = dictionary(
         },
         {
           channel: "No-Shows haben keine Folgen",
-          uniScrims: "Gespielte Scrims, No-Shows und kurzfristige Absagen stehen am Team",
+          uniScrims: `Gespielte Scrims, No-Shows und kurzfristige Absagen der letzten ${RELIABILITY_WINDOW_DAYS} Tage stehen am Team`,
         },
         {
           channel: "Suchen heißt scrollen",
@@ -104,8 +108,7 @@ export const landingMessages = dictionary(
     reliability: "Verbindlichkeit",
     reliabilityTitle: "No-Shows werden",
     reliabilityAccent: "sichtbar.",
-    reliabilityText:
-      "Nach jedem Scrim sagen beide Teams, ob er stattgefunden hat. Am Team stehen gespielte Scrims, No-Shows und kurzfristige Absagen.",
+    reliabilityText: `Nach jedem Scrim sagen beide Teams, ob er stattgefunden hat. Am Team stehen gespielte Scrims, No-Shows und kurzfristige Absagen der letzten ${RELIABILITY_WINDOW_DAYS} Tage.`,
     played: "Gespielt",
     noShows: "No-Shows",
     lateCancels: "Kurzfr. Absagen",
@@ -137,8 +140,7 @@ export const landingMessages = dictionary(
       },
       {
         question: "Was passiert, wenn ein Team nicht auftaucht?",
-        answer:
-          "Nach jedem Scrim sagen beide Teams, ob er stattgefunden hat. Am Team stehen gespielte Scrims, No-Shows und kurzfristige Absagen.",
+        answer: `Nach jedem Scrim sagen beide Teams, ob er stattgefunden hat. Am Team stehen gespielte Scrims, No-Shows und kurzfristige Absagen der letzten ${RELIABILITY_WINDOW_DAYS} Tage.`,
       },
       {
         question: "Können Spieler aus verschiedenen Hochschulen in einem Team sein?",
@@ -228,7 +230,7 @@ export const landingMessages = dictionary(
         },
         {
           channel: "No-shows have no consequences",
-          uniScrims: "Played scrims, no-shows and late cancellations show on the team",
+          uniScrims: `Played scrims, no-shows and late cancellations of the last ${RELIABILITY_WINDOW_DAYS} days show on the team`,
         },
         {
           channel: "Searching means scrolling",
@@ -244,8 +246,7 @@ export const landingMessages = dictionary(
     reliability: "Reliability",
     reliabilityTitle: "No-shows become",
     reliabilityAccent: "visible.",
-    reliabilityText:
-      "After every scrim, both teams say whether it took place. The team shows played scrims, no-shows and late cancellations.",
+    reliabilityText: `After every scrim, both teams say whether it took place. The team shows played scrims, no-shows and late cancellations of the last ${RELIABILITY_WINDOW_DAYS} days.`,
     played: "Played",
     noShows: "No-shows",
     lateCancels: "Late cancels",
@@ -276,8 +277,7 @@ export const landingMessages = dictionary(
       },
       {
         question: "What happens if a team doesn't show up?",
-        answer:
-          "After every scrim, both teams say whether it took place. The team shows played scrims, no-shows and late cancellations.",
+        answer: `After every scrim, both teams say whether it took place. The team shows played scrims, no-shows and late cancellations of the last ${RELIABILITY_WINDOW_DAYS} days.`,
       },
       {
         question: "Can players from different universities be in one team?",

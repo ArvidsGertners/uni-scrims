@@ -12,12 +12,13 @@ import { cn } from "cn";
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
-import { FULLY_VERIFIED_PARAM, FullyVerifiedFilter } from "@/components/fully-verified-filter";
+import { CheckboxFilters, readCheckboxFilters } from "@/components/filter-checkbox";
 import { UsersIcon } from "@/components/icons";
 import { CARD_COLUMNS } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
 import { RankFilter } from "@/components/rank-filter";
 import { RankIcon, RankLabel } from "@/components/rank-icon";
+import { ReliabilityLine } from "@/components/reliability-line";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -42,9 +43,14 @@ export default async function TeamsPage({
     userId: user.id,
     search: single(params.suche) ?? null,
     ranks: list(params.rang).filter((value): value is Rank => RANKS.includes(value as Rank)),
-    fullyVerifiedOnly: single(params[FULLY_VERIFIED_PARAM]) === "1",
+    ...readCheckboxFilters(params),
+    now: new Date(),
   });
-  const filtered = filter.search !== "" || filter.ranks.length > 0 || filter.fullyVerifiedOnly;
+  const filtered =
+    filter.search !== "" ||
+    filter.ranks.length > 0 ||
+    filter.fullyVerifiedOnly ||
+    filter.reliableOnly;
 
   return (
     <PageMain width="wide" className="gap-6">
@@ -55,7 +61,7 @@ export default async function TeamsPage({
 
       {/* Keyed by the applied filter: soft navigations would otherwise keep stale values. */}
       <form
-        key={`${filter.search}|${filter.ranks.join(",")}|${filter.fullyVerifiedOnly}`}
+        key={`${filter.search}|${filter.ranks.join(",")}|${filter.fullyVerifiedOnly}|${filter.reliableOnly}`}
         method="get"
         action="/teams"
         className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
@@ -80,8 +86,9 @@ export default async function TeamsPage({
           />
         </Field>
         {/* Below the row from 640 px, between the fields and the buttons on phones. */}
-        <FullyVerifiedFilter
-          checked={filter.fullyVerifiedOnly}
+        <CheckboxFilters
+          fullyVerifiedOnly={filter.fullyVerifiedOnly}
+          reliableOnly={filter.reliableOnly}
           className="col-span-full sm:order-last"
         />
         <Button type="submit" variant="outline" className="px-[18px]">
@@ -129,9 +136,12 @@ async function TeamCard({ team }: { team: TeamListEntry }) {
           </span>
         </div>
       </div>
-      <p className="text-[13px] text-muted-foreground">
-        {t.teamRank} <RankLabel rank={team.rank} />
-      </p>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-[13px] text-muted-foreground">
+          {t.teamRank} <RankLabel rank={team.rank} />
+        </p>
+        <ReliabilityLine reliability={team.reliability} />
+      </div>
       <section className="flex flex-col gap-1 border-t border-border pt-3.5">
         <h3 className="type-label text-muted-foreground">
           {t.members} · {team.members.length}

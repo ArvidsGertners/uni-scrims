@@ -7,6 +7,7 @@ import {
   LOGO_BACKGROUND_LABELS,
   FULLY_VERIFIED_PLAYER_COUNT,
   MAX_TEAM_MEMBERS,
+  RELIABILITY_WINDOW_DAYS,
   describeStartDay,
   describeStartTime,
   getTeamDashboard,
@@ -95,7 +96,7 @@ export default async function TeamPage() {
           >
             {team.fullyVerified ? t.fullyVerified : t.missingToBadge(missing)}
           </StatTile>
-          <StatTile label={t.played} value={team.reliability.played}>
+          <StatTile label={t.played(RELIABILITY_WINDOW_DAYS)} value={team.reliability.played}>
             {formatReliabilityDetails(team.reliability, locale)}
           </StatTile>
           {team.nextScrim ? (

@@ -11,14 +11,10 @@ import {
   ShieldCheckIcon,
 } from "@/components/icons";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
+import { ReliabilityLine } from "@/components/reliability-line";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  formatFormat,
-  formatMaps,
-  formatReliability,
-  formatUniversities,
-} from "@/lib/scrim-format";
+import { formatFormat, formatMaps, formatUniversities } from "@/lib/scrim-format";
 import { getLocale, getMessages } from "@/lib/locale";
 import { formatMessages, fullyVerifiedMessages } from "@/i18n/format";
 import { requestCardMessages, scrimSharedMessages } from "@/i18n/scrims";
@@ -81,9 +77,9 @@ export async function RequestCard({ request, preview }: Props) {
           </span>
         </div>
         <p className="text-[13px] text-muted-foreground">
-          {shared.teamRank} <RankLabel rank={team.rank} /> ·{" "}
-          {formatReliability(team.reliability, locale)}
+          {shared.teamRank} <RankLabel rank={team.rank} />
         </p>
+        <ReliabilityLine reliability={team.reliability} />
         {request.verifiedApplicantsOnly ? (
           <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
             <ShieldCheckIcon size={14} />

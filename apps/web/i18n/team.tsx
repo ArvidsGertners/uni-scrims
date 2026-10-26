@@ -25,7 +25,8 @@ export const teamPageMessages = dictionary(
     verified: "Verifiziert",
     fullyVerified: "Vollständig verifiziert",
     missingToBadge: (missing: number) => `Noch ${missing} bis zum Abzeichen`,
-    played: "Gespielt",
+    /** The reliability tile counts the last days only (SPEC N-23). */
+    played: (days: number) => `Gespielt · ${days} Tage`,
     nextScrim: "Nächstes Scrim",
     nextScrimDetails: (time: string, opponent: string, format: string) =>
       `${time} · gegen ${opponent} · ${format}`,
@@ -114,7 +115,7 @@ export const teamPageMessages = dictionary(
     verified: "Verified",
     fullyVerified: "Fully verified",
     missingToBadge: (missing) => `${missing} more for the badge`,
-    played: "Played",
+    played: (days) => `Played · last ${days} days`,
     nextScrim: "Next scrim",
     nextScrimDetails: (time, opponent, format) => `${time} · vs ${opponent} · ${format}`,
     noNextScrim: "Nothing planned yet. Go to the board",
