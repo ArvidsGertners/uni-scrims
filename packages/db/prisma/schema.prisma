@@ -208,6 +208,7 @@ model User {
   decidedTeamLimits    TeamLimitRequest[]    @relation("TeamLimitRequestDecidedBy")
   createdRequests      ScrimRequest[]
   createdSeries        RequestSeries[]
+  createdReadyWindows  ReadyWindow[]
   submittedFeedback    ScrimFeedback[]
   resolvedScrims       Scrim[]               @relation("ScrimResolvedBy")
   notifications        Notification[]
@@ -388,6 +389,8 @@ model Team {
   // Phase 30: direct requests to this team and fixed partnerships with it as the partner.
   directRequests       ScrimRequest[]  @relation("ScrimRequestTarget")
   partnerRequestSeries RequestSeries[] @relation("RequestSeriesTarget")
+  // Phase 31: windows of start times for the current evening ("Heute spielbereit").
+  readyWindows         ReadyWindow[]
   applications         Application[]
   hostScrims           Scrim[]         @relation("ScrimHostTeam")
   guestScrims          Scrim[]         @relation("ScrimGuestTeam")
@@ -460,12 +463,17 @@ model ScrimRequest {
   targetTeam         Team?          @relation("ScrimRequestTarget", fields: [targetTeamId], references: [id])
   // A direct request proposing a fixed partnership up to this last date (Phase 30, §5.28).
   weeklyLastStartsAt DateTime?      @db.Timestamptz(3)
+  // A direct request for a start time in this window of the target team (Phase 31, §5.29).
+  readyWindowId      String?
+  readyWindow        ReadyWindow?   @relation(fields: [readyWindowId], references: [id])
 
   applications  Application[]
   scrim         Scrim?
   notifications Notification[]
 
   @@unique([seriesId, startsAt])
+  // One request per team and window, also after a decline or withdrawal (§5.29).
+  @@unique([readyWindowId, teamId])
   @@index([status, startsAt])
   @@index([teamId])
   @@index([targetTeamId])
@@ -502,6 +510,34 @@ model RequestSeries {
   @@index([endedAt, nextStartsAt])
   @@index([teamId])
   @@index([targetTeamId])
+}
+
+// "Heute spielbereit" (Phase 31, §5.29): a team can start a scrim at any of these start times of the
+// current evening. Running while not ended, the team is active and lastStartsAt is not too soon;
+// only holders of the team's lock change it.
+model ReadyWindow {
+  id            String      @id @default(cuid())
+  teamId        String
+  team          Team        @relation(fields: [teamId], references: [id])
+  createdById   String
+  createdBy     User        @relation(fields: [createdById], references: [id])
+  game          String      @default("valorant")
+  // Earliest and latest start time, both on the 15-minute grid.
+  firstStartsAt DateTime    @db.Timestamptz(3)
+  lastStartsAt  DateTime    @db.Timestamptz(3)
+  format        ScrimFormat
+  rankMin       Rank
+  rankMax       Rank
+  maps          String[]
+  // Ended by the captain, by accepting a request in it, by a ban or a dissolution; null = running
+  // until lastStartsAt is too soon.
+  endedAt       DateTime?   @db.Timestamptz(3)
+  createdAt     DateTime    @db.Timestamptz(3)
+
+  requests ScrimRequest[]
+
+  @@index([endedAt, lastStartsAt])
+  @@index([teamId])
 }
 
 model Application {
