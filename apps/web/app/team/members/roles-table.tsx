@@ -19,6 +19,12 @@ function rightRows(t: Text): { right: string; cells: [Cell, Cell, Cell, Cell] }[
       cells: [t.defaultOn, t.optional, t.optional, t.optional],
     },
     { right: t.rights.requestNotifications, cells: [true, false, false, false] },
+    // Every member, without verification (SPEC N-28).
+    { right: t.rights.messages, cells: [true, true, true, true] },
+    {
+      right: t.rights.messageNotifications,
+      cells: [t.defaultOn, t.optional, t.optional, t.optional],
+    },
     { right: t.rights.requests, cells: ["✓¹", false, false, false] },
     { right: t.rights.directRequests, cells: ["✓¹", false, false, false] },
     { right: t.rights.readyToday, cells: ["✓¹", false, false, false] },

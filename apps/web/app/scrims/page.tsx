@@ -118,6 +118,14 @@ export default async function ScrimsPage({
     bewerbungen: mine.applications.length,
     vergangen: mine.past.length,
   };
+  // Unread messages in a thread behind the tab (SPEC N-28).
+  const unread: Record<TabKey, boolean> = {
+    board: false,
+    anstehend: mine.upcoming.some((scrim) => scrim.unread),
+    anfragen: [...mine.requests, ...mine.incoming].some((request) => request.unread),
+    bewerbungen: mine.applications.some((application) => application.unread),
+    vergangen: mine.past.some((scrim) => scrim.unread),
+  };
   const feedbackDue = mine.past.find((scrim) => scrim.canGiveFeedback);
   const labels = tabLabels(t);
   const empty = emptyStates(t);
@@ -166,7 +174,12 @@ export default async function ScrimsPage({
           href: tabHref(key),
           label: labels[key],
           active: key === tab,
-          trailing: <span className="font-label text-[11px] text-faint">{counts[key]}</span>,
+          trailing: (
+            <>
+              <span className="font-label text-[11px] text-faint">{counts[key]}</span>
+              {unread[key] ? <UnreadDot label={t.newMessages} /> : null}
+            </>
+          ),
         }))}
       />
 
@@ -328,10 +341,13 @@ async function Upcoming({ mine, ownTeam }: { mine: MyScrims; ownTeam: AvatarTeam
         >
           <Link href={`/scrims/${scrim.id}`} className="group flex flex-col gap-[18px]">
             <div className="flex items-center justify-between gap-2.5">
-              <Badge variant="success">
-                <BadgeDot />
-                {t.confirmed}
-              </Badge>
+              <span className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="success">
+                  <BadgeDot />
+                  {t.confirmed}
+                </Badge>
+                {scrim.unread ? <Badge variant="accent">{t.newMessages}</Badge> : null}
+              </span>
               <span className="font-label text-[13px]">
                 {describeStartShort(scrim.startsAt, locale)}
               </span>
@@ -437,13 +453,14 @@ async function IncomingRequests({ mine }: { mine: MyScrims }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-border pt-3.5">
-        {request.readyWindow ? (
-          <Badge>{ready.badge}</Badge>
-        ) : request.weeklyUntil ? (
-          <Badge>{t.weekly}</Badge>
-        ) : (
-          <span />
-        )}
+        <span className="flex flex-wrap items-center gap-1.5">
+          {request.readyWindow ? (
+            <Badge>{ready.badge}</Badge>
+          ) : request.weeklyUntil ? (
+            <Badge>{t.weekly}</Badge>
+          ) : null}
+          {request.unread ? <Badge variant="accent">{t.newMessages}</Badge> : null}
+        </span>
         <span className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-text">
           {t.answerNow}
           <ChevronRightIcon strokeWidth={2.5} />
@@ -484,6 +501,7 @@ async function OpenRequests({ mine }: { mine: MyScrims }) {
               {request.weekly || request.weeklyUntil ? <Badge>{t.weekly}</Badge> : null}
               {/* For a start time in another team's window (SPEC N-27). */}
               {request.readyWindow ? <Badge>{ready.badge}</Badge> : null}
+              {request.unread ? <Badge variant="accent">{t.newMessages}</Badge> : null}
               <Badge variant="accent">{t.open}</Badge>
             </span>
           </div>
@@ -634,6 +652,7 @@ async function Applications({ mine }: { mine: MyScrims }) {
               {formatFormat(application.format, locale)}
             </span>
           </div>
+          {application.unread ? <Badge variant="accent">{t.newMessages}</Badge> : null}
           {application.status === "PENDING" ? (
             <Badge variant="warning">
               <BadgeDot />
@@ -667,6 +686,7 @@ async function Past({ mine }: { mine: MyScrims }) {
                   : ` · ${SCRIM_STATUS_LABELS[locale][scrim.status]}`}
               </span>
             </div>
+            {scrim.unread ? <Badge variant="accent">{t.newMessages}</Badge> : null}
             {scrim.canGiveFeedback ? (
               <span className={buttonVariants({ size: "sm", className: "shrink-0" })}>
                 {t.giveFeedback}
@@ -706,4 +726,9 @@ async function Past({ mine }: { mine: MyScrims }) {
       })}
     </div>
   );
+}
+
+/** A tab with unread messages behind it (SPEC N-28). */
+function UnreadDot({ label }: { label: string }) {
+  return <span role="img" aria-label={label} className="size-1.5 rounded-full bg-primary" />;
 }

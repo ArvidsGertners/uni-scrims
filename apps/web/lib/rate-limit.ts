@@ -1,4 +1,5 @@
-// Per-IP limits for the account actions (ARCHITECTURE §5.8) and team logo uploads (§5.11). Server actions call Better Auth on the
+// Per-IP limits for the account actions (ARCHITECTURE §5.8) and team logo uploads (§5.11), per user
+// for messages between teams (§5.30). Server actions call Better Auth on the
 // server, where its own rate limiter does not run, so they count here. One web instance (§6.2), so
 // memory is enough; a restart starts over.
 import { headers } from "next/headers";
@@ -12,6 +13,7 @@ type Rule = { max: number; windowMs: number };
  * Logging in and registering: 5 per minute; requesting a mail: 3 per minute (SPEC N-3). Codes of
  * the staff 2FA, set up and login (§5.9): 10 per minute, as one setup alone takes several, and the
  * plugin locks brute force itself. Team logo uploads (§5.11): 5 per minute, as each costs image work.
+ * Messages between teams (SPEC N-28): 20 per minute and user.
  */
 export const RATE_LIMITS = {
   login: { max: 5, windowMs: 60_000 },
@@ -19,6 +21,7 @@ export const RATE_LIMITS = {
   mail: { max: 3, windowMs: 60_000 },
   code: { max: 10, windowMs: 60_000 },
   logo: { max: 5, windowMs: 60_000 },
+  message: { max: 20, windowMs: 60_000 },
 } satisfies Record<string, Rule>;
 
 /** The answer of an action over its limit, in the language of the request (§5.21). */
@@ -62,4 +65,9 @@ export async function clientIp(): Promise<string> {
 /** takeAttempt for the calling request's IP. */
 export async function allowAttempt(action: keyof typeof RATE_LIMITS): Promise<boolean> {
   return takeAttempt(`${action}:${await clientIp()}`, RATE_LIMITS[action], Date.now());
+}
+
+/** takeAttempt for a signed-in user, whatever the IP (messages, §5.30). */
+export function allowUserAttempt(action: keyof typeof RATE_LIMITS, userId: string): boolean {
+  return takeAttempt(`${action}:user:${userId}`, RATE_LIMITS[action], Date.now());
 }

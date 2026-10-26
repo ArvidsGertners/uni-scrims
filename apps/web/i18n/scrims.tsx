@@ -45,6 +45,8 @@ export const scrimsPageMessages = dictionary(
     title: "Scrims",
     feedbackDue: (opponent: string) => `Wie war's gegen ${opponent}?`,
     giveQuickFeedback: "Kurzes Feedback geben",
+    /** Unread messages of the other team in a thread (SPEC N-28): badge on cards, dot on tabs. */
+    newMessages: "Neue Nachrichten",
     tabs: {
       board: "Board",
       upcoming: "Anstehend",
@@ -148,6 +150,7 @@ export const scrimsPageMessages = dictionary(
     title: "Scrims",
     feedbackDue: (opponent) => `How did it go against ${opponent}?`,
     giveQuickFeedback: "Give quick feedback",
+    newMessages: "New messages",
     tabs: {
       board: "Board",
       upcoming: "Upcoming",

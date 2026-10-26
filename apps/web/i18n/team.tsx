@@ -335,6 +335,8 @@ export const rolesTableMessages = dictionary(
       seeActivity: "Scrims, Anfragen und Bewerbungen des Teams sehen",
       scrimNotifications: "Benachrichtigungen zu Scrims (Buchung, Absage, Erinnerung, Feedback)",
       requestNotifications: "Benachrichtigungen zu Anfragen und Bewerbungen",
+      messages: "Nachrichten mit anderen Teams lesen, schreiben, eigene löschen und fremde melden",
+      messageNotifications: "Benachrichtigung über neue Nachrichten anderer Teams",
       requests:
         "Anfragen erstellen (auch wöchentliche) und beenden, bewerben, bestätigen, absagen, Feedback geben",
       directRequests:
@@ -370,6 +372,8 @@ export const rolesTableMessages = dictionary(
       seeActivity: "See the team's scrims, requests and applications",
       scrimNotifications: "Notifications about scrims (booking, cancellation, reminder, feedback)",
       requestNotifications: "Notifications about requests and applications",
+      messages: "Read and write messages with other teams, delete own ones and report others",
+      messageNotifications: "Notifications about new messages from other teams",
       requests:
         "Create requests (also weekly ones) and end them, apply, accept, cancel, give feedback",
       directRequests: "Send, accept and decline direct requests, end fixed partnerships",

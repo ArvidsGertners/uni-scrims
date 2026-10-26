@@ -13,6 +13,7 @@ import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { DiscordContact } from "@/components/discord-contact";
+import { MessageThread } from "@/components/message-thread";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { SwitchTeamHint } from "@/components/switch-team-hint";
 import { TeamLinks } from "@/components/team-links";
@@ -20,6 +21,8 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { toWireConversation } from "@/lib/realtime/bus";
+import { realtimePublicUrl } from "@/lib/realtime/config";
 import { rematchHref } from "@/lib/rematch";
 import { SCRIM_STATUS_LABELS, formatFormat, formatMaps } from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
@@ -27,6 +30,7 @@ import { cancelScrimAction } from "../actions";
 import { FeedbackForm } from "./feedback-form";
 import { getLocale, getMessages, getText } from "@/lib/locale";
 import { scrimDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
+import { messageThreadMessages } from "@/i18n/scrims-client";
 import type { Locale } from "@uni-scrims/core/config/locale";
 
 function outcomes(locale: Locale) {
@@ -60,6 +64,17 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   }
 
   const when = `${describeStartShort(scrim.startsAt, locale)} · ${formatFormat(scrim.format, locale)}`;
+  const threads = await getMessages(messageThreadMessages);
+  // The thread with the opponent, continued from the application or direct request (SPEC N-28).
+  const thread = scrim.conversation ? (
+    <section className="flex flex-col gap-3">
+      <h2 className="type-h2">{threads.title(scrim.opponent.name)}</h2>
+      <MessageThread
+        initial={toWireConversation(scrim.conversation)}
+        realtimeUrl={realtimePublicUrl()}
+      />
+    </section>
+  ) : null;
 
   // Feedback due: the page is the feedback screen of the design handoff.
   if (scrim.canGiveFeedback) {
@@ -81,6 +96,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
           outcomes={outcomes(locale)}
           ratings={RATINGS}
         />
+        {thread}
       </PageMain>
     );
   }
@@ -165,6 +181,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
               </p>
             </div>
           ) : null}
+          {thread}
         </div>
         <div className="flex min-w-0 flex-col gap-7">
           <section className="flex flex-col gap-2.5">

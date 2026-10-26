@@ -9,9 +9,11 @@ import { cn } from "cn";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
+import { ApplicationThread } from "@/components/application-thread";
 import { BackLink } from "@/components/back-link";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
+import { MessageThread } from "@/components/message-thread";
 import { CheckIcon, ShieldCheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
@@ -21,6 +23,8 @@ import { SwitchTeamHint } from "@/components/switch-team-hint";
 import { TeamLinks } from "@/components/team-links";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { toWireConversation } from "@/lib/realtime/bus";
+import { realtimePublicUrl } from "@/lib/realtime/config";
 import { requirePageUser } from "@/lib/session";
 import {
   REQUEST_STATUS_LABELS,
@@ -39,9 +43,18 @@ import {
 import { getLocale, getMessages, getText } from "@/lib/locale";
 import { formatMessages, fullyVerifiedMessages } from "@/i18n/format";
 import { readyWindowMessages, requestDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
+import { messageThreadMessages } from "@/i18n/scrims-client";
 
-export default async function RequestPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RequestPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  // The thread a notification links to (SPEC N-28): ?chat=<guest team>.
+  const { chat } = await searchParams;
   const user = await requirePageUser(`/requests/${id}`);
   const request = await getRequestDetail({ userId: user.id, requestId: id, now: new Date() });
   const text = await getText();
@@ -50,7 +63,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const ready = await getMessages(readyWindowMessages);
   const shared = await getMessages(scrimSharedMessages);
   const verified = await getMessages(fullyVerifiedMessages);
+  const threads = await getMessages(messageThreadMessages);
   if (!request) notFound();
+  const realtimeUrl = realtimePublicUrl();
 
   const { direct } = request;
   // A direct request shows the other team in the head (SPEC N-26): the requesting team to the
@@ -83,7 +98,11 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   // shows its status, and a booked one links to the scrim.
   const directOpen = direct !== null && request.open;
   const hasActions = Boolean(
-    request.apply || ownApplication || (request.applications && !direct) || directOpen,
+    request.apply ||
+    ownApplication ||
+    (request.applications && !direct) ||
+    directOpen ||
+    request.conversation,
   );
 
   return (
@@ -382,6 +401,21 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
               </section>
             ) : null}
 
+            {/* The thread with the other team (SPEC N-28): an applicant's or a direct request's; the
+                creating team of a board request has one per application below. */}
+            {request.conversation ? (
+              <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+                <h2 className="type-label text-muted-foreground">
+                  {threads.title(request.conversation.otherTeam.name)}
+                </h2>
+                <MessageThread
+                  initial={toWireConversation(request.conversation)}
+                  realtimeUrl={realtimeUrl}
+                  focus={chat === request.conversation.guestTeamId}
+                />
+              </section>
+            ) : null}
+
             {request.applications && !direct ? (
               <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                 <h2 className="type-label text-muted-foreground">
@@ -446,6 +480,13 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       <p className="text-[14px] text-muted-foreground">
                         {text(application.teamProblem)}
                       </p>
+                    ) : null}
+                    {application.conversation ? (
+                      <ApplicationThread
+                        initial={toWireConversation(application.conversation)}
+                        realtimeUrl={realtimeUrl}
+                        focus={chat === application.team.id}
+                      />
                     ) : null}
                     {application.canConfirm ? (
                       <ActionForm
