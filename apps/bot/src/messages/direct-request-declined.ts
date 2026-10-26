@@ -7,9 +7,17 @@ export function directRequestDeclined(
   f: TextFormat,
   t: BotMessages,
 ): MessageParts {
+  const from = team(message.payload.teamName, f);
+  // Declined with the end of a window "Heute spielbereit" (SPEC N-27).
+  const reason = message.payload.readyWindow;
   return {
     title: t.directRequestDeclined.title,
-    description: t.directRequestDeclined.description(team(message.payload.teamName, f)),
+    description:
+      reason === "BOOKED"
+        ? t.directRequestDeclined.readyWindowBooked(from)
+        : reason === "ENDED"
+          ? t.directRequestDeclined.readyWindowEnded(from)
+          : t.directRequestDeclined.description(from),
     fields: [startField(message.payload.startsAt, message.locale)],
     link: { label: t.links.view, path: `/requests/${message.requestId}` },
   };

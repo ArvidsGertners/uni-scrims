@@ -66,6 +66,18 @@ describe("buildMail", () => {
     expect(mail.text).toContain("weil „Scrim gebucht“ in deinen Einstellungen per E-Mail");
   });
 
+  it("says why a request for a window Heute spielbereit was declined (SPEC N-27)", () => {
+    const message = {
+      ...sample(NotifType.DIRECT_REQUEST_DECLINED),
+      payload: { ...requestPayload, readyWindow: "BOOKED" },
+    } as OutboxMessage;
+    const mail = buildMail(message, "ana@example.org", BASE_URL);
+    expect(mail.subject).toBe("Direktanfrage abgelehnt");
+    expect(mail.text).toContain(
+      "Die *Bären* hat für heute schon einen Gegner. Eure Anfrage für ihr Zeitfenster ist damit abgelehnt.",
+    );
+  });
+
   it("puts the reason of a rejection in the text", () => {
     const mail = buildMail(sample(NotifType.VERIFICATION_RESULT), "ana@example.org", BASE_URL);
     expect(mail.subject).toBe("Verifizierung abgelehnt");

@@ -12,12 +12,14 @@ export function directRequestReceived(
   const from = team(payload.teamName, f);
   return {
     title: t.directRequestReceived.title,
-    description: payload.weeklyUntil
-      ? t.directRequestReceived.weeklyDescription(
-          from,
-          formatBerlinDate(new Date(payload.weeklyUntil), locale),
-        )
-      : t.directRequestReceived.description(from),
+    description: payload.readyWindow
+      ? t.directRequestReceived.readyWindowDescription(from)
+      : payload.weeklyUntil
+        ? t.directRequestReceived.weeklyDescription(
+            from,
+            formatBerlinDate(new Date(payload.weeklyUntil), locale),
+          )
+        : t.directRequestReceived.description(from),
     fields: [
       startField(payload.startsAt, locale),
       { name: t.fields.format, value: SCRIM_FORMAT_LABELS[locale][payload.format] },

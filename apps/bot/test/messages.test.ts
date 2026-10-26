@@ -198,6 +198,30 @@ describe("direct requests and fixed partners (SPEC N-26)", () => {
       "(jeden Donnerstag)",
     );
   });
+
+  it("tells about requests for a window Heute spielbereit (SPEC N-27)", () => {
+    const received = sample(NotifType.DIRECT_REQUEST_RECEIVED, {
+      payload: { ...requestPayload, format: "BO3", weeklyUntil: null, readyWindow: true },
+    });
+    expect(embedOf(received)).toMatchObject({
+      title: "Neue Direktanfrage",
+      description:
+        "**Die Bären** fragt euch für euer Zeitfenster „Heute spielbereit“ an. Nehmt die Anfrage auf der Seite an oder lehnt sie ab; mit einer Zusage endet euer Zeitfenster.",
+    });
+    const declined = (readyWindow: "BOOKED" | "ENDED") =>
+      embedOf(
+        sample(NotifType.DIRECT_REQUEST_DECLINED, { payload: { ...requestPayload, readyWindow } }),
+      ).description;
+    expect(declined("BOOKED")).toBe(
+      "**Die Bären** hat für heute schon einen Gegner. Eure Anfrage für ihr Zeitfenster ist damit abgelehnt.",
+    );
+    expect(declined("ENDED")).toBe(
+      "**Die Bären** ist heute doch nicht mehr spielbereit. Eure Anfrage für ihr Zeitfenster ist damit abgelehnt.",
+    );
+    expect(embedOf(sample(NotifType.DIRECT_REQUEST_DECLINED)).description).toBe(
+      "**Die Bären** hat eure Direktanfrage abgelehnt.",
+    );
+  });
 });
 
 describe("buildMessage in English (§5.22)", () => {
@@ -226,6 +250,35 @@ describe("buildMessage in English (§5.22)", () => {
       ...(embed.fields ?? []).flatMap((field) => [field.name, field.value]),
     ];
     for (const text of texts) expect(text, `${type}: ${text}`).not.toMatch(GERMAN);
+  });
+
+  it("writes the variants for a window Ready today in English", () => {
+    const texts = [
+      embedOf(
+        english(NotifType.DIRECT_REQUEST_RECEIVED, {
+          payload: {
+            teamName: "Team A",
+            startsAt: STARTS_AT,
+            format: "BO3",
+            weeklyUntil: null,
+            readyWindow: true,
+          },
+        }),
+      ).description,
+      ...(["BOOKED", "ENDED"] as const).map(
+        (readyWindow) =>
+          embedOf(
+            english(NotifType.DIRECT_REQUEST_DECLINED, {
+              payload: { teamName: "Team A", startsAt: STARTS_AT, readyWindow },
+            }),
+          ).description,
+      ),
+    ];
+    expect(texts).toEqual([
+      "**Team A** is asking you for your “Ready today” window. Accept or decline the request on the site; accepting one ends your window.",
+      "**Team A** already has an opponent for today, so your request for their window is declined.",
+      "**Team A** is no longer ready to play today, so your request for their window is declined.",
+    ]);
   });
 
   it("shows start, format and the opponent's captain in English", () => {

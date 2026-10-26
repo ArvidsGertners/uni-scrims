@@ -61,10 +61,19 @@ const de = {
     /** `until`: the date of the last scrim of the proposed partnership. */
     weeklyDescription: (team: string, until: string) =>
       `${team} schlägt euch eine feste Partnerschaft vor: jede Woche zur selben Zeit bis ${until}. Nehmt ihr an, wird jeder Termin von selbst gebucht.`,
+    // For a start time in the team's window "Heute spielbereit" (SPEC N-27).
+    readyWindowDescription: (team: string) =>
+      `${team} fragt euch für euer Zeitfenster „Heute spielbereit“ an. Nehmt die Anfrage auf der Seite an oder lehnt sie ab; mit einer Zusage endet euer Zeitfenster.`,
   },
   directRequestDeclined: {
     title: "Direktanfrage abgelehnt",
     description: (team: string) => `${team} hat eure Direktanfrage abgelehnt.`,
+    // The other requests of a window "Heute spielbereit" (SPEC N-27): the team accepted another
+    // one or ended the window.
+    readyWindowBooked: (team: string) =>
+      `${team} hat für heute schon einen Gegner. Eure Anfrage für ihr Zeitfenster ist damit abgelehnt.`,
+    readyWindowEnded: (team: string) =>
+      `${team} ist heute doch nicht mehr spielbereit. Eure Anfrage für ihr Zeitfenster ist damit abgelehnt.`,
   },
   partnershipEnded: {
     title: "Feste Partnerschaft beendet",
@@ -161,10 +170,16 @@ export const BOT_MESSAGES = dictionary(de, {
       `${team} is asking you directly for a scrim. Accept or decline the request on the site.`,
     weeklyDescription: (team, until) =>
       `${team} proposes a fixed partnership: every week at the same time until ${until}. If you accept, every date is booked automatically.`,
+    readyWindowDescription: (team) =>
+      `${team} is asking you for your “Ready today” window. Accept or decline the request on the site; accepting one ends your window.`,
   },
   directRequestDeclined: {
     title: "Direct request declined",
     description: (team) => `${team} declined your direct request.`,
+    readyWindowBooked: (team) =>
+      `${team} already has an opponent for today, so your request for their window is declined.`,
+    readyWindowEnded: (team) =>
+      `${team} is no longer ready to play today, so your request for their window is declined.`,
   },
   partnershipEnded: {
     title: "Fixed partnership ended",
