@@ -13,7 +13,7 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: ✅ **R2 Decoding: charges + ult points** done 2026-10-27, **waiting for the user's OK**. `pnpm test` and `pnpm lint` green, `/code-review` findings fixed.
+- **Phase**: ✅ **R2 Decoding: charges + ult points** done 2026-10-27, **the user's OK on 2026-10-27**. `pnpm test` and `pnpm lint` green, `/code-review` findings fixed.
 - **Next phase**: **R3 Decoding: utility rotation, tripwire, turret** (needs the Cypher/Killjoy replay to finish).
 - **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.1.1`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
 - **Waiting for the user**:
@@ -48,6 +48,8 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 ### Log
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27: the user gave the OK for R2. Proposed next: split R3 into R3a (deployables of the agents in our replays) and R3b (Cypher tripwire, KJ turret, Cypher camera once a replay with them exists); waiting for the user's decision.
 
 - 2026-10-27, R2 review fixes (`/code-review`):
   - Fork `ce81b70`, tag `us-v0.2.1`: C/Q/E from the GUID offset to the melee slot (+4/+8/+12) instead of the rank, so a slot without contents shifts nothing; changes compared per ability actor and in time order; every charge row carries its `actor` (two passives stay apart); no ult row before the points are known (no made-up 0); unreadable unnamed charge rows and out-of-range GUIDs are counted as unresolved.
