@@ -2,9 +2,54 @@
 
 Status: concept, 2026-10-27, with the user's decisions on all open questions (§11). Building is allowed; going live waits for Riot's answer. Not part of SPEC/ARCHITECTURE yet. Before building, this becomes one or more phases in ARCHITECTURE §11 (in German, like the rest of the docs) and needs the user's go-ahead. Roadmap slot: "VOD review", the last item after the Riot/Uniliga/OPL integrations.
 
+## 0. Progress log
+
+**This section is updated at every step**:
+- when a phase starts (status 🟡, date)
+- after every commit (commit hash, what's done, what's next)
+- when a phase is finished (status ✅, date, the user's OK)
+
+A new session starts by reading only §0, the "Current state" block and the section of the current phase in §10. That's enough to continue without the rest of the history.
+
+### Current state
+
+- **Phase**: none started. Next: **R0 Spike test**. It needs a `.vrf` from a custom game with replay recording on, from the user.
+- **Last commit**: —
+- **Next step**: the user records a custom scrim with recording on and hands over the `.vrf`.
+- **Open problems**: —
+
+### Phases
+
+Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
+
+| Phase | Title | Status | Started | Finished | Commits | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| R0 | Spike test | ⬜ | | | | |
+| R1 | Parser fork + WASM build | ⬜ | | | | |
+| R2 | Decoding: charges + ult points | ⬜ | | | | |
+| R3 | Decoding: utility rotation, tripwire, turret | ⬜ | | | | |
+| R4 | Decoding: kill details + round results | ⬜ | | | | |
+| R5 | Replay JSON + reducer + Web Worker | ⬜ | | | | |
+| R6 | Game assets (maps, icons, transforms) | ⬜ | | | | |
+| R7 | Scrims tab "Replays" + local viewer shell | ⬜ | | | | |
+| R8 | Playback: timeline, speeds, round strip | ⬜ | | | | |
+| R9 | Live data: player cards, kill feed, scoreboard | ⬜ | | | | |
+| R10 | Utility on the map | ⬜ | | | | |
+| R11 | Saving: upload, storage, 90 days | ⬜ | | | | |
+| R12 | Drawing tools (local) | ⬜ | | | | |
+| R13 | Live collaboration board | ⬜ | | | | |
+| R14 | Polish: mobile, DE/EN, performance | ⬜ | | | | |
+| Go-live | Deploy | ⏸ | | | | Only after Riot answers |
+
+### Log
+
+Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27: concept written, user decisions (§11) added, phases planned for one session each, placement under Scrims decided.
+
 ## 1. Goal
 
-After a scrim, both teams can watch it again as a 2D top-down replay on the scrim page, and draw on it to review rounds.
+After a scrim, both teams can watch it again as a 2D top-down replay and draw on it to review and plan rounds. The replay viewer/planner lives in the **Scrims** section of the sidebar (§6.1).
 
 ### Requirements
 
@@ -70,7 +115,7 @@ Yes. The hosted viewer on valorantscout.com already shows almost the whole list 
 | **Tripwire anchors, turret facing, rotation of deployables** | replicated actor rotation and properties | 🔧 **own decoding** (vrfkit documents positions only) |
 | Player labels | the replay only holds account UUIDs | ✅ agent names now; real names later via the Riot API, see §9 |
 
-✅ = available in an existing parser. 🔧 = we decode or derive it ourselves. The 🔧 items are part of the scope. The first phase (§10, A) finds out exactly where they sit in the replay, not whether we build them.
+✅ = available in an existing parser. 🔧 = we decode or derive it ourselves. The 🔧 items are part of the scope. The first phase (§10, R0) finds out exactly where they sit in the replay, not whether we build them.
 
 ## 3. Existing projects
 
@@ -99,7 +144,7 @@ Viewer (canvas + SVG) ◀── fetch JSON ──────── permission c
 - **Parsing happens in the browser**, in a Web Worker running vrfkit compiled to WebAssembly. This is the same approach valorantscout uses. The `.vrf` never leaves the player's PC. The VPS does no heavy work: a full decode can take more than 1 GB of RAM, and parallel load has already frozen the server once. Fallback, if the WASM build fails or is too slow: a small download (`uni-scrims-replay.exe`) that writes the JSON locally for upload.
 - **Saving is optional.**
   - After parsing, the replay plays at once in the browser, without any upload. It is local only and gone on reload.
-  - The option "Save for both teams" uploads it to the scrim.
+  - The option "Save for both teams" uploads it and attaches it to one of the team's past scrims (picked from a list).
   - Only the reduced replay JSON is uploaded, gzip-compressed, with a size limit (target well below 5 MB per match).
 - **Storage**: a new model `ScrimReplay`, one per scrim, holding uploader, game version, upload date and the file path. The file lives under `UPLOAD_DIR`, like team logos. All logic sits in `packages/core` (validate the JSON schema, attach to the scrim, delete). `apps/web` only calls `core`.
 - **Permissions** go through `core/permissions.ts`:
@@ -154,6 +199,22 @@ Viewer (canvas + SVG) ◀── fetch JSON ──────── permission c
 The viewer state at time `t` = the latest value of every state stream up to `t`, plus interpolated positions. Per round, keyframes every 5 s make scrubbing instant.
 
 ## 6. Viewer UI
+
+### 6.1 Place in the navigation
+
+The viewer/planner sits under **Scrims** in the sidebar. There is no new sidebar entry.
+
+- **A new tab "Replays"** on `/scrims` (`?tab=replays`, next to Board, Anstehend, Anfragen, Bewerbungen, Vergangen):
+  - the team's saved replays (scrim, opponent, map, score, date, uploader, days until deletion)
+  - a button "Open replay file" for a local `.vrf`
+- **Viewer routes**: `/replays/local` (a parsed file that wasn't saved) and `/replays/[id]` (a saved replay).
+  - `"/replays"` is added to the Scrims entry's `sections` in `apps/web/components/app-nav.tsx`, so the sidebar keeps Scrims highlighted, like `/requests` and `/ready` today.
+  - The viewer page uses the full width of the content area. The chat sidebar is hidden there.
+- **Links into it**:
+  - a past scrim's page (`/scrims/[id]`) shows "Watch replay" when a saved replay exists, and "Add replay" otherwise
+  - the Vergangen tab shows a small replay icon on scrims that have one
+
+### 6.2 Layout
 
 The reference is the [valorantscout.com viewer](https://valorantscout.com/valorant-replays): clean, with the map at the centre and live player data.
 
@@ -281,7 +342,7 @@ A toolbar next to the map, used mostly on a paused frame, like valorantscout's "
 
 - The replay system first excluded custom games.
 - An unofficial report (patch 12.10) says custom games now get a replay **only when the lobby owner enables recording in the custom options before every game**.
-- Verify this in phase A. If it's true, the scrim page reminds the hosting team to turn recording on.
+- Verify this in phase R0. If it's true, the scrim page reminds the hosting team to turn recording on.
 
 **Replays expire**
 
@@ -298,18 +359,158 @@ The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot 
 
 ## 10. Phases
 
-| Phase | Content | Done when |
-| --- | --- | --- |
-| A — Spike test | Offline, no Uni Scrims code. Record a real custom scrim with recording on, run vrfkit on it, find the replicated properties for charges, ult points, tripwire anchors, turret/deployable rotation, kill weapon/assists/headshot/wallbang | Every 🔧 item in §2 is located in a real replay, and custom-game recording is confirmed |
-| B — Parser | vrfkit fork with the 🔧 decoding, WASM build, reducer to the replay JSON (§5), tests against recorded replays | A real scrim converts to valid JSON in the browser |
-| C — Upload and storage | Local playback without saving, optional "Save for both teams", `ScrimReplay`, schema validation, permissions, deletion after 90 days, data export | Every member of both teams can upload/see/delete, others can't; old replays disappear after 90 days |
-| D — Viewer core | Map with positions and view cones, timeline, speeds, scrubbing, keyframes, round strip with scores | A full match plays at 0.5×–4× without stutter |
-| E — Live data | Kill feed, player cards (agent, HP/armour, weapon, charges, ult, spike), scoreboard | Every value matches the in-game replay at sampled moments |
-| F — Utility | Smokes, walls, mollies, traps; tripwires, turrets, cameras and other deployables with orientation | Every agent's utility shows correctly on a test replay |
-| G — Drawing tools | All tools from §7, colours, side tag + filter, undo/redo, live collaboration over `/ws`, saving | Two team members draw at the same time and see each other's changes live; after a reload everything is still there; the other team sees nothing |
-| H — Polish | Mobile layout, keyboard shortcuts, DE/EN, privacy texts | `pnpm test` + `pnpm lint` green, user OK |
+### Rules: keep each phase small enough for one session
 
-Each phase follows the usual pattern: SPEC/ARCHITECTURE first, one phase at a time, review, then the user's OK. All phases can be built and tested locally/on dev. The deploy to production waits for Riot's answer.
+- **One phase = one session.** Each phase below fits one context window: about 5–15 files, one topic, its own tests.
+  - If a phase turns out bigger, split it (R8a, R8b, …), note the split in §0 and finish only the first part.
+- **Start of a phase**: read §0 and the phase's section here, plus only the files listed for it. Don't re-read the whole doc or codebase. Set the status to 🟡 in §0.
+- **During a phase**: commit small and on topic. After every commit, add a log line in §0 and update "Current state".
+- **End of a phase**:
+  - `pnpm test` and `pnpm lint` green (one at a time on the VPS)
+  - `/code-review`
+  - status ✅ in §0
+  - wait for the user's OK
+- **Docs per phase**: R0–R4 change only this doc and the parser fork. From R5 on, each phase first adds its part to SPEC/ARCHITECTURE (German, ARCHITECTURE §11), as usual.
+- **No deploy** of any phase to production before Riot answers (§11). Everything is built and tested on dev.
+- Heavy jobs (Rust/WASM builds, tests, lint, Docker builds) never run in parallel on the VPS.
+
+### R0 — Spike test (no app code)
+
+- **Input**: a `.vrf` from a custom game with recording turned on, from the user.
+- **Work**:
+  - Run vrfkit (CLI) on it, on the VPS or the user's PC.
+  - Find where ability charges, ult points, utility rotation, tripwire anchors, turret facing, and kill weapon/assists/headshot/wallbang sit (actor classes, replicated properties).
+  - Check positions + yaw, and the round/score events.
+- **Output**: `docs/replay-viewer-findings.md` with every 🔧 item from §2 and where it is found. A short sample of the data.
+- **Done when**: custom-game recording is confirmed and every 🔧 item is located, or the finding says exactly what is missing.
+
+### R1 — Parser fork + WASM build
+
+- **Work**:
+  - Fork vrfkit as its own repo (`uni-scrims-replay-parser`, Apache-2.0 notice kept).
+  - A small Rust crate on top of it that exposes `parse(bytes) → events` to JavaScript via `wasm-bindgen`.
+  - A build script (`wasm-pack`, exact pinned versions).
+- **Into Uni Scrims**: a new package `packages/replay-parser` with the built `.wasm` + JS glue, pinned to a fork version, and a short README on how to rebuild.
+- **Done when**: a Node test loads the WASM and parses the R0 replay into events. Peak memory and time are written into §0.
+
+### R2 — Decoding: ability charges + ult points
+
+- **Work**: in the fork, decode the replicated charge and ult properties found in R0. Emit `ability` (slot, charges) and `ult` (points, max) events. Fork tests on the R0 replay.
+- **Done when**: at 5 sampled moments, charges and ult points match the in-game replay.
+
+### R3 — Decoding: utility rotation, tripwire, turret
+
+- **Work**:
+  - Decode actor rotation for deployables.
+  - Decode tripwire anchors (both ends), KJ turret facing, and Cypher camera / Deadlock sensor / walls with orientation.
+  - Emit `utilitySpawn` / `utilityUpdate` / `utilityEnd` events.
+- **Done when**: every deployable of the agents in the test replay shows the correct position and orientation.
+
+### R4 — Decoding: kill details + round results
+
+- **Work**:
+  - Decode the kill weapon, assists, headshot and wallbang.
+  - Derive round winner, win reason (elimination, spike, defuse, time) and score after each round, including the side switch and overtime.
+- **Done when**: the kill feed and round scores of the test replay match the in-game replay.
+
+### R5 — Replay JSON + reducer + Web Worker
+
+- **Docs first**: the replay JSON format (§5) into ARCHITECTURE.
+- **Work**:
+  - `packages/core/src/replay/`: zod schema for the format (`formatVersion` 1), and a pure function `stateAt(replay, round, t)` (positions interpolated, latest value per state stream, keyframes every 5 s).
+  - The reducer events → JSON, inside a Web Worker module in `apps/web` that loads `packages/replay-parser`.
+  - A clear error for unsupported game versions.
+- **Done when**: Vitest covers the schema and `stateAt` (fixtures cut from the R0 replay), and the Worker turns the R0 file into valid JSON under a time and size budget.
+
+### R6 — Game assets
+
+- **Work**:
+  - A script (like the rank icons) that downloads minimaps, agent/weapon/ability icons and the map transforms from valorant-api.com into the repo at a pinned game version.
+  - Served by the site itself; a small typed index (`map → image + transform`, `agent → icons`).
+- **Done when**: every current map and agent has its assets, and a test checks the index is complete. No browser request goes to a third party.
+
+### R7 — Scrims tab "Replays" + local viewer shell
+
+- **Docs first**: SPEC requirement + ARCHITECTURE section for the viewer and navigation (§6.1).
+- **Work**:
+  - New tab "Replays" on `/scrims` (empty list for now plus "Open replay file").
+  - `"/replays"` in the Scrims `sections`.
+  - Page `/replays/local`: drop zone, parsing in the Worker with progress, then the map with the players' positions at round 1, 0:00.
+  - DE/EN dictionary entries.
+- **Done when**: you can open a `.vrf` from the Scrims tab and see the right map with 10 players. The sidebar shows Scrims as active.
+
+### R8 — Playback: timeline, speeds, round strip
+
+- **Work**:
+  - Play/pause and a requestAnimationFrame clock.
+  - Speeds 0.5×/1×/2×/3×/4×.
+  - A scrubber with event markers (kill, ability, plant, defuse, round end) and hover details.
+  - The round strip with winner colour and score after each round; a click jumps to that round.
+  - Keyboard shortcuts.
+  - View cones on the players.
+- **Done when**: a full match plays at every speed without stutter, and scrubbing and round jumps are instant.
+
+### R9 — Live data: player cards, kill feed, scoreboard
+
+- **Work**:
+  - Player cards per side: agent name + icon (agent names as labels, §9), HP/armour bar, weapon, four ability slots with charges, ult x/y, spike icon, greyed out when dead, hover highlights the player on the map.
+  - Kill feed with weapon/assists/HS/wallbang.
+  - Scoreboard overlay.
+- **Done when**: values match the in-game replay at sampled moments (checklist in §0).
+
+### R10 — Utility on the map
+
+- **Work**: draw smokes, walls, mollies, slows and traps at real size and lifetime; tripwires as lines between their anchors; turret, camera and sensor with a facing cone. One small renderer per kind, so more agents can be added later.
+- **Done when**: every agent in the test replays shows its utility correctly. Missing agents are listed in §0.
+
+### R11 — Saving: upload, storage, 90 days
+
+- **Docs first**: data model, permissions table row, privacy draft.
+- **Work**:
+  - Prisma model `ScrimReplay` + migration.
+  - `core` functions: save (gzip JSON, schema check, size limit, attach to a past scrim of the team), list, load, delete (all with permission checks in `core/permissions.ts`: members of both teams).
+  - "Save for both teams" in the viewer.
+  - The Replays tab list, `/replays/[id]`, and the links from the scrim page and the Vergangen tab.
+  - Janitor deletes after 90 days (sequential, `now` parameter).
+  - Data export entry.
+  - Privacy paragraph draft (DE/EN) for the user's approval.
+- **Done when**: tests cover permissions, retention and the size limit; both teams see a saved replay and others get 404.
+
+### R12 — Drawing tools (local)
+
+- **Work**:
+  - An SVG layer in map coordinates over the canvas.
+  - Toolbar: select, pen, arrow (editable with start/end/mid handles), text, area (circle), wall (rectangle like a selection box), eraser.
+  - Colour palette, side tag + filter, undo/redo, touch.
+  - Drawings per round, optionally pinned to a timestamp.
+  - Kept in memory only in this phase.
+- **Done when**: every tool works with mouse and touch, and drawings stay in place when zooming/resizing.
+
+### R13 — Live collaboration board
+
+- **Docs first**: drawing model and the realtime messages in ARCHITECTURE.
+- **Work**:
+  - Prisma model for drawings (team, replay, round, object JSON, author, updatedAt) + migration.
+  - `core` functions with permission checks (own team only).
+  - Operations over the existing `/ws` server (add/update/delete, last write wins per object).
+  - Presence avatars of the team members viewing.
+  - Undo only undoes your own operations.
+  - Drawings deleted together with the replay.
+- **Done when**: two team members in two browsers see each other's changes live; after a reload everything is still there; the opponent team sees nothing (tested).
+
+### R14 — Polish
+
+- **Work**:
+  - Mobile layout (§6.2).
+  - Full DE/EN review.
+  - Keyboard/focus accessibility.
+  - Performance (large matches, overtime, slow devices).
+  - The hint for the hosting team to turn recording on before the scrim, and to save the replay before the Act ends.
+- **Done when**: the whole flow works on a phone and a desktop in both languages, and the user gives the OK.
+
+### Go-live
+
+Only after Riot answers (§11): privacy texts approved, deploy like any other phase.
 
 ## 11. Decisions (user, 2026-10-27)
 
@@ -323,4 +524,4 @@ Each phase follows the usual pattern: SPEC/ARCHITECTURE first, one phase at a ti
 ### Still open
 
 - Live cursors of team-mates and synchronised playback ("follow me") on the collaboration board. Not decided, so not planned.
-- Whether custom games really record a replay when the lobby owner turns it on (phase A).
+- Whether custom games really record a replay when the lobby owner turns it on (phase R0).
