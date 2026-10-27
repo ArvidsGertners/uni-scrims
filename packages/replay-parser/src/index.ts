@@ -9,6 +9,8 @@ import init, { initSync, parse, version } from "../wasm/vrf_wasm.js";
 export type ReplayPlayer = {
   /** Account UUID (Riot "subject"). */
   subject: string;
+  /** The player-state actor GUID. */
+  state: number;
   /** Character actor GUIDs (movement `character`), the current body last. */
   characters: number[];
 };
@@ -53,6 +55,31 @@ export type ReplayField = {
   str: string | null;
 };
 
+/**
+ * The in-game ability slot, named like valorant-api's `slot` (Grenade = C,
+ * Ability1 = Q, Ability2 = E); the key label comes from the agent data.
+ */
+export type AbilitySlot = "grenade" | "ability1" | "ability2" | "passive";
+
+/** A player's charges in one slot changed (temporary charges included). */
+export type ChargeChange = {
+  t: number;
+  /** Index into `players`. */
+  player: number;
+  slot: AbilitySlot;
+  charges: number;
+};
+
+/** A player's ult points or ult state changed. The replay holds no maximum. */
+export type UltChange = {
+  t: number;
+  /** Index into `players`. */
+  player: number;
+  points: number;
+  /** True while the ult is in use. */
+  active: boolean;
+};
+
 /** Decode counters, zero included. `lostContentBlocks > 0` means data is missing. */
 export type ReplayStats = {
   packets: number;
@@ -68,6 +95,10 @@ export type ReplayStats = {
   fieldRowsSeen: number;
   fieldRowsKept: number;
   movementRows: number;
+  /** Charge rows on an actor in no player's ability slot. */
+  chargeRowsUnresolved: number;
+  /** Ult rows on an actor that is no player's state. */
+  ultRowsUnresolved: number;
 };
 
 export type ReplayMeta = {
@@ -84,6 +115,10 @@ export type ReplayMeta = {
   events: ReplayEvent[];
   actors: ReplayActor[];
   fields: ReplayField[];
+  /** Every change of a player's charges, in time order; always present. */
+  abilities: ChargeChange[];
+  /** Every change of a player's ult points or state, in time order; always present. */
+  ults: UltChange[];
   stats: ReplayStats;
 };
 

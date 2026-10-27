@@ -13,8 +13,8 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: ✅ **R1 Parser fork + WASM build** done 2026-10-27, **the user's OK on 2026-10-27**. `pnpm test` 845/845 and `pnpm lint` green, `/code-review` findings fixed.
-- **Next phase**: **R2 Decoding: charges + ult points**.
+- **Phase**: 🟡 **R2 Decoding: charges + ult points**, started 2026-10-27. R1 done with the user's OK on 2026-10-27.
+- **Next step**: `pnpm test` + `pnpm lint`, `/code-review`, then ✅ and the user's OK.
 - **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.1.1`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
 - **Waiting for the user**:
   - a replay with **Cypher and Killjoy** (any mode, current build), needed to finish R3
@@ -30,7 +30,7 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 | R0 | Spike test (user's replay first, public replays second) | ✅ | 2026-10-27 | 2026-10-27 | 53faee4, e5602dd, see log | Everything found except tripwire/turret (no Cypher/KJ in the replays); 1.8 s / 169 MB → WASM ok |
 | R0b | Custom-game check with a real scrim replay | ⏸ | | | | The user's replay was probably matchmade (missions, CompetitiveTier); still waiting for a custom `.vrf`; needed before R11 |
 | R1 | Parser fork + WASM build | ✅ | 2026-10-27 | 2026-10-27 | fork `16660c4` (`us-v0.1.0`), `e6bc43c` (`us-v0.1.1`), see log | Node: 3.2 s, 300 MB peak RSS on the 60 MB match; `.wasm` 727 KB (258 KB gzip) |
-| R2 | Decoding: charges + ult points | ⬜ | | | | |
+| R2 | Decoding: charges + ult points | 🟡 | 2026-10-27 | | fork `126e7d4` (`us-v0.2.0`), see log | Plausibility check instead of the in-game comparison (user decision) |
 | R3 | Decoding: utility rotation, tripwire, turret | ⬜ | | | | |
 | R4 | Decoding: kill details + round results | ⬜ | | | | |
 | R5 | Replay JSON + reducer + Web Worker | ⬜ | | | | |
@@ -48,6 +48,16 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 ### Log
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27, R2 decoding:
+  - Fork `126e7d4`, tag `us-v0.2.0`: new `crates/vrf-wasm/src/abilities.rs`. The meta JSON gets `abilities` (player, slot, charges) and `ults` (player, points, active), `players[].state`, and the counters `chargeRowsUnresolved`/`ultRowsUnresolved`. Vyse's Shear (an unnamed `EquipmentChargeComp` group) is read by handle. Fork tests + clippy (native, wasm32) green; `.wasm` 771 KB.
+  - Uni Scrims: `wasm/` synced, types in `src/index.ts`, plausibility test on the 13.08 match (all 32 ult uses fit, per slot the charge drops follow equipping that slot's ability, nothing unresolved). Slot table in the findings doc.
+  - Next: `pnpm test`, `pnpm lint`, `/code-review`.
+
+- 2026-10-27, R2 started. User decisions: a plausibility check replaces the comparison with the in-game replay (§10 R2); `pnpm test` with the DB reset allowed for R2. Found on the 13.08 match:
+  - shown charges = `AuthResourceAmount` (temporary charges included); `AuthSignatureChargeAmount` is only a recharge flag
+  - the in-game slot is the position of the ability's `ItemSlot` on the character, not the class folder (Omen's smoke is in `Ability_4` but is E): melee, then grenade (C), ability1 (Q), ability2 (E), passive slots, defuser, ultimate
+  - the replay holds no maximum ult points; `ult.max` comes from an agent table in R6
 
 - 2026-10-27: the user gave the OK for R1. Next: R2 (charges + ult points) when the user starts it.
 
@@ -235,6 +245,7 @@ Viewer (canvas + SVG) ◀── fetch JSON ──────── permission c
         { "t": 41010, "type": "kill", "killer": "p6", "victim": "p1", "weapon": "Phantom",
           "assists": ["p8"], "headshot": true, "wallbang": false },
         { "t": 52000, "type": "ult", "player": "p2", "points": 6, "max": 7 },
+                                         // max: not in the replay, from the agent table (R6)
         { "t": 60000, "type": "spikePickup", "player": "p3" },
         { "t": 71000, "type": "plant", "player": "p3", "site": "A", "pos": [x, y] },
         { "t": 75000, "type": "utilityEnd", "id": "u7" }
@@ -460,7 +471,8 @@ The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot 
 ### R2 — Decoding: ability charges + ult points
 
 - **Work**: in the fork, decode the replicated charge and ult properties found in R0. Emit `ability` (slot, charges) and `ult` (points, max) events. Fork tests on an R0 replay.
-- **Done when**: at 5 sampled moments, charges and ult points match the in-game replay.
+  - Built: `abilities` (player, slot `grenade`/`ability1`/`ability2`/`passive`, charges) and `ults` (player, points, active). The replay holds no ult maximum; `max` comes from an agent table in R6.
+- **Done when**: ~~at 5 sampled moments, charges and ult points match the in-game replay~~ (user decision 2026-10-27: a plausibility check instead) the values fit the rest of the replay: the ult is active or spent right after every `characterUltimateUsed` of that player, and each slot's charge drops follow equipping that slot's ability. Checked in the parser test on the 13.08 match.
 
 ### R3 — Decoding: utility rotation, tripwire, turret
 

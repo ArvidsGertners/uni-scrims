@@ -86,6 +86,26 @@ New findings:
 
 New internal agent names: Cable, Pine, Smonk, Vampire. They map via the agent UUIDs in R6.
 
+## R2: charges and ult points per player (2026-10-27)
+
+Built in the fork (`vrf-wasm` 0.2.0, `crates/vrf-wasm/src/abilities.rs`); the binding returns `abilities` and `ults` per player.
+
+- **Charges** = `AuthResourceAmount` on the ability actor's charge component (`EquipmentChargeComponent`, `SignatureAbilityResourceComponent`, `Comp_Ability_GunAmmoResourceComponent_C` for Chamber's pistol). It includes temporary charges, so it is the number the HUD shows. `AuthSignatureChargeAmount` is only a recharge flag. Gun magazines (`/Script/ShooterGame.AmmoComponent`) are ignored.
+- Vyse's Shear keeps its charges in a group vrfkit only names `EquipmentChargeComp`, without field names. The handles match `EquipmentChargeComponent` (handle 2 = `AuthResourceAmount`, 32-bit LE), so the binding reads it from the raw bits. No other unnamed group holds charges (checked on both 13.08 replays).
+- **Slot**: the order of the character's `ItemSlot` subobjects (by GUID): primary, secondary, melee, **grenade (C), ability 1 (Q), ability 2 (E)**, passives, defuser, ultimate, unarmed, armour. **The class folder is not the key**:
+
+| Agent (internal) | Grenade / C | Ability 1 / Q | Ability 2 / E |
+| --- | --- | --- | --- |
+| Omen (Wraith) | `Wraith_E_ShortTeleport` | `Wraith_Q_NearsightMissile` | `Wraith_4_Smoke` |
+| Sova (Hunter) | `Hunter_E_DeployDrone` | `Hunter_4_BoltExplosive` | `Hunter_Q_RevealBolt_Signature` |
+| Phoenix | `Phoenix_Q_FireballWall` | `Phoenix_4_Molotov` | `Phoenix_E_FlareCurve` |
+| Deadlock (Cable) | `Cable_E_CableJam` | `Cable_Q_SoundSensor` | `Cable_4_NetToss` |
+| Jett (Wushu), Fade, Chamber, Astra, Vyse, Clove, Reyna, Pine | the class names happen to match the keys | | |
+
+  The viewer names the slots like valorant-api (`Grenade`, `Ability1`, `Ability2`), so the key labels and icons come from the agent data (R6). Some abilities carry no charge component (Reyna's Dismiss in the Swiftplay replay).
+- **Ult points**: `NumUltimatePoints` + `bUltimateActive` on the player state (`players[].state`). `active` turns true within 10 ms of every `characterUltimateUsed`; the points go to 0 when the ult ends. **No maximum in the replay**: `ult.max` comes from an agent table in R6.
+- **Plausibility** (instead of an in-game comparison, user decision): on the 13.08 match 919 charge rows and 297 ult rows, none unresolved; all 32 ult uses fit; 393 of 440 charge drops follow equipping an ability within 10 s, and per slot it is that slot's own ability (exceptions: Jett's dash and Astra's stars are cast without equipping).
+
 ## What this means for the phases
 
 - **R1** (fork + WASM): no blocker. `oozextract` is pure Rust and the peak memory is ~170 MB.
