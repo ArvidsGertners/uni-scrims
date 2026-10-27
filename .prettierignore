@@ -1,6 +1,7 @@
 pnpm-lock.yaml
 packages/db/src/generated/
 packages/db/prisma/migrations/
+packages/replay-parser/wasm/
 .next/
 *.md
 .agents/

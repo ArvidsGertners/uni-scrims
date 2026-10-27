@@ -1,0 +1,31 @@
+# @uni-scrims/replay-parser
+
+Parses a Valorant replay (`.vrf`) in the browser or in Node via WebAssembly. Part of the 2D replay viewer ([docs/replay-viewer.md](../../docs/replay-viewer.md), phase R1).
+
+- `wasm/`: the build of the parser fork `uni-scrims-replay-parser` (a fork of [vrfkit](https://github.com/yakisoba0728/vrfkit), Apache-2.0). Generated, never edited by hand. `wasm/source.json` names the fork tag, commit and the SHA-256 of the `.wasm`.
+- `src/index.ts`: a typed wrapper. `initParserSync(bytes)` or `await initParser(url)`, then `parseReplay(bytes, fieldNames)` → `{ meta, movement }`.
+  - `meta`: header (branch, length), players (account UUID → character GUIDs), Event chunks (kills, rounds, spike), actor opens/closes with spawn position/rotation, the requested fields, counters.
+  - `movement`: typed columns (`timeMs`, `character`, `x`, `y`, `z`, `yaw`).
+  - Only the fields named in `fieldNames` are returned. A full match has about 1.3 M field rows.
+
+## Rebuild
+
+Needs Rust 1.90.0 with the `wasm32-unknown-unknown` target and wasm-pack 0.14.0 (`cargo install wasm-pack --version 0.14.0 --locked`). The fork's `FORK.md` has the details.
+
+```sh
+cd ~/uni-scrims-replay-parser          # the fork checkout, branch uni-scrims
+git tag us-v<version>                   # = version of crates/vrf-wasm
+./scripts/build-wasm.sh                 # → pkg/
+cd ~/uni-scrims
+pnpm --filter @uni-scrims/replay-parser sync-wasm ~/uni-scrims-replay-parser
+pnpm test                               # the parser test checks the tag against the module
+```
+
+`sync-wasm` refuses a fork with uncommitted changes or a HEAD without a `us-v*` tag.
+
+## Tests
+
+`test/parse.test.ts` loads the `.wasm` in Node and parses:
+
+- the public 13.00 replay that vrfkit's CI uses, downloaded by pinned commit and SHA-256 into `node_modules/.cache/replay-fixtures/` (never committed), with the same row counts as `vrfkit export`
+- a real 13.08 match from `replays/` when present (git-ignored, real replays never go into git)

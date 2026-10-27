@@ -15,6 +15,7 @@ export default tseslint.config(
       "**/.next/**",
       "**/dist/**",
       "packages/db/src/generated/**",
+      "packages/replay-parser/wasm/**",
       "**/next-env.d.ts",
     ],
   },

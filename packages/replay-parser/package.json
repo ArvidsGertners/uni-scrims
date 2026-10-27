@@ -1,0 +1,14 @@
+{
+  "name": "@uni-scrims/replay-parser",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wasm/vrf_wasm_bg.wasm": "./wasm/vrf_wasm_bg.wasm"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "sync-wasm": "bash scripts/sync-wasm.sh"
+  }
+}
