@@ -854,6 +854,7 @@ const scrimTeamSelect = {
   bannedAt: true,
   dissolvedAt: true,
   ...teamLinksSelect,
+  ...teamLogoSelect,
   captain: { select: { id: true, name: true } },
 } satisfies Prisma.TeamSelect;
 
@@ -906,6 +907,8 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
       id: opponent.id,
       name: opponent.name,
       tag: opponent.tag,
+      /** For the avatar at the chat (SPEC N-28). */
+      logo: teamLogoInfo(opponent),
       captainName: opponent.captain.name,
       /** For the "write on Discord" link. */
       captainDiscordId: opponentCaptainDiscordId,

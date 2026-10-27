@@ -3,7 +3,7 @@
 import { INTL_LOCALES, type Locale } from "@uni-scrims/core/config/locale";
 import { MESSAGE_MAX } from "@uni-scrims/core/config/limits";
 import { cn } from "cn";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { type ReactNode, useActionState, useEffect, useRef, useState } from "react";
 import {
   deleteMessageAction,
   markConversationReadAction,
@@ -11,8 +11,12 @@ import {
   sendMessageAction,
 } from "@/app/messages/actions";
 import { useSubmitConfirmation } from "@/components/confirm-dialog";
-import { FlagIcon, LockIcon, MessageSquareIcon, SendIcon, TrashIcon } from "@/components/icons";
+import { EmptyState } from "@/components/empty-state";
+import { FlagIcon, LockIcon, MessageSquareIcon, TrashIcon } from "@/components/icons";
 import { useLocale, useMessages } from "@/components/locale-provider";
+import { Badge, BadgeDot } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { type CalendarDay, shortDayMessages } from "@/i18n/client";
 import { messageThreadMessages } from "@/i18n/scrims-client";
 import { type ActionState, initialActionState } from "@/lib/action-state";
@@ -100,28 +104,28 @@ function groupMessages(messages: WireMessage[], dividerId: string | null): Group
 }
 
 /**
- * A thread between two teams as a chat (SPEC N-28, ARCHITECTURE §5.30): live over the WebSocket,
- * grouped bubbles, the own team on the right in the accent, and the field to write at the bottom.
- * "panel" is the card at the top right of the request and scrim pages, "embedded" the folding
- * thread at an application. The page renders the first snapshot; newer ones replace it, whichever
- * way they come (push or the page after an action).
+ * One thread between two teams in the chat sidebar (SPEC N-28, ARCHITECTURE §5.30): the other team
+ * with the live status, the messages as boxes (the other team left, the own team right in the
+ * accent) and the field to write. Live over the WebSocket; the page renders the first snapshot and
+ * newer ones replace it, whichever way they come (push or the page after an action).
+ *
+ * `active` is the thread the reader sees (chosen, and on phones the sidebar open): only then it
+ * marks read and scrolls. `onUnreadChange` tells the sidebar whether it still has unread messages.
  */
 export function MessageThread({
   initial,
   realtimeUrl,
-  focus = false,
-  variant = "panel",
-  sticky = false,
-  className,
+  active,
+  avatar,
+  subtitle,
+  onUnreadChange,
 }: {
   initial: WireConversation;
   realtimeUrl: string | null;
-  /** Scrolled into view on load: the link of the notification (?chat=). */
-  focus?: boolean;
-  variant?: "panel" | "embedded";
-  /** From 1024 px it stays in view while the page scrolls; only where nothing follows it. */
-  sticky?: boolean;
-  className?: string;
+  active: boolean;
+  avatar: ReactNode;
+  subtitle?: string;
+  onUnreadChange?: (guestTeamId: string, unread: boolean) => void;
 }) {
   const t = useMessages(messageThreadMessages);
   const days = useMessages(shortDayMessages);
@@ -134,91 +138,68 @@ export function MessageThread({
   );
   // Where "Neu" stands, from the first view; marking read does not move it away while reading.
   const [dividerId] = useState(initial.firstUnreadId);
-  const [showConnecting, setShowConnecting] = useState(false);
-  useEffect(() => {
-    if (status === "open") return;
-    const timer = setTimeout(() => setShowConnecting(true), CONNECTING_HINT_DELAY_MS);
-    return () => {
-      clearTimeout(timer);
-      setShowConnecting(false);
-    };
-  }, [status]);
 
-  // Read as soon as unread messages are on a visible page (§5.30), once per newest message.
+  // Read once the reader sees unread messages on a visible page (§5.30), once per newest message;
+  // until then the sidebar shows a dot.
   const unreadUntil = conversation.firstUnreadId
     ? ([...conversation.messages].reverse().find((message) => !message.own)?.id ?? null)
     : null;
   const markedUntil = useRef<string | null>(null);
   useEffect(() => {
-    if (!unreadUntil) return;
+    if (!unreadUntil) {
+      onUnreadChange?.(guestTeamId, false);
+      return;
+    }
     const mark = () => {
-      if (document.visibilityState !== "visible" || markedUntil.current === unreadUntil) return;
-      markedUntil.current = unreadUntil;
-      void markConversationReadAction({ requestId, guestTeamId, teamId });
+      if (!active || document.visibilityState !== "visible") return;
+      if (markedUntil.current !== unreadUntil) {
+        markedUntil.current = unreadUntil;
+        void markConversationReadAction({ requestId, guestTeamId, teamId });
+      }
+      onUnreadChange?.(guestTeamId, false);
     };
+    onUnreadChange?.(guestTeamId, markedUntil.current !== unreadUntil);
     mark();
     document.addEventListener("visibilitychange", mark);
     return () => document.removeEventListener("visibilitychange", mark);
-  }, [unreadUntil, requestId, guestTeamId, teamId]);
+  }, [unreadUntil, active, requestId, guestTeamId, teamId, onUnreadChange]);
 
-  // Scroll: on load to "Neu" or the end, afterwards to the end when a message comes in while the
-  // reader is at the end anyway.
+  // Scroll: when first seen to "Neu" or the end, afterwards to the end when a message comes in
+  // while the reader is at the end anyway. A hidden thread has no height, so this waits for active.
   const list = useRef<HTMLDivElement>(null);
-  const root = useRef<HTMLElement>(null);
   const atEnd = useRef(true);
+  const seen = useRef(false);
   const count = conversation.messages.length;
   useEffect(() => {
-    // The thread a notification links to, also when it is empty by now.
-    if (focus) root.current?.scrollIntoView({ block: "center" });
     const element = list.current;
-    if (!element) return;
+    if (!active || !element) return;
+    if (seen.current) {
+      if (atEnd.current) element.scrollTop = element.scrollHeight;
+      return;
+    }
+    seen.current = true;
     const divider = dividerId ? element.querySelector("[data-unread-divider]") : null;
     if (divider instanceof HTMLElement) element.scrollTop = divider.offsetTop - 12;
     else element.scrollTop = element.scrollHeight;
-  }, [dividerId, focus]);
-  useEffect(() => {
-    const element = list.current;
-    if (element && atEnd.current) element.scrollTop = element.scrollHeight;
-  }, [count]);
+  }, [active, dividerId, count]);
 
   const groups = groupMessages(conversation.messages, dividerId);
-  const panel = variant === "panel";
   return (
     <section
-      ref={root}
-      id={`chat-${guestTeamId}`}
       aria-label={t.title(conversation.otherTeam.name)}
-      className={cn(
-        "flex min-h-0 flex-col overflow-hidden",
-        panel
-          ? "h-[min(34rem,78dvh)] rounded-lg border border-border-strong bg-card shadow-(--shadow-popup)"
-          : "h-[24rem]",
-        // Next to the scrim, the panel stays in view and takes the screen's height.
-        panel && sticky && "lg:sticky lg:top-24 lg:h-[min(42rem,calc(100dvh-8rem))]",
-        className,
-      )}
+      className="flex min-h-0 flex-1 flex-col"
     >
-      {panel ? (
-        <header className="relative flex items-center gap-3 border-b border-border px-4 py-3.5">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_140%_at_0%_0%,var(--glow-hero),transparent)]"
-          />
-          <span className="relative flex size-10 shrink-0 items-center justify-center rounded-sm bg-accent-soft text-accent-text">
-            <MessageSquareIcon size={20} />
-          </span>
-          <div className="relative flex min-w-0 flex-1 flex-col">
-            <span className="text-[17px] leading-tight font-bold">{t.heading}</span>
-            <span className="truncate text-[13px] text-muted-foreground">
-              {t.withTeam(conversation.otherTeam.name)}
-            </span>
-          </div>
-          {/* A closed thread is still kept current, but nobody chats there any more. */}
-          {conversation.writable ? (
-            <LiveStatus status={status} showConnecting={showConnecting} className="relative" />
+      <div className="flex items-center gap-3 border-b border-border px-5 py-3.5">
+        {avatar}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-[16px] font-semibold">{conversation.otherTeam.name}</span>
+          {subtitle ? (
+            <span className="truncate text-[13px] text-muted-foreground">{subtitle}</span>
           ) : null}
-        </header>
-      ) : null}
+        </div>
+        {/* A closed thread is still kept current, but nobody chats there any more. */}
+        {conversation.writable ? <LiveStatus status={status} /> : null}
+      </div>
 
       <div
         ref={list}
@@ -226,21 +207,15 @@ export function MessageThread({
           const element = event.currentTarget;
           atEnd.current = element.scrollHeight - element.scrollTop - element.clientHeight < 40;
         }}
-        className="relative flex-1 overflow-y-auto overscroll-contain px-4 py-4"
+        className="flex-1 overflow-y-auto overscroll-contain px-5 py-5"
       >
         {count === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2.5 px-4 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-accent-soft text-accent-text">
-              <MessageSquareIcon size={22} />
-            </span>
-            <span className="text-[15px] font-semibold">{t.emptyTitle}</span>
-            <span className="max-w-[30ch] text-[13px] text-pretty text-muted-foreground">
-              {t.emptyText}
-            </span>
-          </div>
+          <EmptyState icon={<MessageSquareIcon size={24} />} title={t.emptyTitle} compact>
+            {t.emptyText}
+          </EmptyState>
         ) : (
-          // Few messages sit at the bottom, next to the field, as in a messenger. One row per message,
-          // keyed by its id, so a deleted message does not remount the rows after it.
+          // Few messages sit at the bottom, next to the field. One row per message, keyed by its
+          // id, so a deleted message does not remount the rows after it.
           <div className="flex min-h-full flex-col justify-end">
             {groups.flatMap((group, groupIndex) =>
               group.messages.map((message, index) => (
@@ -254,7 +229,6 @@ export function MessageThread({
                   }
                   unread={message.id === dividerId ? t.unread : null}
                   first={index === 0}
-                  last={index === group.messages.length - 1}
                   spaced={groupIndex > 0 || index > 0}
                   teamId={teamId}
                   locale={locale}
@@ -265,15 +239,12 @@ export function MessageThread({
         )}
       </div>
 
-      <div className="border-t border-border px-3 pt-3 pb-2.5">
-        {!panel && conversation.writable && status !== "open" && showConnecting ? (
-          <LiveStatus status={status} showConnecting className="mb-2 self-start" />
-        ) : null}
+      <div className="border-t border-border px-5 pt-4 pb-5">
         {conversation.writable ? (
           <MessageForm conversation={conversation} />
         ) : (
-          <p className="flex items-center gap-2 rounded-sm bg-secondary px-3 py-2.5 text-[13px] text-pretty text-muted-foreground">
-            <LockIcon size={14} />
+          <p className="flex gap-2.5 rounded-sm border border-border bg-secondary px-3.5 py-3 text-[14px] text-pretty text-muted-foreground">
+            <LockIcon size={16} className="mt-0.5 shrink-0" />
             {t.closed}
           </p>
         )}
@@ -282,78 +253,48 @@ export function MessageThread({
   );
 }
 
-/** "● Live" while the WebSocket is open, "Verbindet …" after a short pause otherwise. */
-function LiveStatus({
-  status,
-  showConnecting,
-  className,
-}: {
-  status: RealtimeStatus;
-  showConnecting: boolean;
-  className?: string;
-}) {
+/** The status badge: "● Live" while the WebSocket is open, "Verbindet …" after a short pause. */
+function LiveStatus({ status }: { status: RealtimeStatus }) {
   const t = useMessages(messageThreadMessages);
+  const [showConnecting, setShowConnecting] = useState(false);
+  useEffect(() => {
+    if (status === "open") return;
+    const timer = setTimeout(() => setShowConnecting(true), CONNECTING_HINT_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      setShowConnecting(false);
+    };
+  }, [status]);
   if (status !== "open" && !showConnecting) return null;
-  const open = status === "open";
   return (
-    <span
-      role="status"
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-pill px-2.5 py-1 text-[12px] font-semibold",
-        open ? "bg-success-soft text-success" : "bg-warning-soft text-warning",
-        className,
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "size-1.5 rounded-full",
-          open ? "bg-success motion-safe:animate-pulse-dot" : "bg-warning",
-        )}
-      />
-      {open ? t.live : t.connecting}
-    </span>
+    <Badge role="status" variant={status === "open" ? "success" : "warning"}>
+      <BadgeDot />
+      {status === "open" ? t.live : t.connecting}
+    </Badge>
   );
 }
 
-/** A centred pill between two lines: a new day, or "Neu". */
-function Separator({
-  children,
-  accent = false,
-  unread = false,
-}: {
-  children: string;
-  accent?: boolean;
-  unread?: boolean;
-}) {
+/** A label between two hairlines, like the day heads of the board: a new day, or "Neu". */
+function Separator({ children, unread = false }: { children: string; unread?: boolean }) {
   return (
     <div data-unread-divider={unread ? "" : undefined} className="flex items-center gap-3">
-      <span className={cn("h-px flex-1", accent ? "bg-primary/40" : "bg-border")} />
-      <span
-        className={cn(
-          "rounded-pill px-2.5 py-0.5 text-[11px] font-semibold",
-          accent
-            ? "bg-accent-soft text-accent-text uppercase"
-            : "bg-secondary text-muted-foreground",
-        )}
-      >
+      <span className={cn("type-label", unread ? "text-accent-text" : "text-muted-foreground")}>
         {children}
       </span>
-      <span className={cn("h-px flex-1", accent ? "bg-primary/40" : "bg-border")} />
+      <span className={cn("h-px flex-1", unread ? "bg-primary" : "bg-border")} />
     </div>
   );
 }
 
 /**
- * One message: the day and "Neu" before it where they start, the name line on the first bubble of
- * a group (none for the own messages), more space before a new group than inside one.
+ * One message: the day and "Neu" before it where they start, the name and time above the first
+ * box of a group, more space before a new group than inside one.
  */
 function MessageRow({
   message,
   day,
   unread,
   first,
-  last,
   spaced,
   teamId,
   locale,
@@ -362,92 +303,67 @@ function MessageRow({
   day: string | null;
   unread: string | null;
   first: boolean;
-  last: boolean;
   spaced: boolean;
   teamId: string;
   locale: Locale;
 }) {
-  return (
-    <div className={cn("flex flex-col gap-3", spaced && (first ? "mt-3" : "mt-1"))}>
-      {day ? <Separator>{day}</Separator> : null}
-      {unread ? (
-        <Separator accent unread>
-          {unread}
-        </Separator>
-      ) : null}
-      <div className={cn("flex flex-col gap-1", message.own ? "items-end" : "items-start")}>
-        {first && !message.mine ? (
-          <span className="flex max-w-[85%] flex-wrap items-baseline gap-x-1.5 px-1 text-[12px] text-muted-foreground">
-            <span className="font-semibold text-foreground">{message.authorName}</span>
-            <span className="break-words">{message.teamName}</span>
-          </span>
-        ) : null}
-        <Bubble message={message} teamId={teamId} locale={locale} last={last} />
-      </div>
-    </div>
-  );
-}
-
-function Bubble({
-  message,
-  teamId,
-  locale,
-  last,
-}: {
-  message: WireMessage;
-  teamId: string;
-  locale: Locale;
-  last: boolean;
-}) {
   const t = useMessages(messageThreadMessages);
   const time = berlinFormat(locale, "time").format(new Date(message.createdAt));
   return (
-    <div className={cn("flex max-w-[85%] flex-col", message.own ? "items-end" : "items-start")}>
-      <div
-        className={cn(
-          "group/bubble flex items-center gap-1",
-          message.own ? "flex-row-reverse" : "flex-row",
-        )}
-      >
-        <div
-          className={cn(
-            "rounded-[18px] px-3.5 pt-2 pb-1.5",
-            message.own ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
-            // The tail of the last bubble of a group points to its side.
-            last && (message.own ? "rounded-br-md" : "rounded-bl-md"),
-          )}
-        >
-          <p className="text-[15px] leading-snug break-words whitespace-pre-line">{message.body}</p>
+    <div className={cn("flex flex-col gap-4", spaced && (first ? "mt-4" : "mt-1.5"))}>
+      {day ? <Separator>{day}</Separator> : null}
+      {unread ? <Separator unread>{unread}</Separator> : null}
+      <div className={cn("flex flex-col gap-1.5", message.own ? "items-end" : "items-start")}>
+        {first ? (
           <span
             className={cn(
-              "mt-0.5 block text-right font-label text-[10.5px]",
-              message.own ? "text-primary-foreground/70" : "text-faint",
+              "flex max-w-[90%] items-baseline gap-2",
+              message.own && "flex-row-reverse",
             )}
           >
-            {time}
+            <span className="truncate font-label text-[13px] font-semibold">
+              {message.mine ? t.you : message.authorName}
+            </span>
+            <span className="shrink-0 font-label text-[12px] text-faint">{time}</span>
           </span>
+        ) : null}
+        <div
+          className={cn(
+            "group/message flex max-w-[90%] items-start gap-1",
+            message.own ? "flex-row-reverse" : "flex-row",
+          )}
+        >
+          <p
+            title={time}
+            className={cn(
+              "min-w-0 rounded-sm border px-3.5 py-2.5 text-[15px] leading-snug break-words whitespace-pre-line",
+              message.own ? "border-primary bg-accent-soft" : "border-transparent bg-secondary",
+            )}
+          >
+            {message.body}
+          </p>
+          {message.mine ? (
+            <MessageAction kind="delete" message={message} teamId={teamId} />
+          ) : message.own || message.reported ? null : (
+            <MessageAction kind="report" message={message} teamId={teamId} />
+          )}
         </div>
-        {message.mine ? (
-          <BubbleAction kind="delete" message={message} teamId={teamId} />
-        ) : message.own || message.reported ? null : (
-          <BubbleAction kind="report" message={message} teamId={teamId} />
-        )}
+        {message.reported ? (
+          <span className="flex items-center gap-1 text-[12px] text-faint">
+            <FlagIcon size={12} />
+            {t.reported}
+          </span>
+        ) : null}
       </div>
-      {message.reported ? (
-        <span className="mt-1 flex items-center gap-1 px-1 text-[11px] text-faint">
-          <FlagIcon size={11} />
-          {t.reported}
-        </span>
-      ) : null}
     </div>
   );
 }
 
 /**
- * Deleting the own message or reporting another team's, as a small icon next to the bubble: on
- * hover or focus with a mouse, always where a touch screen exists; asks first in the site's dialog.
+ * Deleting the own message or reporting another team's, as a small icon next to the box: on hover
+ * or focus with a mouse, always where a touch screen exists; asks first in the site's dialog.
  */
-function BubbleAction({
+function MessageAction({
   kind,
   message,
   teamId,
@@ -472,7 +388,7 @@ function BubbleAction({
           if (!confirm(event, text, { label, destructive: true })) return;
           submitKeepingValues(event, action);
         }}
-        className="opacity-0 transition-opacity group-hover/bubble:opacity-100 focus-within:opacity-100 any-pointer-coarse:opacity-100"
+        className="opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100 any-pointer-coarse:opacity-100"
       >
         <input type="hidden" name="messageId" value={message.id} />
         {kind === "report" ? <input type="hidden" name="teamId" value={teamId} /> : null}
@@ -481,7 +397,7 @@ function BubbleAction({
           disabled={pending}
           aria-label={label}
           title={label}
-          className="flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="flex size-9 cursor-pointer items-center justify-center rounded-sm text-muted-foreground hover:bg-accent-soft hover:text-accent-text"
         >
           {kind === "delete" ? <TrashIcon size={15} /> : <FlagIcon size={15} />}
         </button>
@@ -509,54 +425,48 @@ function MessageForm({ conversation }: { conversation: WireConversation }) {
     initialActionState,
   );
   const fieldId = `message-${conversation.guestTeamId}`;
-  const empty = !body.trim();
   return (
-    <form action={formAction} className="flex flex-col gap-1.5">
+    <form action={formAction} className="flex flex-col gap-2.5">
       <input type="hidden" name="requestId" value={conversation.requestId} />
       <input type="hidden" name="guestTeamId" value={conversation.guestTeamId} />
       {/* The team the page acted for (§5.20). */}
       <input type="hidden" name="teamId" value={conversation.teamId} />
-      <div className="flex items-end gap-2 rounded-[22px] border border-border-strong bg-background py-1.5 pr-1.5 pl-4 transition-[border-color,box-shadow] focus-within:border-ring focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
-        <label htmlFor={fieldId} className="sr-only">
-          {t.label}
-        </label>
-        <textarea
-          id={fieldId}
-          name="body"
-          rows={1}
-          maxLength={MESSAGE_MAX}
-          value={body}
-          placeholder={t.placeholder(conversation.otherTeam.name)}
-          onChange={(event) => setBody(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
-            event.preventDefault();
-            if (!pending && body.trim()) event.currentTarget.form?.requestSubmit();
-          }}
-          className="max-h-36 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-snug outline-none field-sizing-content placeholder:text-placeholder"
-        />
-        <button
-          type="submit"
-          aria-label={t.send}
-          title={t.send}
-          disabled={pending || empty}
-          className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors not-disabled:hover:bg-primary-hover disabled:cursor-default disabled:bg-secondary disabled:text-faint"
-        >
-          <SendIcon size={17} />
-        </button>
-      </div>
-      <div className="flex justify-between gap-2 px-3 text-[11px] text-faint">
-        <span>{t.hint}</span>
-        {body.length >= COUNTER_FROM ? (
-          <span className="font-label">
-            {body.length}
-            {"/"}
-            {MESSAGE_MAX}
-          </span>
-        ) : null}
+      <label htmlFor={fieldId} className="sr-only">
+        {t.label}
+      </label>
+      <Textarea
+        id={fieldId}
+        name="body"
+        rows={2}
+        maxLength={MESSAGE_MAX}
+        value={body}
+        placeholder={t.placeholder(conversation.otherTeam.name)}
+        onChange={(event) => setBody(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+          event.preventDefault();
+          if (!pending && body.trim()) event.currentTarget.form?.requestSubmit();
+        }}
+        className="max-h-40 min-h-[4.5rem] resize-none field-sizing-content"
+      />
+      <div className="flex items-center gap-3">
+        <span className="min-w-0 flex-1 text-[12px] text-pretty text-faint">
+          {t.hint}
+          {body.length >= COUNTER_FROM ? (
+            <span className="font-label">
+              {" · "}
+              {body.length}
+              {"/"}
+              {MESSAGE_MAX}
+            </span>
+          ) : null}
+        </span>
+        <Button type="submit" size="sm" disabled={pending || !body.trim()}>
+          {t.send}
+        </Button>
       </div>
       {state.error ? (
-        <p role="alert" className="px-3 text-[13px] text-destructive-text">
+        <p role="alert" className="text-[13px] text-destructive-text">
           {state.error}
         </p>
       ) : null}

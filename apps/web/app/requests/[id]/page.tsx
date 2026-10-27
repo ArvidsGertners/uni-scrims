@@ -9,13 +9,12 @@ import { cn } from "cn";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
-import { ApplicationThread } from "@/components/application-thread";
 import { BackLink } from "@/components/back-link";
+import { type ChatThread, ChatSidebar, OpenChatButton } from "@/components/chat-sidebar";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
-import { MessageThread } from "@/components/message-thread";
 import { CheckIcon, ShieldCheckIcon } from "@/components/icons";
-import { CHAT_COLUMNS, DETAIL_COLUMNS, PageMain } from "@/components/page-main";
+import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { ReliabilityLine } from "@/components/reliability-line";
 import { TeamAvatar } from "@/components/team-avatar";
@@ -96,14 +95,33 @@ export default async function RequestPage({
   // shows its status, and a booked one links to the scrim.
   const directOpen = direct !== null && request.open;
   const hasActions = Boolean(
-    request.apply ||
-    ownApplication ||
-    (request.applications && !direct) ||
-    directOpen ||
-    request.conversation,
+    request.apply || ownApplication || (request.applications && !direct) || directOpen,
   );
+  // The chats in the sidebar at the right (SPEC N-28): an applicant's or a direct request's one,
+  // or for the creating team of a board request one per application.
+  const threads: ChatThread[] = request.conversation
+    ? [
+        {
+          conversation: toWireConversation(request.conversation),
+          avatar: <TeamAvatar team={team} size="sm" />,
+          subtitle: formatUniversities(team.universities, locale),
+        },
+      ]
+    : (request.applications ?? []).flatMap((application) =>
+        application.conversation
+          ? [
+              {
+                conversation: toWireConversation(application.conversation),
+                avatar: <TeamAvatar team={application.team} size="sm" />,
+                subtitle: formatUniversities(application.team.universities, locale),
+              },
+            ]
+          : [],
+      );
+  // Next to the sidebar the page has one column; without it the actions stand at the right.
+  const twoColumns = hasActions && threads.length === 0;
 
-  return (
+  const page = (
     <PageMain width="wide" className="gap-7">
       {/* The own requests are in the Anfragen tab, not on the board (SPEC N-9). */}
       {ownRequest || direct ? (
@@ -156,14 +174,13 @@ export default async function RequestPage({
         </div>
       </div>
 
-      {/* From 1024 px the details left, applying and the applications right (SPEC N-12); below in
-          this order. */}
+      {/* From 1024 px the details left, applying and the applications right (SPEC N-12); below,
+          and next to the chat sidebar, in this order. */}
       <div
         className={cn(
           "flex flex-col gap-7",
-          // A wider right column for the chat (SPEC N-28).
-          hasActions && (request.conversation ? CHAT_COLUMNS : DETAIL_COLUMNS),
-          hasActions && "lg:gap-8",
+          twoColumns && DETAIL_COLUMNS,
+          twoColumns && "lg:gap-8",
         )}
       >
         <div className="flex min-w-0 flex-col gap-7">
@@ -204,15 +221,6 @@ export default async function RequestPage({
         </div>
         {hasActions ? (
           <div className="flex min-w-0 flex-col gap-7">
-            {/* The chat with the other team at the top right (SPEC N-28): an applicant's or a direct
-                request's; the creating team of a board request has one per application below. */}
-            {request.conversation ? (
-              <MessageThread
-                initial={toWireConversation(request.conversation)}
-                realtimeUrl={realtimeUrl}
-                focus={chat === request.conversation.guestTeamId}
-              />
-            ) : null}
             {request.apply ? (
               <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                 <div className="flex flex-col gap-1">
@@ -475,11 +483,7 @@ export default async function RequestPage({
                       </p>
                     ) : null}
                     {application.conversation ? (
-                      <ApplicationThread
-                        initial={toWireConversation(application.conversation)}
-                        realtimeUrl={realtimeUrl}
-                        focus={chat === application.team.id}
-                      />
+                      <OpenChatButton guestTeamId={application.team.id} />
                     ) : null}
                     {application.canConfirm ? (
                       <ActionForm
@@ -522,5 +526,15 @@ export default async function RequestPage({
         ) : null}
       </div>
     </PageMain>
+  );
+  if (threads.length === 0) return page;
+  return (
+    <ChatSidebar
+      threads={threads}
+      initialTeamId={typeof chat === "string" ? chat : undefined}
+      realtimeUrl={realtimeUrl}
+    >
+      {page}
+    </ChatSidebar>
   );
 }

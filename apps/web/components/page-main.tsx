@@ -20,10 +20,6 @@ const WIDTH = {
 export const DETAIL_COLUMNS =
   "lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start xl:grid-cols-[minmax(0,1fr)_400px]";
 
-/** Like DETAIL_COLUMNS, with a wider right column for the chat panel (SPEC N-28). */
-export const CHAT_COLUMNS =
-  "lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:grid-cols-[minmax(0,1fr)_460px]";
-
 /** Content column of every screen: 20/32 px side padding, toast above. */
 export async function PageMain({
   width = "narrow",

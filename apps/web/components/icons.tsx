@@ -29,13 +29,6 @@ function createIcon(content: ReactNode) {
 
 export const MenuIcon = createIcon(<path d="M4 7h16M4 12h16M4 17h16" />);
 export const FlagIcon = createIcon(<path d="M5 21V4c4-2 8 2 14 0v10c-6 2-10-2-14 0" />);
-/** Sending a message (SPEC N-28): a paper plane. */
-export const SendIcon = createIcon(
-  <>
-    <path d="m22 2-7 20-4-9-9-4Z" />
-    <path d="M22 2 11 13" />
-  </>,
-);
 export const TrashIcon = createIcon(<path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6" />);
 export const LockIcon = createIcon(
   <>

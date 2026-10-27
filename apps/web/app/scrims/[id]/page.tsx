@@ -7,15 +7,16 @@ import {
   getScrimDetail,
 } from "@uni-scrims/core";
 import type { FeedbackOutcome } from "@uni-scrims/db";
-import { cn } from "cn";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
+import { ChatSidebar } from "@/components/chat-sidebar";
 import { DiscordContact } from "@/components/discord-contact";
-import { MessageThread } from "@/components/message-thread";
-import { CHAT_COLUMNS, PageMain } from "@/components/page-main";
+import { PageMain } from "@/components/page-main";
 import { SwitchTeamHint } from "@/components/switch-team-hint";
+import { TeamAvatar } from "@/components/team-avatar";
 import { TeamLinks } from "@/components/team-links";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -63,12 +64,24 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   }
 
   const when = `${describeStartShort(scrim.startsAt, locale)} · ${formatFormat(scrim.format, locale)}`;
-  // The chat with the opponent, continued from the application or direct request (SPEC N-28).
+  // The chat with the opponent in the sidebar at the right, continued from the application or
+  // direct request (SPEC N-28).
   const conversation = scrim.conversation ? toWireConversation(scrim.conversation) : null;
+  const withChat = (page: ReactNode) =>
+    conversation ? (
+      <ChatSidebar
+        threads={[{ conversation, avatar: <TeamAvatar team={scrim.opponent} size="sm" /> }]}
+        realtimeUrl={realtimePublicUrl()}
+      >
+        {page}
+      </ChatSidebar>
+    ) : (
+      page
+    );
 
   // Feedback due: the page is the feedback screen of the design handoff.
   if (scrim.canGiveFeedback) {
-    return (
+    return withChat(
       <PageMain className="gap-7">
         <BackLink href="/scrims?tab=vergangen">{t.scrims}</BackLink>
         <div className="flex flex-col gap-2.5">
@@ -86,10 +99,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
           outcomes={outcomes(locale)}
           ratings={RATINGS}
         />
-        {conversation ? (
-          <MessageThread initial={conversation} realtimeUrl={realtimePublicUrl()} />
-        ) : null}
-      </PageMain>
+      </PageMain>,
     );
   }
 
@@ -106,7 +116,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
     }
   })();
 
-  return (
+  return withChat(
     <PageMain width="wide" className="gap-7">
       {/* Upcoming scrims are exactly the cancellable ones (getMyScrims). */}
       <BackLink href={`/scrims?tab=${scrim.cancellable ? "anstehend" : "vergangen"}`}>
@@ -142,59 +152,48 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
         ) : null}
       </div>
 
-      {/* From 1024 px the details and feedback left, the chat right (SPEC N-12, N-28). */}
-      <div className={cn("flex flex-col gap-7 lg:gap-8", conversation && CHAT_COLUMNS)}>
-        <div className="flex min-w-0 flex-col gap-7">
-          <DiscordContact
-            captainName={scrim.opponent.captainName}
-            captainDiscordId={scrim.opponent.captainDiscordId}
-            teamName={scrim.opponent.name}
-          />
+      <DiscordContact
+        captainName={scrim.opponent.captainName}
+        captainDiscordId={scrim.opponent.captainDiscordId}
+        teamName={scrim.opponent.name}
+      />
 
-          <div className="flex flex-col gap-2">
-            <span className="type-label text-muted-foreground">{shared.maps}</span>
-            <p>{formatMaps(scrim.maps, locale)}</p>
-            <p className="text-[14px] text-muted-foreground">
-              {scrim.direct
-                ? scrim.isHost
-                  ? t.youRequestedDirectly
-                  : t.requestedYouDirectly
-                : scrim.isHost
-                  ? t.youRequested
-                  : t.youApplied}
-            </p>
-          </div>
-
-          {scrim.note ? (
-            <div className="flex flex-col gap-2">
-              <span className="type-label text-muted-foreground">{t.requestNote}</span>
-              <p className="text-[16px] text-pretty whitespace-pre-line">
-                {shared.quoted(scrim.note)}
-              </p>
-            </div>
-          ) : null}
-
-          <section className="flex flex-col gap-2.5">
-            <h2 className="type-h2">{t.feedback}</h2>
-            {scrim.ownFeedback ? (
-              <Alert variant="success">
-                <span>
-                  {t.feedbackGiven(FEEDBACK_OUTCOME_LABELS[locale][scrim.ownFeedback.outcome])}
-                  {scrim.ownFeedback.rating ? ` · ${"★".repeat(scrim.ownFeedback.rating)}` : ""}
-                </span>
-              </Alert>
-            ) : (
-              <p className="text-[14px] text-pretty text-muted-foreground">
-                {text(scrim.feedbackClosed ?? scrim.actionProblem)}
-              </p>
-            )}
-          </section>
-        </div>
-        {/* The chat at the right, in view while the page scrolls (SPEC N-28). */}
-        {conversation ? (
-          <MessageThread initial={conversation} realtimeUrl={realtimePublicUrl()} sticky />
-        ) : null}
+      <div className="flex flex-col gap-2">
+        <span className="type-label text-muted-foreground">{shared.maps}</span>
+        <p>{formatMaps(scrim.maps, locale)}</p>
+        <p className="text-[14px] text-muted-foreground">
+          {scrim.direct
+            ? scrim.isHost
+              ? t.youRequestedDirectly
+              : t.requestedYouDirectly
+            : scrim.isHost
+              ? t.youRequested
+              : t.youApplied}
+        </p>
       </div>
+
+      {scrim.note ? (
+        <div className="flex flex-col gap-2">
+          <span className="type-label text-muted-foreground">{t.requestNote}</span>
+          <p className="text-[16px] text-pretty whitespace-pre-line">{shared.quoted(scrim.note)}</p>
+        </div>
+      ) : null}
+
+      <section className="flex flex-col gap-2.5">
+        <h2 className="type-h2">{t.feedback}</h2>
+        {scrim.ownFeedback ? (
+          <Alert variant="success">
+            <span>
+              {t.feedbackGiven(FEEDBACK_OUTCOME_LABELS[locale][scrim.ownFeedback.outcome])}
+              {scrim.ownFeedback.rating ? ` · ${"★".repeat(scrim.ownFeedback.rating)}` : ""}
+            </span>
+          </Alert>
+        ) : (
+          <p className="text-[14px] text-pretty text-muted-foreground">
+            {text(scrim.feedbackClosed ?? scrim.actionProblem)}
+          </p>
+        )}
+      </section>
 
       {/* Cancelling at the very bottom of the page. */}
       {scrim.cancellable ? (
@@ -223,6 +222,6 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
           )}
         </section>
       ) : null}
-    </PageMain>
+    </PageMain>,
   );
 }

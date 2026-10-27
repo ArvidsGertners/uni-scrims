@@ -17,18 +17,23 @@ export const feedbackFormMessages = dictionary(
   },
 );
 
-/** components/message-thread.tsx and components/application-thread.tsx (SPEC N-28). */
+/** components/message-thread.tsx and components/chat-sidebar.tsx (SPEC N-28). */
 export const messageThreadMessages = dictionary(
   {
-    /** For screen readers: the whole panel. */
+    /** For screen readers: one thread. */
     title: (team: string) => `Nachrichten mit ${team}`,
+    /** The head of the sidebar and the button that opens it on phones. */
     heading: "Nachrichten",
-    withTeam: (team: string) => `mit ${team}`,
     live: "Live",
     connecting: "Verbindet …",
-    /** The collapsed thread at an application: "Nachrichten · 3". */
-    toggle: "Nachrichten",
-    newBadge: "Neu",
+    /** The tabs of the sidebar with several threads, for screen readers. */
+    chooseTeam: "Team wählen",
+    /** At an application: shows its thread in the sidebar. */
+    openChat: "Chat",
+    /** The dot at a tab or button, for screen readers. */
+    unreadHint: "Neue Nachrichten",
+    close: "Schließen",
+    you: "Du",
     emptyTitle: "Noch keine Nachrichten",
     emptyText: "Sprecht hier Lobby, Uhrzeit und Maps ab. Beide Teams sehen jede Nachricht.",
     closed: "Dieser Verlauf ist geschlossen. Ihr könnt ihn weiter lesen.",
@@ -46,11 +51,13 @@ export const messageThreadMessages = dictionary(
   {
     title: (team) => `Messages with ${team}`,
     heading: "Messages",
-    withTeam: (team) => `with ${team}`,
     live: "Live",
     connecting: "Connecting …",
-    toggle: "Messages",
-    newBadge: "New",
+    chooseTeam: "Choose a team",
+    openChat: "Chat",
+    unreadHint: "New messages",
+    close: "Close",
+    you: "You",
     emptyTitle: "No messages yet",
     emptyText: "Agree on lobby, time and maps here. Both teams see every message.",
     closed: "This conversation is closed. You can still read it.",
