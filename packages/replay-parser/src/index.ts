@@ -85,7 +85,8 @@ export type UltChange = {
 type Vec3 = [number, number, number];
 
 /**
- * A piece of placed utility appeared (actor open). `kind` is the actor's class
+ * A piece of placed utility appeared (actor open; a thrown Nanoswarm, Blast
+ * Pack or Paint Shell bomblet when it landed). `kind` is the actor's class
  * without `_C`, e.g. "Zone_Wraith_4_Smoke"; icons and sizes come from the
  * agent data (the replay has no size).
  */
@@ -100,17 +101,23 @@ export type UtilitySpawn = {
   pos: Vec3;
   /** Degrees; null when the spawn has no rotation (smoke spheres, stars). */
   yaw: number | null;
-  /** A segment's ends (Vyse's Shear, Deadlock's Barrier Mesh arms). */
+  /** A segment's ends (Vyse's Shear, Deadlock's Barrier Mesh arms, Cypher's tripwire anchors). */
   a: Vec3 | null;
   b: Vec3 | null;
-  /** False for classes no replay has confirmed yet (Cypher, Killjoy). */
+  /**
+   * A pawn (Killjoy's turret, Cypher's camera, Sova's drone, Raze's Boom Bot, …):
+   * its path and facing are the `movement` rows whose `character` is `id`.
+   */
+  track: boolean;
+  /** False for classes of agents no replay has confirmed yet (phase R3c). */
   verified: boolean;
 };
 
 /**
  * A change of a live piece: a segment's ends sent after the spawn, the next
- * point of a polyline (Phoenix's Blaze), or a state multicast (e.g.
- * "TransitionToState" with a value, "DeactivateRift"). Only changed keys exist.
+ * point of a polyline (Phoenix's Blaze, Neon's Fast Lane), or a state RPC (e.g.
+ * "TransitionToState" with a value, "DeactivateRift", "Fortify", "Lift",
+ * "SetEnemyInTrap"). Only changed keys exist.
  */
 export type UtilityUpdate = {
   type: "update";

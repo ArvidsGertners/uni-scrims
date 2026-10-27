@@ -13,11 +13,11 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: ✅ **R3a Decoding: utility of the agents in our replays** done 2026-10-27, **waiting for the user's OK**. `pnpm test` and `pnpm lint` green, `/code-review` findings fixed.
-- **Next phase**: R4 (kill details + round results). R3b (Cypher/Killjoy) waits for a replay with them.
+- **Phase**: 🟡 **R3b Decoding: utility of all agents in the four replays** (Cypher, Killjoy, Sage, Raze, Neon, Miks + pawns), started 2026-10-27. Fork `us-v0.4.0` synced; the parser tests and `pnpm lint` green; open: full `pnpm test` (needs the user's consent for the DB reset), `/code-review`.
+- **Next phase**: R4 (kill details + round results). R3c (the 12 agents without a replay) waits for replays.
 - **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.1.1`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
 - **Waiting for the user**:
-  - a replay with **Cypher and Killjoy** (any mode, current build), needed for R3b
+  - replays with **Brimstone, Viper, Harbor, KAY/O, Breach, Skye, Gekko, Yoru, Iso, Tejo, Waylay, Hush**, plus Deadlock's and Sova's ult used (any mode, current build), needed for R3c
   - a **custom-game** replay with recording on (R0b), needed before R11
 - **Open problems**: none.
 
@@ -31,8 +31,9 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 | R0b | Custom-game check with a real scrim replay | ⏸ | | | | The user's replay was probably matchmade (missions, CompetitiveTier); still waiting for a custom `.vrf`; needed before R11 |
 | R1 | Parser fork + WASM build | ✅ | 2026-10-27 | 2026-10-27 | fork `16660c4` (`us-v0.1.0`), `e6bc43c` (`us-v0.1.1`), see log | Node: 3.2 s, 300 MB peak RSS on the 60 MB match; `.wasm` 727 KB (258 KB gzip) |
 | R2 | Decoding: charges + ult points | ✅ | 2026-10-27 | 2026-10-27 | fork `126e7d4` (`us-v0.2.0`), `ce81b70` (`us-v0.2.1`), see log | Plausibility check instead of the in-game comparison (user decision) |
-| R3a | Decoding: utility of the agents in our replays (rotation, anchors, lifetime) | ✅ | 2026-10-27 | 2026-10-27 | fork `a469e33` (`us-v0.3.0`), `7359ab5` (`us-v0.3.1`), see log | Split 2026-10-27 (user decision); no sizes in the replay |
-| R3b | Decoding: Cypher tripwire + camera, KJ turret | ⏸ | | | | Waits for a replay with Cypher/Killjoy; not needed before R10 |
+| R3a | Decoding: utility of the agents in our replays (rotation, anchors, lifetime) | ✅ | 2026-10-27 | 2026-10-27 | fork `a469e33` (`us-v0.3.0`), `7359ab5` (`us-v0.3.1`), see log | Split 2026-10-27 (user decision); no sizes in the replay; the user's OK 2026-10-27 |
+| R3b | Decoding: utility of all agents in the four replays (Cypher, Killjoy, Sage, Raze, Neon, Miks, pawns) | 🟡 | 2026-10-27 | | fork `b7b48ad` (`us-v0.4.0`), see log | Scope widened 2026-10-27 (user decision) |
+| R3c | Decoding: utility of the 12 agents without a replay, Deadlock's and Sova's ult | ⏸ | | | | Waits for replays with them; until then their classes come by codename prefix with `verified: false` |
 | R4 | Decoding: kill details + round results | ⬜ | | | | |
 | R5 | Replay JSON + reducer + Web Worker | ⬜ | | | | |
 | R6 | Game assets (maps, icons, transforms) | ⬜ | | | | |
@@ -49,6 +50,14 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 ### Log
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27, R3b decoding:
+  - Fork `b7b48ad`, tag `us-v0.4.0` (`utility.rs`): class table for Cypher, Killjoy, Sage, Raze, Neon, Miks; **pawns** (turret, camera, alarmbot, Sova's drone, Fade's dogs, Raze's Boom Bot, Veto's Interceptor) with `track: true`, their path/facing in the movement columns under the same GUID (revises R3a, which left moving pawns out); **pairs** (Cypher's tripwire: two anchor actors opened in the same frame → one piece with `a`/`b`, ended by the first close); **landings** (Nanoswarm, Blast Pack, Paint Shell bomblets spawn at `MulticastTriggerExplodeIndicator.IndicatorLocation`); Neon's Fast Lane as a polyline; states `Fortify`, `Lift`, `SetEnemyInTrap`; the 12 agents without a replay by codename prefix with `verified: false`. Fork tests, clippy (native, wasm32) green; `.wasm` 831 KB.
+  - Checked on all four replays: counters 0, every piece owned by its agent, 34 tripwires 342–1425 units, every swarm activation < 0.1 units from a landed Nanoswarm, Sage's segments open with their wall. Details in the findings doc.
+  - Uni Scrims: `wasm/` synced, `UtilitySpawn.track`, the utility test runs on all four local replays; each shape check runs where its agent played, and one test checks that all of them ran.
+  - Next: full `pnpm test` with the user's consent, `/code-review`.
+
+- 2026-10-27: the user gave the OK for R3a and widened R3b to every agent in the two new Swiftplays (Cypher, Killjoy, Sage, Raze, Neon, Miks). The 12 agents without a replay go to a new phase R3c. Codenames from valorant-api's `developerName`.
 
 - 2026-10-27, R3a review fixes (`/code-review`):
   - Fork `7359ab5`, tag `us-v0.3.1`: the owner follows the `Instigator` chain before the `Owner` chain (as documented) and also ends at a player state; only the actor's own `Instigator`/`Owner` count, not a component's; non-finite ends are unresolved; utility opens without a position are counted; a `Multicast` prefix check before the shape lookups; one shape map filled at the open.
@@ -505,17 +514,29 @@ Split on 2026-10-27 (user decision), because no replay has Cypher or Killjoy yet
   - Decode actor rotation for deployables (`spawn_yaw`).
   - Decode anchors and target points: Vyse's wall (`MulticastInitializeTrapAnchors`, three doubles), Deadlock's cable (`MulticastInitialize.Destination`), and similar fields of the other agents.
   - Smokes, walls, mollies, slows, traps: position, size where the replay has it, start and end.
-  - Emit `utilitySpawn` / `utilityUpdate` / `utilityEnd` events, one generic path per kind, so R3b only adds Cypher/KJ.
+  - Emit `utilitySpawn` / `utilityUpdate` / `utilityEnd` events, one generic path per kind, so R3b only adds more agents.
   - Cypher and Killjoy actors that do show up get position and spawn rotation only, marked as not verified.
 - **Done when**: every deployable of the agents in the test replays shows the correct position and orientation (plausibility check as in R2).
 - Built: `utility` events (`spawn` / `update` / `end`) from a class table; segment ends for Vyse's Shear and Deadlock's Barrier Mesh, Blaze as points, state multicasts; the player via the owner chain. The replay holds no sizes; they come from the agent data (R6).
 
-#### R3b — Cypher tripwire + camera, Killjoy turret (waiting for a replay)
+#### R3b — Utility of all agents in the four replays
 
-- **Input**: a replay with Cypher and Killjoy on the current build.
-- **Work**: tripwire anchors (both ends), turret facing, Cypher camera; expected the same way as Vyse's wall (an anchor multicast) and `spawn_yaw`.
-- **Done when**: tripwire, turret and camera of the test replay show the correct position and orientation.
-- **When**: whenever the user has a replay. Required before R10 draws them; R4–R9 don't depend on it.
+Scope widened on 2026-10-27 (user decision): not only Cypher and Killjoy but every agent in the user's two new Swiftplays.
+
+- **Input**: the two new 13.08 Swiftplays (Killjoy, Sage, Raze, Neon, Miks, Omen, Phoenix, Jett; Cypher, Sage, Miks, Chamber, Reyna, Fade, Jett, Sova) and the two R3a replays.
+- **Work**:
+  - Tripwire anchors (both ends), turret facing, Cypher camera.
+  - Sage's wall and slow, Raze's Boom Bot, Blast Pack and Paint Shells, Neon's Fast Lane and Relay Bolt, Miks' smoke, M-Pulse and ult.
+  - Pawns, including the moving ones R3a left out, with their path from the movement columns.
+- **Done when**: every deployable of these agents in the test replays shows the correct position and orientation (plausibility check as in R2).
+- Built: see the log and the findings doc. The turret's aim is not in the replay (its movement yaw stays the spawn yaw); the camera's facing is.
+
+#### R3c — Utility of the agents without a replay (waiting for replays)
+
+- **Input**: replays with Brimstone, Viper, Harbor, KAY/O, Breach, Skye, Gekko, Yoru, Iso, Tejo, Waylay and Hush, and with Deadlock's and Sova's ult used.
+- **Work**: their classes in the table, shapes where needed (Viper's wall, Harbor's wall, Fault Line, …). Until then their `GameObject_`/`Zone_`/`Patch_` classes come by codename prefix with `verified: false`.
+- **Done when**: every deployable of these agents in the test replays shows the correct position and orientation.
+- **When**: whenever the user has the replays. Required before R10 draws them; R4–R9 don't depend on it.
 
 ### R4 — Decoding: kill details + round results
 

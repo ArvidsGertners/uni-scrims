@@ -19,6 +19,9 @@ const CACHE = path.resolve(root, "../../node_modules/.cache/replay-fixtures");
 const LOCAL_REPLAY = path.resolve(root, "../../replays/1b9fe9b9-9f0e-40e0-b6e1-8c24b20a9bfd.vrf");
 // A second one (Swiftplay on Split: Deadlock, Clove, Reyna, Pine).
 const LOCAL_REPLAY_2 = path.resolve(root, "../../replays/9d636ef5-4dd0-4fd8-be89-dd3f667cf518.vrf");
+// Two more Swiftplays: Killjoy, Sage, Raze, Neon, Miks; Cypher, Sage, Miks.
+const LOCAL_REPLAY_3 = path.resolve(root, "../../replays/770394ae-b2d9-48da-b2fb-0ea10c1c19aa.vrf");
+const LOCAL_REPLAY_4 = path.resolve(root, "../../replays/9b5967c6-ce75-4ec6-85f3-f787b6fe4af6.vrf");
 
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -215,9 +218,13 @@ describe("replay parser (WASM)", () => {
     60_000,
   );
 
-  // Plausibility as in R2 (docs/replay-viewer.md R3a): every piece of utility
-  // must fit what else the replay says about the match and its owner.
-  for (const replay of [LOCAL_REPLAY, LOCAL_REPLAY_2]) {
+  // Plausibility as in R2 (docs/replay-viewer.md R3a, R3b): every piece of
+  // utility must fit what else the replay says about the match and its owner.
+  // A shape check runs where its agent played; together the replays must run
+  // every one of them.
+  const localReplays = [LOCAL_REPLAY, LOCAL_REPLAY_2, LOCAL_REPLAY_3, LOCAL_REPLAY_4];
+  const shapeChecks = new Set<string>();
+  for (const replay of localReplays) {
     it.skipIf(!existsSync(replay))(
       `places the utility of ${path.basename(replay)} with owner, shape and lifetime`,
       () => {
@@ -226,6 +233,11 @@ describe("replay parser (WASM)", () => {
         const spawns = meta.utility.filter((e): e is UtilitySpawn => e.type === "spawn");
         expect(spawns.length).toBeGreaterThan(50);
         expect(spawns.every((s) => s.verified && s.player !== null)).toBe(true);
+        const ofKind = (kind: string) => spawns.filter((s) => s.kind === kind);
+        const check = (name: string, pieces: unknown[]) => {
+          if (pieces.length > 0) shapeChecks.add(name);
+          return pieces.length > 0;
+        };
 
         // Lifetime: one spawn per piece, updates while it lives, the end last.
         const life = new Map<number, { end?: number }>();
@@ -261,63 +273,167 @@ describe("replay parser (WASM)", () => {
         }
         const agentOf = (player: number): string =>
           className.get(meta.players[player]!.characters.at(-1)!)?.replace(/_PC_C$/, "") ?? "";
-        const agentClasses: Record<string, RegExp> = { Cable: /_(Cable|CableJam|StealthingTrap)/ };
+        const agentClasses: Record<string, RegExp> = {
+          Cable: /_(Cable|CableJam|StealthingTrap)/,
+          Gumshoe: /Gumshoe/,
+          Iris: /_(Iris|Thumper)_/,
+        };
         for (const s of spawns) {
           const agent = agentOf(s.player!);
           const pattern = agentClasses[agent] ?? new RegExp(`_${agent}_`);
           expect(pattern.test(s.kind), `${s.kind} of ${agent}`).toBe(true);
         }
 
+        // Pawns: tracked, with their path in the movement columns; a spawn
+        // without a rotation (yaw 0 is left out) still turns in movement.
+        const moved = new Set(movement.character);
+        const pawns = spawns.filter((s) => s.kind.startsWith("Pawn_"));
+        expect(spawns.every((s) => s.track === s.kind.startsWith("Pawn_"))).toBe(true);
+        for (const pawn of pawns) expect(moved.has(pawn.id), `${pawn.kind} path`).toBe(true);
+        const facing = [
+          ...ofKind("Pawn_Killjoy_E_Turret"),
+          ...ofKind("Pawn_Killjoy_Q_StealthAlarmbot"),
+        ];
+        if (check("turret", facing)) expect(facing.every((s) => s.yaw !== null)).toBe(true);
+        check("camera", ofKind("Pawn_Gumshoe_E_PossessableCamera"));
+
         // Segments: Vyse's Shear is 1200 units long unless a wall cut it
         // short; its raised wall has the trap's ends; Deadlock's mesh arms
         // start at the mesh's root.
-        const segments = spawns.filter((s) => /Nox_Wall|CableJam_CableDeployer/.test(s.kind));
-        expect(segments.length).toBeGreaterThan(0);
-        expect(segments.every((s) => s.a && s.b)).toBe(true);
         const length = (s: UtilitySpawn) => Math.hypot(s.a![0] - s.b![0], s.a![1] - s.b![1]);
-        const traps = spawns.filter((s) => s.kind === "GameObject_Nox_WallTrap");
-        expect(traps.every((s) => length(s) <= 1200.5)).toBe(true);
-        expect(traps.filter((s) => Math.abs(length(s) - 1200) < 0.5).length).toBeGreaterThan(
-          traps.length / 2,
-        );
-        for (const wall of spawns.filter((s) => s.kind === "GameObject_Nox_Wall")) {
+        const traps = ofKind("GameObject_Nox_WallTrap");
+        if (check("shear", traps)) {
+          expect(traps.every((s) => s.a && s.b && length(s) <= 1200.5)).toBe(true);
+          expect(traps.filter((s) => Math.abs(length(s) - 1200) < 0.5).length).toBeGreaterThan(
+            traps.length / 2,
+          );
+        }
+        for (const wall of ofKind("GameObject_Nox_Wall")) {
           const trap = traps.find(
             (s) =>
               s.player === wall.player && s.t <= wall.t && s.a!.every((v, i) => v === wall.a![i]),
           );
           expect(trap, `trap of the wall at ${wall.t}`).toBeDefined();
         }
-        const roots = spawns.filter((s) => s.kind === "GameObject_CableJamRoot");
-        for (const arm of spawns.filter((s) => s.kind.includes("CableJam_CableDeployer"))) {
-          const root = roots.find((r) => r.t === arm.t);
-          expect(root && Math.hypot(root.pos[0] - arm.a![0], root.pos[1] - arm.a![1])).toBeLessThan(
-            1,
+        const roots = ofKind("GameObject_CableJamRoot");
+        const arms = ofKind("GameObject_CableJam_CableDeployer_Precomputed");
+        if (check("mesh", arms)) {
+          for (const arm of arms) {
+            const root = roots.find((r) => r.t === arm.t);
+            expect(arm.a && arm.b).toBeTruthy();
+            expect(
+              root && Math.hypot(root.pos[0] - arm.a![0], root.pos[1] - arm.a![1]),
+            ).toBeLessThan(1);
+          }
+        }
+
+        // Cypher's tripwire: one piece from both anchors, as long as a wire
+        // can be.
+        const wires = ofKind("GameObject_Gumshoe_4_TripWire");
+        if (check("tripwire", wires)) {
+          for (const w of wires) {
+            expect(w.a && w.b, `wire at ${w.t}`).toBeTruthy();
+            expect(w.a!.every((v, i) => Math.abs(v - w.pos[i]!) < 0.01)).toBe(true);
+            expect(length(w)).toBeGreaterThan(300);
+            expect(length(w)).toBeLessThan(1500);
+          }
+        }
+
+        // Landings: Killjoy's swarm activates where its grenade landed, Raze's
+        // bomblets land around their burst, his Blast Packs explode where they
+        // stuck (one may go off in the air).
+        const near = (a: UtilitySpawn, b: UtilitySpawn) =>
+          Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1]);
+        const swarms = ofKind("Projectile_Killjoy_4_RemoteBees_MultiDetonate");
+        const bees = ofKind("GameObject_Killjoy_4_BeeSwarm_Damage");
+        if (check("nanoswarm", bees)) {
+          for (const b of bees) {
+            const swarm = swarms.find((s) => s.player === b.player && near(s, b) < 1);
+            expect(swarm, `swarm of the bees at ${b.t}`).toBeDefined();
+          }
+        }
+        const bursts = ofKind("Projectile_Clay_4_Projectile_SecondarySpawner");
+        const bomblets = ofKind("Projectile_Clay_4_Projectile_Secondary");
+        if (check("paint shells", bomblets)) {
+          for (const b of bomblets) {
+            const burst = bursts.find(
+              (s) => s.player === b.player && s.t <= b.t && near(s, b) < 800,
+            );
+            expect(burst, `burst of the bomblet at ${b.t}`).toBeDefined();
+          }
+        }
+        const packs = ofKind("Projectile_Clay_Q_Satchel_Arming");
+        const blasts = ofKind("GameObject_Clay_Q_Explosion");
+        if (check("blast pack", blasts)) {
+          expect(blasts.filter((e) => packs.some((p) => near(p, e) < 1)).length).toBeGreaterThan(
+            blasts.length / 2,
           );
         }
 
-        // Phoenix's Blaze grows away from its first point.
-        const blaze = new Map<number, number[][]>();
+        // Sage's wall: its segments open with it, around it.
+        const sageWalls = ofKind("GameObject_Thorne_E_Wall_Fortifying");
+        const sageSegments = ofKind("GameObject_Thorne_E_Wall_Segment_Fortifying");
+        if (check("sage wall", sageSegments)) {
+          for (const seg of sageSegments) {
+            const wall = sageWalls.find(
+              (w) => w.player === seg.player && w.t === seg.t && near(w, seg) < 400,
+            );
+            expect(wall, `wall of the segment at ${seg.t}`).toBeDefined();
+          }
+        }
+
+        // Polylines: Phoenix's Blaze and Neon's Fast Lane grow away from
+        // their first point.
+        const points = new Map<number, number[][]>();
         for (const e of meta.utility) {
           if (e.type === "update" && e.point)
-            blaze.set(e.id, [...(blaze.get(e.id) ?? []), e.point]);
+            points.set(e.id, [...(points.get(e.id) ?? []), e.point]);
         }
-        expect(blaze.size).toBeGreaterThan(0);
-        for (const points of blaze.values()) {
-          expect(points.length).toBeGreaterThan(1);
-          const away = points.map((p) =>
-            Math.hypot(p[0]! - points[0]![0]!, p[1]! - points[0]![1]!),
-          );
-          expect(away.every((d, i) => i === 0 || d >= away[i - 1]!)).toBe(true);
+        for (const [name, kind] of [
+          ["blaze", "GameObject_Phoenix_Q_FlameWallManager_Production"],
+          ["fast lane", "GameObject_Sprinter_4_Tunnel"],
+        ] as const) {
+          const walls = ofKind(kind);
+          if (!check(name, walls)) continue;
+          for (const wall of walls) {
+            const line = points.get(wall.id) ?? [];
+            expect(line.length, `${name} at ${wall.t}`).toBeGreaterThan(1);
+            const away = line.map((p) => Math.hypot(p[0]! - line[0]![0]!, p[1]! - line[0]![1]!));
+            expect(away.every((d, i) => i === 0 || d >= away[i - 1]!)).toBe(true);
+          }
         }
 
         // Chamber's Trademark always faces somewhere.
-        const trademarks = spawns.filter((s) => s.kind === "GameObject_Deadeye_E_Trap");
-        expect(trademarks.length).toBeGreaterThan(0);
-        expect(trademarks.every((s) => s.yaw !== null)).toBe(true);
+        const trademarks = ofKind("GameObject_Deadeye_E_Trap");
+        if (check("trademark", trademarks)) {
+          expect(trademarks.every((s) => s.yaw !== null)).toBe(true);
+        }
       },
       60_000,
     );
   }
+
+  it.skipIf(!localReplays.every((r) => existsSync(r)))(
+    "runs every utility shape check in one of the local replays",
+    () => {
+      expect([...shapeChecks].sort()).toEqual(
+        [
+          "blast pack",
+          "blaze",
+          "camera",
+          "fast lane",
+          "mesh",
+          "nanoswarm",
+          "paint shells",
+          "sage wall",
+          "shear",
+          "trademark",
+          "tripwire",
+          "turret",
+        ].sort(),
+      );
+    },
+  );
 
   it("throws on bytes that are not a replay", () => {
     expect(() => parseReplay(new Uint8Array(64), [])).toThrow();

@@ -8,6 +8,8 @@ Phase R0 of [replay-viewer.md](replay-viewer.md), 2026-10-27. Spike test without
 | --- | --- | --- | --- | --- |
 | **User's replay** (a friend's game, `replays/1b9f….vrf`, git-ignored) | `++Ares-Core+release-13.08` (current) | Jam = Lotus | 27:50, 17 rounds | **Primary input**, 60 MB, 10 players |
 | **User's 2nd replay** (`replays/9d63….vrf`, git-ignored, added 2026-10-27) | header says `release-13.08`, changelist 2153243948, identical to the first. The user expected 13.09 | Bonsai = Split | 13:07, 7 rounds, **Swiftplay** | 24 MB, 10 players; validate PASS, export 0.7 s / 82 MB, 0 malformed blocks |
+| **User's 3rd replay** (`replays/7703….vrf`, git-ignored, a friend's Swiftplay, added 2026-10-27) | `release-13.08`, changelist 5760300 | Port = Icebox | 10:32 | 20 MB, 10 players; Killjoy, Sage, Raze, Neon, Miks |
+| **User's 4th replay** (`replays/9b59….vrf`, git-ignored, a friend's Swiftplay, added 2026-10-27) | `release-13.08`, changelist 5760300 | Pitt = Pearl | 13:03 | 27 MB, 10 players; Cypher, Sage, Miks |
 | vrfkit public fixture `12974d2b….13_00.vrf` | 13.00 | — | 39 s | Snippet; contains Cypher but no placed tripwire |
 | vrfkit public fixtures `….12_10.vrf`, `….12_11.vrf` | 12.10 / 12.11 | — | short | Snippets, little gameplay |
 
@@ -65,7 +67,7 @@ The public fixtures come from `michel-giehl/ValorantReplayParser` at commit `b51
 | **Cypher tripwire, KJ turret** | Not in the user's game (agents: Fade, Chamber, Sova, Vyse, Astra, Omen, 2× Jett, 2× Phoenix). The 13.00 fixture has Cypher's ability actors but no placed wire | ⚠️ not verified. Expected the same way as Vyse's wall (an anchor multicast on the `GameObject_Gumshoe_E_TripWire*` actor + `spawn_yaw` for the turret). Needs a replay with Cypher/KJ (§ open items) |
 | Game mode | No queue field found. The replay has `BombPlayerState.CompetitiveTier` and weekly-mission progress (`Season26-6_Week*_Mission`), which point to a matchmade game, **probably not a custom game** | ⚠️ R0b stays open |
 
-Internal agent names seen: BountyHunter = Fade, Deadeye = Chamber, Hunter = Sova, Nox = Vyse, Rift = Astra, Wraith = Omen, Wushu = Jett, Phoenix = Phoenix. Expected later: Gumshoe = Cypher, Killjoy = Killjoy. R6 builds the full list from the agent UUIDs, not from these names.
+Internal agent names seen: BountyHunter = Fade, Deadeye = Chamber, Hunter = Sova, Nox = Vyse, Rift = Astra, Wraith = Omen, Wushu = Jett, Phoenix = Phoenix. Expected later: Gumshoe = Cypher, Killjoy = Killjoy. R6 builds the full list from the agent UUIDs, not from these names. The full list of codenames (valorant-api `developerName`, checked 2026-10-27) is in the R3b section.
 
 ## Second replay (Swiftplay, Split), 2026-10-27
 
@@ -127,6 +129,36 @@ Built in the fork (`vrf-wasm` 0.3.0, `crates/vrf-wasm/src/utility.rs`); the bind
 - **Player**: `Instigator`, else `Owner`, followed until a player's character (deployable → projectile → ability → character; Astra's targeting pawn → character). All 340 + 111 utility actors resolve; for every one the owner's agent matches the class's agent.
 - **Plausibility** (Uni Scrims test, both 13.08 replays): counters 0, one spawn per piece with updates and the end after it, all positions within the area the players walked, owner agent matches, Shear ≤ 1200 units, raised walls on their trap's ends, mesh arms on their root, Blaze points moving away from the first one, every Trademark with a yaw.
 
+## R3b: utility of Cypher, Killjoy, Sage, Raze, Neon, Miks (2026-10-27)
+
+Built in the fork (`vrf-wasm` 0.4.0, `crates/vrf-wasm/src/utility.rs`) from the user's 3rd and 4th replay.
+
+**Codenames** (valorant-api `developerName`): Aggrobot = Gekko, BountyHunter = Fade, Breach = Breach, Cable = Deadlock, Cashew = Tejo, Clay = Raze, Deadeye = Chamber, Grenadier = KAY/O, Guide = Skye, Gumshoe = Cypher, Hunter = Sova, Iris = Miks, Killjoy = Killjoy, Mage = Harbor, Nox = Vyse, Pandemic = Viper, Paprika = Hush, Phoenix = Phoenix, Pine = Veto, Rift = Astra, Sarge = Brimstone, Sequoia = Iso, Smonk = Clove, Sprinter = Neon, Stealth = Yoru, Terra = Waylay, Thorne = Sage, Vampire = Reyna, Wraith = Omen, Wushu = Jett. `Thumper` is Miks' M-Pulse/Harmonize device (its classes come with `Ability_Iris_Thumper`).
+
+| Agent, ability | Class | What the replay has | In the binding |
+| --- | --- | --- | --- |
+| Cypher, Trapwire | `GameObject_Gumshoe_4_TripWire` + `…_SecondWire` | One actor per anchor, both opened in the same frame (34 pairs, one per frame); the spawn position is the anchor, 342–1425 units apart. The GUID gap is **not** fixed. `SetEnemyInTrap` on both when it catches someone | **pair**: one piece, `a` = its spawn, `b` = the partner's; the first close ends it |
+| Cypher, Spycam | `Pawn_Gumshoe_E_PossessableCamera` | Spawn with yaw (one without: a yaw of 0 is left out); its facing while Cypher looks through it is in the movement rows (yaw 219–303 on one camera) | point, `track` |
+| Cypher, Cyber Cage, Neural Theft, dart | `GameObject_Gumshoe_Q_CageTrap` (lying), `Zone_Gumshoe_Q_Cage` (active), `GameObject_Gumshoe_X_InterrogateHat`, `GameObject_RemovableObject_GumshoeTrackingDart` | Spawn | point |
+| Killjoy, Turret | `Pawn_Killjoy_E_Turret` | Spawn yaw = facing; movement rows exist but the yaw never changes: **its aim is not in the replay** | point, `track` |
+| Killjoy, Alarmbot | `Pawn_Killjoy_Q_StealthAlarmbot` | Spawn with yaw, movement rows, `IsBurrowed` | point, `track` |
+| Killjoy, Nanoswarm | `Projectile_Killjoy_4_RemoteBees_MultiDetonate`, `GameObject_Killjoy_4_BeeSwarm_Damage` | The projectile opens where it was thrown; `MulticastTriggerExplodeIndicator.IndicatorLocation` (three doubles) is where it lies: all 5 swarm activations are < 0.1 units from it | **landing**: spawns at the indicator; the swarm as a point |
+| Killjoy, Lockdown | `GameObject_Killjoy_X_Bomb`, `…_X_Shockwave` | Spawn | point |
+| Sage, Barrier Orb | `GameObject_Thorne_E_Wall_Fortifying` + 4 × `…_Wall_Segment_Fortifying` | Each segment its own actor with position and yaw, opened in the wall's frame, < 400 units from it; destroyed one by one; `Fortify` when it hardens | point per segment, state `Fortify` |
+| Sage, Slow Orb | `Patch_Thorne_4_SlowField_Production` | Spawn | point |
+| Raze, Paint Shells | `Projectile_Clay_4_Projectile_SecondarySpawner`, `…_Projectile_Secondary` | The spawner opens where the shell burst (as the primary closes); the bomblets send the indicator where they land, < 800 units from it, and close there | spawner as a point, bomblets as **landings** |
+| Raze, Blast Pack | `Projectile_Clay_Q_Satchel_Arming`, `GameObject_Clay_Q_Explosion` | The indicator is where it stuck; 7 of 8 explosions are on one | landing; explosion as a point |
+| Raze, Boom Bot | `Pawn_Clay_E_Boomba` | A path in the movement rows (990 rows, 7800 units) | point, `track` |
+| Neon, Fast Lane / Relay Bolt | `GameObject_Sprinter_4_Tunnel`, `GameObject_Sprinter_Q_ElectricSphere` | `MulticastAddTunnelPoint.Translation`, 20–28 points per lane | polyline / point |
+| Miks, Waveform / Bassquake | `GameObject_Iris_E_Smoke` (no yaw), `GameObject_Iris_X_SonicWave` | Spawn | point |
+| Miks, M-Pulse / Harmonize | `GameObject_Thumper_Concuss`, `GameObject_Thumper_Heal` | Spawn; `Lift` when it fires. `GameObject_Thumper_ConcussPulse` opens every 2 s and is **never closed** | point, state `Lift`; the pulse is left out |
+
+- **Pawns** are now utility (`track: true`), including the moving ones R3a left out (Sova's drone, Fade's dogs, Veto's Interceptor `Pawn_Pine_E_RadEater`): every one has movement rows under its GUID, so the viewer takes their path and facing from there. Fade's trail stays out.
+- `IndicatorLocation` is sent by almost every thrown projectile (flashes, mollies, bolts); only a landing class's counts, the rest is not counted as unresolved.
+- No pawn shows up in `players[].characters` (the camera Cypher looks through included).
+- **Agents without a replay** (R3c): `GameObject_`/`Zone_`/`Patch_` classes with their codename come as points with `verified: false`.
+- **Plausibility** (Uni Scrims test, all four replays): counters 0, every owner's agent matches the class, the checks above, and every shape check runs in at least one replay.
+
 ## What this means for the phases
 
 - **R1** (fork + WASM): no blocker. `oozextract` is pure Rust and the peak memory is ~170 MB.
@@ -137,7 +169,7 @@ Built in the fork (`vrf-wasm` 0.3.0, `crates/vrf-wasm/src/utility.rs`); the bind
 
 ## Open items
 
-1. **A replay with Cypher and Killjoy** (any mode, current build) to confirm tripwire anchors and turret facing. Needed before R3 is finished.
+1. ~~A replay with Cypher and Killjoy~~: done with the user's 3rd and 4th replay (R3b). Still open for R3c: replays with Brimstone, Viper, Harbor, KAY/O, Breach, Skye, Gekko, Yoru, Iso, Tejo, Waylay and Hush, and Deadlock's and Sova's ult.
 2. **R0b**: a custom-game replay with recording turned on. Needed before R11. This replay was probably matchmade.
 3. **Fixtures**:
    - Real replays never go into git: the user's replay holds 10 account UUIDs and gameplay.
