@@ -19,7 +19,7 @@ A new session starts by reading only §0, the "Current state" block and the sect
 - **Last commit**: see the log.
 - **Next step**: build vrfkit (Rust, user-local in `~/.cargo`, work dir `~/replay-work`), parse the user's replay, write `docs/replay-viewer-findings.md`.
 - **Waiting for the user**: a `.vrf` from a custom game with recording on, for **R0b**. Needed before R11 (saving) and before go-live, not before.
-- **Open problems**: —
+- **Open problems**: building vrfkit (external code: `cargo build` runs build scripts of third-party crates) was blocked by Claude Code's permission check on 2026-10-27. Waiting for the user to allow it or run the build. Rust 1.90.0 is installed in `~/.cargo`, and vrfkit is cloned to `~/replay-work/vrfkit` at b9496df (2026-10-16).
 
 ### Phases
 
