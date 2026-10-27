@@ -13,9 +13,10 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: none started. Next: **R0 Spike test**. It needs a `.vrf` from a custom game with replay recording on, from the user.
+- **Phase**: none started. Next: **R0 Spike test** on vrfkit's public test replays. The user can't record a real replay for now (2026-10-27).
 - **Last commit**: —
-- **Next step**: the user records a custom scrim with recording on and hands over the `.vrf`.
+- **Next step**: start R0 after the user's go.
+- **Waiting for the user**: a `.vrf` from a custom game with recording on, for **R0b**. Needed before R11 (saving) and before go-live, not before.
 - **Open problems**: —
 
 ### Phases
@@ -24,7 +25,8 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 
 | Phase | Title | Status | Started | Finished | Commits | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| R0 | Spike test | ⬜ | | | | |
+| R0 | Spike test on public replays | ⬜ | | | | |
+| R0b | Custom-game check with a real scrim replay | ⏸ | | | | Waiting for a `.vrf` from the user; needed before R11 |
 | R1 | Parser fork + WASM build | ⬜ | | | | |
 | R2 | Decoding: charges + ult points | ⬜ | | | | |
 | R3 | Decoding: utility rotation, tripwire, turret | ⬜ | | | | |
@@ -45,6 +47,7 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
 
+- 2026-10-27: the user can't record a real replay for now. R0 now runs on vrfkit's public test replays (builds 12.10, 12.11, 13.00, fetched by vrfkit's CI), and the custom-game check moved to R0b, needed before R11.
 - 2026-10-27: concept written, user decisions (§11) added, phases planned for one session each, placement under Scrims decided.
 
 ## 1. Goal
@@ -374,15 +377,29 @@ The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot 
 - **No deploy** of any phase to production before Riot answers (§11). Everything is built and tested on dev.
 - Heavy jobs (Rust/WASM builds, tests, lint, Docker builds) never run in parallel on the VPS.
 
-### R0 — Spike test (no app code)
+### R0 — Spike test on public replays (no app code)
 
-- **Input**: a `.vrf` from a custom game with recording turned on, from the user.
+- **Input**: the public test replays that vrfkit's CI fetches from a pinned commit (builds 12.10, 12.11, 13.00; see vrfkit's CONTRIBUTING.md). No replay from the user needed.
 - **Work**:
-  - Run vrfkit (CLI) on it, on the VPS or the user's PC.
+  - Run vrfkit (CLI) on them, one at a time on the VPS.
   - Find where ability charges, ult points, utility rotation, tripwire anchors, turret facing, and kill weapon/assists/headshot/wallbang sit (actor classes, replicated properties).
   - Check positions + yaw, and the round/score events.
-- **Output**: `docs/replay-viewer-findings.md` with every 🔧 item from §2 and where it is found. A short sample of the data.
-- **Done when**: custom-game recording is confirmed and every 🔧 item is located, or the finding says exactly what is missing.
+  - Note which agents appear, since deployables of missing agents can't be checked yet.
+- **Output**:
+  - `docs/replay-viewer-findings.md` with every 🔧 item from §2 and where it is found, and a short sample of the data.
+  - The replays' game mode and build.
+  - The licence/permission of the public replays: may we keep cut-down fixtures from them in our tests?
+- **Done when**: every 🔧 item is located, or the finding says exactly what is missing and why.
+- **Limits**: these are older builds and probably not custom games. R0b closes that gap.
+
+### R0b — Custom-game check (waiting for the user)
+
+- **Input**: a `.vrf` from a custom game with recording turned on, from the user, on the current build.
+- **Work**:
+  - Confirm that custom games record a replay.
+  - Run the R0 findings on it, and note what changed in the current build.
+  - Check agents that were missing in R0.
+- **When**: whenever the user has a replay. Required before R11 (saving) and before go-live. The phases in between can use the public replays.
 
 ### R1 — Parser fork + WASM build
 
@@ -391,11 +408,11 @@ The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot 
   - A small Rust crate on top of it that exposes `parse(bytes) → events` to JavaScript via `wasm-bindgen`.
   - A build script (`wasm-pack`, exact pinned versions).
 - **Into Uni Scrims**: a new package `packages/replay-parser` with the built `.wasm` + JS glue, pinned to a fork version, and a short README on how to rebuild.
-- **Done when**: a Node test loads the WASM and parses the R0 replay into events. Peak memory and time are written into §0.
+- **Done when**: a Node test loads the WASM and parses an R0 replay into events. Peak memory and time are written into §0.
 
 ### R2 — Decoding: ability charges + ult points
 
-- **Work**: in the fork, decode the replicated charge and ult properties found in R0. Emit `ability` (slot, charges) and `ult` (points, max) events. Fork tests on the R0 replay.
+- **Work**: in the fork, decode the replicated charge and ult properties found in R0. Emit `ability` (slot, charges) and `ult` (points, max) events. Fork tests on an R0 replay.
 - **Done when**: at 5 sampled moments, charges and ult points match the in-game replay.
 
 ### R3 — Decoding: utility rotation, tripwire, turret
@@ -420,7 +437,7 @@ The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot 
   - `packages/core/src/replay/`: zod schema for the format (`formatVersion` 1), and a pure function `stateAt(replay, round, t)` (positions interpolated, latest value per state stream, keyframes every 5 s).
   - The reducer events → JSON, inside a Web Worker module in `apps/web` that loads `packages/replay-parser`.
   - A clear error for unsupported game versions.
-- **Done when**: Vitest covers the schema and `stateAt` (fixtures cut from the R0 replay), and the Worker turns the R0 file into valid JSON under a time and size budget.
+- **Done when**: Vitest covers the schema and `stateAt` (fixtures cut from an R0 replay), and the Worker turns an R0 replay into valid JSON under a time and size budget.
 
 ### R6 — Game assets
 
@@ -524,4 +541,4 @@ Only after Riot answers (§11): privacy texts approved, deploy like any other ph
 ### Still open
 
 - Live cursors of team-mates and synchronised playback ("follow me") on the collaboration board. Not decided, so not planned.
-- Whether custom games really record a replay when the lobby owner turns it on (phase R0).
+- Whether custom games really record a replay when the lobby owner turns it on (R0b, waiting for a replay from the user).
