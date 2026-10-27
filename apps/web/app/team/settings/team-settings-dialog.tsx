@@ -71,8 +71,10 @@ export async function TeamSettingsDialog({ intercepted }: { intercepted: boolean
                   </span>
                 </span>
                 <p className="text-[13px] text-pretty text-muted-foreground">{t.teamsListHint}</p>
+                {/* Nothing to edit, only a server-set value: never unsaved (§5.33). */}
                 <ActionForm
                   action={setTeamListedAction}
+                  guard={false}
                   submitLabel={team.listed ? t.hideFromList : t.showInList}
                   variant="outline"
                   size="sm"
@@ -94,6 +96,7 @@ export async function TeamSettingsDialog({ intercepted }: { intercepted: boolean
                 </p>
                 <ActionForm
                   action={setVerifiedApplicantsOnlyAction}
+                  guard={false}
                   submitLabel={team.verifiedApplicantsOnly ? t.admitAll : t.admitVerifiedOnly}
                   variant="outline"
                   size="sm"

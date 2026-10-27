@@ -325,6 +325,8 @@ export async function AccountDialog({
               <div className="flex flex-col gap-3 border-t border-border pt-4">
                 <ActionForm
                   action={changePasswordAction}
+                  // A password manager fills in the current password on its own (§5.33).
+                  guard={false}
                   submitLabel={t.changePassword}
                   variant="outline"
                   size="sm"

@@ -1,4 +1,4 @@
-import { nextEnteredFromPage } from "./route-dialog.ts";
+import { needsFullLoad, nextEnteredFromPage } from "./route-dialog.ts";
 
 // Shared state of the route dialogs in the browser (§5.33): how the current one was reached and
 // which are mounted. Read with useSyncExternalStore.
@@ -18,11 +18,16 @@ export function subscribeRouteDialogs(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Called by RouteDialogTracker on every change of the path. */
-export function trackPath(pathname: string) {
-  if (pathname === previousPath) return;
+/**
+ * Called by RouteDialogTracker on every change of the path; true when the dialog must be loaded in
+ * full instead (needsFullLoad).
+ */
+export function trackPath(pathname: string): boolean {
+  if (pathname === previousPath) return false;
+  const reload = needsFullLoad(previousPath, pathname);
   enteredFromPage = nextEnteredFromPage(previousPath, pathname, enteredFromPage);
   previousPath = pathname;
+  return reload;
 }
 
 export function dialogEnteredFromPage(): boolean {

@@ -15,6 +15,18 @@ export function isDialogPath(pathname: string): boolean {
   return (DIALOG_PATHS as readonly string[]).includes(path);
 }
 
+/** Pages of signing in and setting up the account, which lead on to a callback address. */
+const SIGN_IN_PATHS = ["/login", "/register", "/account/setup", "/dev-login"];
+
+/**
+ * A dialog reached from signing in (a callback address, redirected softly by the server action)
+ * would sit over the sign-in page; it is loaded in full instead, with its real page behind.
+ */
+export function needsFullLoad(previous: string | null, current: string): boolean {
+  if (previous === null || !isDialogPath(current)) return false;
+  return SIGN_IN_PATHS.some((path) => previous === path || previous.startsWith(`${path}/`));
+}
+
 export type CloseTarget = { kind: "back" } | { kind: "replace"; href: string };
 
 /**

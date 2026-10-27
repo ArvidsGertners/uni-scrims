@@ -33,7 +33,9 @@ const RouteDialogContext = createContext<{ requestClose: () => void } | null>(nu
 /** Follows the path, so a dialog knows whether it was opened from a page (root layout). */
 export function RouteDialogTracker() {
   const pathname = usePathname();
-  useEffect(() => trackPath(pathname), [pathname]);
+  useEffect(() => {
+    if (trackPath(pathname)) window.location.replace(window.location.href);
+  }, [pathname]);
   return null;
 }
 
@@ -104,6 +106,12 @@ function RouteDialogFrame({
 
   const requestClose = useCallback(() => leave(close), [leave, close]);
 
+  // The browser's anchor scroll ran before the dialog existed, e.g. /support#mehr-teams.
+  const scrollToHash = useCallback((body: HTMLDivElement | null) => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (body && id) body.querySelector(`[id="${CSS.escape(id)}"]`)?.scrollIntoView();
+  }, []);
+
   // Links inside the dialog: with unsaved changes they wait for the prompt.
   function guardLinks(event: MouseEvent<HTMLDivElement>) {
     if (event.defaultPrevented || !isPlainClick(event) || !(event.target instanceof Element))
@@ -140,7 +148,9 @@ function RouteDialogFrame({
             </Button>
           </div>
           {toast}
-          <div className="flex flex-col gap-7 px-5 pt-6 pb-8 sm:px-8">{children}</div>
+          <div ref={scrollToHash} className="flex flex-col gap-7 px-5 pt-6 pb-8 sm:px-8">
+            {children}
+          </div>
         </DialogContent>
       </Dialog>
     </RouteDialogContext>

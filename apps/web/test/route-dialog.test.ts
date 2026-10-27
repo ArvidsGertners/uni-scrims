@@ -1,6 +1,11 @@
 // Route dialogs (ARCHITECTURE §5.33): which addresses are dialogs and where closing leads.
 import { describe, expect, it } from "vitest";
-import { closeTarget, isDialogPath, nextEnteredFromPage } from "../lib/route-dialog.ts";
+import {
+  closeTarget,
+  isDialogPath,
+  needsFullLoad,
+  nextEnteredFromPage,
+} from "../lib/route-dialog.ts";
 
 describe("isDialogPath", () => {
   it("knows the dialog addresses, with or without a trailing slash", () => {
@@ -53,5 +58,20 @@ describe("nextEnteredFromPage", () => {
   it("keeps its value when switching between dialogs", () => {
     expect(nextEnteredFromPage("/account", "/account/notifications", true)).toBe(true);
     expect(nextEnteredFromPage("/account", "/account/notifications", false)).toBe(false);
+  });
+});
+
+describe("needsFullLoad", () => {
+  it("loads a dialog reached from signing in in full", () => {
+    expect(needsFullLoad("/login", "/team/settings")).toBe(true);
+    expect(needsFullLoad("/login/2fa", "/account")).toBe(true);
+    expect(needsFullLoad("/account/setup", "/account/notifications")).toBe(true);
+  });
+
+  it("leaves dialogs over pages and pages alone", () => {
+    expect(needsFullLoad("/scrims", "/account")).toBe(false);
+    expect(needsFullLoad(null, "/account")).toBe(false);
+    expect(needsFullLoad("/login", "/scrims")).toBe(false);
+    expect(needsFullLoad("/account", "/account/notifications")).toBe(false);
   });
 });

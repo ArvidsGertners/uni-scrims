@@ -30,21 +30,13 @@ export function FlashToast({
     const timer = setTimeout(() => setVisible(false), 3500);
     return () => clearTimeout(timer);
   }, [domain]);
+  // The page's toast steps aside while a dialog shows the message, and shows up once it closes
+  // within the time, e.g. after "Speichern und verlassen" (§5.33).
   const dialogOpen = useSyncExternalStore(
     subscribeRouteDialogs,
     () => openRouteDialogCount() > 0,
     () => false,
   );
-  // The page's toast stays hidden once a dialog shows it. Checked against the store's current state
-  // after the commit: a redirect that closes the dialog has unregistered it by then.
-  useEffect(() => {
-    if (inDialog) return;
-    const hide = () => {
-      if (openRouteDialogCount() > 0) setVisible(false);
-    };
-    hide();
-    return subscribeRouteDialogs(hide);
-  }, [inDialog]);
   if (!visible || (!inDialog && dialogOpen)) return null;
   return (
     <div className={cn("mx-auto w-full max-w-3xl px-5 pt-4 sm:px-8", className)}>

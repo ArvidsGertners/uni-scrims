@@ -184,6 +184,8 @@ export function useDirtyGuard({
   const guard = useContext(DirtyGuardContext);
   const baseline = useRef<string | null>(null);
   const dispatched = useRef(false);
+  // From the hand-over to the action until its state: a running submit is not a change to save.
+  const inFlight = useRef(false);
   const pending = useRef<((saved: boolean) => void) | null>(null);
 
   useEffect(() => {
@@ -193,6 +195,7 @@ export function useDirtyGuard({
   // Each action state answers a submit; a saved form is the new starting point.
   useEffect(() => {
     if (state === initialActionState) return;
+    inFlight.current = false;
     if (state.done && formRef.current) {
       baseline.current = formSnapshot(new FormData(formRef.current));
     }
@@ -207,7 +210,7 @@ export function useDirtyGuard({
       create,
       isDirty() {
         const form = formRef.current;
-        if (!form || baseline.current === null) return false;
+        if (!form || baseline.current === null || inFlight.current) return false;
         return formSnapshot(new FormData(form)) !== baseline.current;
       },
       save() {
@@ -243,6 +246,7 @@ export function useDirtyGuard({
     () => ({
       markDispatched: () => {
         dispatched.current = true;
+        inFlight.current = true;
       },
     }),
     [],
