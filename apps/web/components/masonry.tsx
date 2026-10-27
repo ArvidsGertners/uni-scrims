@@ -12,8 +12,9 @@ type Layout = { keys: string; positions: MasonryPosition[]; height: number; widt
  * positioned absolutely in the column that ends first. Column count, width and gap come from the
  * grid's computed style, so the breakpoints stay those of CARD_COLUMNS; DOM order (keyboard, screen
  * readers) stays row by row. Before measuring and without JS, the plain grid with `items-start`.
+ * `grid` replaces CARD_COLUMNS and its gap, e.g. for the notification categories (SPEC N-31).
  */
-export function Masonry({ children }: { children: ReactNode }) {
+export function Masonry({ grid, children }: { grid?: string; children: ReactNode }) {
   const items = Children.toArray(children);
   const keys = items.map((item, index) => (isValidElement(item) ? item.key : null) ?? `#${index}`);
   // Other cards after a soft navigation are other cells to measure.
@@ -60,7 +61,7 @@ export function Masonry({ children }: { children: ReactNode }) {
   return (
     <div
       ref={containerRef}
-      className={cn(CARD_COLUMNS, "relative items-start gap-3")}
+      className={cn(grid ?? cn(CARD_COLUMNS, "gap-3"), "relative items-start")}
       style={current ? { height: current.height } : undefined}
     >
       {items.map((item, index) => {
