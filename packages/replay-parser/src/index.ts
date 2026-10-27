@@ -147,7 +147,7 @@ export type ReplayStats = {
   chargeRowsUnresolved: number;
   /** Ult rows on an actor that is no player's state. */
   ultRowsUnresolved: number;
-  /** Utility shape rows on an actor that is not live utility, or unreadable. */
+  /** Utility shape rows on an actor that is not live utility or unreadable, and utility opens without a position. */
   utilityRowsUnresolved: number;
   /** Utility spawns whose owner chain reaches no player. */
   utilityOwnerUnresolved: number;
