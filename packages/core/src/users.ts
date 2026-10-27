@@ -39,6 +39,7 @@ export function deletedUserData(userId: string) {
     rank: null,
     locale: null,
     activeTeamId: null,
+    whatsNewSeen: null,
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
 
@@ -248,6 +249,7 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
       avatarUpdatedAt: true,
       theme: true,
       locale: true,
+      whatsNewSeen: true,
     },
   });
   if (!user) return null;
@@ -270,6 +272,8 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
     theme: user.theme,
     /** The chosen language, null if never chosen; it comes before cookie and browser (§5.21). */
     locale: fromDbLocale(user.locale),
+    /** The last edition of the what's new dialog the user closed, null if none (§5.31). */
+    whatsNewSeen: user.whatsNewSeen,
   };
 }
 

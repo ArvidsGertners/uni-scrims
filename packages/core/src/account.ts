@@ -46,6 +46,7 @@ import {
   notDeletedUserWhere,
 } from "./users.ts";
 import type { Locale } from "../config/locale.ts";
+import { WHATS_NEW_EDITION } from "../config/whats-new.ts";
 
 /** Better Auth's provider ID for the email and password login (§5.8). */
 export const CREDENTIAL_PROVIDER = "credential";
@@ -238,6 +239,20 @@ export async function setThemePreference(input: { userId: string; theme: string 
   const theme = parseInput(themePreferenceSchema, input.theme);
   // updateMany: a deletion that commits meanwhile has reset the row, which then stays as it is.
   await prisma.user.updateMany({ where: notDeletedUserWhere(user.id), data: { theme } });
+}
+
+/**
+ * The user closed the what's new dialog (SPEC N-29, §5.31): only the current edition, so a stale
+ * page cannot mark a newer one as seen. Like the other settings of the own account.
+ */
+export async function markWhatsNewSeen(input: { userId: string; edition: string }): Promise<void> {
+  const user = await requireUser(input.userId);
+  if (input.edition !== WHATS_NEW_EDITION) throw new DomainError("INVALID", "invalidInput");
+  // updateMany: a deletion that commits meanwhile has reset the row, which then stays as it is.
+  await prisma.user.updateMany({
+    where: notDeletedUserWhere(user.id),
+    data: { whatsNewSeen: WHATS_NEW_EDITION },
+  });
 }
 
 /**

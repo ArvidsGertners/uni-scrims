@@ -386,6 +386,8 @@ export async function exportAccountData(input: {
           sprache: user.locale && LOCALE_LABELS.de[user.locale],
           // Self-declared (SPEC N-16).
           rang: user.rank && RANK_LABELS[user.rank],
+          // The last edition of the what's new dialog the person closed (SPEC N-29).
+          neuigkeitenGesehen: user.whatsNewSeen,
         },
         anmeldung: {
           discordId: discord?.accountId ?? null,

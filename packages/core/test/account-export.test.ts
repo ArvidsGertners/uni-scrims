@@ -466,6 +466,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     theme: SHOWN,
     rank: SHOWN,
     locale: SHOWN,
+    whatsNewSeen: SHOWN,
     activeTeamId: SHOWN,
     teamLimit: SHOWN,
   },
