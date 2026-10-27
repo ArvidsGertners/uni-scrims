@@ -25,7 +25,7 @@ const formats = new Map<string, Intl.DateTimeFormat>();
 
 /**
  * Numeric dates in Europe/Berlin, the same on the server and in the browser: "time" as "20:05",
- * "key" as "2026-10-27" (en-CA). Names come from the dictionary, never from Intl (§5.21).
+ * "key" for the parts of dayKey. Names come from the dictionary, never from Intl (§5.21).
  */
 function berlinFormat(locale: Locale, kind: "time" | "key"): Intl.DateTimeFormat {
   const id = `${locale}-${kind}`;
@@ -38,10 +38,23 @@ function berlinFormat(locale: Locale, kind: "time" | "key"): Intl.DateTimeFormat
             hour: "2-digit",
             minute: "2-digit",
           })
-        : new Intl.DateTimeFormat("en-CA", { timeZone: BERLIN });
+        : new Intl.DateTimeFormat("en-CA", {
+            timeZone: BERLIN,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          });
     formats.set(id, format);
   }
   return format;
+}
+
+/** The Berlin day of an instant as "YYYY-MM-DD", from the parts, whatever order Intl uses. */
+function dayKey(iso: string): string {
+  const parts = berlinFormat("de", "key").formatToParts(new Date(iso));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((entry) => entry.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
 /** The parts of a Berlin day "YYYY-MM-DD" for the dictionary; weekday 0 is Monday. */
@@ -67,7 +80,7 @@ type Group = { day: string; messages: WireMessage[] };
 function groupMessages(messages: WireMessage[], dividerId: string | null): Group[] {
   const groups: Group[] = [];
   for (const message of messages) {
-    const day = berlinFormat("de", "key").format(new Date(message.createdAt));
+    const day = dayKey(message.createdAt);
     const group = groups.at(-1);
     const previous = group?.messages.at(-1);
     const joins =
@@ -226,21 +239,28 @@ export function MessageThread({
             </span>
           </div>
         ) : (
-          // Few messages sit at the bottom, next to the field, as in a messenger.
-          <div className="flex min-h-full flex-col justify-end gap-3">
-            {groups.map((group, index) => (
-              <div key={group.messages[0]!.id} className="flex flex-col gap-3">
-                {index === 0 || groups[index - 1]!.day !== group.day ? (
-                  <Separator>{days.day(calendarDay(group.day))}</Separator>
-                ) : null}
-                {group.messages[0]!.id === dividerId ? (
-                  <Separator accent unread>
-                    {t.unread}
-                  </Separator>
-                ) : null}
-                <MessageGroup group={group} teamId={teamId} locale={locale} />
-              </div>
-            ))}
+          // Few messages sit at the bottom, next to the field, as in a messenger. One row per message,
+          // keyed by its id, so a deleted message does not remount the rows after it.
+          <div className="flex min-h-full flex-col justify-end">
+            {groups.flatMap((group, groupIndex) =>
+              group.messages.map((message, index) => (
+                <MessageRow
+                  key={message.id}
+                  message={message}
+                  day={
+                    index === 0 && (groupIndex === 0 || groups[groupIndex - 1]!.day !== group.day)
+                      ? days.day(calendarDay(group.day))
+                      : null
+                  }
+                  unread={message.id === dividerId ? t.unread : null}
+                  first={index === 0}
+                  last={index === group.messages.length - 1}
+                  spaced={groupIndex > 0 || index > 0}
+                  teamId={teamId}
+                  locale={locale}
+                />
+              )),
+            )}
           </div>
         )}
       </div>
@@ -324,27 +344,46 @@ function Separator({
   );
 }
 
-/** One person's messages in a row: the name line once, then the bubbles. */
-function MessageGroup({ group, teamId, locale }: { group: Group; teamId: string; locale: Locale }) {
-  const first = group.messages[0]!;
+/**
+ * One message: the day and "Neu" before it where they start, the name line on the first bubble of
+ * a group (none for the own messages), more space before a new group than inside one.
+ */
+function MessageRow({
+  message,
+  day,
+  unread,
+  first,
+  last,
+  spaced,
+  teamId,
+  locale,
+}: {
+  message: WireMessage;
+  day: string | null;
+  unread: string | null;
+  first: boolean;
+  last: boolean;
+  spaced: boolean;
+  teamId: string;
+  locale: Locale;
+}) {
   return (
-    <div className={cn("flex flex-col gap-1", first.own ? "items-end" : "items-start")}>
-      {/* The own messages need no name; a teammate's and the other team's do. */}
-      {first.mine ? null : (
-        <span className="flex max-w-[85%] flex-wrap items-baseline gap-x-1.5 px-1 text-[12px] text-muted-foreground">
-          <span className="font-semibold text-foreground">{first.authorName}</span>
-          <span className="break-words">{first.teamName}</span>
-        </span>
-      )}
-      {group.messages.map((message, index) => (
-        <Bubble
-          key={message.id}
-          message={message}
-          teamId={teamId}
-          locale={locale}
-          last={index === group.messages.length - 1}
-        />
-      ))}
+    <div className={cn("flex flex-col gap-3", spaced && (first ? "mt-3" : "mt-1"))}>
+      {day ? <Separator>{day}</Separator> : null}
+      {unread ? (
+        <Separator accent unread>
+          {unread}
+        </Separator>
+      ) : null}
+      <div className={cn("flex flex-col gap-1", message.own ? "items-end" : "items-start")}>
+        {first && !message.mine ? (
+          <span className="flex max-w-[85%] flex-wrap items-baseline gap-x-1.5 px-1 text-[12px] text-muted-foreground">
+            <span className="font-semibold text-foreground">{message.authorName}</span>
+            <span className="break-words">{message.teamName}</span>
+          </span>
+        ) : null}
+        <Bubble message={message} teamId={teamId} locale={locale} last={last} />
+      </div>
     </div>
   );
 }
@@ -406,7 +445,7 @@ function Bubble({
 
 /**
  * Deleting the own message or reporting another team's, as a small icon next to the bubble: on
- * hover or focus with a mouse, always on touch screens; asks first in the site's dialog.
+ * hover or focus with a mouse, always where a touch screen exists; asks first in the site's dialog.
  */
 function BubbleAction({
   kind,
@@ -433,7 +472,7 @@ function BubbleAction({
           if (!confirm(event, text, { label, destructive: true })) return;
           submitKeepingValues(event, action);
         }}
-        className="opacity-0 transition-opacity group-hover/bubble:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
+        className="opacity-0 transition-opacity group-hover/bubble:opacity-100 focus-within:opacity-100 any-pointer-coarse:opacity-100"
       >
         <input type="hidden" name="messageId" value={message.id} />
         {kind === "report" ? <input type="hidden" name="teamId" value={teamId} /> : null}
@@ -477,7 +516,7 @@ function MessageForm({ conversation }: { conversation: WireConversation }) {
       <input type="hidden" name="guestTeamId" value={conversation.guestTeamId} />
       {/* The team the page acted for (§5.20). */}
       <input type="hidden" name="teamId" value={conversation.teamId} />
-      <div className="flex items-end gap-2 rounded-[22px] border border-border-strong bg-background py-1.5 pr-1.5 pl-4 transition-colors focus-within:border-primary">
+      <div className="flex items-end gap-2 rounded-[22px] border border-border-strong bg-background py-1.5 pr-1.5 pl-4 transition-[border-color,box-shadow] focus-within:border-ring focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
         <label htmlFor={fieldId} className="sr-only">
           {t.label}
         </label>

@@ -143,7 +143,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* From 1024 px the details and feedback left, the chat right (SPEC N-12, N-28). */}
-      <div className={cn("flex flex-col gap-7 lg:gap-8", CHAT_COLUMNS)}>
+      <div className={cn("flex flex-col gap-7 lg:gap-8", conversation && CHAT_COLUMNS)}>
         <div className="flex min-w-0 flex-col gap-7">
           <DiscordContact
             captainName={scrim.opponent.captainName}
