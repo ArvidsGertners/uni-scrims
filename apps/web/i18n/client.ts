@@ -241,6 +241,15 @@ export const datePickerMessages = dictionary(
   },
 );
 
+/** A short day in client components, e.g. between chat messages (§5.30): "Di, 27.10." / "Tue 27 Oct". */
+export const shortDayMessages = dictionary(
+  { day: (day: CalendarDay) => `${WEEKDAYS_DE[day.weekday]}, ${pad(day.date)}.${pad(day.month)}.` },
+  {
+    day: (day) =>
+      `${WEEKDAYS_MEDIUM_EN[day.weekday]} ${day.date} ${MONTHS_EN[day.month - 1]!.slice(0, 3)}`,
+  },
+);
+
 /** components/whats-new (SPEC N-29): one entry per slide of config/whats-new.ts. */
 export const whatsNewMessages = dictionary(
   {

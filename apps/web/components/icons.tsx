@@ -29,6 +29,20 @@ function createIcon(content: ReactNode) {
 
 export const MenuIcon = createIcon(<path d="M4 7h16M4 12h16M4 17h16" />);
 export const FlagIcon = createIcon(<path d="M5 21V4c4-2 8 2 14 0v10c-6 2-10-2-14 0" />);
+/** Sending a message (SPEC N-28): a paper plane. */
+export const SendIcon = createIcon(
+  <>
+    <path d="m22 2-7 20-4-9-9-4Z" />
+    <path d="M22 2 11 13" />
+  </>,
+);
+export const TrashIcon = createIcon(<path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6" />);
+export const LockIcon = createIcon(
+  <>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </>,
+);
 /** "Neuigkeiten" (SPEC N-29): a four-pointed spark. */
 export const SparkIcon = createIcon(
   <path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7Z" />,

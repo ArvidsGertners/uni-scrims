@@ -39,7 +39,8 @@ export function ApplicationThread({
           initial={initial}
           realtimeUrl={realtimeUrl}
           focus={focus}
-          className="border-t border-border p-3"
+          variant="embedded"
+          className="border-t border-border"
         />
       ) : null}
     </details>

@@ -14,7 +14,7 @@ import { ActionForm } from "@/components/action-form";
 import { BackLink } from "@/components/back-link";
 import { DiscordContact } from "@/components/discord-contact";
 import { MessageThread } from "@/components/message-thread";
-import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
+import { CHAT_COLUMNS, PageMain } from "@/components/page-main";
 import { SwitchTeamHint } from "@/components/switch-team-hint";
 import { TeamLinks } from "@/components/team-links";
 import { Alert } from "@/components/ui/alert";
@@ -30,7 +30,6 @@ import { cancelScrimAction } from "../actions";
 import { FeedbackForm } from "./feedback-form";
 import { getLocale, getMessages, getText } from "@/lib/locale";
 import { scrimDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
-import { messageThreadMessages } from "@/i18n/scrims-client";
 import type { Locale } from "@uni-scrims/core/config/locale";
 
 function outcomes(locale: Locale) {
@@ -64,17 +63,8 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   }
 
   const when = `${describeStartShort(scrim.startsAt, locale)} · ${formatFormat(scrim.format, locale)}`;
-  const threads = await getMessages(messageThreadMessages);
-  // The thread with the opponent, continued from the application or direct request (SPEC N-28).
-  const thread = scrim.conversation ? (
-    <section className="flex flex-col gap-3">
-      <h2 className="type-h2">{threads.title(scrim.opponent.name)}</h2>
-      <MessageThread
-        initial={toWireConversation(scrim.conversation)}
-        realtimeUrl={realtimePublicUrl()}
-      />
-    </section>
-  ) : null;
+  // The chat with the opponent, continued from the application or direct request (SPEC N-28).
+  const conversation = scrim.conversation ? toWireConversation(scrim.conversation) : null;
 
   // Feedback due: the page is the feedback screen of the design handoff.
   if (scrim.canGiveFeedback) {
@@ -96,7 +86,9 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
           outcomes={outcomes(locale)}
           ratings={RATINGS}
         />
-        {thread}
+        {conversation ? (
+          <MessageThread initial={conversation} realtimeUrl={realtimePublicUrl()} />
+        ) : null}
       </PageMain>
     );
   }
@@ -150,8 +142,8 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
         ) : null}
       </div>
 
-      {/* From 1024 px the details left, feedback and cancelling right (SPEC N-12). */}
-      <div className={cn("flex flex-col gap-7 lg:gap-8", DETAIL_COLUMNS)}>
+      {/* From 1024 px the details and feedback left, the chat right (SPEC N-12, N-28). */}
+      <div className={cn("flex flex-col gap-7 lg:gap-8", CHAT_COLUMNS)}>
         <div className="flex min-w-0 flex-col gap-7">
           <DiscordContact
             captainName={scrim.opponent.captainName}
@@ -181,9 +173,7 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
               </p>
             </div>
           ) : null}
-          {thread}
-        </div>
-        <div className="flex min-w-0 flex-col gap-7">
+
           <section className="flex flex-col gap-2.5">
             <h2 className="type-h2">{t.feedback}</h2>
             {scrim.ownFeedback ? (
@@ -199,35 +189,40 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
               </p>
             )}
           </section>
-
-          {scrim.cancellable ? (
-            <section className="flex flex-col gap-2.5">
-              <h2 className="type-h2">{t.cancelScrim}</h2>
-              {scrim.canCancel ? (
-                <>
-                  <p className="text-[14px] text-pretty text-muted-foreground">
-                    {scrim.cancelWouldBeLate ? t.cancelWouldBeLate : t.cancelPossible}
-                  </p>
-                  <ActionForm
-                    action={cancelScrimAction}
-                    submitLabel={t.cancelScrim}
-                    variant="destructive"
-                    size="sm"
-                    className="mt-1.5 flex flex-col gap-3"
-                    confirmText={scrim.cancelWouldBeLate ? t.confirmLateCancel : t.confirmCancel}
-                  >
-                    <input type="hidden" name="scrimId" value={scrim.id} />
-                    {/* The team the page was shown for (§5.20). */}
-                    <input type="hidden" name="teamId" value={scrim.ownTeam.id} />
-                  </ActionForm>
-                </>
-              ) : (
-                <p className="text-[14px] text-muted-foreground">{text(scrim.actionProblem)}</p>
-              )}
-            </section>
-          ) : null}
         </div>
+        {/* The chat at the right, in view while the page scrolls (SPEC N-28). */}
+        {conversation ? (
+          <MessageThread initial={conversation} realtimeUrl={realtimePublicUrl()} sticky />
+        ) : null}
       </div>
+
+      {/* Cancelling at the very bottom of the page. */}
+      {scrim.cancellable ? (
+        <section className="flex flex-col gap-2.5 border-t border-border pt-7">
+          <h2 className="type-h2">{t.cancelScrim}</h2>
+          {scrim.canCancel ? (
+            <>
+              <p className="text-[14px] text-pretty text-muted-foreground">
+                {scrim.cancelWouldBeLate ? t.cancelWouldBeLate : t.cancelPossible}
+              </p>
+              <ActionForm
+                action={cancelScrimAction}
+                submitLabel={t.cancelScrim}
+                variant="destructive"
+                size="sm"
+                className="mt-1.5 flex flex-col gap-3"
+                confirmText={scrim.cancelWouldBeLate ? t.confirmLateCancel : t.confirmCancel}
+              >
+                <input type="hidden" name="scrimId" value={scrim.id} />
+                {/* The team the page was shown for (§5.20). */}
+                <input type="hidden" name="teamId" value={scrim.ownTeam.id} />
+              </ActionForm>
+            </>
+          ) : (
+            <p className="text-[14px] text-muted-foreground">{text(scrim.actionProblem)}</p>
+          )}
+        </section>
+      ) : null}
     </PageMain>
   );
 }

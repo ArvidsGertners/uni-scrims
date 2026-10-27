@@ -15,7 +15,7 @@ import { CountedTextarea } from "@/components/counted-textarea";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
 import { MessageThread } from "@/components/message-thread";
 import { CheckIcon, ShieldCheckIcon } from "@/components/icons";
-import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
+import { CHAT_COLUMNS, DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { ReliabilityLine } from "@/components/reliability-line";
 import { TeamAvatar } from "@/components/team-avatar";
@@ -43,7 +43,6 @@ import {
 import { getLocale, getMessages, getText } from "@/lib/locale";
 import { formatMessages, fullyVerifiedMessages } from "@/i18n/format";
 import { readyWindowMessages, requestDetailMessages, scrimSharedMessages } from "@/i18n/scrims";
-import { messageThreadMessages } from "@/i18n/scrims-client";
 
 export default async function RequestPage({
   params,
@@ -63,7 +62,6 @@ export default async function RequestPage({
   const ready = await getMessages(readyWindowMessages);
   const shared = await getMessages(scrimSharedMessages);
   const verified = await getMessages(fullyVerifiedMessages);
-  const threads = await getMessages(messageThreadMessages);
   if (!request) notFound();
   const realtimeUrl = realtimePublicUrl();
 
@@ -163,7 +161,8 @@ export default async function RequestPage({
       <div
         className={cn(
           "flex flex-col gap-7",
-          hasActions && DETAIL_COLUMNS,
+          // A wider right column for the chat (SPEC N-28).
+          hasActions && (request.conversation ? CHAT_COLUMNS : DETAIL_COLUMNS),
           hasActions && "lg:gap-8",
         )}
       >
@@ -205,6 +204,15 @@ export default async function RequestPage({
         </div>
         {hasActions ? (
           <div className="flex min-w-0 flex-col gap-7">
+            {/* The chat with the other team at the top right (SPEC N-28): an applicant's or a direct
+                request's; the creating team of a board request has one per application below. */}
+            {request.conversation ? (
+              <MessageThread
+                initial={toWireConversation(request.conversation)}
+                realtimeUrl={realtimeUrl}
+                focus={chat === request.conversation.guestTeamId}
+              />
+            ) : null}
             {request.apply ? (
               <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                 <div className="flex flex-col gap-1">
@@ -382,21 +390,6 @@ export default async function RequestPage({
                     </p>
                   )
                 ) : null}
-              </section>
-            ) : null}
-
-            {/* The thread with the other team (SPEC N-28): an applicant's or a direct request's; the
-                creating team of a board request has one per application below. */}
-            {request.conversation ? (
-              <section className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
-                <h2 className="type-label text-muted-foreground">
-                  {threads.title(request.conversation.otherTeam.name)}
-                </h2>
-                <MessageThread
-                  initial={toWireConversation(request.conversation)}
-                  realtimeUrl={realtimeUrl}
-                  focus={chat === request.conversation.guestTeamId}
-                />
               </section>
             ) : null}
 
