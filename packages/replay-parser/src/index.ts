@@ -109,7 +109,7 @@ export type UtilitySpawn = {
    * its path and facing are the `movement` rows whose `character` is `id`.
    */
   track: boolean;
-  /** False for classes of agents no replay has confirmed yet (phase R3c). */
+  /** False for agent classes no replay has confirmed yet (the agents of phase R3c, unseen classes of known agents). */
   verified: boolean;
 };
 
@@ -154,7 +154,7 @@ export type ReplayStats = {
   chargeRowsUnresolved: number;
   /** Ult rows on an actor that is no player's state. */
   ultRowsUnresolved: number;
-  /** Utility shape rows on an actor that is not live utility or unreadable, and utility opens without a position. */
+  /** Utility shape rows on an actor that is not live utility or unreadable, utility opens without a position, and tripwires without their second anchor. */
   utilityRowsUnresolved: number;
   /** Utility spawns whose owner chain reaches no player. */
   utilityOwnerUnresolved: number;

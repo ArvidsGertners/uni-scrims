@@ -294,7 +294,10 @@ describe("replay parser (WASM)", () => {
           ...ofKind("Pawn_Killjoy_E_Turret"),
           ...ofKind("Pawn_Killjoy_Q_StealthAlarmbot"),
         ];
-        if (check("turret", facing)) expect(facing.every((s) => s.yaw !== null)).toBe(true);
+        // A yaw of 0 is left out of the spawn; the movement rows still face.
+        if (check("turret", facing)) {
+          expect(facing.every((s) => s.yaw !== null || moved.has(s.id))).toBe(true);
+        }
         check("camera", ofKind("Pawn_Gumshoe_E_PossessableCamera"));
 
         // Segments: Vyse's Shear is 1200 units long unless a wall cut it

@@ -32,8 +32,8 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 | R1 | Parser fork + WASM build | ✅ | 2026-10-27 | 2026-10-27 | fork `16660c4` (`us-v0.1.0`), `e6bc43c` (`us-v0.1.1`), see log | Node: 3.2 s, 300 MB peak RSS on the 60 MB match; `.wasm` 727 KB (258 KB gzip) |
 | R2 | Decoding: charges + ult points | ✅ | 2026-10-27 | 2026-10-27 | fork `126e7d4` (`us-v0.2.0`), `ce81b70` (`us-v0.2.1`), see log | Plausibility check instead of the in-game comparison (user decision) |
 | R3a | Decoding: utility of the agents in our replays (rotation, anchors, lifetime) | ✅ | 2026-10-27 | 2026-10-27 | fork `a469e33` (`us-v0.3.0`), `7359ab5` (`us-v0.3.1`), see log | Split 2026-10-27 (user decision); no sizes in the replay; the user's OK 2026-10-27 |
-| R3b | Decoding: utility of all agents in the four replays (Cypher, Killjoy, Sage, Raze, Neon, Miks, pawns) | 🟡 | 2026-10-27 | | fork `b7b48ad` (`us-v0.4.0`), see log | Scope widened 2026-10-27 (user decision) |
-| R3c | Decoding: utility of the 12 agents without a replay, Deadlock's and Sova's ult | ⏸ | | | | Waits for replays with them; until then their classes come by codename prefix with `verified: false` |
+| R3b | Decoding: utility of all agents in the four replays (Cypher, Killjoy, Sage, Raze, Neon, Miks, pawns) | 🟡 | 2026-10-27 | | fork `b7b48ad` (`us-v0.4.0`), `fd13c08` (`us-v0.4.1`), see log | Scope widened 2026-10-27 (user decision) |
+| R3c | Decoding: utility of the 12 agents without a replay, Deadlock's and Sova's ult | ⏸ | | | | Waits for replays with them; until then any agent class not in the table comes with `verified: false` |
 | R4 | Decoding: kill details + round results | ⬜ | | | | |
 | R5 | Replay JSON + reducer + Web Worker | ⬜ | | | | |
 | R6 | Game assets (maps, icons, transforms) | ⬜ | | | | |
@@ -50,6 +50,12 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 ### Log
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27, R3b review fixes (`/code-review`):
+  - Fork `fd13c08`, tag `us-v0.4.1`: a landing projectile is no piece until it lands, so no state comes before its spawn; a tripwire ended by its partner stays ended when its actor opens again; a partner without a position is skipped; the `verified: false` fallback covers every agent's codename and `Pawn_`, so unseen classes of known agents are not dropped (left out explicitly: Sova's sonar pings, Omen's Paranoia warning). Same pieces on all four replays as before.
+  - Uni Scrims: the turret check accepts a spawn without yaw when the movement rows face; the TS docs of `verified` and `utilityRowsUnresolved`.
+  - Not changed: the coverage test reads what the per-replay tests recorded (Vitest runs a file's tests in order); collecting every projectile's explode indicator (a few hundred rows); the `track` check that restates the rule (the movement-path check covers it).
+  - The user allowed `pnpm test` with the DB reset for R3b.
 
 - 2026-10-27, R3b decoding:
   - Fork `b7b48ad`, tag `us-v0.4.0` (`utility.rs`): class table for Cypher, Killjoy, Sage, Raze, Neon, Miks; **pawns** (turret, camera, alarmbot, Sova's drone, Fade's dogs, Raze's Boom Bot, Veto's Interceptor) with `track: true`, their path/facing in the movement columns under the same GUID (revises R3a, which left moving pawns out); **pairs** (Cypher's tripwire: two anchor actors opened in the same frame → one piece with `a`/`b`, ended by the first close); **landings** (Nanoswarm, Blast Pack, Paint Shell bomblets spawn at `MulticastTriggerExplodeIndicator.IndicatorLocation`); Neon's Fast Lane as a polyline; states `Fortify`, `Lift`, `SetEnemyInTrap`; the 12 agents without a replay by codename prefix with `verified: false`. Fork tests, clippy (native, wasm32) green; `.wasm` 831 KB.
@@ -534,7 +540,7 @@ Scope widened on 2026-10-27 (user decision): not only Cypher and Killjoy but eve
 #### R3c — Utility of the agents without a replay (waiting for replays)
 
 - **Input**: replays with Brimstone, Viper, Harbor, KAY/O, Breach, Skye, Gekko, Yoru, Iso, Tejo, Waylay and Hush, and with Deadlock's and Sova's ult used.
-- **Work**: their classes in the table, shapes where needed (Viper's wall, Harbor's wall, Fault Line, …). Until then their `GameObject_`/`Zone_`/`Patch_` classes come by codename prefix with `verified: false`.
+- **Work**: their classes in the table, shapes where needed (Viper's wall, Harbor's wall, Fault Line, …). Until then every `GameObject_`/`Zone_`/`Patch_`/`Pawn_` class with an agent's codename that is not in the table comes with `verified: false`.
 - **Done when**: every deployable of these agents in the test replays shows the correct position and orientation.
 - **When**: whenever the user has the replays. Required before R10 draws them; R4–R9 don't depend on it.
 

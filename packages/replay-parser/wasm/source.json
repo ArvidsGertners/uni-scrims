@@ -1,7 +1,7 @@
 {
   "fork": "uni-scrims-replay-parser",
   "upstream": "https://github.com/yakisoba0728/vrfkit",
-  "tag": "us-v0.4.0",
-  "commit": "b7b48ada92ffc2cfbbca5bcc3a40dcded227b4cc",
-  "wasmSha256": "f43b0661d5973a90b7b270b37a468a65e11250b5fefe8fc69f6e55386b2b24f8"
+  "tag": "us-v0.4.1",
+  "commit": "fd13c08039c12020c427adb3537e146117cef405",
+  "wasmSha256": "5ab15b424a0d6234c039402edde0d1205de82214b6cde359197699c251207508"
 }

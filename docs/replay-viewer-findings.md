@@ -156,7 +156,7 @@ Built in the fork (`vrf-wasm` 0.4.0, `crates/vrf-wasm/src/utility.rs`) from the 
 - **Pawns** are now utility (`track: true`), including the moving ones R3a left out (Sova's drone, Fade's dogs, Veto's Interceptor `Pawn_Pine_E_RadEater`): every one has movement rows under its GUID, so the viewer takes their path and facing from there. Fade's trail stays out.
 - `IndicatorLocation` is sent by almost every thrown projectile (flashes, mollies, bolts); only a landing class's counts, the rest is not counted as unresolved.
 - No pawn shows up in `players[].characters` (the camera Cypher looks through included).
-- **Agents without a replay** (R3c): `GameObject_`/`Zone_`/`Patch_` classes with their codename come as points with `verified: false`.
+- **Classes not in the table**: every `GameObject_`/`Zone_`/`Patch_`/`Pawn_` class with an agent's codename right after the prefix comes as a point with `verified: false`. That covers the agents without a replay (R3c) and unseen classes of known agents (Deadlock's and Sova's ult). An explicit list leaves out what is no placed utility: Sova's sonar pings and Omen's Paranoia warning. None of the four replays has an unverified piece.
 - **Plausibility** (Uni Scrims test, all four replays): counters 0, every owner's agent matches the class, the checks above, and every shape check runs in at least one replay.
 
 ## What this means for the phases
