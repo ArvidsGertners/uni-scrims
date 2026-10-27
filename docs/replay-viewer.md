@@ -1,6 +1,6 @@
 # 2D replay viewer — concept
 
-Status: concept, 2026-10-27. Not part of SPEC/ARCHITECTURE yet. Before building, this becomes one or more phases in ARCHITECTURE §11 (in German, like the rest of the docs) and needs the user's go-ahead. Roadmap slot: "VOD review", the last item after the Riot/Uniliga/OPL integrations.
+Status: concept, 2026-10-27, with the user's decisions on all open questions (§11). Building is allowed; going live waits for Riot's answer. Not part of SPEC/ARCHITECTURE yet. Before building, this becomes one or more phases in ARCHITECTURE §11 (in German, like the rest of the docs) and needs the user's go-ahead. Roadmap slot: "VOD review", the last item after the Riot/Uniliga/OPL integrations.
 
 ## 1. Goal
 
@@ -40,9 +40,10 @@ Every point is a must-have. None of them is optional.
 
 **Drawing tools** (§7)
 
-- select, pen, arrow, text, area (circle), rectangle, wall and eraser
+- select, pen, arrow, text, area (circle), wall (rectangle) and eraser
 - a colour for every tool
 - a side tag on every drawing: attackers, defenders or both
+- a live collaboration board for the own team: every member can draw and edit, and changes appear for everyone at once
 
 **Look and feel**
 
@@ -67,7 +68,7 @@ Yes. The hosted viewer on valorantscout.com already shows almost the whole list 
 | Round winner and score | round start/end, deaths, spike events | 🔧 derive ourselves from events |
 | **Ability charges, ult points** | replicated properties of the player state | 🔧 **own decoding** (not documented in vrfkit; valorantscout shows them) |
 | **Tripwire anchors, turret facing, rotation of deployables** | replicated actor rotation and properties | 🔧 **own decoding** (vrfkit documents positions only) |
-| Player names | the replay only holds account UUIDs | 🔧 mapping, see §9 |
+| Player labels | the replay only holds account UUIDs | ✅ agent names now; real names later via the Riot API, see §9 |
 
 ✅ = available in an existing parser. 🔧 = we decode or derive it ourselves. The 🔧 items are part of the scope. The first phase (§10, A) finds out exactly where they sit in the replay, not whether we build them.
 
@@ -96,12 +97,15 @@ Viewer (canvas + SVG) ◀── fetch JSON ──────── permission c
 ```
 
 - **Parsing happens in the browser**, in a Web Worker running vrfkit compiled to WebAssembly. This is the same approach valorantscout uses. The `.vrf` never leaves the player's PC. The VPS does no heavy work: a full decode can take more than 1 GB of RAM, and parallel load has already frozen the server once. Fallback, if the WASM build fails or is too slow: a small download (`uni-scrims-replay.exe`) that writes the JSON locally for upload.
-- **Only the reduced replay JSON is uploaded**, gzip-compressed, with a size limit (target well below 5 MB per match).
-- **Storage**: a new model `ScrimReplay`, one per scrim, holding uploader, game version, created date and the file path. The file lives under `UPLOAD_DIR`, like team logos. All logic sits in `packages/core` (validate the JSON schema, attach to the scrim, delete). `apps/web` only calls `core`.
+- **Saving is optional.**
+  - After parsing, the replay plays at once in the browser, without any upload. It is local only and gone on reload.
+  - The option "Save for both teams" uploads it to the scrim.
+  - Only the reduced replay JSON is uploaded, gzip-compressed, with a size limit (target well below 5 MB per match).
+- **Storage**: a new model `ScrimReplay`, one per scrim, holding uploader, game version, upload date and the file path. The file lives under `UPLOAD_DIR`, like team logos. All logic sits in `packages/core` (validate the JSON schema, attach to the scrim, delete). `apps/web` only calls `core`.
 - **Permissions** go through `core/permissions.ts`:
-  - Only members of the two teams of that scrim can upload, view and delete.
-  - Admins see replays only when a report asks them to, as with messages.
-- **Retention**: §8.
+  - Every member of the two teams of that scrim can upload, view and delete.
+  - Others, including admins, have no access.
+- **Retention**: a saved replay is deleted 90 days after the upload, together with its drawings. The janitor does this sequentially and gets `now` as a parameter, per CLAUDE.md.
 - **Patch fragility**: every Valorant patch can change the replay format.
   - The JSON carries `gameVersion` and `formatVersion`.
   - The upload form says clearly when a game version isn't supported yet.
@@ -115,8 +119,8 @@ Viewer (canvas + SVG) ◀── fetch JSON ──────── permission c
   "gameVersion": "release-13.08",
   "map": "Ascent",                       // map id → minimap + coordinate transform (§7)
   "players": [
-    { "id": "p1", "accountId": "…", "team": "A", "agent": "Cypher", "rankTier": 21,
-      "uniScrimsUserId": null }          // filled by the name mapping (§9)
+    { "id": "p1", "accountId": "…", "team": "A", "agent": "Cypher", "rankTier": 21 }
+                                         // label = agent name until the Riot API (§9)
   ],
   "rounds": [
     {
@@ -230,8 +234,7 @@ A toolbar next to the map, used mostly on a paused frame, like valorantscout's "
 | Arrow | Drag from start to end. Afterwards it is fully editable: start and end handles, plus a midpoint handle that bends it into a curve; the arrowhead follows the curve |
 | Text | Click to place, type inline. Editable and movable later |
 | Area | A circle: press at the centre and drag outwards, and it grows with the mouse |
-| Rectangle | Press at one corner and drag to the opposite corner |
-| Wall | Drag out from start to end like a thick band, the way an ability wall looks on the minimap. *Interpretation to confirm, §11* |
+| Wall | A rectangle drawn like a selection box in Windows: the first corner is where the drag starts, and it grows with the mouse until you let go |
 | Eraser | Click or drag over drawings to remove them |
 
 - **Colours**: a palette (e.g. 8 colours, readable in light and dark mode) for every tool. The last choice is remembered.
@@ -240,9 +243,16 @@ A toolbar next to the map, used mostly on a paused frame, like valorantscout's "
 - **Technique**:
   - Drawings are vectors in map coordinates, on an SVG layer above the canvas, so they stay in place when you zoom or resize the window.
   - Our own implementation, no new drawing library unless it turns out to be necessary (exact version pinning per CLAUDE.md applies).
-- **Saving**: drawings are saved on the server per replay and round, optionally pinned to a timestamp, so they show up when playback reaches that moment. Assumptions to confirm (§11):
-  - visible to the own team only
-  - all its members can edit
+- **Live collaboration board**:
+  - Drawings belong to a team, a saved replay and a round. Optionally they are pinned to a timestamp, so they show up when playback reaches that moment.
+  - Only the own team sees them. Every member can draw, edit and delete, including other members' drawings.
+  - Changes appear live for every team member who has the replay open.
+  - Avatars show who of the team is viewing right now.
+- **Live technique**:
+  - Uses the existing WebSocket server from Phase 32 (`apps/web/lib/realtime/server.ts`, `/ws`) with per-object operations (add, update, delete).
+  - Last write wins per object. Every operation is stored through `core`, so a reload shows the current state.
+  - Undo/redo only undoes your own operations.
+- **Local replays**: a replay that isn't saved (§4) can be drawn on too, but nothing is stored or shared.
 
 ## 8. Assets, privacy, legal
 
@@ -256,15 +266,15 @@ A toolbar next to the map, used mostly on a paused frame, like valorantscout's "
 **Privacy**
 
 - A replay holds gameplay data (positions, performance) of named players.
-- Visible only to the two teams of the scrim.
-- Delete it with the scrim, or after a retention period (§11), whichever comes first.
+- Stored only if a member chooses to save it. Visible only to the two teams of the scrim.
+- Deleted 90 days after the upload, or earlier with the scrim or by a member.
 - Covered by the data export ("Datenauskunft").
 - A new paragraph in `datenschutz.txt` / `datenschutz.en.txt`, approved by the user before the deploy.
 
 **Riot**
 
 - The replay format is undocumented and decoded by reverse engineering.
-- Ask Riot first, together with or after the production-key application, before this goes live.
+- The user is asking Riot. Decision 2026-10-27: building it is allowed, but **no deploy to production before Riot answers**.
 - Unverified reports say patch 26.20 restricted third-party access to replay *downloads*. That concerns downloading other people's replays from Riot's servers. We only read files the player already has on disk, but it shows Riot is watching this area.
 
 **Custom games**
@@ -281,10 +291,10 @@ A toolbar next to the map, used mostly on a paused frame, like valorantscout's "
 
 ## 9. Player names
 
-The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot IDs or PUUIDs today. Options, in order:
+The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot IDs or PUUIDs today.
 
-1. **Manual mapping at upload**: the uploader assigns each of the 10 players to a member of one of the two teams. Agents and teams are known, so this takes seconds. Each mapping is saved per account UUID, so the next replay is mapped automatically.
-2. **Later, with the Riot production key / RSO**: the PUUID is linked to the account, and names map automatically.
+- **Now**: every player is shown by their agent name (Sova, Skye, Phoenix, …), with their team's colour and side. If both teams play the same agent, the team colour tells them apart. There is no manual mapping.
+- **Later, with the Riot API (production key / RSO)**: the PUUID is linked to the Uni Scrims account, and real names replace the agent labels. This becomes its own phase.
 
 ## 10. Phases
 
@@ -292,20 +302,25 @@ The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot 
 | --- | --- | --- |
 | A — Spike test | Offline, no Uni Scrims code. Record a real custom scrim with recording on, run vrfkit on it, find the replicated properties for charges, ult points, tripwire anchors, turret/deployable rotation, kill weapon/assists/headshot/wallbang | Every 🔧 item in §2 is located in a real replay, and custom-game recording is confirmed |
 | B — Parser | vrfkit fork with the 🔧 decoding, WASM build, reducer to the replay JSON (§5), tests against recorded replays | A real scrim converts to valid JSON in the browser |
-| C — Upload and storage | `ScrimReplay`, upload on the scrim page, schema validation, permissions, deletion, data export, name mapping (§9) | Both teams can upload/see/delete, others can't |
+| C — Upload and storage | Local playback without saving, optional "Save for both teams", `ScrimReplay`, schema validation, permissions, deletion after 90 days, data export | Every member of both teams can upload/see/delete, others can't; old replays disappear after 90 days |
 | D — Viewer core | Map with positions and view cones, timeline, speeds, scrubbing, keyframes, round strip with scores | A full match plays at 0.5×–4× without stutter |
 | E — Live data | Kill feed, player cards (agent, HP/armour, weapon, charges, ult, spike), scoreboard | Every value matches the in-game replay at sampled moments |
 | F — Utility | Smokes, walls, mollies, traps; tripwires, turrets, cameras and other deployables with orientation | Every agent's utility shows correctly on a test replay |
-| G — Drawing tools | All tools from §7, colours, side tag + filter, undo/redo, saving | Draw, edit, reload, still there |
+| G — Drawing tools | All tools from §7, colours, side tag + filter, undo/redo, live collaboration over `/ws`, saving | Two team members draw at the same time and see each other's changes live; after a reload everything is still there; the other team sees nothing |
 | H — Polish | Mobile layout, keyboard shortcuts, DE/EN, privacy texts | `pnpm test` + `pnpm lint` green, user OK |
 
-Each phase follows the usual pattern: SPEC/ARCHITECTURE first, one phase at a time, review, then the user's OK.
+Each phase follows the usual pattern: SPEC/ARCHITECTURE first, one phase at a time, review, then the user's OK. All phases can be built and tested locally/on dev. The deploy to production waits for Riot's answer.
 
-## 11. Open questions for the user
+## 11. Decisions (user, 2026-10-27)
 
-1. Should we wait for Riot's answer (production key / asking about replays) before phase B, or only before going live?
-2. Who may upload: every member of both teams, or captains only?
-3. How long are replays kept: forever while the scrim exists, or e.g. 90 days?
-4. Drawings: own team only, or a toggle to share them with the opponent? Can every member edit, or only the author?
-5. "Wall" tool: a thick band dragged from start to end, like an ability wall on the minimap? Or something else?
-6. Is manual name mapping (§9) fine until RSO comes?
+1. **Riot**: building is allowed; no deploy to production before Riot answers.
+2. **Upload**: every member of both teams can upload.
+3. **Saving**: optional. Without saving, the replay plays locally only. A saved replay is deleted 90 days after the upload.
+4. **Drawings**: own team only, every member can edit, live like a collaboration board (§7).
+5. **Wall**: the rectangle tool, drawn like a selection box in Windows (§7). There is no separate rectangle tool.
+6. **Names**: agent names (Sova, Skye, Phoenix, …) until the Riot API makes real names possible (§9).
+
+### Still open
+
+- Live cursors of team-mates and synchronised playback ("follow me") on the collaboration board. Not decided, so not planned.
+- Whether custom games really record a replay when the lobby owner turns it on (phase A).
