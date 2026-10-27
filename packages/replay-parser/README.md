@@ -7,6 +7,8 @@ Parses a Valorant replay (`.vrf`) in the browser or in Node via WebAssembly. Par
   - `meta`: header (branch, length), players (account UUID → character GUIDs), Event chunks (kills, rounds, spike), actor opens/closes with spawn position/rotation, the requested fields, counters.
   - `movement`: typed columns (`timeMs`, `character`, `x`, `y`, `z`, `yaw`).
   - Only the fields named in `fieldNames` are returned. A full match has about 1.3 M field rows.
+  - 64-bit values beyond 2^53 come as decimal strings: `meta.timestampTicks`, a field's `intText`.
+- **Memory**: WebAssembly memory only grows. After a 60 MB match the instance keeps about 300 MB. So the viewer (R5) parses each file in a fresh Web Worker and terminates it afterwards.
 
 ## Rebuild
 
@@ -21,7 +23,7 @@ pnpm --filter @uni-scrims/replay-parser sync-wasm ~/uni-scrims-replay-parser
 pnpm test                               # the parser test checks the tag against the module
 ```
 
-`sync-wasm` refuses a fork with uncommitted changes or a HEAD without a `us-v*` tag.
+`build-wasm.sh` only builds a clean tree and writes `pkg/BUILD_COMMIT`. `sync-wasm` refuses a fork with uncommitted changes, a HEAD without a `us-v*` tag, or a `pkg/` built from another commit.
 
 ## Tests
 

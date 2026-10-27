@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { initParserSync, parseReplay, parserVersion } from "../src/index.ts";
@@ -18,17 +18,25 @@ const CACHE = path.resolve(root, "../../node_modules/.cache/replay-fixtures");
 // git). Checked when present, skipped otherwise.
 const LOCAL_REPLAY = path.resolve(root, "../../replays/1b9fe9b9-9f0e-40e0-b6e1-8c24b20a9bfd.vrf");
 
+function sha256(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
 async function publicFixture(): Promise<Uint8Array> {
   const file = path.join(CACHE, path.basename(FIXTURE.url));
-  if (!existsSync(file)) {
-    const response = await fetch(FIXTURE.url);
-    if (!response.ok) throw new Error(`fixture download failed: ${response.status}`);
-    mkdirSync(CACHE, { recursive: true });
-    writeFileSync(file, new Uint8Array(await response.arrayBuffer()));
+  if (existsSync(file)) {
+    const cached = readFileSync(file);
+    if (sha256(cached) === FIXTURE.sha256) return cached;
   }
-  const bytes = readFileSync(file);
-  const sha = createHash("sha256").update(bytes).digest("hex");
+  const response = await fetch(FIXTURE.url);
+  if (!response.ok) throw new Error(`fixture download failed: ${response.status}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const sha = sha256(bytes);
   if (sha !== FIXTURE.sha256) throw new Error(`fixture SHA-256 ${sha}, expected ${FIXTURE.sha256}`);
+  // Only a verified file reaches the cache, renamed into place in one step.
+  mkdirSync(CACHE, { recursive: true });
+  writeFileSync(`${file}.tmp`, bytes);
+  renameSync(`${file}.tmp`, file);
   return bytes;
 }
 
@@ -67,7 +75,8 @@ describe("replay parser (WASM)", () => {
       expect(column).toHaveLength(4991);
     }
     expect(movement.x.every(Number.isFinite)).toBe(true);
-  });
+    expect(meta.timestampTicks).toMatch(/^\d{17,}$/);
+  }, 60_000);
 
   it.skipIf(!existsSync(LOCAL_REPLAY))(
     "parses a full 13.08 match with every player, round and sample",

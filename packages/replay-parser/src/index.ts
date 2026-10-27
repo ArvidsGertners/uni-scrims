@@ -1,6 +1,9 @@
 // Typed wrapper around the parser fork's WebAssembly build (wasm/, see README).
 // Runs in a browser Web Worker and in Node: load the module once with
 // initParser / initParserSync, then call parseReplay per file.
+//
+// WebAssembly memory only grows: after a 60 MB match the instance keeps ~300 MB
+// for its lifetime. Parse each file in a fresh Worker and terminate it after.
 import init, { initSync, parse, version } from "../wasm/vrf_wasm.js";
 
 export type ReplayPlayer = {
@@ -41,7 +44,10 @@ export type ReplayField = {
   bits: number;
   /** Undecoded payload bytes, for fields the parser leaves raw. */
   raw: number[] | null;
+  /** The integer value when a JS number holds it exactly. */
   int: number | null;
+  /** The integer value as a decimal string beyond ±(2^53 - 1); `int` is null then. */
+  intText: string | null;
   float: number | null;
   bool: boolean | null;
   str: string | null;
@@ -70,7 +76,8 @@ export type ReplayMeta = {
   branch: string;
   changelist: number;
   lengthMs: number;
-  timestamp: number;
+  /** Recording time in .NET ticks (100 ns since 0001-01-01), a decimal string (> 2^53). */
+  timestampTicks: string;
   levels: { name: string; timeMs: number }[];
   gameSpecificData: string[];
   players: ReplayPlayer[];
@@ -92,9 +99,16 @@ export type ReplayMovement = {
 
 export type ParsedReplay = { meta: ReplayMeta; movement: ReplayMovement };
 
+let ready = false;
+
+function assertReady(): void {
+  if (!ready) throw new Error("replay parser not initialised: call initParser first");
+}
+
 /** Load the module from its bytes (Node, tests). */
 export function initParserSync(wasm: ArrayBuffer | ArrayBufferView): void {
   initSync({ module: wasm });
+  ready = true;
 }
 
 /** Load the module from a URL or response (browser Worker). */
@@ -102,10 +116,12 @@ export async function initParser(
   wasm: URL | Response | ArrayBuffer | ArrayBufferView,
 ): Promise<void> {
   await init({ module_or_path: wasm });
+  ready = true;
 }
 
 /** The fork's vrf-wasm version of the loaded module. */
 export function parserVersion(): string {
+  assertReady();
   return version();
 }
 
@@ -115,6 +131,7 @@ export function parserVersion(): string {
  * parser cannot read, including an unknown game build.
  */
 export function parseReplay(bytes: Uint8Array, fieldNames: readonly string[]): ParsedReplay {
+  assertReady();
   const parsed = parse(bytes, [...fieldNames]);
   try {
     return {
