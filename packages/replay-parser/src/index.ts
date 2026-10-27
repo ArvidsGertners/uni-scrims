@@ -82,6 +82,52 @@ export type UltChange = {
   active: boolean;
 };
 
+type Vec3 = [number, number, number];
+
+/**
+ * A piece of placed utility appeared (actor open). `kind` is the actor's class
+ * without `_C`, e.g. "Zone_Wraith_4_Smoke"; icons and sizes come from the
+ * agent data (the replay has no size).
+ */
+export type UtilitySpawn = {
+  type: "spawn";
+  t: number;
+  /** The actor GUID; later updates and the end carry it. */
+  id: number;
+  kind: string;
+  /** Index into `players`; null when no owner chain reaches a player. */
+  player: number | null;
+  pos: Vec3;
+  /** Degrees; null when the spawn has no rotation (smoke spheres, stars). */
+  yaw: number | null;
+  /** A segment's ends (Vyse's Shear, Deadlock's Barrier Mesh arms). */
+  a: Vec3 | null;
+  b: Vec3 | null;
+  /** False for classes no replay has confirmed yet (Cypher, Killjoy). */
+  verified: boolean;
+};
+
+/**
+ * A change of a live piece: a segment's ends sent after the spawn, the next
+ * point of a polyline (Phoenix's Blaze), or a state multicast (e.g.
+ * "TransitionToState" with a value, "DeactivateRift"). Only changed keys exist.
+ */
+export type UtilityUpdate = {
+  type: "update";
+  t: number;
+  id: number;
+  a?: Vec3;
+  b?: Vec3;
+  point?: Vec3;
+  state?: string;
+  value?: number;
+};
+
+/** The piece is gone (actor close). Pieces still live when the replay ends have none. */
+export type UtilityEnd = { type: "end"; t: number; id: number };
+
+export type UtilityEvent = UtilitySpawn | UtilityUpdate | UtilityEnd;
+
 /** Decode counters, zero included. `lostContentBlocks > 0` means data is missing. */
 export type ReplayStats = {
   packets: number;
@@ -101,6 +147,10 @@ export type ReplayStats = {
   chargeRowsUnresolved: number;
   /** Ult rows on an actor that is no player's state. */
   ultRowsUnresolved: number;
+  /** Utility shape rows on an actor that is not live utility, or unreadable. */
+  utilityRowsUnresolved: number;
+  /** Utility spawns whose owner chain reaches no player. */
+  utilityOwnerUnresolved: number;
 };
 
 export type ReplayMeta = {
@@ -121,6 +171,8 @@ export type ReplayMeta = {
   abilities: ChargeChange[];
   /** Every change of a player's ult points or state, in time order; always present. */
   ults: UltChange[];
+  /** Placed utility: spawn, update, end, in time order; always present. */
+  utility: UtilityEvent[];
   stats: ReplayStats;
 };
 

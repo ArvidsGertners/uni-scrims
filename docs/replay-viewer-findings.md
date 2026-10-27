@@ -106,6 +106,27 @@ Built in the fork (`vrf-wasm` 0.2.0, `crates/vrf-wasm/src/abilities.rs`); the bi
 - **Ult points**: `NumUltimatePoints` + `bUltimateActive` on the player state (`players[].state`). `active` turns true within 10 ms of every `characterUltimateUsed`; the points go to 0 when the ult ends. **No maximum in the replay**: `ult.max` comes from an agent table in R6.
 - **Plausibility** (instead of an in-game comparison, user decision): on the 13.08 match 919 charge rows and 297 ult rows, none unresolved; all 32 ult uses fit; 393 of 440 charge drops follow equipping an ability within 10 s, and per slot it is that slot's own ability (exceptions: Jett's dash and Astra's stars are cast without equipping).
 
+## R3a: placed utility (2026-10-27)
+
+Built in the fork (`vrf-wasm` 0.3.0, `crates/vrf-wasm/src/utility.rs`); the binding returns `utility` as `spawn` / `update` / `end` events, keyed by the actor GUID.
+
+- **Which actors**: a fixed class table, one row per class seen in the two 13.08 replays. `GameObject_*`, `Zone_*` (Omen's smoke), `Patch_*` (**mollies and slows**: `Patch_Phoenix_MolotovFire`, `Patch_Deadeye_E_Slow_Large`, `Patch_Nox_BarbedWire`, `Patch_Cable_4_NetToss`) and `Intention_Wraith_X_GlobalTeleport` (Omen's ult target). Left out: projectiles in flight, the `Ability_*` equippables, `UltPointOrb`, pickups, Sova's sonar pings and Omen's Paranoia warning (in flight), and **moving pawns** (Sova's drone, Fade's Prowler, Pine's `RadEater`) and Fade's Prowler trail (`Path_BountyHunter_Trail`, a 2104-bit point list not decoded). Cypher/Killjoy classes (`GameObject_Gumshoe_*`, `GameObject_Killjoy_*`) are taken by prefix with `verified: false`; none placed in any replay so far.
+- **Position**: every utility open has a spawn position. **Yaw**: in the spawn where the game sends one; none for smoke spheres, Astra's stars and Nebulas, Reyna's Leer, Clove's smokes and some Shear traps (their ends carry the direction).
+- **Lifetime**: actor open → close; a `dormant` row is not an end (Pine's teleporters and a few traps re-open). Pieces still live at the end of the replay have no `end`.
+- **Size**: not in the replay. The spawn scale is 1 for every utility actor in both 13.08 matches (checked by logging vrfkit's `spawn_scale`; only Sova's sonar bolt has another value). Radii and lengths come from the agent data (R6/R10).
+- **Segments** (three little-endian doubles, sent in the frame of the open, so they are part of the `spawn`):
+
+| Class | Agent, ability | Ends |
+| --- | --- | --- |
+| `GameObject_Nox_WallTrap` | Vyse, Shear (armed) | `MulticastInitializeTrapAnchors.WallStartPoint` / `WallEndPoint`; 1200 units, shorter when geometry cuts it |
+| `GameObject_Nox_Wall` | Vyse, Shear (raised wall) | `MulticastInitializeWall.WallStartLocation` / `WallEndLocation`, the trap's ends |
+| `GameObject_CableJam_CableDeployer_Precomputed` | Deadlock, one arm of Barrier Mesh | `MulticastInitialize.RootLocation` (= the `GameObject_CableJamRoot` spawn) / `Destination` |
+
+- **Polyline**: Phoenix's Blaze (`GameObject_Phoenix_Q_FlameWallManager_Production`) sends `MulticastAddSmokeScreenPoint.Translation` per wall point, 35–675 ms after the open, about 125 units apart → `update.point`.
+- **States** (`update.state`, with `value` where the multicast has one): Vyse's Razorvine `TransitionToState` (values 4, 5, 6), Astra's stars `DeactivateRift`, Pine's `DeployTrap` / `FinishDeploy`, Deadlock's sensor `Deployed` / `BeginStealthTrap`. What each value means is for R10.
+- **Player**: `Instigator`, else `Owner`, followed until a player's character (deployable → projectile → ability → character; Astra's targeting pawn → character). All 340 + 111 utility actors resolve; for every one the owner's agent matches the class's agent.
+- **Plausibility** (Uni Scrims test, both 13.08 replays): counters 0, one spawn per piece with updates and the end after it, all positions within the area the players walked, owner agent matches, Shear ≤ 1200 units, raised walls on their trap's ends, mesh arms on their root, Blaze points moving away from the first one, every Trademark with a yaw.
+
 ## What this means for the phases
 
 - **R1** (fork + WASM): no blocker. `oozextract` is pure Rust and the peak memory is ~170 MB.

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { initParserSync, parseReplay, parserVersion } from "../src/index.ts";
+import { initParserSync, parseReplay, parserVersion, type UtilitySpawn } from "../src/index.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -17,6 +17,8 @@ const CACHE = path.resolve(root, "../../node_modules/.cache/replay-fixtures");
 // A real match on the current build, git-ignored (real replays never go into
 // git). Checked when present, skipped otherwise.
 const LOCAL_REPLAY = path.resolve(root, "../../replays/1b9fe9b9-9f0e-40e0-b6e1-8c24b20a9bfd.vrf");
+// A second one (Swiftplay on Split: Deadlock, Clove, Reyna, Pine).
+const LOCAL_REPLAY_2 = path.resolve(root, "../../replays/9d636ef5-4dd0-4fd8-be89-dd3f667cf518.vrf");
 
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -73,6 +75,9 @@ describe("replay parser (WASM)", () => {
     expect(meta.abilities).toEqual([expect.objectContaining({ player: 0, slot: "ability2" })]);
     expect(meta.ults).toEqual([]);
     expect(meta.stats).toMatchObject({ chargeRowsUnresolved: 0, ultRowsUnresolved: 0 });
+    // Cypher's actors are there, but nothing he placed.
+    expect(meta.utility).toEqual([]);
+    expect(meta.stats).toMatchObject({ utilityRowsUnresolved: 0, utilityOwnerUnresolved: 0 });
 
     expect(movement.timeMs).toHaveLength(4991);
     for (const column of [movement.character, movement.x, movement.y, movement.z, movement.yaw]) {
@@ -209,6 +214,110 @@ describe("replay parser (WASM)", () => {
     },
     60_000,
   );
+
+  // Plausibility as in R2 (docs/replay-viewer.md R3a): every piece of utility
+  // must fit what else the replay says about the match and its owner.
+  for (const replay of [LOCAL_REPLAY, LOCAL_REPLAY_2]) {
+    it.skipIf(!existsSync(replay))(
+      `places the utility of ${path.basename(replay)} with owner, shape and lifetime`,
+      () => {
+        const { meta, movement } = parseReplay(readFileSync(replay), []);
+        expect(meta.stats).toMatchObject({ utilityRowsUnresolved: 0, utilityOwnerUnresolved: 0 });
+        const spawns = meta.utility.filter((e): e is UtilitySpawn => e.type === "spawn");
+        expect(spawns.length).toBeGreaterThan(50);
+        expect(spawns.every((s) => s.verified && s.player !== null)).toBe(true);
+
+        // Lifetime: one spawn per piece, updates while it lives, the end last.
+        const life = new Map<number, { end?: number }>();
+        for (const e of meta.utility) {
+          const piece = life.get(e.id);
+          if (e.type === "spawn") {
+            const live = piece !== undefined && piece.end === undefined;
+            expect(live, `spawn of live ${e.id}`).toBe(false);
+            life.set(e.id, {});
+          } else {
+            expect(piece && piece.end === undefined, `${e.type} of ${e.id}`).toBe(true);
+            if (e.type === "end") piece!.end = e.t;
+          }
+        }
+        expect(meta.utility.map((e) => e.t)).toEqual(
+          meta.utility.map((e) => e.t).sort((a, b) => a - b),
+        );
+
+        // Position: on the map, i.e. within where the players walked.
+        const range = (column: Float32Array): [number, number] =>
+          column.reduce(([lo, hi], v) => [Math.min(lo, v), Math.max(hi, v)], [Infinity, -Infinity]);
+        const [minX, maxX] = range(movement.x);
+        const [minY, maxY] = range(movement.y);
+        for (const s of spawns) {
+          expect(s.pos[0] >= minX - 500 && s.pos[0] <= maxX + 500, `${s.kind} x`).toBe(true);
+          expect(s.pos[1] >= minY - 500 && s.pos[1] <= maxY + 500, `${s.kind} y`).toBe(true);
+        }
+
+        // Owner: the piece belongs to the agent that has it (internal names).
+        const className = new Map<number, string>();
+        for (const a of meta.actors) {
+          if (a.event === "open" && a.class) className.set(a.guid, a.class.split(".").at(-1)!);
+        }
+        const agentOf = (player: number): string =>
+          className.get(meta.players[player]!.characters.at(-1)!)?.replace(/_PC_C$/, "") ?? "";
+        const agentClasses: Record<string, RegExp> = { Cable: /_(Cable|CableJam|StealthingTrap)/ };
+        for (const s of spawns) {
+          const agent = agentOf(s.player!);
+          const pattern = agentClasses[agent] ?? new RegExp(`_${agent}_`);
+          expect(pattern.test(s.kind), `${s.kind} of ${agent}`).toBe(true);
+        }
+
+        // Segments: Vyse's Shear is 1200 units long unless a wall cut it
+        // short; its raised wall has the trap's ends; Deadlock's mesh arms
+        // start at the mesh's root.
+        const segments = spawns.filter((s) => /Nox_Wall|CableJam_CableDeployer/.test(s.kind));
+        expect(segments.length).toBeGreaterThan(0);
+        expect(segments.every((s) => s.a && s.b)).toBe(true);
+        const length = (s: UtilitySpawn) => Math.hypot(s.a![0] - s.b![0], s.a![1] - s.b![1]);
+        const traps = spawns.filter((s) => s.kind === "GameObject_Nox_WallTrap");
+        expect(traps.every((s) => length(s) <= 1200.5)).toBe(true);
+        expect(traps.filter((s) => Math.abs(length(s) - 1200) < 0.5).length).toBeGreaterThan(
+          traps.length / 2,
+        );
+        for (const wall of spawns.filter((s) => s.kind === "GameObject_Nox_Wall")) {
+          const trap = traps.find(
+            (s) =>
+              s.player === wall.player && s.t <= wall.t && s.a!.every((v, i) => v === wall.a![i]),
+          );
+          expect(trap, `trap of the wall at ${wall.t}`).toBeDefined();
+        }
+        const roots = spawns.filter((s) => s.kind === "GameObject_CableJamRoot");
+        for (const arm of spawns.filter((s) => s.kind.includes("CableJam_CableDeployer"))) {
+          const root = roots.find((r) => r.t === arm.t);
+          expect(root && Math.hypot(root.pos[0] - arm.a![0], root.pos[1] - arm.a![1])).toBeLessThan(
+            1,
+          );
+        }
+
+        // Phoenix's Blaze grows away from its first point.
+        const blaze = new Map<number, number[][]>();
+        for (const e of meta.utility) {
+          if (e.type === "update" && e.point)
+            blaze.set(e.id, [...(blaze.get(e.id) ?? []), e.point]);
+        }
+        expect(blaze.size).toBeGreaterThan(0);
+        for (const points of blaze.values()) {
+          expect(points.length).toBeGreaterThan(1);
+          const away = points.map((p) =>
+            Math.hypot(p[0]! - points[0]![0]!, p[1]! - points[0]![1]!),
+          );
+          expect(away.every((d, i) => i === 0 || d >= away[i - 1]!)).toBe(true);
+        }
+
+        // Chamber's Trademark always faces somewhere.
+        const trademarks = spawns.filter((s) => s.kind === "GameObject_Deadeye_E_Trap");
+        expect(trademarks.length).toBeGreaterThan(0);
+        expect(trademarks.every((s) => s.yaw !== null)).toBe(true);
+      },
+      60_000,
+    );
+  }
 
   it("throws on bytes that are not a replay", () => {
     expect(() => parseReplay(new Uint8Array(64), [])).toThrow();
