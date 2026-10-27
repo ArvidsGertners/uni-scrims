@@ -7,8 +7,9 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteFrame } from "@/components/site-frame";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
+import { WhatsNewProvider } from "@/components/whats-new/whats-new-provider";
 import { layoutMessages } from "@/i18n/chrome";
-import { siteChrome } from "@/lib/header-user";
+import { siteChrome, whatsNewDue } from "@/lib/header-user";
 import { getLocale, getMessages } from "@/lib/locale";
 import { themeAttribute, themeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,7 @@ export async function generateViewport(): Promise<Viewport> {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [{ user }, locale] = await Promise.all([siteChrome(), getLocale()]);
+  const [{ user }, locale, due] = await Promise.all([siteChrome(), getLocale(), whatsNewDue()]);
   return (
     // Light or dark by the system setting (Phase 11), or as the account chose (Phase 17, §5.16),
     // through the tokens in globals.css. The language of the request (§5.21).
@@ -53,9 +54,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="flex min-h-dvh flex-col">
         <LocaleProvider locale={locale}>
           <ThemeProvider theme={user?.theme ?? "SYSTEM"}>
-            <SiteHeader />
-            <SiteFrame>{children}</SiteFrame>
-            <SiteFooter />
+            {/* Around the header too: its menu below 1024 px opens the dialog again (SPEC N-29). */}
+            <WhatsNewProvider due={due}>
+              <SiteHeader />
+              <SiteFrame>{children}</SiteFrame>
+              <SiteFooter />
+            </WhatsNewProvider>
           </ThemeProvider>
         </LocaleProvider>
       </body>

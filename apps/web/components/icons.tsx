@@ -29,6 +29,10 @@ function createIcon(content: ReactNode) {
 
 export const MenuIcon = createIcon(<path d="M4 7h16M4 12h16M4 17h16" />);
 export const FlagIcon = createIcon(<path d="M5 21V4c4-2 8 2 14 0v10c-6 2-10-2-14 0" />);
+/** "Neuigkeiten" (SPEC N-29): a four-pointed spark. */
+export const SparkIcon = createIcon(
+  <path d="M12 3c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7Z" />,
+);
 export const XIcon = createIcon(<path d="M18 6 6 18M6 6l12 12" />);
 export const AlertTriangleIcon = createIcon(
   <>

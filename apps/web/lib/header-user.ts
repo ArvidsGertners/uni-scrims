@@ -1,4 +1,5 @@
 import { getNavTeam, userDisplayName } from "@uni-scrims/core";
+import { WHATS_NEW_EDITION } from "@uni-scrims/core/config/whats-new";
 import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
@@ -51,6 +52,15 @@ export const siteChrome = cache(async () => {
  */
 export async function verificationNeeded(): Promise<boolean> {
   return (await siteChrome()).teams?.verificationNeeded ?? false;
+}
+
+/**
+ * The what's new dialog opens by itself (SPEC N-29, §5.31): an active account on the main host that
+ * has not closed the current edition.
+ */
+export async function whatsNewDue(): Promise<boolean> {
+  const { user, active, adminHost } = await siteChrome();
+  return user !== null && active && !adminHost && user.whatsNewSeen !== WHATS_NEW_EDITION;
 }
 
 /** The navigation of the signed-in user, or null (logged out, admin host). */

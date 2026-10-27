@@ -1,6 +1,6 @@
 "use server";
 
-import { isDomainError, isLocale, setLocalePreference } from "@uni-scrims/core";
+import { isDomainError, isLocale, markWhatsNewSeen, setLocalePreference } from "@uni-scrims/core";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { sharedCookieDomain } from "@/lib/admin-url";
@@ -38,4 +38,21 @@ export async function setLocaleAction(value: string): Promise<boolean> {
   // Like the design: the layout and every cached page render again in the new language.
   revalidatePath("/", "layout");
   return true;
+}
+
+/**
+ * The what's new dialog was closed (SPEC N-29, §5.31); called by the dialog itself. Nothing is
+ * revalidated: the browser keeps it closed until the next load. False if it could not be saved,
+ * then the dialog simply comes again next time.
+ */
+export async function markWhatsNewSeenAction(edition: string): Promise<boolean> {
+  const userId = await getSessionUserId();
+  if (!userId) return false;
+  try {
+    await markWhatsNewSeen({ userId, edition });
+    return true;
+  } catch (error) {
+    if (!isDomainError(error)) console.error("Could not save the closed what's new dialog", error);
+    return false;
+  }
 }

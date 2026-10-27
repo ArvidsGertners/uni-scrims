@@ -19,9 +19,11 @@ import {
   ShieldCheckIcon,
   UsersIcon,
   XIcon,
+  SparkIcon,
 } from "@/components/icons";
 import { useMessages } from "@/components/locale-provider";
 import { useLogout } from "@/components/logout-button";
+import { useWhatsNew } from "@/components/whats-new/whats-new-provider";
 import { SidebarFrame } from "@/components/sidebar-frame";
 import { SidebarEntryContent, SidebarLink, sidebarEntryClass } from "@/components/sidebar-link";
 import { TeamAvatar } from "@/components/team-avatar";
@@ -285,6 +287,7 @@ const externalIcon = <ExternalLinkIcon size={15} className="text-muted-foregroun
 function AccountMenu({ nav, pathname }: { nav: AppNavData; pathname: string }) {
   const t = useMessages(appNavMessages);
   const logout = useLogout();
+  const whatsNew = useWhatsNew();
   const items = accountItems(nav, t);
   const active = items.some((item) => inSection(item.sections, pathname));
   return (
@@ -318,6 +321,13 @@ function AccountMenu({ nav, pathname }: { nav: AppNavData; pathname: string }) {
             </MenuLinkItem>
           ),
         )}
+        {/* The what's new dialog again, for accounts with the full navigation (SPEC N-29). */}
+        {nav.full ? (
+          <MenuItem onClick={whatsNew.open}>
+            <SparkIcon size={16} />
+            {t.whatsNew}
+          </MenuItem>
+        ) : null}
         <MenuSeparator />
         <MenuItem onClick={logout}>
           <LogOutIcon size={16} />
@@ -367,6 +377,7 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
   const open = openOn === pathname;
   const close = () => setOpenOn(null);
   const logout = useLogout();
+  const whatsNew = useWhatsNew();
   const switchTeam = useSwitchTeam();
   const { top, team } = entries(nav, t);
   const itemClass = "min-h-14 px-3.5 text-[16px]";
@@ -510,6 +521,21 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
                 />
               ),
             )}
+            {nav.full ? (
+              <button
+                type="button"
+                onClick={() => {
+                  close();
+                  whatsNew.open();
+                }}
+                className={sidebarEntryClass(
+                  false,
+                  cn(iconSubItemClass, "w-full cursor-pointer text-left"),
+                )}
+              >
+                <SidebarEntryContent leading={<SparkIcon size={17} />} label={t.whatsNew} />
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {
