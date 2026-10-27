@@ -8,14 +8,13 @@ import {
   userDisplayName,
 } from "@uni-scrims/core";
 import type { Rank } from "@uni-scrims/db";
-import { cn } from "cn";
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
 import { CheckboxFilters, readCheckboxFilters } from "@/components/filter-checkbox";
 import { FilterForm, FilterSubmit } from "@/components/filter-form";
 import { UsersIcon } from "@/components/icons";
-import { CARD_COLUMNS } from "@/components/list-group";
+import { Masonry } from "@/components/masonry";
 import { PageMain } from "@/components/page-main";
 import { RankFilter } from "@/components/rank-filter";
 import { RankIcon, RankLabel } from "@/components/rank-icon";
@@ -105,11 +104,11 @@ export default async function TeamsPage({
           {filtered ? t.noMatchesText : t.noTeamsText}
         </EmptyState>
       ) : (
-        <div className={cn(CARD_COLUMNS, "items-start gap-3")}>
+        <Masonry>
           {teams.map((team) => (
             <TeamCard key={team.id} team={team} />
           ))}
-        </div>
+        </Masonry>
       )}
     </PageMain>
   );
