@@ -83,6 +83,9 @@ export const teamPageMessages = dictionary(
         "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. In einem gesperrten Team lassen sie sich nicht ändern.",
       member:
         "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Ändern kann sie euer Captain.",
+      /** The captain on /team: edited in the team settings since Phase 35 (SPEC N-31). */
+      captainView:
+        "Andere Teams sehen sie als Symbole bei euren Anfragen, Bewerbungen und Scrims. Ändern kannst du sie in den Team-Einstellungen.",
     },
     saveLinks: "Links speichern",
     noLinks: "Noch keine Links.",
@@ -104,6 +107,10 @@ export const teamPageMessages = dictionary(
         "Noch nicht verifiziert? Damit zählst du für das Abzeichen „Vollständig verifiziert“.",
     },
     toVerification: "Zur Verifizierung",
+    /** The dialog /team/settings (SPEC N-31). */
+    settings: "Team-Einstellungen",
+    settingsCaptainOnly: "Die Team-Einstellungen kann nur euer Captain ändern.",
+    settingsBanned: "In einem gesperrten Team lassen sich die Einstellungen nicht ändern.",
   },
   {
     noTeamHeading: "You're not in a team yet",
@@ -166,6 +173,8 @@ export const teamPageMessages = dictionary(
         "Other teams see them as icons on your requests, applications and scrims. They can't be changed in a banned team.",
       member:
         "Other teams see them as icons on your requests, applications and scrims. Your captain can change them.",
+      captainView:
+        "Other teams see them as icons on your requests, applications and scrims. You can change them in the team settings.",
     },
     saveLinks: "Save links",
     noLinks: "No links yet.",
@@ -185,6 +194,9 @@ export const teamPageMessages = dictionary(
       player: "Not verified yet? Verify to count towards the “Fully verified” badge.",
     },
     toVerification: "Go to verification",
+    settings: "Team settings",
+    settingsCaptainOnly: "Only your captain can change the team settings.",
+    settingsBanned: "The settings can't be changed in a banned team.",
   },
 );
 
@@ -194,6 +206,8 @@ export const teamHeaderMessages = dictionary(
     tabsLabel: "Team",
     teamTab: "Team",
     membersTab: "Mitglieder",
+    /** Opens the team settings dialog, for the captain (SPEC N-31). */
+    settings: "Team-Einstellungen",
     bannedCaptain:
       "Dieses Team ist gesperrt. Die anderen Mitglieder können es verlassen und ein neues gründen oder einem anderen beitreten. Danach kannst du es als letztes Mitglied auflösen.",
     banned:
@@ -203,6 +217,7 @@ export const teamHeaderMessages = dictionary(
     tabsLabel: "Team",
     teamTab: "Team",
     membersTab: "Members",
+    settings: "Team settings",
     bannedCaptain:
       "This team is banned. The other members can leave it and create a new team or join another one. After that, you can dissolve it as the last member.",
     banned: "This team is banned. You can leave it and create a new team or join another one.",

@@ -1,10 +1,6 @@
 import {
   GAME_LABELS,
   TEAM_LINK_TEXTS,
-  TEAM_LINK_MAX,
-  TEAM_LINK_PLATFORMS,
-  LOGO_BACKGROUNDS,
-  LOGO_BACKGROUND_LABELS,
   FULLY_VERIFIED_PLAYER_COUNT,
   MAX_TEAM_MEMBERS,
   RELIABILITY_WINDOW_DAYS,
@@ -12,40 +8,28 @@ import {
   describeStartTime,
   getTeamDashboard,
 } from "@uni-scrims/core";
-import { cn } from "cn";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { CopyValue } from "@/components/copy-value";
 import { PageMain } from "@/components/page-main";
 import { RankLabel } from "@/components/rank-icon";
 import { StatTile } from "@/components/stat-tile";
-import { TeamLogoPreview } from "@/components/team-avatar";
-import { TeamFields } from "@/components/team-fields";
 import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
-import { requirePageUser } from "@/lib/session";
-import {
-  leaveTeamAction,
-  regenerateInviteAction,
-  removeTeamLogoAction,
-  setTeamListedAction,
-  setVerifiedApplicantsOnlyAction,
-  updateTeamAction,
-  updateTeamLinksAction,
-} from "./actions";
+import { leaveTeamAction, regenerateInviteAction } from "./actions";
 import { NewTeamForms } from "./new-team-forms";
-import { TeamLogoForm } from "./team-logo-form";
 import { TeamHeader } from "./team-tabs";
 import { getLocale, getMessages } from "@/lib/locale";
 import { teamPageMessages } from "@/i18n/team";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 
-export default async function TeamPage() {
-  const user = await requirePageUser("/team");
-  const team = await getTeamDashboard({ userId: user.id, now: new Date() });
+/**
+ * The page /team, also behind the team settings dialog (SPEC N-31). Since Phase 35 the captain edits
+ * the team there; the invite link stays here (§5.33).
+ */
+export async function TeamView({ userId }: { userId: string }) {
+  const team = await getTeamDashboard({ userId, now: new Date() });
   const baseUrl = process.env.BETTER_AUTH_URL ?? "";
   const platforms = await getMessages(TEAM_LINK_TEXTS);
   const locale = await getLocale();
@@ -70,7 +54,7 @@ export default async function TeamPage() {
   const inviteUrl = team.inviteCode ? `${baseUrl}/join/${team.inviteCode}` : null;
   const soleMember = memberCount === 1;
   const manage = team.isCaptain && !team.banned;
-  const me = team.members.find((member) => member.id === user.id);
+  const me = team.members.find((member) => member.id === userId);
 
   return (
     <PageMain width="wide" className="gap-8">
@@ -120,166 +104,68 @@ export default async function TeamPage() {
         </div>
       </div>
 
-      {/* The team and its logos left, the links right: for the captain from 768 px, for the
-          others from 1024 px (SPEC N-12, N-15); on phones in this order. */}
-      <div
-        className={cn(
-          "flex flex-col gap-8",
-          manage
-            ? "md:grid md:grid-cols-[minmax(0,1fr)_300px] md:items-start md:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]"
-            : "lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]",
-        )}
-      >
-        <div className="flex min-w-0 flex-col gap-8 md:gap-6">
-          <section className={`${cardClass} gap-[18px]`}>
-            <h2 className="type-h2 break-words">{t.teamHeading(team.name)}</h2>
-            {manage ? (
-              <ActionForm
-                action={updateTeamAction}
-                submitLabel={t.save}
-                className="flex flex-col gap-[18px]"
-              >
-                <input type="hidden" name="teamId" value={team.id} />
-                <TeamFields defaults={{ name: team.name, tag: team.tag }} />
-              </ActionForm>
-            ) : null}
-            <dl className="flex flex-col border-t border-border text-[14px]">
-              {[
-                ...(manage
-                  ? []
-                  : [
-                      { label: t.name, value: team.name },
-                      { label: t.tag, value: team.tag },
-                    ]),
-                {
-                  // Computed from the players' and substitutes' own ranks (SPEC N-16).
-                  label: t.teamRank,
-                  value: (
-                    <span className="flex flex-col items-end gap-0.5">
-                      <span>
-                        <RankLabel rank={team.rank} />
-                        {team.rankedCount > 0 ? (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            · {t.rankedFrom(team.rankedCount)}
-                          </span>
-                        ) : null}
-                      </span>
-                      {me && me.countsForTeamRank && me.rank === null ? (
-                        <Link
-                          href="/account"
-                          className="text-[13px] text-foreground underline underline-offset-2"
-                        >
-                          {t.addRank}
-                        </Link>
+      {/* The team left, the invite link and the external links right from 1024 px (SPEC N-12,
+          N-15); on phones in this order. */}
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <section className={`${cardClass} min-w-0 gap-[18px]`}>
+          <h2 className="type-h2 break-words">{t.teamHeading(team.name)}</h2>
+          <dl className="flex flex-col border-t border-border text-[14px]">
+            {[
+              { label: t.name, value: team.name },
+              { label: t.tag, value: team.tag },
+              {
+                // Computed from the players' and substitutes' own ranks (SPEC N-16).
+                label: t.teamRank,
+                value: (
+                  <span className="flex flex-col items-end gap-0.5">
+                    <span>
+                      <RankLabel rank={team.rank} />
+                      {team.rankedCount > 0 ? (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {t.rankedFrom(team.rankedCount)}
+                        </span>
                       ) : null}
                     </span>
-                  ),
-                },
-                { label: t.game, value: GAME_LABELS[team.game] ?? team.game },
-                { label: t.universities, value: formatUniversities(team.universities, locale) },
-                // Whether all signed-in users see the team and its members there (SPEC N-20).
-                { label: t.teamsList, value: team.listed ? t.listed : t.unlisted },
-                // Who may apply to the team's requests (SPEC N-21).
-                {
-                  label: t.applicants,
-                  value: team.verifiedApplicantsOnly ? t.applicantsVerifiedOnly : t.applicantsAll,
-                },
-              ].map((row) => (
-                <div
-                  key={row.label}
-                  className="flex justify-between gap-3 border-b border-border py-3 last:border-b-0"
-                >
-                  <dt className="text-muted-foreground">{row.label}</dt>
-                  <dd className="min-w-0 text-right break-words">{row.value}</dd>
-                </div>
-              ))}
-            </dl>
-            {manage ? (
-              <div className="flex flex-col gap-2 border-t border-border pt-4">
-                <span className="text-[14px] font-medium">{t.teamsList}</span>
-                <p className="text-[13px] text-pretty text-muted-foreground">{t.teamsListHint}</p>
-                <ActionForm
-                  action={setTeamListedAction}
-                  submitLabel={team.listed ? t.hideFromList : t.showInList}
-                  variant="outline"
-                  size="sm"
-                  className="flex flex-col items-start"
-                >
-                  <input type="hidden" name="teamId" value={team.id} />
-                  <input type="hidden" name="listed" value={team.listed ? "false" : "true"} />
-                </ActionForm>
+                    {me && me.countsForTeamRank && me.rank === null ? (
+                      <Link
+                        href="/account"
+                        className="text-[13px] text-foreground underline underline-offset-2"
+                      >
+                        {t.addRank}
+                      </Link>
+                    ) : null}
+                  </span>
+                ),
+              },
+              { label: t.game, value: GAME_LABELS[team.game] ?? team.game },
+              { label: t.universities, value: formatUniversities(team.universities, locale) },
+              // Whether all signed-in users see the team and its members there (SPEC N-20).
+              { label: t.teamsList, value: team.listed ? t.listed : t.unlisted },
+              // Who may apply to the team's requests (SPEC N-21).
+              {
+                label: t.applicants,
+                value: team.verifiedApplicantsOnly ? t.applicantsVerifiedOnly : t.applicantsAll,
+              },
+            ].map((row) => (
+              <div
+                key={row.label}
+                className="flex justify-between gap-3 border-b border-border py-3 last:border-b-0"
+              >
+                <dt className="text-muted-foreground">{row.label}</dt>
+                <dd className="min-w-0 text-right break-words">{row.value}</dd>
               </div>
-            ) : null}
-            {manage ? (
-              <div className="flex flex-col gap-2 border-t border-border pt-4">
-                <span className="text-[14px] font-medium">{t.applicants}</span>
-                <p className="text-[13px] text-pretty text-muted-foreground">
-                  {t.applicantsHint(FULLY_VERIFIED_PLAYER_COUNT)}
-                </p>
-                <ActionForm
-                  action={setVerifiedApplicantsOnlyAction}
-                  submitLabel={team.verifiedApplicantsOnly ? t.admitAll : t.admitVerifiedOnly}
-                  variant="outline"
-                  size="sm"
-                  className="flex flex-col items-start"
-                >
-                  <input type="hidden" name="teamId" value={team.id} />
-                  <input
-                    type="hidden"
-                    name="verifiedApplicantsOnly"
-                    value={team.verifiedApplicantsOnly ? "false" : "true"}
-                  />
-                </ActionForm>
-              </div>
-            ) : null}
-            <div className="flex flex-col gap-2 border-t border-border pt-4">
-              <span className="text-[14px] font-medium">{t.teamId}</span>
-              <CopyValue value={team.id} />
-              <p className="text-[13px] text-muted-foreground">{t.teamIdHint}</p>
-            </div>
-          </section>
+            ))}
+          </dl>
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <span className="text-[14px] font-medium">{t.teamId}</span>
+            <CopyValue value={team.id} />
+            <p className="text-[13px] text-muted-foreground">{t.teamIdHint}</p>
+          </div>
+        </section>
 
-          {manage ? (
-            <section className={`${cardClass} gap-4`}>
-              <div className="flex flex-col gap-1">
-                <h2 className="type-h2">{t.logos}</h2>
-                <p className="text-[13px] text-pretty text-muted-foreground">{t.logosHint}</p>
-              </div>
-              {LOGO_BACKGROUNDS.map((background) => {
-                const hasLogo = team.logo?.backgrounds.includes(background) ?? false;
-                return (
-                  <div key={background} className="flex items-start gap-4">
-                    <TeamLogoPreview team={team} background={background} emptyLabel={t.noLogo} />
-                    <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-                      <span className="text-[14px] font-medium">
-                        {LOGO_BACKGROUND_LABELS[locale][background]}
-                      </span>
-                      <TeamLogoForm teamId={team.id} background={background} hasLogo={hasLogo} />
-                      {hasLogo ? (
-                        <ActionForm
-                          action={removeTeamLogoAction}
-                          submitLabel={t.removeLogo}
-                          variant="ghost"
-                          size="sm"
-                          className="flex flex-col"
-                          submitClassName="-ml-4"
-                          confirmText={t.removeLogoConfirm[background]}
-                          confirmDestructive
-                        >
-                          <input type="hidden" name="teamId" value={team.id} />
-                          <input type="hidden" name="background" value={background} />
-                        </ActionForm>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
-            </section>
-          ) : null}
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-8 md:gap-6">
+        <div className="flex min-w-0 flex-col gap-8 lg:gap-6">
+          {/* Stays here rather than in the settings: copying it is everyday work (SPEC N-31). */}
           {manage ? (
             <section className={`${cardClass} gap-3`}>
               <h2 className="type-h2">{t.internalLinks}</h2>
@@ -306,47 +192,13 @@ export default async function TeamPage() {
               <h2 className="type-h2">{t.externalLinks}</h2>
               <p className="text-[13px] text-pretty text-muted-foreground">
                 {manage
-                  ? t.externalLinksHint.captain
+                  ? t.externalLinksHint.captainView
                   : team.banned
                     ? t.externalLinksHint.banned
                     : t.externalLinksHint.member}
               </p>
             </div>
-            {manage ? (
-              <ActionForm
-                // Mounted anew once the stored links change, so the fields show the saved
-                // (normalized) addresses rather than what was typed.
-                key={team.links.map((link) => link.url).join(" ")}
-                action={updateTeamLinksAction}
-                submitLabel={t.saveLinks}
-                className="flex flex-col gap-4"
-              >
-                <input type="hidden" name="teamId" value={team.id} />
-                {TEAM_LINK_PLATFORMS.map((platform) => (
-                  <Field
-                    key={platform.key}
-                    label={
-                      <span className="flex items-center gap-2">
-                        <TeamLinkIcon platform={platform.key} />
-                        {platforms[platform.key].label}
-                      </span>
-                    }
-                  >
-                    <Input
-                      name={platform.key}
-                      defaultValue={
-                        team.links.find((link) => link.platform === platform.key)?.url ?? ""
-                      }
-                      placeholder={platforms[platform.key].placeholder}
-                      maxLength={TEAM_LINK_MAX}
-                      inputMode="url"
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
-                  </Field>
-                ))}
-              </ActionForm>
-            ) : team.links.length === 0 ? (
+            {team.links.length === 0 ? (
               <p className="text-[14px] text-muted-foreground">{t.noLinks}</p>
             ) : (
               <ul className="flex flex-col">
