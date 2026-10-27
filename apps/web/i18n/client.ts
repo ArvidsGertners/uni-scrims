@@ -92,6 +92,32 @@ export const rankFilterMessages = dictionary({ allRanks: "Alle Ränge" }, { allR
 /** The dialog that asks before a final action (components/confirm-dialog.tsx). */
 export const confirmDialogMessages = dictionary({ cancel: "Abbrechen" }, { cancel: "Cancel" });
 
+/** Pages shown as a dialog over the current page (SPEC N-31). */
+export const routeDialogMessages = dictionary({ close: "Schließen" }, { close: "Close" });
+
+/** The question before a dialog with unsaved changes closes (SPEC N-31). */
+export const dirtyGuardMessages = dictionary(
+  {
+    title: "Ungespeicherte Änderungen",
+    text: "Deine Änderungen sind noch nicht gespeichert.",
+    textCreate: "Dein Formular ist noch nicht abgeschickt.",
+    saveAndLeave: "Speichern und verlassen",
+    /** In dialogs that create something: a request, a window, a request for more teams. */
+    submitAndLeave: "Absenden und verlassen",
+    leaveWithoutSaving: "Ohne Speichern verlassen",
+    cancel: "Abbrechen",
+  },
+  {
+    title: "Unsaved changes",
+    text: "Your changes haven't been saved yet.",
+    textCreate: "Your form hasn't been submitted yet.",
+    saveAndLeave: "Save and leave",
+    submitAndLeave: "Submit and leave",
+    leaveWithoutSaving: "Leave without saving",
+    cancel: "Cancel",
+  },
+);
+
 export const countedTextareaMessages = dictionary(
   { optional: "optional" },
   { optional: "optional" },

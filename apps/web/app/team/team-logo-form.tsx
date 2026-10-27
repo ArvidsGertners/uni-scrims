@@ -3,6 +3,7 @@
 import { MAX_LOGO_BYTES } from "@uni-scrims/core/config/uploads";
 import type { LogoBackground } from "@uni-scrims/db";
 import { useActionState, useRef, useState } from "react";
+import { useDirtyGuard } from "@/components/dirty-guard";
 import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { teamLogoFormMessages } from "@/i18n/team-client";
@@ -41,9 +42,12 @@ export function TeamLogoForm({
   // A server error belongs to the file it was about; picking another one hides it.
   const [showServerError, setShowServerError] = useState(true);
   const error = fileError ?? (showServerError ? state.error : null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { markDispatched } = useDirtyGuard({ formRef, state });
 
   return (
     <form
+      ref={formRef}
       action={action}
       className="flex flex-col gap-3"
       onSubmit={(event) => {
@@ -61,6 +65,7 @@ export function TeamLogoForm({
         }
         setFileError(null);
         setShowServerError(true);
+        markDispatched();
         submitKeepingValues(event, action);
       }}
     >

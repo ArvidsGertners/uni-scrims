@@ -12,7 +12,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { formSnapshot } from "@/lib/form-snapshot";
+import { defaultEntries, formSnapshot } from "@/lib/form-snapshot";
 
 // GET filter forms whose "Filtern" stays greyed until a field differs from the applied filter
 // (SPEC N-30, §5.32).
@@ -22,23 +22,6 @@ type FormChange = { notify: () => void; changed: boolean; hydrated: boolean };
 const FormChangeContext = createContext<FormChange | null>(null);
 
 const noSubscription = () => () => {};
-
-/**
- * The entries the form had when rendered, i.e. the applied filter: the default values of fields the
- * user may have changed before hydration, the current value of hidden inputs set by React.
- */
-function defaultEntries(form: HTMLFormElement): [string, string][] {
-  const entries: [string, string][] = [];
-  for (const element of form.elements) {
-    if (!(element instanceof HTMLInputElement) || !element.name || element.disabled) continue;
-    if (element.type === "checkbox" || element.type === "radio") {
-      if (element.defaultChecked) entries.push([element.name, element.value]);
-    } else if (element.type !== "submit" && element.type !== "button") {
-      entries.push([element.name, element.defaultValue]);
-    }
-  }
-  return entries;
-}
 
 /**
  * For fields whose form value sits in a hidden input set by React, which fires no DOM event

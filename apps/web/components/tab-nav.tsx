@@ -8,6 +8,8 @@ export type TabNavItem = {
   active: boolean;
   /** After the label, e.g. a count or a warning dot. */
   trailing?: ReactNode;
+  /** Replaces the history entry: tabs between route dialogs (§5.33). */
+  replace?: boolean;
 };
 
 const barClass = "flex gap-1 rounded-lg border border-border bg-card p-1";
@@ -52,6 +54,9 @@ export function TabNav({
         <Link
           key={item.href}
           href={item.href}
+          replace={item.replace}
+          // Read by the route dialog's link guard (components/route-dialog.tsx).
+          data-dialog-replace={item.replace ? "" : undefined}
           aria-current={item.active ? "page" : undefined}
           className={tabClass(item.active)}
         >

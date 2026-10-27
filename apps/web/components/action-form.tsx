@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode, useActionState } from "react";
+import { type ReactNode, useActionState, useRef } from "react";
 import { cn } from "cn";
 import { useSubmitConfirmation } from "@/components/confirm-dialog";
+import { useDirtyGuard } from "@/components/dirty-guard";
 import { Button } from "@/components/ui/button";
 import { type ActionState, initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
@@ -22,6 +23,13 @@ type Props = {
   submitClassName?: string;
   /** Below the submit button and its error, e.g. a cancel link. */
   footer?: ReactNode;
+  /**
+   * In a route dialog, asks before closing with unsaved changes (§5.33); off for forms that ask
+   * before submitting anyway.
+   */
+  guard?: boolean;
+  /** The form creates something: the prompt then offers "Absenden und verlassen". */
+  creates?: boolean;
 };
 
 /** Form for a server action with an error line under the button. */
@@ -36,12 +44,17 @@ export function ActionForm({
   className,
   submitClassName,
   footer,
+  guard = confirmText === undefined,
+  creates = false,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, initialActionState);
   const { confirm, dialog } = useSubmitConfirmation();
+  const formRef = useRef<HTMLFormElement>(null);
+  const { markDispatched } = useDirtyGuard({ formRef, state, enabled: guard, create: creates });
   return (
     <>
       <form
+        ref={formRef}
         action={formAction}
         className={className ?? "flex flex-col gap-3"}
         onSubmit={(event) => {
@@ -54,6 +67,7 @@ export function ActionForm({
           ) {
             return;
           }
+          markDispatched();
           submitKeepingValues(event, formAction);
         }}
       >

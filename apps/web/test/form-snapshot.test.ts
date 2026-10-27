@@ -56,3 +56,12 @@ describe("formSnapshot", () => {
     expect(formSnapshot([])).toBe("");
   });
 });
+
+describe("formSnapshot with files (§5.33)", () => {
+  it("tells a picked file from an empty field, which matches the untouched default", () => {
+    const empty = new File([], "");
+    const picked = new File(["png"], "logo.png");
+    expect(formSnapshot([["logo", empty]])).toBe(formSnapshot([["logo", "file::0"]]));
+    expect(formSnapshot([["logo", picked]])).not.toBe(formSnapshot([["logo", empty]]));
+  });
+});

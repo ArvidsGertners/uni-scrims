@@ -1,7 +1,8 @@
 "use client";
 
 import type { NotifType } from "@uni-scrims/db";
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
+import { useDirtyGuard } from "@/components/dirty-guard";
 import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { notificationFormMessages } from "@/i18n/account-client";
@@ -36,11 +37,17 @@ export function NotificationForm({
 }) {
   const [state, formAction, pending] = useActionState(saveNotificationsAction, initialActionState);
   const t = useMessages(notificationFormMessages);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { markDispatched } = useDirtyGuard({ formRef, state });
   return (
     <form
+      ref={formRef}
       action={formAction}
       // Keeps the boxes as the user set them when saving fails.
-      onSubmit={(event) => submitKeepingValues(event, formAction)}
+      onSubmit={(event) => {
+        markDispatched();
+        submitKeepingValues(event, formAction);
+      }}
       className="flex flex-col gap-6"
     >
       <input type="hidden" name="shownAsCaptain" value={isCaptain ? "1" : "0"} />
