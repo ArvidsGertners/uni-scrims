@@ -33,7 +33,7 @@ The public fixtures come from `michel-giehl/ValorantReplayParser` at commit `b51
 - The floor is roughly the file size (60 MB), because the whole file is held in memory.
 - The memory is used once, in the uploader's own browser tab, for about 2 s. The server never parses.
 - **Stored per replay**: the position tracks (10 players, 10 Hz, x/y/yaw, delta-encoded) are 1.5 MB as JSON and **0.27 MB gzipped**. With events, a full replay is expected well under 1 MB gzipped.
-- Example: 150 scrims a week, each saved, kept 90 days ≈ 2,000 replays ≈ 1–2 GB of disk. The VPS has 157 GB free.
+- Example: 150 scrims a week, each saved, kept 90 days ≈ 2,000 replays ≈ 1–2 GB. They are stored on the Hetzner Storage Box (user decision, concept §4), not on the VPS disk.
 - R5 builds the reducer so it goes straight from decoded events to the replay JSON, without the large intermediate tables.
 
 **WASM is feasible for R1**: the memory is far below browser limits, and there is no native dependency in the decode path.

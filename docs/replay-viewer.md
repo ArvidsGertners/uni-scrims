@@ -49,6 +49,7 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
 
+- 2026-10-27, decision: saved replays go to the user's Hetzner Storage Box (own sub-account, SFTP from `core`), not the VPS disk. See §4; part of R11.
 - 2026-10-27, R0 done:
   - The user allowed building and running vrfkit.
   - Built vrfkit `b9496df` with Rust 1.90.0. The user's replay (13.08, Lotus, 17 rounds, Red 13:4) exported in 1.8 s with a 169 MB peak.
@@ -161,7 +162,15 @@ Viewer (canvas + SVG) ◀── fetch JSON ──────── permission c
   - After parsing, the replay plays at once in the browser, without any upload. It is local only and gone on reload.
   - The option "Save for both teams" uploads it and attaches it to one of the team's past scrims (picked from a list).
   - Only the reduced replay JSON is uploaded, gzip-compressed, with a size limit (target well below 5 MB per match).
-- **Storage**: a new model `ScrimReplay`, one per scrim, holding uploader, game version, upload date and the file path. The file lives under `UPLOAD_DIR`, like team logos. All logic sits in `packages/core` (validate the JSON schema, attach to the scrim, delete). `apps/web` only calls `core`.
+- **Storage** (user decision 2026-10-27: on the Hetzner Storage Box):
+  - A new model `ScrimReplay`, one per scrim, holding uploader, game version, upload date, size and the file key.
+  - The gzipped replay JSON lives on the user's **Hetzner Storage Box**, not on the VPS disk.
+  - **Its own sub-account** with its own directory (e.g. `uni-scrims-replays`), SSH key only. The backup mirror `docker/backup.sh` runs `rsync --delete` on the backup directory, so replays must never sit there, and the web app's key must not be able to touch the backups.
+  - Access over **SFTP (port 23) from `core`**, through a small storage module (`put`, `get`, `delete`, `list`). Credentials come from new env vars (`REPLAY_STORAGE_HOST`, `_USER`, `_KEY`, `_DIR`). A pinned SFTP library; a local directory implementation for dev and tests.
+  - Files are named by the replay's ID, never by player or team names.
+  - Viewing streams the file from the Storage Box. Lost files (Box down, deleted) show a clear error and never block the scrim page.
+  - The 90-day janitor deletes the file and the row. A second sweep removes files without a row (e.g. after a crash between the two steps).
+  - Not backed up (like uploads today). A lost Storage Box means lost replays, which is acceptable for 90-day data. All logic sits in `packages/core` (validate the JSON schema, attach to the scrim, delete). `apps/web` only calls `core`.
 - **Permissions** go through `core/permissions.ts`:
   - Every member of the two teams of that scrim can upload, view and delete.
   - Others, including admins, have no access.
@@ -342,7 +351,7 @@ A toolbar next to the map, used mostly on a paused frame, like valorantscout's "
 **Privacy**
 
 - A replay holds gameplay data (positions, performance) of named players.
-- Stored only if a member chooses to save it. Visible only to the two teams of the scrim.
+- Stored only if a member chooses to save it, on the Hetzner Storage Box (Hetzner's data processing agreement is already signed; the privacy text names the Storage Box as the place). Visible only to the two teams of the scrim.
 - Deleted 90 days after the upload, or earlier with the scrim or by a member.
 - Covered by the data export ("Datenauskunft").
 - A new paragraph in `datenschutz.txt` / `datenschutz.en.txt`, approved by the user before the deploy.
@@ -498,6 +507,7 @@ The replay holds account UUIDs, not Riot IDs, and Uni Scrims doesn't store Riot 
 - **Docs first**: data model, permissions table row, privacy draft.
 - **Work**:
   - Prisma model `ScrimReplay` + migration.
+  - Storage module in `core` (SFTP to the Storage Box sub-account, local directory in dev/tests), env vars, README steps for the sub-account (the user creates it in the Hetzner console).
   - `core` functions: save (gzip JSON, schema check, size limit, attach to a past scrim of the team), list, load, delete (all with permission checks in `core/permissions.ts`: members of both teams).
   - "Save for both teams" in the viewer.
   - The Replays tab list, `/replays/[id]`, and the links from the scrim page and the Vergangen tab.
