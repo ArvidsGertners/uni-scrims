@@ -37,7 +37,6 @@ import { Alert } from "@/components/ui/alert";
 import { Badge, BadgeDot } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { single } from "@/lib/search-params";
-import { requirePageUser } from "@/lib/session";
 import {
   SCRIM_STATUS_LABELS,
   formatFormat,
@@ -88,26 +87,27 @@ function emptyStates(
 const rowClass =
   "flex items-center gap-3 rounded-lg border border-border bg-card p-4 hover:bg-secondary";
 
-export default async function ScrimsPage({
-  searchParams,
+/** The page /scrims, also behind its dialogs (§5.33). */
+export async function ScrimsView({
+  userId,
+  params,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  userId: string;
+  params: Record<string, string | string[] | undefined>;
 }) {
-  const user = await requirePageUser("/scrims");
-  const params = await searchParams;
   const t = await getMessages(scrimsPageMessages);
   const shared = await getMessages(scrimSharedMessages);
   const tab: TabKey = TAB_KEYS.find((key) => key === params.tab) ?? "board";
   const now = new Date();
   const [board, mine] = await Promise.all([
     getBoard({
-      userId: user.id,
+      userId,
       date: single(params.datum) ?? null,
       ranks: readBoardRanks(params.rang),
       ...readCheckboxFilters(params),
       now,
     }),
-    getMyScrims({ userId: user.id, now }),
+    getMyScrims({ userId, now }),
   ]);
   const counts: Record<TabKey, number> = {
     // Requests and windows "Heute spielbereit" of other teams (SPEC N-27).

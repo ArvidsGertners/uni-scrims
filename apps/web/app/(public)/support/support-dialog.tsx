@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { ExternalLinkIcon, MessageSquareIcon } from "@/components/icons";
-import { PageMain } from "@/components/page-main";
+import { DialogShell } from "@/components/dialog-shell";
 import { Alert } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { supportMessages } from "@/i18n/public";
@@ -14,8 +14,12 @@ import { getLocale, getMessages, getText } from "@/lib/locale";
 
 const cardClass = "flex flex-col gap-3 rounded-lg border border-border bg-card p-5";
 
-/** How to reach us (SPEC N-13): the Discord server and the contact address; for everyone. */
-export default async function SupportPage() {
+/**
+ * How to reach us (SPEC N-13): the Discord server and the contact address; for everyone. As a
+ * dialog (SPEC N-31): when loaded directly over the board for active accounts, else over the
+ * landing page.
+ */
+export async function SupportDialog({ intercepted }: { intercepted: boolean }) {
   // Read per request: `next build` would otherwise bake in the values of the build environment.
   await connection();
   const discordUrl = process.env.HUB_INVITE_URL || null;
@@ -26,11 +30,8 @@ export default async function SupportPage() {
   const t = await getMessages(supportMessages);
 
   return (
-    <PageMain className="gap-7">
-      <div className="flex flex-col gap-2.5">
-        <h1 className="type-h1">{t.title}</h1>
-        <p className="text-pretty text-muted-foreground">{t.lead}</p>
-      </div>
+    <DialogShell title={t.title} fallback={active ? "/scrims" : "/"} intercepted={intercepted}>
+      <p className="-mt-2 text-pretty text-muted-foreground">{t.lead}</p>
 
       {discordUrl || email ? (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -76,7 +77,7 @@ export default async function SupportPage() {
       )}
 
       {teamLimit ? <TeamLimitCard status={teamLimit} /> : null}
-    </PageMain>
+    </DialogShell>
   );
 }
 
@@ -126,6 +127,7 @@ async function TeamLimitCard({
               variant="outline"
               size="sm"
               className="flex flex-col gap-3"
+              creates
             >
               <CountedTextarea
                 label={t.reason}

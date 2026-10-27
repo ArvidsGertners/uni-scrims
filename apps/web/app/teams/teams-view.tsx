@@ -25,22 +25,21 @@ import { buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { list, single } from "@/lib/search-params";
-import { requirePageUser } from "@/lib/session";
 import { formatUniversities } from "@/lib/scrim-format";
 import { getLocale, getMessages } from "@/lib/locale";
 import { teamsPageMessages } from "@/i18n/teams";
 
 /** All active teams their captain has not hidden, with their members (SPEC N-20, §5.23). */
-export default async function TeamsPage({
-  searchParams,
+export async function TeamsView({
+  userId,
+  params,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  userId: string;
+  params: Record<string, string | string[] | undefined>;
 }) {
-  const user = await requirePageUser("/teams");
-  const params = await searchParams;
   const t = await getMessages(teamsPageMessages);
   const { teams, filter } = await getTeamList({
-    userId: user.id,
+    userId,
     search: single(params.suche) ?? null,
     ranks: list(params.rang).filter((value): value is Rank => RANKS.includes(value as Rank)),
     ...readCheckboxFilters(params),

@@ -16,7 +16,7 @@ import {
 import type { ValorantMap } from "@uni-scrims/core/config/maps";
 import type { Rank, ScrimFormat } from "@uni-scrims/db";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { RedirectType, redirect } from "next/navigation";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
 import { requestActionMessages } from "@/i18n/scrims";
@@ -88,7 +88,8 @@ export async function createRequestAction(_state: ActionState, formData: FormDat
         ? t.seriesCreated
         : t.requestCreated,
   );
-  redirect("/scrims?tab=anfragen");
+  // Replaces the dialog, so back does not open it again filled in (§5.33).
+  redirect("/scrims?tab=anfragen", RedirectType.replace);
 }
 
 export async function endRequestSeriesAction(_state: ActionState, formData: FormData) {
@@ -293,7 +294,7 @@ export async function createReadyWindowAction(_state: ActionState, formData: For
   revalidatePath("/scrims");
   const t = await getMessages(requestActionMessages);
   await setFlash(t.readyAnnounced);
-  redirect("/scrims");
+  redirect("/scrims", RedirectType.replace);
 }
 
 export async function endReadyWindowAction(_state: ActionState, formData: FormData) {

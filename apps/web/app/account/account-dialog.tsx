@@ -9,7 +9,8 @@ import { DetailRows } from "@/components/detail-rows";
 import { DiscordButton } from "@/components/discord-button";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
 import { CheckIcon } from "@/components/icons";
-import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
+import { DialogShell } from "@/components/dialog-shell";
+import { DETAIL_COLUMNS } from "@/components/page-main";
 import { RankIcon } from "@/components/rank-icon";
 import { UserAvatar } from "@/components/user-avatar";
 import { Alert } from "@/components/ui/alert";
@@ -63,13 +64,19 @@ const VERIFICATION_STYLES = {
   NONE: { className: "text-warning", primary: true },
 } as const;
 
-export default async function AccountPage({
-  searchParams,
+/**
+ * Konto-Einstellungen (SPEC N-13), as a dialog over the current page (SPEC N-31): over the board for
+ * active accounts when loaded directly, over the landing page for banned and incomplete ones.
+ */
+export async function AccountDialog({
+  intercepted,
+  params,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  intercepted: boolean;
+  params: Record<string, string | string[] | undefined>;
 }) {
   // Better Auth sends errors of the mail and Discord links back as ?error=… (§5.8).
-  const { email: emailConfirmed, error } = await searchParams;
+  const { email: emailConfirmed, error } = params;
   const user = await requirePageAccountUser("/account");
   const account = await getAccount(user.id);
   const text = await getText();
@@ -93,16 +100,19 @@ export default async function AccountPage({
     t.consequences.hubServer,
   ];
 
+  const active = !account.banned && !account.setupStep;
+
   return (
-    <PageMain width="wide" className="gap-7">
-      {/* min-h-11: the same height as on /verify, so the tabs do not jump (SPEC N-11). Logging out
-          is in the account menu since Phase 17 (SPEC N-13). */}
-      <div className="flex min-h-11 items-center">
-        <h1 className="type-h1">{t.title}</h1>
-      </div>
-      {account.banned || account.setupStep ? null : (
-        <AccountTabs current="/account" unverified={account.verificationNeeded} />
-      )}
+    // Logging out is in the account menu since Phase 17 (SPEC N-13).
+    <DialogShell
+      title={t.title}
+      size="wide"
+      fallback={active ? "/scrims" : "/"}
+      intercepted={intercepted}
+    >
+      {active ? (
+        <AccountTabs current="/account" unverified={account.verificationNeeded} inDialog />
+      ) : null}
       {account.banned ? (
         <Alert>
           <span>{t.bannedNotice}</span>
@@ -429,6 +439,6 @@ export default async function AccountPage({
           )}
         </section>
       </div>
-    </PageMain>
+    </DialogShell>
   );
 }

@@ -45,12 +45,13 @@ function SectionHead({ id, eyebrow, title }: { id: string; eyebrow: string; titl
   );
 }
 
-export default async function LandingPage({
-  searchParams,
+/** The landing page, also behind the support dialog (§5.33). */
+export async function LandingView({
+  params,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  params: Record<string, string | string[] | undefined>;
 }) {
-  const { gesperrt, geloescht } = await searchParams;
+  const { gesperrt, geloescht } = params;
   const loggedIn = (await getSignedInUser()) !== null;
   const locale = await getLocale();
   const t = await getMessages(landingMessages);

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { Geist_Mono, Space_Grotesk } from "next/font/google";
 import { LocaleProvider } from "@/components/locale-provider";
+import { RouteDialogTracker } from "@/components/route-dialog";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteFrame } from "@/components/site-frame";
 import { SiteHeader } from "@/components/site-header";
@@ -41,7 +42,14 @@ export async function generateViewport(): Promise<Viewport> {
   return { width: "device-width", initialScale: 1, themeColor: themeColor(user?.theme) };
 }
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({
+  children,
+  modal,
+}: {
+  children: ReactNode;
+  /** The route dialogs over the current page (app/@modal, §5.33). */
+  modal: ReactNode;
+}) {
   const [{ user }, locale, due] = await Promise.all([siteChrome(), getLocale(), whatsNewDue()]);
   return (
     // Light or dark by the system setting (Phase 11), or as the account chose (Phase 17, §5.16),
@@ -59,6 +67,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <SiteHeader />
               <SiteFrame>{children}</SiteFrame>
               <SiteFooter />
+              <RouteDialogTracker />
+              {modal}
             </WhatsNewProvider>
           </ThemeProvider>
         </LocaleProvider>

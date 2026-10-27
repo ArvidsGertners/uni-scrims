@@ -11,12 +11,11 @@ import { TIMING } from "@uni-scrims/core/config/timing";
 import type { Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
-import { BackLink } from "@/components/back-link";
-import { PageMain } from "@/components/page-main";
+import { DialogShell } from "@/components/dialog-shell";
 import { RankIcon } from "@/components/rank-icon";
+import { RouteDialogClose } from "@/components/route-dialog";
 import { ToggleOption } from "@/components/toggle-option";
 import { Alert } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { requirePageUser } from "@/lib/session";
@@ -31,9 +30,9 @@ const DEFAULT_SLOTS = 12;
 /**
  * "Heute spielbereit melden" (SPEC N-27, §5.29): the start times of this evening come from core;
  * instead of the form the reasons createReadyWindow would reject with, a running window or that no
- * start time is left.
+ * start time is left. As a dialog over the current page, loaded directly over the board (SPEC N-31).
  */
-export default async function ReadyPage() {
+export async function ReadyDialog({ intercepted }: { intercepted: boolean }) {
   const user = await requirePageUser("/ready");
   const form = await getReadyWindowForm({ userId: user.id, now: new Date() });
   const text = await getText();
@@ -51,15 +50,11 @@ export default async function ReadyPage() {
   );
 
   return (
-    <PageMain className="gap-7">
-      <BackLink href="/scrims">{shared.backToBoard}</BackLink>
-      <div className="flex flex-col gap-2.5">
-        <h1 className="type-h1">{t.title}</h1>
-        <p className="text-pretty text-muted-foreground">
-          {form ? request.forTeam(form.teamName) : null}
-          {t.intro}
-        </p>
-      </div>
+    <DialogShell title={t.title} fallback="/scrims" intercepted={intercepted}>
+      <p className="-mt-2 text-pretty text-muted-foreground">
+        {form ? request.forTeam(form.teamName) : null}
+        {t.intro}
+      </p>
       {!form ? (
         <Alert>
           <span>
@@ -115,7 +110,7 @@ export default async function ReadyPage() {
           range={form.rankRange}
         />
       )}
-    </PageMain>
+    </DialogShell>
   );
 }
 
@@ -150,11 +145,8 @@ async function ReadyForm({
       size="lg"
       submitClassName="mt-1.5 w-full"
       className="flex flex-col gap-[22px]"
-      footer={
-        <Link href="/scrims" className={buttonVariants({ variant: "ghost", className: "mt-0.5" })}>
-          {request.cancel}
-        </Link>
-      }
+      creates
+      footer={<RouteDialogClose className="mt-0.5">{request.cancel}</RouteDialogClose>}
     >
       {/* The team the form was shown for, so a switch in another tab changes nothing (§5.20). */}
       <input type="hidden" name="teamId" value={teamId} />

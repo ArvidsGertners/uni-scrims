@@ -5,7 +5,7 @@ import {
   getNotificationPreferences,
 } from "@uni-scrims/core";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
-import { PageMain } from "@/components/page-main";
+import { DialogShell } from "@/components/dialog-shell";
 import { verificationNeeded } from "@/lib/header-user";
 import { requirePageUser } from "@/lib/session";
 import { AccountTabs } from "../account-tabs";
@@ -13,8 +13,8 @@ import { NotificationForm, type NotificationFormCategory } from "./notification-
 import { getLocale, getMessages } from "@/lib/locale";
 import { notificationsPageMessages } from "@/i18n/account";
 
-/** Discord and mail per notification (SPEC N-14, ARCHITECTURE §5.17). */
-export default async function NotificationsPage() {
+/** Discord and mail per notification (SPEC N-14, ARCHITECTURE §5.17), as a dialog (SPEC N-31). */
+export async function NotificationsDialog({ intercepted }: { intercepted: boolean }) {
   const user = await requirePageUser("/account/notifications");
   const settings = await getNotificationPreferences(user.id);
   const email = deliverableEmail(user);
@@ -33,11 +33,12 @@ export default async function NotificationsPage() {
   }));
 
   return (
-    <PageMain width="wide" className="gap-7">
-      <div className="flex min-h-11 items-center">
-        <h1 className="type-h1">{t.title}</h1>
-      </div>
-      <AccountTabs current="/account/notifications" unverified={await verificationNeeded()} />
+    <DialogShell title={t.title} size="wide" fallback="/scrims" intercepted={intercepted}>
+      <AccountTabs
+        current="/account/notifications"
+        unverified={await verificationNeeded()}
+        inDialog
+      />
       <div className="flex max-w-3xl flex-col gap-3">
         <p className="text-pretty text-muted-foreground">
           {t.intro(
@@ -53,6 +54,6 @@ export default async function NotificationsPage() {
       </div>
       <NotificationForm categories={categories} isCaptain={settings.isCaptain} />
       <p className="max-w-3xl text-[14px] text-pretty text-muted-foreground">{t.notSwitchable}</p>
-    </PageMain>
+    </DialogShell>
   );
 }

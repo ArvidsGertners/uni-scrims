@@ -12,16 +12,15 @@ import { MAP_POOL, type ValorantMap } from "@uni-scrims/core/config/maps";
 import { type Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
-import { BackLink } from "@/components/back-link";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
-import { PageMain } from "@/components/page-main";
+import { DialogShell } from "@/components/dialog-shell";
 import { RankIcon, RankLabel } from "@/components/rank-icon";
+import { RouteDialogClose } from "@/components/route-dialog";
 import { ReliabilityLine } from "@/components/reliability-line";
 import { TeamAvatar } from "@/components/team-avatar";
 import { ToggleOption } from "@/components/toggle-option";
 import { Alert } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -56,12 +55,17 @@ function readDefaults(params: Record<string, string | string[] | undefined>): Fo
   };
 }
 
-export default async function NewRequestPage({
-  searchParams,
+/**
+ * "Anfrage erstellen" and the direct request (SPEC N-26) as a dialog (SPEC N-31): loaded directly
+ * over the board, a direct request over the teams list.
+ */
+export async function NewRequestDialog({
+  intercepted,
+  params,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  intercepted: boolean;
+  params: Record<string, string | string[] | undefined>;
 }) {
-  const params = await searchParams;
   const user = await requirePageUser(`/requests/new${toQueryString(params)}`);
   // ?team=<id>: a direct request to that team (SPEC N-26).
   const targetTeamId = single(params.team) ?? null;
@@ -74,15 +78,15 @@ export default async function NewRequestPage({
   const target = form?.target?.team ?? null;
 
   return (
-    <PageMain className="gap-7">
-      <BackLink href="/scrims">{shared.backToBoard}</BackLink>
-      <div className="flex flex-col gap-2.5">
-        <h1 className="type-h1">{targetTeamId ? t.directTitle : t.title}</h1>
-        <p className="text-pretty text-muted-foreground">
-          {form ? t.forTeam(form.teamName) : null}
-          {target ? t.directIntro(target.name) : targetTeamId ? null : t.intro}
-        </p>
-      </div>
+    <DialogShell
+      title={targetTeamId ? t.directTitle : t.title}
+      fallback={targetTeamId ? "/teams" : "/scrims"}
+      intercepted={intercepted}
+    >
+      <p className="-mt-2 text-pretty text-muted-foreground">
+        {form ? t.forTeam(form.teamName) : null}
+        {target ? t.directIntro(target.name) : targetTeamId ? null : t.intro}
+      </p>
       {target ? (
         <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">
           <TeamAvatar team={target} />
@@ -152,7 +156,7 @@ export default async function NewRequestPage({
           defaults={readDefaults(params)}
         />
       )}
-    </PageMain>
+    </DialogShell>
   );
 }
 
@@ -186,11 +190,8 @@ async function RequestForm({
       size="lg"
       submitClassName="mt-1.5 w-full"
       className="flex flex-col gap-[22px]"
-      footer={
-        <Link href="/scrims" className={buttonVariants({ variant: "ghost", className: "mt-0.5" })}>
-          {t.cancel}
-        </Link>
-      }
+      creates
+      footer={<RouteDialogClose className="mt-0.5">{t.cancel}</RouteDialogClose>}
     >
       {/* The team the form was shown for, so a switch in another tab changes nothing (§5.20). */}
       <input type="hidden" name="teamId" value={teamId} />
