@@ -221,6 +221,9 @@ export async function AccountDialog({
             {account.banned || account.setupStep ? null : (
               <Link
                 href="/verify"
+                // A tab of this dialog (§5.33).
+                replace
+                data-dialog-replace=""
                 className={buttonVariants({
                   variant: verification.primary ? "default" : "outline",
                   size: "sm",

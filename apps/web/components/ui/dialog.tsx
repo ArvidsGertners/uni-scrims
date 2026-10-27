@@ -8,12 +8,14 @@ import { cn } from "cn";
 const Dialog = DialogPrimitive.Root;
 const DialogClose = DialogPrimitive.Close;
 
+// Narrow ones centred; wide ones (settings with tabs) at the top, so title and tabs stay put when
+// a tab with less content follows (SPEC N-12).
 const SIZES = {
-  narrow: "sm:max-w-3xl",
-  wide: "sm:max-w-6xl",
+  narrow: "sm:max-w-3xl sm:top-1/2 sm:-translate-y-1/2",
+  wide: "sm:max-w-6xl sm:top-6",
 };
 
-/** Full screen below 640 px, from there centred with a margin; scrolls inside. */
+/** Full screen below 640 px, from there with a margin; scrolls inside. */
 function DialogContent({
   size = "narrow",
   className,
@@ -25,7 +27,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         className={cn(
           "fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-card transition-[opacity,scale] duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
-          "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[calc(100dvh-48px)] sm:w-[calc(100%-48px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:border sm:border-border sm:shadow-(--shadow-overlay) sm:data-ending-style:scale-[0.98] sm:data-starting-style:scale-[0.98]",
+          "sm:inset-auto sm:left-1/2 sm:max-h-[calc(100dvh-48px)] sm:w-[calc(100%-48px)] sm:-translate-x-1/2 sm:rounded-lg sm:border sm:border-border sm:shadow-(--shadow-overlay) sm:data-ending-style:scale-[0.98] sm:data-starting-style:scale-[0.98]",
           SIZES[size],
           className,
         )}

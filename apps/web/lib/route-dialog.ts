@@ -6,6 +6,7 @@ export const DIALOG_PATHS = [
   "/ready",
   "/account",
   "/account/notifications",
+  "/verify",
   "/team/settings",
   "/support",
 ] as const;

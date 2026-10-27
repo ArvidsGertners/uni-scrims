@@ -5,8 +5,8 @@ import { getMessages } from "@/lib/locale";
 
 /**
  * The settings, the notifications and the verification (SPEC N-11, N-13, N-14); only for active
- * accounts, as /verify and the notifications need one. In the dialog, switching between the first
- * two replaces the history entry; the verification stays a page (SPEC N-31).
+ * accounts, as /verify and the notifications need one. All three are route dialogs; switching
+ * between them replaces the history entry (SPEC N-31).
  */
 export async function AccountTabs({
   current,
@@ -33,6 +33,7 @@ export async function AccountTabs({
           href: "/verify",
           label: t.verification,
           active: current === "/verify",
+          replace: inDialog,
           trailing: unverified ? <WarningDot /> : undefined,
         },
       ]}

@@ -4,6 +4,7 @@ import { INTL_LOCALES, type Locale } from "@uni-scrims/core/config/locale";
 import { MAX_UPLOAD_BYTES } from "@uni-scrims/core/config/uploads";
 import { cn } from "cn";
 import { useActionState, useMemo, useRef, useState } from "react";
+import { useDirtyGuard } from "@/components/dirty-guard";
 import { CheckIcon, FileIcon, ShieldCheckIcon, UploadIcon } from "@/components/icons";
 import { useLocale, useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,9 @@ export function VerificationForm({
   const [dragging, setDragging] = useState(false);
   const [sizeError, setSizeError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Sending the certificate creates something: "Absenden und verlassen" (SPEC N-31).
+  const { markDispatched } = useDirtyGuard({ formRef, state, create: true });
   const error = sizeError ?? state.error;
   const universityOptions = useMemo(
     () => universities.map((uni) => ({ value: uni.id, label: `${uni.name} (${uni.city})` })),
@@ -59,6 +63,7 @@ export function VerificationForm({
 
   return (
     <form
+      ref={formRef}
       action={action}
       className="flex flex-col gap-7"
       onSubmit={(event) => {
@@ -70,6 +75,7 @@ export function VerificationForm({
           return;
         }
         setSizeError(null);
+        markDispatched();
         // Keeps the chosen file when core rejects it, so the file row stays true.
         submitKeepingValues(event, action);
       }}

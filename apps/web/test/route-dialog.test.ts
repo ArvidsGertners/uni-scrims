@@ -9,7 +9,13 @@ import {
 
 describe("isDialogPath", () => {
   it("knows the dialog addresses, with or without a trailing slash", () => {
-    for (const path of ["/requests/new", "/ready", "/account", "/account/notifications"]) {
+    for (const path of [
+      "/requests/new",
+      "/ready",
+      "/account",
+      "/account/notifications",
+      "/verify",
+    ]) {
       expect(isDialogPath(path)).toBe(true);
     }
     expect(isDialogPath("/team/settings/")).toBe(true);
@@ -17,7 +23,7 @@ describe("isDialogPath", () => {
   });
 
   it("leaves pages alone", () => {
-    for (const path of ["/", "/scrims", "/team", "/requests/abc", "/account/setup", "/verify"]) {
+    for (const path of ["/", "/scrims", "/team", "/requests/abc", "/account/setup"]) {
       expect(isDialogPath(path)).toBe(false);
     }
   });

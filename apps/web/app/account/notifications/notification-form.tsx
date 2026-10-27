@@ -3,6 +3,7 @@
 import type { NotifType } from "@uni-scrims/db";
 import { useActionState, useRef } from "react";
 import { useDirtyGuard } from "@/components/dirty-guard";
+import { Masonry } from "@/components/masonry";
 import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { notificationFormMessages } from "@/i18n/account-client";
@@ -51,7 +52,8 @@ export function NotificationForm({
       className="flex flex-col gap-6"
     >
       <input type="hidden" name="shownAsCaptain" value={isCaptain ? "1" : "0"} />
-      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+      {/* Two columns without gaps above a shorter category (§5.32). */}
+      <Masonry grid="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {categories.map((category) => (
           <fieldset
             key={category.key}
@@ -95,7 +97,7 @@ export function NotificationForm({
             ))}
           </fieldset>
         ))}
-      </div>
+      </Masonry>
       <div className="flex flex-col gap-2">
         <Button type="submit" disabled={pending} className="self-start px-6">
           {t.save}
