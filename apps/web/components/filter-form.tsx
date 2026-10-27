@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -23,6 +24,23 @@ const FormChangeContext = createContext<FormChange | null>(null);
 const noSubscription = () => () => {};
 
 /**
+ * The entries the form had when rendered, i.e. the applied filter: the default values of fields the
+ * user may have changed before hydration, the current value of hidden inputs set by React.
+ */
+function defaultEntries(form: HTMLFormElement): [string, string][] {
+  const entries: [string, string][] = [];
+  for (const element of form.elements) {
+    if (!(element instanceof HTMLInputElement) || !element.name || element.disabled) continue;
+    if (element.type === "checkbox" || element.type === "radio") {
+      if (element.defaultChecked) entries.push([element.name, element.value]);
+    } else if (element.type !== "submit" && element.type !== "button") {
+      entries.push([element.name, element.defaultValue]);
+    }
+  }
+  return entries;
+}
+
+/**
  * For fields whose form value sits in a hidden input set by React, which fires no DOM event
  * (Base UI select, date picker): compares the form again after each change of `value`. Does
  * nothing outside a FilterForm.
@@ -35,7 +53,7 @@ export function useFormChangeNotify(value: unknown) {
 }
 
 /**
- * The GET filter form; the caller keys it by the applied filter, so the state at mount is the
+ * The GET filter form; the caller keys it by the applied filter, so the rendered values are the
  * applied filter, including the board's fallback to the own team rank.
  */
 export function FilterForm({
@@ -63,19 +81,23 @@ export function FilterForm({
     setChanged(formSnapshot(new FormData(form)) !== initial.current);
   }, []);
 
+  // Compares right away: something typed or ticked before hydration is a change.
   useEffect(() => {
-    if (formRef.current) initial.current = formSnapshot(new FormData(formRef.current));
-  }, []);
+    if (formRef.current) initial.current = formSnapshot(defaultEntries(formRef.current));
+    notify();
+  }, [notify]);
+
+  const state = useMemo(() => ({ notify, changed, hydrated }), [notify, changed, hydrated]);
 
   return (
-    <FormChangeContext value={{ notify, changed, hydrated }}>
+    <FormChangeContext value={state}>
       <form
         ref={formRef}
         method="get"
         action={action}
         // The browser would otherwise restore values after a reload that differ from the filter.
         autoComplete="off"
-        onInput={notify}
+        // React's onChange fires on every input of the search field and on each checkbox click.
         onChange={notify}
         className={className}
       >
