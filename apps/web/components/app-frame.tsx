@@ -4,6 +4,7 @@ import { cn } from "cn";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { type AppNavData, AppSidebar } from "@/components/app-nav";
+import { isAdminPath } from "@/lib/admin-path";
 
 /**
  * Signed-in pages with the sidebar at the left edge from 1024 px and the content filling the rest
@@ -20,7 +21,7 @@ export function AppFrame({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const admin = adminHost || pathname === "/admin" || pathname.startsWith("/admin/");
+  const admin = adminHost || isAdminPath(pathname);
   if (!nav || admin) {
     // The admin area gets a flex column, so its sidebar reaches down to the footer.
     return <div className={cn("flex-1", admin && "flex flex-col")}>{children}</div>;

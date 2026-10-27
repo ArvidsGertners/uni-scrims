@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { markWhatsNewSeenAction } from "@/app/actions";
+import { isAdminPath } from "@/lib/admin-path";
 
 // Loaded only once the dialog opens, so Motion stays out of every page's bundle (§5.31).
 const loadDialog = () => import("./whats-new-dialog");
@@ -35,42 +36,52 @@ const OPEN_DELAY_MS = 700;
 /**
  * The what's new dialog (SPEC N-29, §5.31): opens by itself when `due` (an active account that has
  * not closed the current edition), and through useWhatsNew().open(). Closing a due dialog saves the
- * edition on the account; until the next load the browser keeps it closed by itself.
+ * edition on the account; until the next load the browser keeps it closed by itself, per account,
+ * since the root layout outlives a sign-out and sign-in in the same tab.
  */
-export function WhatsNewProvider({ due, children }: { due: boolean; children: ReactNode }) {
+export function WhatsNewProvider({
+  due,
+  userId,
+  children,
+}: {
+  due: boolean;
+  userId: string | null;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
-  // Without ADMIN_URL the admin area lives under /admin; it never shows the dialog.
-  const admin = pathname === "/admin" || pathname.startsWith("/admin/");
+  const admin = isAdminPath(pathname);
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const closed = useRef(false);
+  // Every opening starts a fresh dialog on the first slide.
+  const [opening, setOpening] = useState(0);
+  const closedFor = useRef<string | null>(null);
   const show = useCallback(() => {
-    setMounted(true);
+    if (admin) return;
+    setOpening((count) => count + 1);
     setOpen(true);
-  }, []);
+  }, [admin]);
 
   useEffect(() => {
-    if (!due || admin || closed.current) return;
+    if (!due || admin || closedFor.current === userId) return;
     void loadDialog();
     const timer = setTimeout(show, OPEN_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [due, admin, show]);
+  }, [due, admin, userId, show]);
 
   const close = useCallback(() => {
     setOpen(false);
-    if (!due || closed.current) return;
-    closed.current = true;
+    if (!due || closedFor.current === userId) return;
+    closedFor.current = userId;
     // Not saved: it simply comes again with the next load.
     startTransition(async () => {
       await markWhatsNewSeenAction(WHATS_NEW_EDITION).catch(() => false);
     });
-  }, [due]);
+  }, [due, userId]);
 
   const value = useMemo(() => ({ open: show }), [show]);
   return (
     <WhatsNewContext value={value}>
       {children}
-      {mounted ? <WhatsNewDialog open={open} onClose={close} /> : null}
+      {opening > 0 ? <WhatsNewDialog key={opening} open={open} onClose={close} /> : null}
     </WhatsNewContext>
   );
 }

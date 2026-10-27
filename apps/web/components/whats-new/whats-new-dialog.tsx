@@ -129,7 +129,8 @@ export function WhatsNewDialog({ open, onClose }: { open: boolean; onClose: () =
                   aria-hidden
                   className="absolute inset-0 bg-[radial-gradient(ellipse_70%_80%_at_50%_0%,var(--glow-hero),transparent)]"
                 />
-                <AnimatePresence initial={false} custom={direction}>
+                {/* Not initial={false}: it would keep the first slide's art from animating. */}
+                <AnimatePresence custom={direction}>
                   <m.div
                     key={slide}
                     custom={direction}

@@ -1,9 +1,10 @@
 "use client";
 
 import * as m from "motion/react-m";
+import { useMessages } from "@/components/locale-provider";
+import { whatsNewMessages } from "@/i18n/client";
 import { useArtMotion } from "./motion";
 
-const LIVE = "LIVE";
 const TYPING_DOTS = [42, 54, 66];
 
 /**
@@ -12,6 +13,7 @@ const TYPING_DOTS = [42, 54, 66];
  * the other team typing.
  */
 export function MessagesArt() {
+  const t = useMessages(whatsNewMessages);
   const { reduce, draw, enter, fade, pop } = useArtMotion();
   return (
     <svg viewBox="0 0 320 180" className="h-full w-full" aria-hidden>
@@ -124,7 +126,7 @@ export function MessagesArt() {
           fill="var(--success)"
           className="font-label"
         >
-          {LIVE}
+          {t.live}
         </text>
       </m.g>
 

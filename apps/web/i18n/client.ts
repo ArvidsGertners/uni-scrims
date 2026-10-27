@@ -245,6 +245,8 @@ export const datePickerMessages = dictionary(
 export const whatsNewMessages = dictionary(
   {
     kicker: "Neu bei Uni Scrims",
+    /** The badge in the art of the messages slide. */
+    live: "LIVE",
     close: "Schließen",
     back: "Zurück",
     next: "Weiter",
@@ -277,6 +279,7 @@ export const whatsNewMessages = dictionary(
   },
   {
     kicker: "New on Uni Scrims",
+    live: "LIVE",
     close: "Close",
     back: "Back",
     next: "Next",

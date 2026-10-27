@@ -55,7 +55,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <LocaleProvider locale={locale}>
           <ThemeProvider theme={user?.theme ?? "SYSTEM"}>
             {/* Around the header too: its menu below 1024 px opens the dialog again (SPEC N-29). */}
-            <WhatsNewProvider due={due}>
+            <WhatsNewProvider due={due} userId={user?.id ?? null}>
               <SiteHeader />
               <SiteFrame>{children}</SiteFrame>
               <SiteFooter />

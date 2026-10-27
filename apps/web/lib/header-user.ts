@@ -59,8 +59,9 @@ export async function verificationNeeded(): Promise<boolean> {
  * has not closed the current edition.
  */
 export async function whatsNewDue(): Promise<boolean> {
-  const { user, active, adminHost } = await siteChrome();
-  return user !== null && active && !adminHost && user.whatsNewSeen !== WHATS_NEW_EDITION;
+  // The same gating as the full navigation: no nav on the admin host, `full` only when active.
+  const [nav, { user }] = await Promise.all([siteNav(), siteChrome()]);
+  return nav?.full === true && user?.whatsNewSeen !== WHATS_NEW_EDITION;
 }
 
 /** The navigation of the signed-in user, or null (logged out, admin host). */

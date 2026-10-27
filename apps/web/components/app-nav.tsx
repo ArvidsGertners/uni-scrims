@@ -24,6 +24,7 @@ import {
 import { useMessages } from "@/components/locale-provider";
 import { useLogout } from "@/components/logout-button";
 import { useWhatsNew } from "@/components/whats-new/whats-new-provider";
+import { isAdminPath } from "@/lib/admin-path";
 import { SidebarFrame } from "@/components/sidebar-frame";
 import { SidebarEntryContent, SidebarLink, sidebarEntryClass } from "@/components/sidebar-link";
 import { TeamAvatar } from "@/components/team-avatar";
@@ -386,7 +387,8 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
   const iconSubItemClass = "min-h-12 pl-[1.5625rem] text-[15px]";
   // Without ADMIN_URL the admin area has its own sidebar and none of the site (§5.15): there the
   // menu button stays on desktops too.
-  const desktop = pathname === "/admin" || pathname.startsWith("/admin/") ? "" : "lg:hidden";
+  const admin = isAdminPath(pathname);
+  const desktop = admin ? "" : "lg:hidden";
 
   return (
     <>
@@ -521,7 +523,8 @@ export function MobileMenu({ nav }: { nav: AppNavData }) {
                 />
               ),
             )}
-            {nav.full ? (
+            {/* Not in the admin area, which never shows the dialog (SPEC N-29). */}
+            {nav.full && !admin ? (
               <button
                 type="button"
                 onClick={() => {
