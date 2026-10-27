@@ -13,9 +13,9 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: 🟡 **R3b Decoding: utility of all agents in the four replays** (Cypher, Killjoy, Sage, Raze, Neon, Miks + pawns), started 2026-10-27. Fork `us-v0.4.0` synced; the parser tests and `pnpm lint` green; open: full `pnpm test` (needs the user's consent for the DB reset), `/code-review`.
+- **Phase**: ✅ **R3b Decoding: utility of all agents in the four replays** (Cypher, Killjoy, Sage, Raze, Neon, Miks + pawns) done 2026-10-27, **waiting for the user's OK**. `pnpm test` (851/851) and `pnpm lint` green, `/code-review` findings fixed.
 - **Next phase**: R4 (kill details + round results). R3c (the 12 agents without a replay) waits for replays.
-- **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.1.1`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
+- **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.4.1`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
 - **Waiting for the user**:
   - replays with **Brimstone, Viper, Harbor, KAY/O, Breach, Skye, Gekko, Yoru, Iso, Tejo, Waylay, Hush**, plus Deadlock's and Sova's ult used (any mode, current build), needed for R3c
   - a **custom-game** replay with recording on (R0b), needed before R11
@@ -32,7 +32,7 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 | R1 | Parser fork + WASM build | ✅ | 2026-10-27 | 2026-10-27 | fork `16660c4` (`us-v0.1.0`), `e6bc43c` (`us-v0.1.1`), see log | Node: 3.2 s, 300 MB peak RSS on the 60 MB match; `.wasm` 727 KB (258 KB gzip) |
 | R2 | Decoding: charges + ult points | ✅ | 2026-10-27 | 2026-10-27 | fork `126e7d4` (`us-v0.2.0`), `ce81b70` (`us-v0.2.1`), see log | Plausibility check instead of the in-game comparison (user decision) |
 | R3a | Decoding: utility of the agents in our replays (rotation, anchors, lifetime) | ✅ | 2026-10-27 | 2026-10-27 | fork `a469e33` (`us-v0.3.0`), `7359ab5` (`us-v0.3.1`), see log | Split 2026-10-27 (user decision); no sizes in the replay; the user's OK 2026-10-27 |
-| R3b | Decoding: utility of all agents in the four replays (Cypher, Killjoy, Sage, Raze, Neon, Miks, pawns) | 🟡 | 2026-10-27 | | fork `b7b48ad` (`us-v0.4.0`), `fd13c08` (`us-v0.4.1`), see log | Scope widened 2026-10-27 (user decision) |
+| R3b | Decoding: utility of all agents in the four replays (Cypher, Killjoy, Sage, Raze, Neon, Miks, pawns) | ✅ | 2026-10-27 | 2026-10-27 | fork `b7b48ad` (`us-v0.4.0`), `fd13c08` (`us-v0.4.1`), see log | Scope widened 2026-10-27 (user decision) |
 | R3c | Decoding: utility of the 12 agents without a replay, Deadlock's and Sova's ult | ⏸ | | | | Waits for replays with them; until then any agent class not in the table comes with `verified: false` |
 | R4 | Decoding: kill details + round results | ⬜ | | | | |
 | R5 | Replay JSON + reducer + Web Worker | ⬜ | | | | |
@@ -50,6 +50,8 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 ### Log
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27: R3b done. `pnpm test` 851/851 and `pnpm lint` green after the review fixes. Waiting for the user's OK; next R4 (kill details + round results). R3c waits for replays with the 12 missing agents.
 
 - 2026-10-27, R3b review fixes (`/code-review`):
   - Fork `fd13c08`, tag `us-v0.4.1`: a landing projectile is no piece until it lands, so no state comes before its spawn; a tripwire ended by its partner stays ended when its actor opens again; a partner without a position is skipped; the `verified: false` fallback covers every agent's codename and `Pawn_`, so unseen classes of known agents are not dropped (left out explicitly: Sova's sonar pings, Omen's Paranoia warning). Same pieces on all four replays as before.
