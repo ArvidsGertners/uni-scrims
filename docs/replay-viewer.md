@@ -13,13 +13,13 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: 🟡 **R0 Spike test**, started 2026-10-27.
-- **Primary input**: the user's replay `replays/1b9fe9b9-9f0e-40e0-b6e1-8c24b20a9bfd.vrf` (a friend's game, 60 MB, build release-13.08, Lotus, bomb mode, game mode unknown). It is git-ignored and never committed.
-- **Secondary input**: vrfkit's public replays (12.10, 12.11, 13.00).
-- **Last commit**: see the log.
-- **Next step**: build vrfkit (Rust, user-local in `~/.cargo`, work dir `~/replay-work`), parse the user's replay, write `docs/replay-viewer-findings.md`.
-- **Waiting for the user**: a `.vrf` from a custom game with recording on, for **R0b**. Needed before R11 (saving) and before go-live, not before.
-- **Open problems**: building vrfkit (external code: `cargo build` runs build scripts of third-party crates) was blocked by Claude Code's permission check on 2026-10-27. Waiting for the user to allow it or run the build. Rust 1.90.0 is installed in `~/.cargo`, and vrfkit is cloned to `~/replay-work/vrfkit` at b9496df (2026-10-16).
+- **Phase**: ✅ **R0 done** 2026-10-27, waiting for the user's OK. Findings: [replay-viewer-findings.md](replay-viewer-findings.md).
+- **Next phase**: **R1 Parser fork + WASM build**.
+- **Tools**: Rust 1.90.0 in `~/.cargo`; vrfkit `b9496df` built in `~/replay-work/vrfkit`; a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
+- **Waiting for the user**:
+  - a replay with **Cypher and Killjoy** (any mode, current build), needed to finish R3
+  - a **custom-game** replay with recording on (R0b), needed before R11
+- **Open problems**: none.
 
 ### Phases
 
@@ -27,8 +27,8 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 
 | Phase | Title | Status | Started | Finished | Commits | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| R0 | Spike test (user's replay first, public replays second) | 🟡 | 2026-10-27 | | | |
-| R0b | Custom-game check with a real scrim replay | ⏸ | | | | Waiting for a `.vrf` from the user; needed before R11 |
+| R0 | Spike test (user's replay first, public replays second) | ✅ | 2026-10-27 | 2026-10-27 | 53faee4, e5602dd, see log | Everything found except tripwire/turret (no Cypher/KJ in the replays); 1.8 s / 169 MB → WASM ok |
+| R0b | Custom-game check with a real scrim replay | ⏸ | | | | The user's replay was probably matchmade (missions, CompetitiveTier); still waiting for a custom `.vrf`; needed before R11 |
 | R1 | Parser fork + WASM build | ⬜ | | | | |
 | R2 | Decoding: charges + ult points | ⬜ | | | | |
 | R3 | Decoding: utility rotation, tripwire, turret | ⬜ | | | | |
@@ -48,6 +48,15 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 ### Log
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27, R0 done:
+  - The user allowed building and running vrfkit.
+  - Built vrfkit `b9496df` with Rust 1.90.0. The user's replay (13.08, Lotus, 17 rounds, Red 13:4) exported in 1.8 s with a 169 MB peak.
+  - Found: positions, yaw, HP/armour, weapon, ult points, ability charges, kills with weapon/headshot/wallbang, round results (read directly), spike, utility with spawn yaw.
+  - Vyse wall anchors decoded by hand (3 doubles).
+  - Missing: Cypher tripwire and KJ turret (not in any replay); assists need a small decoder.
+  - The game was probably not custom.
+  - Findings in `replay-viewer-findings.md`. Next: R1 after the user's OK.
 
 - 2026-10-27: R0 started. The user uploaded a friend's replay from the current build (13.08, Lotus) and wants it prioritised over the public replays. `replays/` added to `.gitignore`. Rule: real replays never go into git; tests may only use cut-down, anonymised fixtures.
 - 2026-10-27: the user can't record a real replay for now. R0 now runs on vrfkit's public test replays (builds 12.10, 12.11, 13.00, fetched by vrfkit's CI), and the custom-game check moved to R0b, needed before R11.
