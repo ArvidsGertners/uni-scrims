@@ -13,7 +13,7 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: ✅ **R1 Parser fork + WASM build** done 2026-10-27, waiting for the user's OK. `pnpm test` 845/845 and `pnpm lint` green, `/code-review` findings fixed.
+- **Phase**: ✅ **R1 Parser fork + WASM build** done 2026-10-27, **the user's OK on 2026-10-27**. `pnpm test` 845/845 and `pnpm lint` green, `/code-review` findings fixed.
 - **Next phase**: **R2 Decoding: charges + ult points**.
 - **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.1.1`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
 - **Waiting for the user**:
@@ -48,6 +48,8 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 ### Log
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27: the user gave the OK for R1. Next: R2 (charges + ult points) when the user starts it.
 
 - 2026-10-27, R1 review fixes (`/code-review`):
   - Fork `e6bc43c`, tag `us-v0.1.1`: 64-bit values beyond 2^53 cross into JS as decimal strings (`timestampTicks`, a field's `intText`) instead of being rounded. `build-wasm.sh` only builds a clean tree and writes `pkg/BUILD_COMMIT`.
