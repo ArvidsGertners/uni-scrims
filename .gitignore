@@ -10,3 +10,6 @@ next-env.d.ts
 packages/db/src/generated/
 .DS_Store
 docker/legal/
+
+# Replay files with other players' data (replay viewer R0), never commit
+replays/
