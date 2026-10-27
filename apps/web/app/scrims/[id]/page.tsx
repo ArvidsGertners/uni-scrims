@@ -25,7 +25,12 @@ import { formatDateTime } from "@/lib/format";
 import { toWireConversation } from "@/lib/realtime/bus";
 import { realtimePublicUrl } from "@/lib/realtime/config";
 import { rematchHref } from "@/lib/rematch";
-import { SCRIM_STATUS_LABELS, formatFormat, formatMaps } from "@/lib/scrim-format";
+import {
+  SCRIM_STATUS_LABELS,
+  formatFormat,
+  formatMaps,
+  formatUniversities,
+} from "@/lib/scrim-format";
 import { requirePageUser } from "@/lib/session";
 import { cancelScrimAction } from "../actions";
 import { FeedbackForm } from "./feedback-form";
@@ -41,8 +46,16 @@ function outcomes(locale: Locale) {
 }
 const RATINGS = Array.from({ length: RATING_MAX - RATING_MIN + 1 }, (_, i) => RATING_MIN + i);
 
-export default async function ScrimPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ScrimPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  // The link of a message notification (SPEC N-28): ?chat= opens the chat on phones.
+  const { chat } = await searchParams;
   const user = await requirePageUser(`/scrims/${id}`);
   const scrim = await getScrimDetail({ userId: user.id, scrimId: id, now: new Date() });
   const text = await getText();
@@ -70,7 +83,14 @@ export default async function ScrimPage({ params }: { params: Promise<{ id: stri
   const withChat = (page: ReactNode) =>
     conversation ? (
       <ChatSidebar
-        threads={[{ conversation, avatar: <TeamAvatar team={scrim.opponent} size="sm" /> }]}
+        threads={[
+          {
+            conversation,
+            avatar: <TeamAvatar team={scrim.opponent} size="sm" />,
+            subtitle: formatUniversities(scrim.opponent.universities, locale),
+          },
+        ]}
+        initialTeamId={typeof chat === "string" ? chat : undefined}
         realtimeUrl={realtimePublicUrl()}
       >
         {page}

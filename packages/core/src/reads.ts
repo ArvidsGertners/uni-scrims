@@ -856,6 +856,13 @@ const scrimTeamSelect = {
   ...teamLinksSelect,
   ...teamLogoSelect,
   captain: { select: { id: true, name: true } },
+  members: {
+    select: {
+      user: {
+        select: { verifiedAt: true, universityOther: true, university: { select: { name: true } } },
+      },
+    },
+  },
 } satisfies Prisma.TeamSelect;
 
 /** Only for current members of both teams (§7); null otherwise. */
@@ -907,8 +914,9 @@ export async function getScrimDetail(input: { userId: string; scrimId: string; n
       id: opponent.id,
       name: opponent.name,
       tag: opponent.tag,
-      /** For the avatar at the chat (SPEC N-28). */
+      /** For the head of the chat (SPEC N-28). */
       logo: teamLogoInfo(opponent),
+      universities: teamUniversities(opponent.members),
       captainName: opponent.captain.name,
       /** For the "write on Discord" link. */
       captainDiscordId: opponentCaptainDiscordId,

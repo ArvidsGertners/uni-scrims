@@ -25,12 +25,13 @@ export function messageReceived(
     title: texts.title,
     description: `${about} ${texts.onlyOnSite}`,
     fields: [startField(payload.startsAt, locale)],
-    // The host of a board request has one thread per application: chat opens the right one.
+    // chat opens the chat sidebar with the right thread (the host of a board request has one per
+    // application), on phones too.
     link: {
       label: t.links.readMessage,
       path:
         payload.context === "SCRIM" && message.scrimId
-          ? `/scrims/${message.scrimId}`
+          ? `/scrims/${message.scrimId}?chat=${payload.guestTeamId}`
           : `/requests/${message.requestId}?chat=${payload.guestTeamId}`,
     },
   };

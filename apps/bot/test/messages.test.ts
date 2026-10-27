@@ -74,7 +74,7 @@ const LINKS: Record<NotifType, string> = {
   DIRECT_REQUEST_RECEIVED: "/requests/request-1",
   DIRECT_REQUEST_DECLINED: "/requests/request-1",
   PARTNERSHIP_ENDED: "/scrims?tab=anfragen",
-  MESSAGE_RECEIVED: "/scrims/scrim-1",
+  MESSAGE_RECEIVED: "/scrims/scrim-1?chat=team-2",
 };
 
 describe("buildMessage", () => {
@@ -259,10 +259,11 @@ describe("messages between teams (SPEC N-28)", () => {
     );
   });
 
-  it("links the scrim, or the request with the thread of the guest team", () => {
+  it("links the scrim or the request, with the thread of the guest team", () => {
+    // ?chat= opens the chat sidebar on phones.
     expect(linkOf(received("SCRIM", false))).toMatchObject({
       label: "Nachricht lesen",
-      url: `${BASE_URL}/scrims/scrim-1`,
+      url: `${BASE_URL}/scrims/scrim-1?chat=team-2`,
     });
     expect(linkOf(received("APPLICATION", false)).url).toBe(
       `${BASE_URL}/requests/request-1?chat=team-2`,

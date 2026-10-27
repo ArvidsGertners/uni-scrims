@@ -207,7 +207,8 @@ export function MessageThread({
           const element = event.currentTarget;
           atEnd.current = element.scrollHeight - element.scrollTop - element.clientHeight < 40;
         }}
-        className="flex-1 overflow-y-auto overscroll-contain px-5 py-5"
+        // relative: the offsetTop of "Neu" counts from here.
+        className="relative flex-1 overflow-y-auto overscroll-contain px-5 py-5"
       >
         {count === 0 ? (
           <EmptyState icon={<MessageSquareIcon size={24} />} title={t.emptyTitle} compact>
@@ -287,8 +288,8 @@ function Separator({ children, unread = false }: { children: string; unread?: bo
 }
 
 /**
- * One message: the day and "Neu" before it where they start, the name and time above the first
- * box of a group, more space before a new group than inside one.
+ * One message: the day and "Neu" before it where they start, Discord name and team above the first
+ * box of a group, the time in every box (SPEC N-28), more space before a new group than inside one.
  */
 function MessageRow({
   message,
@@ -317,14 +318,16 @@ function MessageRow({
         {first ? (
           <span
             className={cn(
-              "flex max-w-[90%] items-baseline gap-2",
+              "flex max-w-[90%] flex-wrap items-baseline gap-x-2",
               message.own && "flex-row-reverse",
             )}
           >
-            <span className="truncate font-label text-[13px] font-semibold">
+            <span className="font-label text-[13px] font-semibold break-all">
               {message.mine ? t.you : message.authorName}
             </span>
-            <span className="shrink-0 font-label text-[12px] text-faint">{time}</span>
+            <span className="text-[12px] break-words text-muted-foreground">
+              {message.teamName}
+            </span>
           </span>
         ) : null}
         <div
@@ -333,15 +336,17 @@ function MessageRow({
             message.own ? "flex-row-reverse" : "flex-row",
           )}
         >
-          <p
-            title={time}
+          <div
             className={cn(
-              "min-w-0 rounded-sm border px-3.5 py-2.5 text-[15px] leading-snug break-words whitespace-pre-line",
+              "flex min-w-0 flex-col gap-1 rounded-sm border px-3.5 pt-2.5 pb-2",
               message.own ? "border-primary bg-accent-soft" : "border-transparent bg-secondary",
             )}
           >
-            {message.body}
-          </p>
+            <p className="text-[15px] leading-snug break-words whitespace-pre-line">
+              {message.body}
+            </p>
+            <span className="self-end font-label text-[11px] text-faint">{time}</span>
+          </div>
           {message.mine ? (
             <MessageAction kind="delete" message={message} teamId={teamId} />
           ) : message.own || message.reported ? null : (

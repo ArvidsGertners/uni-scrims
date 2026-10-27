@@ -35,9 +35,10 @@ function subscribeDesktop(onChange: () => void) {
   return () => query.removeEventListener("change", onChange);
 }
 
-// The server cannot know the width: there nothing counts as seen until the browser has measured.
+// The server cannot know the width: null until the browser has measured, so neither the overlay
+// nor reading starts before.
 const isDesktop = () => window.matchMedia(DESKTOP_QUERY).matches;
-const isDesktopOnServer = () => false;
+const isDesktopOnServer = () => null;
 
 type ChatSidebarApi = { open: (guestTeamId: string) => void; unread: Record<string, boolean> };
 const ChatSidebarContext = createContext<ChatSidebarApi | null>(null);
@@ -71,7 +72,18 @@ export function ChatSidebar({
             .guestTeamId) ?? "",
   );
   const [open, setOpen] = useState(linked);
-  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, isDesktopOnServer);
+  const desktop = useSyncExternalStore<boolean | null>(
+    subscribeDesktop,
+    isDesktop,
+    isDesktopOnServer,
+  );
+  // Next to the content the sidebar is always there; growing the window ends "open", so the
+  // overlay does not come back by itself when it narrows again.
+  const [wasDesktop, setWasDesktop] = useState(desktop);
+  if (desktop !== wasDesktop) {
+    setWasDesktop(desktop);
+    if (desktop) setOpen(false);
+  }
   const [unread, setUnread] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(
       threads.map((thread) => [
@@ -80,6 +92,7 @@ export function ChatSidebar({
       ]),
     ),
   );
+  const sidebar = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const openButton = useRef<HTMLButtonElement>(null);
 
@@ -88,18 +101,33 @@ export function ChatSidebar({
     openButton.current?.focus();
   }, []);
 
-  // Over the page on phones: Escape closes, the page behind does not scroll.
-  const overlay = open && !desktop;
+  // Over the page on phones, as a modal: everything else inert (header and navigation too), the
+  // page behind does not scroll, Escape closes unless it belongs to a dialog opened from inside.
+  const overlay = open && desktop === false;
   useEffect(() => {
-    if (!overlay) return;
+    const element = sidebar.current;
+    if (!overlay || !element) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // The confirmation of deleting or reporting closes by itself.
+      if (event.target instanceof Element && event.target.closest("[role=alertdialog]")) return;
+      close();
     };
+    const inerted: Element[] = [];
+    for (let node: Element = element; node.parentElement; node = node.parentElement) {
+      for (const sibling of node.parentElement.children) {
+        if (sibling === node || sibling.hasAttribute("inert")) continue;
+        sibling.setAttribute("inert", "");
+        inerted.push(sibling);
+      }
+      if (node.parentElement === document.body) break;
+    }
     document.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeButton.current?.focus();
     return () => {
+      for (const sibling of inerted) sibling.removeAttribute("inert");
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = overflow;
     };
@@ -119,10 +147,9 @@ export function ChatSidebar({
   return (
     <ChatSidebarContext.Provider value={{ open: openThread, unread }}>
       <div className="flex min-h-full">
-        <div className="min-w-0 flex-1" inert={overlay}>
-          {children}
-        </div>
+        <div className="min-w-0 flex-1">{children}</div>
         <aside
+          ref={sidebar}
           aria-label={t.heading}
           role={overlay ? "dialog" : undefined}
           aria-modal={overlay || undefined}
@@ -187,7 +214,7 @@ export function ChatSidebar({
                 <MessageThread
                   initial={conversation}
                   realtimeUrl={realtimeUrl}
-                  active={conversation.guestTeamId === selected && (desktop || open)}
+                  active={conversation.guestTeamId === selected && (desktop === true || overlay)}
                   avatar={avatar}
                   subtitle={subtitle}
                   onUnreadChange={reportUnread}
