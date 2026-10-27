@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useFormChangeNotify } from "@/components/filter-form";
 import { useMessages } from "@/components/locale-provider";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { rankFilterMessages } from "@/i18n/client";
@@ -19,6 +20,7 @@ export function RankFilter({
 }) {
   const t = useMessages(rankFilterMessages);
   const [ranks, setRanks] = useState(defaultValue);
+  useFormChangeNotify(ranks);
   return (
     <>
       <Select

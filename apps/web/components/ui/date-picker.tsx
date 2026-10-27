@@ -3,6 +3,7 @@
 import { type KeyboardEvent, useLayoutEffect, useRef, useState } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { cn } from "cn";
+import { useFormChangeNotify } from "@/components/filter-form";
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { useMessages } from "@/components/locale-provider";
 import { controlClass } from "@/components/ui/input";
@@ -95,6 +96,7 @@ function DatePicker({
 }: DatePickerProps) {
   const t = useMessages(datePickerMessages);
   const [value, setValue] = useState<string | null>(defaultValue || null);
+  useFormChangeNotify(value);
   const [open, setOpen] = useState(false);
   // The day with keyboard focus in the calendar; its month is the one shown.
   const [focused, setFocused] = useState(value ?? min ?? "");

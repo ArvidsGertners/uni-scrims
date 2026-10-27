@@ -13,6 +13,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
 import { CheckboxFilters, readCheckboxFilters } from "@/components/filter-checkbox";
+import { FilterForm, FilterSubmit } from "@/components/filter-form";
 import { UsersIcon } from "@/components/icons";
 import { CARD_COLUMNS } from "@/components/list-group";
 import { PageMain } from "@/components/page-main";
@@ -21,7 +22,7 @@ import { RankIcon, RankLabel } from "@/components/rank-icon";
 import { ReliabilityLine } from "@/components/reliability-line";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { list, single } from "@/lib/search-params";
@@ -60,9 +61,8 @@ export default async function TeamsPage({
       </div>
 
       {/* Keyed by the applied filter: soft navigations would otherwise keep stale values. */}
-      <form
+      <FilterForm
         key={`${filter.search}|${filter.ranks.join(",")}|${filter.fullyVerifiedOnly}|${filter.reliableOnly}`}
-        method="get"
         action="/teams"
         className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
       >
@@ -91,13 +91,11 @@ export default async function TeamsPage({
           reliableOnly={filter.reliableOnly}
           className="col-span-full sm:order-last"
         />
-        <Button type="submit" variant="outline" className="px-[18px]">
-          {t.filter}
-        </Button>
+        <FilterSubmit>{t.filter}</FilterSubmit>
         <Link href="/teams" className={buttonVariants({ variant: "ghost", className: "px-2.5" })}>
           {t.reset}
         </Link>
-      </form>
+      </FilterForm>
 
       {teams.length === 0 ? (
         <EmptyState

@@ -9,12 +9,13 @@ import type { Locale } from "@uni-scrims/core/config/locale";
 import type { Rank } from "@uni-scrims/db";
 import Link from "next/link";
 import { CheckboxFilters } from "@/components/filter-checkbox";
+import { FilterForm, FilterSubmit } from "@/components/filter-form";
 import { ListGroup } from "@/components/list-group";
 import { RankFilter } from "@/components/rank-filter";
 import { RankIcon } from "@/components/rank-icon";
 import { type CardReadyWindow, ReadyWindowCard } from "@/components/ready-window-card";
 import { type CardRequest, RequestCard } from "@/components/request-card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
 import { getLocale, getMessages } from "@/lib/locale";
@@ -74,9 +75,8 @@ export async function BoardFilterForm({
   const shared = await getMessages(scrimSharedMessages);
   return (
     // Keyed by the applied filter: soft navigations would otherwise keep stale select values.
-    <form
+    <FilterForm
       key={`${filter.date ?? ""}|${filter.ranks.join(",")}|${filter.fullyVerifiedOnly}|${filter.reliableOnly}`}
-      method="get"
       action={action}
       className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,18rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
     >
@@ -100,13 +100,11 @@ export async function BoardFilterForm({
         reliableOnly={filter.reliableOnly}
         className="col-span-full sm:order-last"
       />
-      <Button type="submit" variant="outline" className="px-[18px]">
-        {t.filter}
-      </Button>
+      <FilterSubmit>{t.filter}</FilterSubmit>
       <Link href={action} className={buttonVariants({ variant: "ghost", className: "px-2.5" })}>
         {t.reset}
       </Link>
-    </form>
+    </FilterForm>
   );
 }
 
