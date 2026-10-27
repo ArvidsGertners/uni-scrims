@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo } from "react";
 import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { decisionFormMessages } from "@/i18n/admin-client";
 import { initialActionState } from "@/lib/action-state";
@@ -22,6 +22,11 @@ export function DecisionForm({
 }) {
   const [state, action, pending] = useActionState(decideVerificationAction, initialActionState);
   const t = useMessages(decisionFormMessages);
+  const universityOptions = useMemo(
+    () => universities?.map((uni) => ({ value: uni.id, label: `${uni.name} (${uni.city})` })),
+    [universities],
+  );
+  const noAssignment = useMemo(() => ({ value: "", label: t.noAssignment }), [t.noAssignment]);
 
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -29,14 +34,14 @@ export function DecisionForm({
       {universities ? (
         <div className="flex flex-col gap-2">
           <Label htmlFor={`university-${requestId}`}>{t.assignUniversity}</Label>
-          <Select
+          <Combobox
             id={`university-${requestId}`}
             name="universityId"
             defaultValue=""
-            options={[
-              { value: "", label: t.noAssignment },
-              ...universities.map((uni) => ({ value: uni.id, label: `${uni.name} (${uni.city})` })),
-            ]}
+            placeholder={t.searchUniversity}
+            emptyText={t.noUniversityFound}
+            options={universityOptions ?? []}
+            pinned={noAssignment}
           />
         </div>
       ) : null}

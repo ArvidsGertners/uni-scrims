@@ -43,7 +43,8 @@ export const verificationFormMessages = dictionary(
   {
     fileTooLarge: "Die Datei ist größer als 5 MB.",
     university: "Hochschule",
-    choose: "Bitte wählen …",
+    searchUniversity: "Hochschule oder Ort suchen …",
+    noUniversityFound: "Keine Hochschule gefunden.",
     otherUniversity: "Andere Hochschule …",
     otherUniversityName: "Name und Ort deiner Hochschule",
     remove: "Entfernen",
@@ -60,7 +61,8 @@ export const verificationFormMessages = dictionary(
   {
     fileTooLarge: "The file is larger than 5 MB.",
     university: "University",
-    choose: "Please choose…",
+    searchUniversity: "Search university or city…",
+    noUniversityFound: "No university found.",
     otherUniversity: "Other university…",
     otherUniversityName: "Name and city of your university",
     remove: "Remove",

@@ -3,13 +3,13 @@
 import { INTL_LOCALES, type Locale } from "@uni-scrims/core/config/locale";
 import { MAX_UPLOAD_BYTES } from "@uni-scrims/core/config/uploads";
 import { cn } from "cn";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import { CheckIcon, FileIcon, ShieldCheckIcon, UploadIcon } from "@/components/icons";
 import { useLocale, useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { verificationFormMessages } from "@/i18n/account-client";
 import { initialActionState } from "@/lib/action-state";
 import { submitKeepingValues } from "@/lib/submit-form";
@@ -42,6 +42,14 @@ export function VerificationForm({
   const [sizeError, setSizeError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const error = sizeError ?? state.error;
+  const universityOptions = useMemo(
+    () => universities.map((uni) => ({ value: uni.id, label: `${uni.name} (${uni.city})` })),
+    [universities],
+  );
+  const otherOption = useMemo(
+    () => ({ value: OTHER_UNIVERSITY, label: t.otherUniversity }),
+    [t.otherUniversity],
+  );
 
   const pick = (files: FileList | null) => {
     const picked = files?.[0];
@@ -68,16 +76,15 @@ export function VerificationForm({
     >
       <div className="flex flex-col gap-4">
         <Field label={t.university}>
-          <Select
+          <Combobox
             name="university"
             required
             value={university}
             onValueChange={setUniversity}
-            placeholder={t.choose}
-            options={[
-              ...universities.map((uni) => ({ value: uni.id, label: `${uni.name} (${uni.city})` })),
-              { value: OTHER_UNIVERSITY, label: t.otherUniversity },
-            ]}
+            placeholder={t.searchUniversity}
+            emptyText={t.noUniversityFound}
+            options={universityOptions}
+            pinned={otherOption}
           />
         </Field>
         {university === OTHER_UNIVERSITY ? (

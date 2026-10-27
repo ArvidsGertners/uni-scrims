@@ -7,6 +7,8 @@ export const decisionFormMessages = dictionary(
   {
     assignUniversity: "Hochschule zuordnen (optional)",
     noAssignment: "Keine Zuordnung",
+    searchUniversity: "Hochschule oder Ort suchen …",
+    noUniversityFound: "Keine Hochschule gefunden.",
     reason: "Grund (nur beim Ablehnen)",
     approve: "Freigeben",
     reject: "Ablehnen",
@@ -14,6 +16,8 @@ export const decisionFormMessages = dictionary(
   {
     assignUniversity: "Assign university (optional)",
     noAssignment: "No assignment",
+    searchUniversity: "Search university or city…",
+    noUniversityFound: "No university found.",
     reason: "Reason (only when rejecting)",
     approve: "Approve",
     reject: "Reject",
