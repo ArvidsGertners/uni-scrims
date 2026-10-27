@@ -49,6 +49,12 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
 
+- 2026-10-27, R0 addendum:
+  - The user's 2nd replay (Swiftplay on Split, 7 rounds, header release-13.08 although 13.09 was expected) parses cleanly: 0.7 s, 82 MB.
+  - All data from the first replay is there too.
+  - The game mode can be read from the game-state class.
+  - Cable sensor/jam deployables have orientation and a target point.
+  - Details in the findings doc.
 - 2026-10-27, decision: saved replays go to the user's Hetzner Storage Box (own sub-account, SFTP from `core`), not the VPS disk. See §4; part of R11.
 - 2026-10-27, R0 done:
   - The user allowed building and running vrfkit.

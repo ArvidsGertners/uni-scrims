@@ -7,6 +7,7 @@ Phase R0 of [replay-viewer.md](replay-viewer.md), 2026-10-27. Spike test without
 | Replay | Build | Map | Length | Notes |
 | --- | --- | --- | --- | --- |
 | **User's replay** (a friend's game, `replays/1b9f….vrf`, git-ignored) | `++Ares-Core+release-13.08` (current) | Jam = Lotus | 27:50, 17 rounds | **Primary input**, 60 MB, 10 players |
+| **User's 2nd replay** (`replays/9d63….vrf`, git-ignored, added 2026-10-27) | header says `release-13.08`, changelist 2153243948, identical to the first. The user expected 13.09 | Bonsai = Split | 13:07, 7 rounds, **Swiftplay** | 24 MB, 10 players; validate PASS, export 0.7 s / 82 MB, 0 malformed blocks |
 | vrfkit public fixture `12974d2b….13_00.vrf` | 13.00 | — | 39 s | Snippet; contains Cypher but no placed tripwire |
 | vrfkit public fixtures `….12_10.vrf`, `….12_11.vrf` | 12.10 / 12.11 | — | short | Snippets, little gameplay |
 
@@ -65,6 +66,25 @@ The public fixtures come from `michel-giehl/ValorantReplayParser` at commit `b51
 | Game mode | No queue field found. The replay has `BombPlayerState.CompetitiveTier` and weekly-mission progress (`Season26-6_Week*_Mission`), which point to a matchmade game, **probably not a custom game** | ⚠️ R0b stays open |
 
 Internal agent names seen: BountyHunter = Fade, Deadeye = Chamber, Hunter = Sova, Nox = Vyse, Rift = Astra, Wraith = Omen, Wushu = Jett, Phoenix = Phoenix. Expected later: Gumshoe = Cypher, Killjoy = Killjoy. R6 builds the full list from the agent UUIDs, not from these names.
+
+## Second replay (Swiftplay, Split), 2026-10-27
+
+Everything from the first replay holds here as well, with no parser change:
+- 0.8 M movement rows
+- `NumUltimatePoints` and `AuthResourceAmount` present
+- damage with `bIsWallPenetration`
+- `RoundResults` present: Red 5 : 2 Blue, round 7 won by defuse; the side switch is after round 4, as Swiftplay does it
+- an extra `spikeExploded` event
+
+New findings:
+- **Game mode can be read**: the game-state actor's class is `Swiftplay_EoRCredits_GameState_C` here and `BombGameState_C` in the first replay. A custom game probably has its own class or uses `BombGameState_C`. That's to be checked with a custom replay (R0b).
+- **More deployables with orientation or a target point**:
+  - Deadlock's sound sensor `GameObject_StealthingTrap_SoundSensor_C` (with `spawn_yaw`)
+  - `GameObject_CableJam_CableDeployer_Precomputed_C.MulticastInitialize.Destination` (a start + end point, the same kind of data as a tripwire)
+  - teleporter / trap actors with spawn position
+- **The "13.09" question**: this file says release-13.08 with the same changelist as the first one. Either the game client was already 13.09 and the server still recorded 13.08, or the replay is from 13.08. vrfkit accepts it either way. When a replay really says 13.09, vrfkit may reject the unknown branch; then we add the branch in our fork (R1).
+
+New internal agent names: Cable, Pine, Smonk, Vampire. They map via the agent UUIDs in R6.
 
 ## What this means for the phases
 
