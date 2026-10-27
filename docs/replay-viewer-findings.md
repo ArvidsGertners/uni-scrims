@@ -92,7 +92,7 @@ Built in the fork (`vrf-wasm` 0.2.0, `crates/vrf-wasm/src/abilities.rs`); the bi
 
 - **Charges** = `AuthResourceAmount` on the ability actor's charge component (`EquipmentChargeComponent`, `SignatureAbilityResourceComponent`, `Comp_Ability_GunAmmoResourceComponent_C` for Chamber's pistol). It includes temporary charges, so it is the number the HUD shows. `AuthSignatureChargeAmount` is only a recharge flag. Gun magazines (`/Script/ShooterGame.AmmoComponent`) are ignored.
 - Vyse's Shear keeps its charges in a group vrfkit only names `EquipmentChargeComp`, without field names. The handles match `EquipmentChargeComponent` (handle 2 = `AuthResourceAmount`, 32-bit LE), so the binding reads it from the raw bits. No other unnamed group holds charges (checked on both 13.08 replays).
-- **Slot**: the order of the character's `ItemSlot` subobjects (by GUID): primary, secondary, melee, **grenade (C), ability 1 (Q), ability 2 (E)**, passives, defuser, ultimate, unarmed, armour. **The class folder is not the key**:
+- **Slot**: the character's `ItemSlot` subobjects come in a fixed order, 4 GUIDs apart: primary, secondary, melee, **grenade (C), ability 1 (Q), ability 2 (E)**, passives, defuser, ultimate, unarmed, armour. C/Q/E are the melee slot's GUID **+ 4, + 8, + 12** on all 20 characters of both 13.08 replays; the binding uses the offset, so a slot without contents shifts nothing. **The class folder is not the key**:
 
 | Agent (internal) | Grenade / C | Ability 1 / Q | Ability 2 / E |
 | --- | --- | --- | --- |

@@ -131,16 +131,27 @@ describe("replay parser (WASM)", () => {
       expect(meta.abilities.every((a) => a.charges >= 0 && a.charges <= 8)).toBe(true);
       expect(meta.ults.every((u) => u.points >= 0 && u.points <= 9)).toBe(true);
 
-      // Ult: within 1 s of every use, that player's ult is active or has
-      // just been spent (Jett's last knife ends it at once).
+      // Ult: within 1 s of every use, that player's ult turns active or is
+      // spent (Jett's last knife ends it at once). A later use while the ult
+      // a confirmed use started is still active continues it (Jett's knives).
       const uses = meta.events.filter((e) => e.group === "characterUltimateUsed");
       expect(uses).toHaveLength(32);
+      const confirmed = new Map<number, number>();
       for (const use of uses) {
         const player = playerOfCharacter.get(use.words[0]!);
         expect(player).toBeDefined();
-        const rows = meta.ults.filter((u) => u.player === player && u.t <= use.t + 1000);
-        const spent = rows.some((u) => u.t >= use.t && (u.active || u.points === 0));
-        expect(rows.at(-1)?.active || spent, `ult use at ${use.t}`).toBe(true);
+        const reacts = meta.ults.some(
+          (u) =>
+            u.player === player &&
+            u.t >= use.t &&
+            u.t <= use.t + 1000 &&
+            (u.active || u.points === 0),
+        );
+        const latest = meta.ults.filter((u) => u.player === player && u.t <= use.t).at(-1);
+        const continues =
+          latest?.active === true && latest.t >= (confirmed.get(player!) ?? Infinity);
+        expect(reacts || continues, `ult use at ${use.t}`).toBe(true);
+        if (reacts) confirmed.set(player!, use.t);
       }
 
       // Charges: a cast is mostly preceded by equipping that ability, so per

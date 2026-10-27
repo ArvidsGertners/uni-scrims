@@ -13,8 +13,8 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: 🟡 **R2 Decoding: charges + ult points**, started 2026-10-27. R1 done with the user's OK on 2026-10-27.
-- **Next step**: `pnpm test` + `pnpm lint`, `/code-review`, then ✅ and the user's OK.
+- **Phase**: ✅ **R2 Decoding: charges + ult points** done 2026-10-27, **waiting for the user's OK**. `pnpm test` and `pnpm lint` green, `/code-review` findings fixed.
+- **Next phase**: **R3 Decoding: utility rotation, tripwire, turret** (needs the Cypher/Killjoy replay to finish).
 - **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.1.1`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
 - **Waiting for the user**:
   - a replay with **Cypher and Killjoy** (any mode, current build), needed to finish R3
@@ -30,7 +30,7 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 | R0 | Spike test (user's replay first, public replays second) | ✅ | 2026-10-27 | 2026-10-27 | 53faee4, e5602dd, see log | Everything found except tripwire/turret (no Cypher/KJ in the replays); 1.8 s / 169 MB → WASM ok |
 | R0b | Custom-game check with a real scrim replay | ⏸ | | | | The user's replay was probably matchmade (missions, CompetitiveTier); still waiting for a custom `.vrf`; needed before R11 |
 | R1 | Parser fork + WASM build | ✅ | 2026-10-27 | 2026-10-27 | fork `16660c4` (`us-v0.1.0`), `e6bc43c` (`us-v0.1.1`), see log | Node: 3.2 s, 300 MB peak RSS on the 60 MB match; `.wasm` 727 KB (258 KB gzip) |
-| R2 | Decoding: charges + ult points | 🟡 | 2026-10-27 | | fork `126e7d4` (`us-v0.2.0`), see log | Plausibility check instead of the in-game comparison (user decision) |
+| R2 | Decoding: charges + ult points | ✅ | 2026-10-27 | 2026-10-27 | fork `126e7d4` (`us-v0.2.0`), `ce81b70` (`us-v0.2.1`), see log | Plausibility check instead of the in-game comparison (user decision) |
 | R3 | Decoding: utility rotation, tripwire, turret | ⬜ | | | | |
 | R4 | Decoding: kill details + round results | ⬜ | | | | |
 | R5 | Replay JSON + reducer + Web Worker | ⬜ | | | | |
@@ -48,6 +48,11 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 ### Log
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
+
+- 2026-10-27, R2 review fixes (`/code-review`):
+  - Fork `ce81b70`, tag `us-v0.2.1`: C/Q/E from the GUID offset to the melee slot (+4/+8/+12) instead of the rank, so a slot without contents shifts nothing; changes compared per ability actor and in time order; every charge row carries its `actor` (two passives stay apart); no ult row before the points are known (no made-up 0); unreadable unnamed charge rows and out-of-range GUIDs are counted as unresolved.
+  - Uni Scrims: `AbilitySlot` includes `ultimate`, `ChargeChange.actor`; the ult check only accepts a reaction after the use, or an ult still active since a confirmed use.
+  - Not changed: building the row struct for every field row (a few compares per row, no measurable cost in the 3 s parse); no extra counter for a character without a melee slot (its rows already count as unresolved).
 
 - 2026-10-27, R2 decoding:
   - Fork `126e7d4`, tag `us-v0.2.0`: new `crates/vrf-wasm/src/abilities.rs`. The meta JSON gets `abilities` (player, slot, charges) and `ults` (player, points, active), `players[].state`, and the counters `chargeRowsUnresolved`/`ultRowsUnresolved`. Vyse's Shear (an unnamed `EquipmentChargeComp` group) is read by handle. Fork tests + clippy (native, wasm32) green; `.wasm` 771 KB.

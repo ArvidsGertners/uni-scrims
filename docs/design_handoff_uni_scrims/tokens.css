@@ -1,0 +1,171 @@
+/* Uni Scrims – Design Tokens (shadcn/ui-kompatibel). In globals.css übernehmen.
+   Eine Richtung wählen: <html data-dir="a|b|c">  (Default = A) */
+
+:root,
+[data-dir="a"] {
+  /* shadcn */
+  --background: #0B0C0E;
+  --foreground: #F4F5F7;
+  --card: #131519;
+  --card-foreground: #F4F5F7;
+  --popover: #131519;
+  --popover-foreground: #F4F5F7;
+  --primary: #FF5A4F;
+  --primary-foreground: #1C0705;
+  --secondary: #1B1E23;
+  --secondary-foreground: #F4F5F7;
+  --muted: #1B1E23;
+  --muted-foreground: #A3A9B4;
+  --accent: #1B1E23;
+  --accent-foreground: #F4F5F7;
+  --destructive: #FF5A4F;
+  --border: #262A31;
+  --input: #0F1114;
+  --ring: #FF5A4F;
+  --radius: 12px;
+
+  /* Zusatz */
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+  --border-strong: #383D46;
+  --faint: #6E7480;
+  --primary-hover: #FF766D;
+  --accent-soft: rgba(255, 90, 79, 0.13);
+  --accent-text: #FF8279;
+  --success: #3DD68C;
+  --success-soft: rgba(61, 214, 140, 0.12);
+  --warning: #F5B84B;
+  --warning-soft: rgba(245, 184, 75, 0.10);
+  --warning-line: rgba(245, 184, 75, 0.32);
+  --clip: none;
+  --clip-btn: none;
+  --card-border: 1px solid #262A31;
+
+  --font-display: 'Geist', system-ui, sans-serif;
+  --font-body: 'Geist', system-ui, sans-serif;
+  --font-label: 'Geist Mono', ui-monospace, monospace;
+  --display-weight: 650;
+  --display-transform: none;
+  --display-tracking: -0.025em;
+  --label-transform: none;
+  --label-tracking: 0;
+  --label-size: 12px;
+  --label-weight: 500;
+  --btn-transform: none;
+  --btn-tracking: 0;
+  --h1: 32px;
+  --h2: 20px;
+  --hero: 42px;
+  --body-size: 15px;
+}
+
+[data-dir="b"] {
+  --background: #07080A;
+  --foreground: #EDEFF2;
+  --card: #0D0F12;
+  --card-foreground: #EDEFF2;
+  --popover: #0D0F12;
+  --popover-foreground: #EDEFF2;
+  --primary: #FF4B4B;
+  --primary-foreground: #140000;
+  --secondary: #151920;
+  --secondary-foreground: #EDEFF2;
+  --muted: #151920;
+  --muted-foreground: #959EA9;
+  --accent: #151920;
+  --accent-foreground: #EDEFF2;
+  --destructive: #FF4B4B;
+  --border: #232930;
+  --input: #0A0C0E;
+  --ring: #FF4B4B;
+  --radius: 0px;
+
+  --radius-sm: 0px;
+  --radius-pill: 0px;
+  --border-strong: #3A424D;
+  --faint: #5E6670;
+  --primary-hover: #FF6B6B;
+  --accent-soft: rgba(255, 75, 75, 0.10);
+  --accent-text: #FF7676;
+  --clip: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  --clip-btn: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  --card-border: 1px solid #232930;
+
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-label: 'JetBrains Mono', monospace;
+  --display-weight: 700;
+  --display-transform: uppercase;
+  --display-tracking: 0.01em;
+  --label-transform: uppercase;
+  --label-tracking: 0.14em;
+  --label-size: 11px;
+  --label-weight: 500;
+  --btn-transform: uppercase;
+  --btn-tracking: 0.08em;
+  --h1: 30px;
+  --h2: 19px;
+  --hero: 40px;
+  --body-size: 15px;
+}
+
+[data-dir="c"] {
+  --background: #0E0E11;
+  --foreground: #FFFFFF;
+  --card: #19191E;
+  --card-foreground: #FFFFFF;
+  --popover: #19191E;
+  --popover-foreground: #FFFFFF;
+  --primary: #FF5436;
+  --primary-foreground: #180500;
+  --secondary: #24242A;
+  --secondary-foreground: #FFFFFF;
+  --muted: #24242A;
+  --muted-foreground: #ABABB5;
+  --accent: #24242A;
+  --accent-foreground: #FFFFFF;
+  --destructive: #FF5436;
+  --border: #2A2A31;
+  --input: #141418;
+  --ring: #FF5436;
+  --radius: 4px;
+
+  --radius-sm: 4px;
+  --radius-pill: 4px;
+  --border-strong: #3D3D46;
+  --faint: #71717B;
+  --primary-hover: #FF7058;
+  --accent-soft: rgba(255, 84, 54, 0.14);
+  --accent-text: #FF7C64;
+  --clip: none;
+  --clip-btn: none;
+  --card-border: 0;
+
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+  --font-label: 'Barlow Condensed', sans-serif;
+  --display-weight: 800;
+  --display-transform: uppercase;
+  --display-tracking: 0;
+  --label-transform: uppercase;
+  --label-tracking: 0.08em;
+  --label-size: 13px;
+  --label-weight: 700;
+  --btn-transform: uppercase;
+  --btn-tracking: 0.05em;
+  --h1: 44px;
+  --h2: 26px;
+  --hero: 64px;
+  --body-size: 16px;
+}
+
+html { color-scheme: dark; }
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-size: var(--body-size);
+  line-height: 1.5;
+}
+::selection { background: var(--primary); color: var(--primary-foreground); }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }

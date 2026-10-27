@@ -5,7 +5,7 @@ Parses a Valorant replay (`.vrf`) in the browser or in Node via WebAssembly. Par
 - `wasm/`: the build of the parser fork `uni-scrims-replay-parser` (a fork of [vrfkit](https://github.com/yakisoba0728/vrfkit), Apache-2.0). Generated, never edited by hand. `wasm/source.json` names the fork tag, commit and the SHA-256 of the `.wasm`.
 - `src/index.ts`: a typed wrapper. `initParserSync(bytes)` or `await initParser(url)`, then `parseReplay(bytes, fieldNames)` → `{ meta, movement }`.
   - `meta`: header (branch, length), players (account UUID → character GUIDs), Event chunks (kills, rounds, spike), actor opens/closes with spawn position/rotation, the requested fields, counters.
-  - `meta.abilities` / `meta.ults` (since `us-v0.2.0`): every change of a player's charges per slot (`grenade` = C, `ability1` = Q, `ability2` = E, `passive`) and of the ult points/state, with `player` as an index into `meta.players`. Always included, whatever `fieldNames` says. The replay holds no maximum for ult points.
+  - `meta.abilities` / `meta.ults` (since `us-v0.2.0`): every change of an ability's charges with its slot (`grenade` = C, `ability1` = Q, `ability2` = E, `passive`, `ultimate`) and ability actor (`actor`) and of the ult points/state, with `player` as an index into `meta.players`. Always included, whatever `fieldNames` says. The replay holds no maximum for ult points.
   - `movement`: typed columns (`timeMs`, `character`, `x`, `y`, `z`, `yaw`).
   - Only the fields named in `fieldNames` are returned. A full match has about 1.3 M field rows.
   - 64-bit values beyond 2^53 come as decimal strings: `meta.timestampTicks`, a field's `intText`.

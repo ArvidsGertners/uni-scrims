@@ -59,14 +59,16 @@ export type ReplayField = {
  * The in-game ability slot, named like valorant-api's `slot` (Grenade = C,
  * Ability1 = Q, Ability2 = E); the key label comes from the agent data.
  */
-export type AbilitySlot = "grenade" | "ability1" | "ability2" | "passive";
+export type AbilitySlot = "grenade" | "ability1" | "ability2" | "passive" | "ultimate";
 
-/** A player's charges in one slot changed (temporary charges included). */
+/** An ability's charges changed (temporary charges included). */
 export type ChargeChange = {
   t: number;
   /** Index into `players`. */
   player: number;
   slot: AbilitySlot;
+  /** The ability actor GUID: tells two passives of one player apart. */
+  actor: number;
   charges: number;
 };
 
