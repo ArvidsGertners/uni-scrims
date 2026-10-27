@@ -13,9 +13,9 @@ A new session starts by reading only §0, the "Current state" block and the sect
 
 ### Current state
 
-- **Phase**: 🟡 **R1 Parser fork + WASM build** since 2026-10-27. Built and tested; still open: `pnpm test` with the DB reset (needs the user's consent), `/code-review`, the user's OK.
+- **Phase**: ✅ **R1 Parser fork + WASM build** done 2026-10-27, waiting for the user's OK. `pnpm test` 845/845 and `pnpm lint` green, `/code-review` findings fixed.
 - **Next phase**: **R2 Decoding: charges + ult points**.
-- **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.1.0`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
+- **Tools**: Rust 1.90.0 (+ `wasm32-unknown-unknown`, clippy, rustfmt) and wasm-pack 0.14.0 in `~/.cargo`; the fork in `~/uni-scrims-replay-parser` (branch `uni-scrims`, tag `us-v0.1.1`, local only, not on GitHub yet); upstream vrfkit `b9496df` in `~/replay-work/vrfkit` (its `target/` is shared with the fork via `CARGO_TARGET_DIR`); a Python venv with duckdb in `~/replay-work/venv`; Parquet exports in `~/replay-work/out/`. The public fixtures are in `~/replay-work/public/`.
 - **Waiting for the user**:
   - a replay with **Cypher and Killjoy** (any mode, current build), needed to finish R3
   - a **custom-game** replay with recording on (R0b), needed before R11
@@ -29,7 +29,7 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 | --- | --- | --- | --- | --- | --- | --- |
 | R0 | Spike test (user's replay first, public replays second) | ✅ | 2026-10-27 | 2026-10-27 | 53faee4, e5602dd, see log | Everything found except tripwire/turret (no Cypher/KJ in the replays); 1.8 s / 169 MB → WASM ok |
 | R0b | Custom-game check with a real scrim replay | ⏸ | | | | The user's replay was probably matchmade (missions, CompetitiveTier); still waiting for a custom `.vrf`; needed before R11 |
-| R1 | Parser fork + WASM build | 🟡 | 2026-10-27 | | fork `16660c4` (`us-v0.1.0`), see log | Node: 3.2 s, 300 MB peak RSS on the 60 MB match; `.wasm` 727 KB (258 KB gzip) |
+| R1 | Parser fork + WASM build | ✅ | 2026-10-27 | 2026-10-27 | fork `16660c4` (`us-v0.1.0`), `e6bc43c` (`us-v0.1.1`), see log | Node: 3.2 s, 300 MB peak RSS on the 60 MB match; `.wasm` 727 KB (258 KB gzip) |
 | R2 | Decoding: charges + ult points | ⬜ | | | | |
 | R3 | Decoding: utility rotation, tripwire, turret | ⬜ | | | | |
 | R4 | Decoding: kill details + round results | ⬜ | | | | |
@@ -49,6 +49,12 @@ Status: ⬜ open · 🟡 in progress · ✅ done · ⏸ waiting for the user
 
 Newest entry first. One entry per commit or decision: date, phase, what was done, commit, what's next.
 
+- 2026-10-27, R1 review fixes (`/code-review`):
+  - Fork `e6bc43c`, tag `us-v0.1.1`: 64-bit values beyond 2^53 cross into JS as decimal strings (`timestampTicks`, a field's `intText`) instead of being rounded. `build-wasm.sh` only builds a clean tree and writes `pkg/BUILD_COMMIT`.
+  - Uni Scrims: `sync-wasm` checks `BUILD_COMMIT` against the fork's HEAD. The wrapper throws a clear error before init. The test caches the fixture only after its SHA-256 matches, and has a 60 s timeout.
+  - Not changed: the lockfile finding (frozen install passes; pnpm lists no importer for a package without dependencies). Memory: noted for R5 (one Worker per parse, terminated after it), README.
+  - The user allowed `pnpm test` with the DB reset for R1 (users must not be affected later): 845/845 green before the fixes.
+
 - 2026-10-27, R1 (fork + WASM):
   - Fork `~/uni-scrims-replay-parser` from vrfkit `b9496df`, branch `uni-scrims`, commit `16660c4`, tag `us-v0.1.0`. Changes listed in its `FORK.md`; the Apache notice is kept and extended in `NOTICE.md`.
   - The `vrfkit` crate is now also a library. New `decode(bytes, sink)`: the `export` walk over ReplayData, every row handed to a `RecordSink`; on `wasm32` the chunk walk runs without a thread.
@@ -57,7 +63,7 @@ Newest entry first. One entry per commit or decision: date, phase, what was done
   - **Measured** (Node 24, WASM, the user's 60 MB 13.08 match): parse **3.2 s**, **300 MB** peak RSS for the whole Node process (native was 1.8 s / 133 MB without checkpoints). `.wasm` 727 KB, 258 KB gzipped.
   - Deviation: wasm-pack **0.14.0** instead of 0.15.0, because 0.15.0 needs Rust 1.91 to build and we stay on 1.90.0.
   - Uni Scrims: new package `packages/replay-parser` (`wasm/` build + `source.json`, typed wrapper `src/index.ts`, `sync-wasm` script, README). Its Vitest test parses the public 13.00 replay (fetched by URL + SHA-256 into `node_modules/.cache`) and, when present, the git-ignored 13.08 match.
-  - Open: push the fork to GitHub (the user decides where); `pnpm test` with the DB reset; `/code-review`.
+  - Open: push the fork to GitHub (the user decides where).
 
 - 2026-10-27, R0 addendum:
   - The user's 2nd replay (Swiftplay on Split, 7 rounds, header release-13.08 although 13.09 was expected) parses cleanly: 0.7 s, 82 MB.
