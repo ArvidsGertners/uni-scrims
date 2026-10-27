@@ -193,6 +193,8 @@ model User {
   teamLimit        Int             @default(5)
   // Phase 22 (§5.21): the chosen language on every device; null = never chosen.
   locale           Locale?
+  // Phase 33 (§5.31): the last edition of the what's new dialog the user closed; null = never.
+  whatsNewSeen     String?
 
   avatar                  UserAvatar?
   notificationPreferences NotificationPreference[]
