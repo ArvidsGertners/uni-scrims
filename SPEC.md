@@ -557,6 +557,12 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] **Gesehen** zählt beim Schließen. „Neuigkeiten“ im Konto-Menü (Leiste und Handy-Menü) öffnet das Fenster jederzeit wieder (Entscheidung des Nutzers).
 - [x] Bei reduzierter Bewegung (Systemeinstellung) blenden die Folien nur über, ohne Bewegung. Die Datenauskunft nennt die zuletzt geschlossene Ausgabe, die Kontolöschung löscht sie, die Datenschutzerklärung nennt sie wie das gewählte Design. Alles auf Deutsch und Englisch, ab 320 px, hell und dunkel.
 
+**N-30 Feinschliff Filter, Teams-Liste, Hochschul-Suche** (Phase 34)
+- [ ] **„Filtern“ erst bei einer Änderung** (Wunsch des Nutzers): Auf dem Board (`/scrims`), dem öffentlichen Board (`/board`) und der Teams-Liste ist „Filtern“ ausgegraut, solange das Formular dem angewendeten Filter entspricht (beim Board inklusive des voreingestellten eigenen Team-Rangs). Sobald ein Feld abweicht (Datum, Rang, Suche, Checkboxen), ist der Knopf aktiv; wird der Ausgangswert wiederhergestellt, ist er wieder grau. Ohne JavaScript bleibt er immer aktiv.
+- [ ] **Team-Karten ohne Lücken:** In der Teams-Liste stapeln sich die Karten je Spalte ohne Lücken (Masonry); Spaltenzahl (1–4) und Reihenfolge (zeilenweise, auch für Tastatur und Screenreader) bleiben. Das Board behält sein Raster.
+- [ ] **Hochschule suchen:** Die Hochschul-Auswahl der Verifizierung hat ein Suchfeld; Tippen filtert die Liste (Groß- und Kleinschreibung und Akzente egal, auch nach Ort). „Andere Hochschule …“ steht bei jeder Suche als letzte Option da (Entscheidung des Nutzers). Dieselbe Suche bekommt die Zuordnung einer „anderen“ Hochschule in der Prüf-Queue (Entscheidung des Nutzers).
+- [ ] Alles ab 320 px, auf Deutsch und Englisch, hell und dunkel.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
