@@ -83,6 +83,26 @@ export const fullyVerifiedMessages = dictionary(
   },
 );
 
+/** The Uniliga league of a linked team (SPEC N-36): badge, filter and team tab. */
+export const leagueMessages = dictionary(
+  {
+    league: (division: number, group: string | null) =>
+      group ? `${division}. Liga · Gruppe ${group}` : `${division}. Liga`,
+    division: (division: number) => `${division}. Liga`,
+    badgeTitle: (league: string) => `Uniliga: ${league} (laut OPL)`,
+    filter: "Uniliga",
+    prefix: "Uniliga:",
+  },
+  {
+    league: (division: number, group: string | null) =>
+      group ? `Division ${division} · Group ${group}` : `Division ${division}`,
+    division: (division: number) => `Division ${division}`,
+    badgeTitle: (league: string) => `Uniliga: ${league} (according to OPL)`,
+    filter: "Uniliga",
+    prefix: "Uniliga:",
+  },
+);
+
 /** The reliability of the last days and its filter (SPEC N-23). */
 export const reliabilityMessages = dictionary(
   {

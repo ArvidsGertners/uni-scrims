@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { CopyValue } from "@/components/copy-value";
+import { LeagueBadge } from "@/components/league-badge";
 import { PageMain } from "@/components/page-main";
 import { RankLabel } from "@/components/rank-icon";
 import { StatTile } from "@/components/stat-tile";
@@ -142,6 +143,19 @@ export async function TeamView({ userId }: { userId: string }) {
                   </span>
                 ),
               },
+              // The league of a linked team from OPL (SPEC N-36).
+              ...(team.opl
+                ? [
+                    {
+                      label: t.uniliga,
+                      value: team.league ? (
+                        <LeagueBadge league={team.league} />
+                      ) : (
+                        <span className="text-muted-foreground">{t.noLeague}</span>
+                      ),
+                    },
+                  ]
+                : []),
               { label: t.game, value: GAME_LABELS[team.game] ?? team.game },
               { label: t.universities, value: formatUniversities(team.universities, locale) },
               // Whether all signed-in users see the team and its members there (SPEC N-20).

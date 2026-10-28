@@ -4,6 +4,7 @@ import Link from "next/link";
 import { requestReadyWindowAction } from "@/app/requests/actions";
 import { ActionForm } from "@/components/action-form";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
+import { LeagueBadge } from "@/components/league-badge";
 import { ChevronRightIcon, ClockIcon, MapPinIcon } from "@/components/icons";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
 import { ReliabilityLine } from "@/components/reliability-line";
@@ -58,6 +59,7 @@ export async function ReadyWindowCard({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="min-w-0 text-[16px] font-semibold break-words">{team.name}</span>
             {team.fullyVerified ? <FullyVerifiedBadge /> : null}
+            <LeagueBadge league={team.league} />
           </span>
           <span className="truncate text-[13px] text-muted-foreground">
             {formatUniversities(team.universities, locale)}

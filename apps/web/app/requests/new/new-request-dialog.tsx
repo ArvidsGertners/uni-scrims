@@ -14,6 +14,7 @@ import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
+import { LeagueBadge } from "@/components/league-badge";
 import { DialogShell } from "@/components/dialog-shell";
 import { RankIcon, RankLabel } from "@/components/rank-icon";
 import { RouteDialogClose } from "@/components/route-dialog";
@@ -98,6 +99,7 @@ export async function NewRequestDialog({
                 <span className="font-label text-[13px] text-faint">{target.tag}</span>
               </span>
               {target.fullyVerified ? <FullyVerifiedBadge /> : null}
+              <LeagueBadge league={target.league} />
             </span>
             <span className="text-[13px] text-pretty text-muted-foreground">
               {formatUniversities(target.universities, locale)} · {shared.teamRank}{" "}

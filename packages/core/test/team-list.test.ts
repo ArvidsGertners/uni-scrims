@@ -120,6 +120,7 @@ describe("getTeamList (§5.23)", () => {
         // The viewer has no team, so no direct request (SPEC N-26).
         canRequest: false,
         oplUrl: null,
+        league: null,
       },
     ]);
     expect(result.filter).toEqual({
@@ -127,6 +128,7 @@ describe("getTeamList (§5.23)", () => {
       ranks: [],
       fullyVerifiedOnly: false,
       reliableOnly: false,
+      leagues: [],
     });
   });
 

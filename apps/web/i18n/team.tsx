@@ -39,6 +39,9 @@ export const teamPageMessages = dictionary(
     /** After the team rank: how many own ranks it is computed from. */
     rankedFrom: (count: number) => `aus ${count} ${count === 1 ? "Rang" : "Rängen"}`,
     addRank: "Rang angeben",
+    uniliga: "Uniliga",
+    /** A linked team without a place in the current season's group stage (SPEC N-36). */
+    noLeague: "Nicht in der Gruppenphase der aktuellen Saison",
     game: "Spiel",
     universities: "Hochschulen",
     /** Whether the team is in the teams list (SPEC N-20). */
@@ -165,6 +168,8 @@ export const teamPageMessages = dictionary(
     teamRank: "Team rank",
     rankedFrom: (count) => `from ${count} ${count === 1 ? "rank" : "ranks"}`,
     addRank: "Add your rank",
+    uniliga: "Uniliga",
+    noLeague: "Not in the current season's group stage",
     game: "Game",
     universities: "Universities",
     teamsList: "Teams list",

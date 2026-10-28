@@ -10,7 +10,9 @@ import type { Rank } from "@uni-scrims/db";
 import Link from "next/link";
 import { CheckboxFilters } from "@/components/filter-checkbox";
 import { FilterForm, FilterSubmit } from "@/components/filter-form";
+import { LeagueFilter } from "@/components/league-filter";
 import { ListGroup } from "@/components/list-group";
+import { OplLogo } from "@/components/opl-logo";
 import { RankFilter } from "@/components/rank-filter";
 import { RankIcon } from "@/components/rank-icon";
 import { type CardReadyWindow, ReadyWindowCard } from "@/components/ready-window-card";
@@ -20,6 +22,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Field } from "@/components/ui/field";
 import { getLocale, getMessages } from "@/lib/locale";
 import { list } from "@/lib/search-params";
+import { leagueMessages } from "@/i18n/format";
 import { readyWindowMessages, scrimSharedMessages, scrimsPageMessages } from "@/i18n/scrims";
 
 // Filters and cards of the board, signed in on /scrims and without login on /board (§5.26).
@@ -35,13 +38,33 @@ export function readBoardRanks(value: string | string[] | undefined): Rank[] | "
     : values.filter((rank): rank is Rank => RANKS.includes(rank as Rank));
 }
 
+/** The `?liga=` values for getBoard, getPublicBoard and getTeamList (SPEC N-36); core drops
+ * leagues the current season doesn't have. */
+export function readLeagues(value: string | string[] | undefined): number[] {
+  return list(value)
+    .filter((entry) => /^\d{1,2}$/.test(entry))
+    .map(Number)
+    .filter((division) => division >= 1);
+}
+
+/** The options of the league filter (SPEC N-36), with the OPL mark; empty without a season. */
+export async function leagueFilterOptions(leagues: number[]) {
+  const t = await getMessages(leagueMessages);
+  return leagues.map((division) => ({
+    value: String(division),
+    label: t.division(division),
+    icon: <OplLogo alt="" className="h-3.5" />,
+  }));
+}
+
 /** Whether a filter is applied, for the empty states. */
 export function isBoardFiltered(filter: BoardFilter): boolean {
   return (
     filter.date !== null ||
     filter.ranks.length > 0 ||
     filter.fullyVerifiedOnly ||
-    filter.reliableOnly
+    filter.reliableOnly ||
+    filter.leagues.length > 0
   );
 }
 
@@ -60,25 +83,33 @@ function groupByDay<T extends { startsAt: Date }>(requests: T[], locale: Locale)
 
 /**
  * The GET filter form of SPEC P0-4 for the page at `action`; `ownRank` marks the own team's rank
- * in the rank filter.
+ * in the rank filter. The league filter (SPEC N-36) only while a season is known.
  */
 export async function BoardFilterForm({
   filter,
+  leagueOptions,
   action,
   ownRank = null,
 }: {
   filter: BoardFilter;
+  leagueOptions: number[];
   action: string;
   ownRank?: Rank | null;
 }) {
   const t = await getMessages(scrimsPageMessages);
   const shared = await getMessages(scrimSharedMessages);
+  const league = await getMessages(leagueMessages);
+  const leagues = await leagueFilterOptions(leagueOptions);
   return (
     // Keyed by the applied filter: soft navigations would otherwise keep stale select values.
     <FilterForm
-      key={`${filter.date ?? ""}|${filter.ranks.join(",")}|${filter.fullyVerifiedOnly}|${filter.reliableOnly}`}
+      key={`${filter.date ?? ""}|${filter.ranks.join(",")}|${filter.leagues.join(",")}|${filter.fullyVerifiedOnly}|${filter.reliableOnly}`}
       action={action}
-      className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,18rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
+      className={
+        leagues.length > 0
+          ? "grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,16rem)_minmax(0,16rem)_minmax(0,14rem)_auto_auto] lg:justify-start"
+          : "grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,18rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
+      }
     >
       <Field label={shared.date}>
         <DatePicker name="datum" defaultValue={filter.date} placeholder={t.allDays} clearable />
@@ -94,6 +125,11 @@ export async function BoardFilterForm({
           }))}
         />
       </Field>
+      {leagues.length > 0 ? (
+        <Field label={league.filter} className="col-span-2 sm:col-span-1">
+          <LeagueFilter defaultValue={filter.leagues.map(String)} options={leagues} />
+        </Field>
+      ) : null}
       {/* Below the row from 640 px, between the fields and the buttons on phones. */}
       <CheckboxFilters
         fullyVerifiedOnly={filter.fullyVerifiedOnly}

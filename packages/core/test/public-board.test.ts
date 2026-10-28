@@ -98,6 +98,7 @@ describe("getPublicBoard", () => {
         universities: { shown: [], more: 0 },
         reliability: { played: 0, noShows: 0, lateCancels: 0, avgRating: null },
         fullyVerified: true,
+        league: null,
       },
       verifiedApplicantsOnly: false,
     });

@@ -12,8 +12,11 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
 import { CheckboxFilters, readCheckboxFilters } from "@/components/filter-checkbox";
+import { leagueFilterOptions, readLeagues } from "@/components/board";
 import { FilterForm, FilterSubmit } from "@/components/filter-form";
 import { UsersIcon } from "@/components/icons";
+import { LeagueBadge } from "@/components/league-badge";
+import { LeagueFilter } from "@/components/league-filter";
 import { Masonry } from "@/components/masonry";
 import { OplLogo } from "@/components/opl-logo";
 import { PageMain } from "@/components/page-main";
@@ -29,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { list, single } from "@/lib/search-params";
 import { formatUniversities } from "@/lib/scrim-format";
 import { getLocale, getMessages } from "@/lib/locale";
+import { leagueMessages } from "@/i18n/format";
 import { teamsPageMessages } from "@/i18n/teams";
 
 /** All active teams their captain has not hidden, with their members (SPEC N-20, §5.23). */
@@ -40,16 +44,20 @@ export async function TeamsView({
   params: Record<string, string | string[] | undefined>;
 }) {
   const t = await getMessages(teamsPageMessages);
-  const { teams, filter } = await getTeamList({
+  const league = await getMessages(leagueMessages);
+  const { teams, filter, leagueOptions } = await getTeamList({
     userId,
     search: single(params.suche) ?? null,
     ranks: list(params.rang).filter((value): value is Rank => RANKS.includes(value as Rank)),
+    leagues: readLeagues(params.liga),
     ...readCheckboxFilters(params),
     now: new Date(),
   });
+  const leagues = await leagueFilterOptions(leagueOptions);
   const filtered =
     filter.search !== "" ||
     filter.ranks.length > 0 ||
+    filter.leagues.length > 0 ||
     filter.fullyVerifiedOnly ||
     filter.reliableOnly;
 
@@ -62,9 +70,13 @@ export async function TeamsView({
 
       {/* Keyed by the applied filter: soft navigations would otherwise keep stale values. */}
       <FilterForm
-        key={`${filter.search}|${filter.ranks.join(",")}|${filter.fullyVerifiedOnly}|${filter.reliableOnly}`}
+        key={`${filter.search}|${filter.ranks.join(",")}|${filter.leagues.join(",")}|${filter.fullyVerifiedOnly}|${filter.reliableOnly}`}
         action="/teams"
-        className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
+        className={
+          leagues.length > 0
+            ? "grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,20rem)_minmax(0,16rem)_minmax(0,14rem)_auto_auto] lg:justify-start"
+            : "grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto] lg:grid-cols-[minmax(0,22rem)_minmax(0,18rem)_auto_auto] lg:justify-start"
+        }
       >
         <Field label={t.search} className="max-sm:col-span-2">
           <Input
@@ -85,6 +97,11 @@ export async function TeamsView({
             }))}
           />
         </Field>
+        {leagues.length > 0 ? (
+          <Field label={league.filter} className="max-sm:col-span-2">
+            <LeagueFilter defaultValue={filter.leagues.map(String)} options={leagues} />
+          </Field>
+        ) : null}
         {/* Below the row from 640 px, between the fields and the buttons on phones. */}
         <CheckboxFilters
           fullyVerifiedOnly={filter.fullyVerifiedOnly}
@@ -128,8 +145,14 @@ async function TeamCard({ team }: { team: TeamListEntry }) {
               {team.name} <span className="font-label text-[13px] text-faint">{team.tag}</span>
             </h2>
             {team.fullyVerified ? <FullyVerifiedBadge /> : null}
-            {/* The linked OPL team (SPEC N-35), marked with OPL's icon. */}
-            {team.oplUrl ? (
+            {/* The linked OPL team (SPEC N-35), marked with OPL's icon; with a Uniliga league
+                (SPEC N-36) its badge is the link. */}
+            {team.oplUrl && team.league ? (
+              <LeagueBadge
+                league={team.league}
+                link={{ href: team.oplUrl, label: t.onOpl(team.name) }}
+              />
+            ) : team.oplUrl ? (
               <a
                 href={team.oplUrl}
                 {...EXTERNAL_LINK_PROPS}

@@ -13,6 +13,7 @@ import { BackLink } from "@/components/back-link";
 import { type ChatThread, ChatSidebar, OpenChatButton } from "@/components/chat-sidebar";
 import { CountedTextarea } from "@/components/counted-textarea";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
+import { LeagueBadge } from "@/components/league-badge";
 import { CheckIcon, ShieldCheckIcon } from "@/components/icons";
 import { DETAIL_COLUMNS, PageMain } from "@/components/page-main";
 import { RankLabel, RankRangeLabel } from "@/components/rank-icon";
@@ -153,6 +154,7 @@ export default async function RequestPage({
           <span className="flex flex-wrap items-center gap-2 text-[14px] text-muted-foreground">
             {formatUniversities(team.universities, locale)}
             {team.fullyVerified ? <FullyVerifiedBadge /> : null}
+            <LeagueBadge league={team.league} />
             {status ? <Badge className="h-[22px] px-2 text-[12px]">{status}</Badge> : null}
             {/* Only the own team learns that a request comes from a weekly series (SPEC N-25). */}
             {request.weekly ? (
@@ -448,6 +450,7 @@ export default async function RequestPage({
                             className="-my-1.5"
                           />
                           {application.team.fullyVerified ? <FullyVerifiedBadge /> : null}
+                          <LeagueBadge league={application.team.league} />
                         </div>
                         <span className="text-[13px] text-muted-foreground">
                           {formatUniversities(application.team.universities, locale)}

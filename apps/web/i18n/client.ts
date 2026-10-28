@@ -89,6 +89,12 @@ export const copyValueMessages = dictionary(
 /** The rank filter of the board and the teams list (components/rank-filter.tsx). */
 export const rankFilterMessages = dictionary({ allRanks: "Alle Ränge" }, { allRanks: "All ranks" });
 
+/** The league filter of the board and the teams list (components/league-filter.tsx, SPEC N-36). */
+export const leagueFilterMessages = dictionary(
+  { allLeagues: "Alle Ligen" },
+  { allLeagues: "All leagues" },
+);
+
 /** The dialog that asks before a final action (components/confirm-dialog.tsx). */
 export const confirmDialogMessages = dictionary({ cancel: "Abbrechen" }, { cancel: "Cancel" });
 

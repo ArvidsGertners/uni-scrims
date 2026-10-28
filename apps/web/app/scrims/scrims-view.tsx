@@ -15,6 +15,7 @@ import {
   ReadyWindowList,
   isBoardFiltered,
   readBoardRanks,
+  readLeagues,
 } from "@/components/board";
 import { ActionForm } from "@/components/action-form";
 import { DiscordContact } from "@/components/discord-contact";
@@ -104,6 +105,7 @@ export async function ScrimsView({
       userId,
       date: single(params.datum) ?? null,
       ranks: readBoardRanks(params.rang),
+      leagues: readLeagues(params.liga),
       ...readCheckboxFilters(params),
       now,
     }),
@@ -235,7 +237,12 @@ async function BoardTab({ board, hasOwnRequests }: { board: Board; hasOwnRequest
   return (
     <>
       {board.ownReadyWindow ? <OwnReadyWindow window={board.ownReadyWindow} /> : null}
-      <BoardFilterForm filter={board.filter} action="/scrims" ownRank={board.ownTeam?.rank} />
+      <BoardFilterForm
+        filter={board.filter}
+        leagueOptions={board.leagueOptions}
+        action="/scrims"
+        ownRank={board.ownTeam?.rank}
+      />
       <ReadyWindowList
         windows={board.readyWindows}
         actingTeamId={board.ownTeam?.id ?? null}

@@ -32,6 +32,7 @@ function team(
     universities,
     reliability: { ...reliability, avgRating: null },
     fullyVerified,
+    league: null,
   };
 }
 

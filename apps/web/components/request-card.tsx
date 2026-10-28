@@ -3,6 +3,7 @@ import { describeStartTime } from "@uni-scrims/core";
 import type { AppStatus, Rank, ScrimFormat } from "@uni-scrims/db";
 import Link from "next/link";
 import { FullyVerifiedBadge } from "@/components/fully-verified-badge";
+import { LeagueBadge } from "@/components/league-badge";
 import {
   CheckIcon,
   ChevronRightIcon,
@@ -55,6 +56,7 @@ export async function RequestCard({ request, preview }: Props) {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="min-w-0 text-[16px] font-semibold break-words">{team.name}</span>
             {team.fullyVerified ? <FullyVerifiedBadge /> : null}
+            <LeagueBadge league={team.league} />
           </span>
           <span className="truncate text-[13px] text-muted-foreground">
             {formatUniversities(team.universities, locale)}

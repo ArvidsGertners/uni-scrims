@@ -8,6 +8,7 @@ import {
   ReadyWindowList,
   isBoardFiltered,
   readBoardRanks,
+  readLeagues,
 } from "@/components/board";
 import { EmptyState } from "@/components/empty-state";
 import { readCheckboxFilters } from "@/components/filter-checkbox";
@@ -42,6 +43,7 @@ export default async function PublicBoardPage({
   const board = await getPublicBoard({
     date: single(params.datum) ?? null,
     ranks: readBoardRanks(params.rang),
+    leagues: readLeagues(params.liga),
     ...readCheckboxFilters(params),
     now: new Date(),
   });
@@ -71,7 +73,7 @@ export default async function PublicBoardPage({
         </div>
       </div>
 
-      <BoardFilterForm filter={board.filter} action="/board" />
+      <BoardFilterForm filter={board.filter} leagueOptions={board.leagueOptions} action="/board" />
 
       {/* Teams ready to play today (SPEC N-27); signed out, the cards lead to the login. */}
       <ReadyWindowList
