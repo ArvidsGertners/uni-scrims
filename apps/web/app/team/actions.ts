@@ -2,6 +2,7 @@
 
 import {
   TEAM_LINK_PLATFORMS,
+  answerShowcaseQuestion,
   createTeam,
   joinTeam,
   leaveTeam,
@@ -12,6 +13,7 @@ import {
   setActiveTeam,
   setMemberRole,
   setTeamListed,
+  setTeamShowcase,
   setVerifiedApplicantsOnly,
   setTeamLogo,
   transferCaptain,
@@ -53,7 +55,9 @@ export async function createTeamAction(_state: ActionState, formData: FormData) 
   if (!input) return invalidInput();
   let teamName = "";
   const state = await runAction(async () => {
-    teamName = (await createTeam({ ...input, userId, now: new Date() })).name;
+    // An unchecked checkbox sends nothing: off (SPEC N-34).
+    const showOnLanding = formData.get("showOnLanding") === "on";
+    teamName = (await createTeam({ ...input, userId, now: new Date(), showOnLanding })).name;
   });
   if (!state.done) return state;
   await setFlash((await getMessages(teamActionMessages)).welcome(teamName));
@@ -163,6 +167,38 @@ export async function setTeamListedAction(_state: ActionState, formData: FormDat
   }
   // finish revalidates the whole layout, the teams list included (SPEC N-20).
   return finish(state);
+}
+
+export async function setTeamShowcaseAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  const show = z.enum(["true", "false"]).safeParse(formField(formData, "showOnLanding"));
+  if (!teamId.success || !show.success) return invalidInput();
+  const state = await runAction(async () => {
+    await setTeamShowcase({ userId, teamId: teamId.data, show: show.data === "true" });
+  });
+  if (state.done) {
+    const t = await getMessages(teamActionMessages);
+    await setFlash(show.data === "true" ? t.onLanding : t.offLanding);
+  }
+  return finish(state);
+}
+
+const showcaseAnswers = z.array(z.object({ teamId: idSchema, show: z.boolean() }));
+
+/**
+ * The answers of the one-time question about the landing page (SPEC N-34); closing the dialog sends
+ * "no" for every team. No flash: the dialog closes by itself.
+ */
+export async function answerShowcaseQuestionAction(
+  answers: { teamId: string; show: boolean }[],
+): Promise<boolean> {
+  const userId = (await getSessionUserId()) ?? "";
+  const parsed = showcaseAnswers.safeParse(answers);
+  if (!parsed.success) return false;
+  const state = await runAction(() => answerShowcaseQuestion({ userId, answers: parsed.data }));
+  await finish(state);
+  return state.done === true;
 }
 
 export async function setVerifiedApplicantsOnlyAction(_state: ActionState, formData: FormData) {

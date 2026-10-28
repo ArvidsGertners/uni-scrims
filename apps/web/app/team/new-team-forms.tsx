@@ -24,6 +24,20 @@ export async function NewTeamForms() {
           className="flex flex-col gap-[18px]"
         >
           <TeamFields />
+          {/* Off by default (SPEC N-34); the settings change it later. */}
+          <label className="flex items-start gap-2.5 text-[14px]">
+            <input
+              type="checkbox"
+              name="showOnLanding"
+              className="mt-0.5 size-4 shrink-0 accent-primary"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">{t.showOnLanding}</span>
+              <span className="text-[13px] text-pretty text-muted-foreground">
+                {t.showOnLandingHint}
+              </span>
+            </span>
+          </label>
         </ActionForm>
       </section>
       <div className="flex items-center gap-3 text-[13px] text-faint lg:hidden">

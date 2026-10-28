@@ -276,6 +276,32 @@ export const shortDayMessages = dictionary(
   },
 );
 
+/** components/showcase-question.tsx (SPEC N-34): the one-time question about the landing page. */
+export const showcaseQuestionMessages = dictionary(
+  {
+    title: (count: number): string =>
+      count === 1 ? "Euer Team auf der Startseite?" : "Eure Teams auf der Startseite?",
+    text: (max: number) =>
+      `Auf der Startseite zeigen wir jetzt bis zu ${max} echte Teams aus der Teams-Liste mit Logo, Name, Hochschulen, Team-Rang und Zuverlässigkeit, für alle Besucher, auch ohne Anmeldung. Mitglieder stehen dort nicht. Ihr könnt das jederzeit in den Team-Einstellungen ändern.`,
+    yes: "Zeigen",
+    no: "Nicht zeigen",
+    save: "Speichern",
+    close: "Schließen",
+    closeHint: "Schließen gilt als „Nicht zeigen“.",
+  },
+  {
+    title: (count) =>
+      count === 1 ? "Your team on the home page?" : "Your teams on the home page?",
+    text: (max) =>
+      `The home page now shows up to ${max} real teams from the teams list with logo, name, universities, team rank and reliability, to all visitors, even without signing in. Members are not shown there. You can change this any time in the team settings.`,
+    yes: "Show",
+    no: "Don't show",
+    save: "Save",
+    close: "Close",
+    closeHint: "Closing counts as “Don't show”.",
+  },
+);
+
 /** components/whats-new (SPEC N-29): one entry per slide of config/whats-new.ts. */
 export const whatsNewMessages = dictionary(
   {

@@ -1,5 +1,6 @@
 import {
   FULLY_VERIFIED_PLAYER_COUNT,
+  LANDING_SHOWCASE_MAX,
   LOGO_BACKGROUNDS,
   LOGO_BACKGROUND_LABELS,
   TEAM_LINK_MAX,
@@ -22,6 +23,7 @@ import { requirePageUser } from "@/lib/session";
 import {
   removeTeamLogoAction,
   setTeamListedAction,
+  setTeamShowcaseAction,
   setVerifiedApplicantsOnlyAction,
   updateTeamAction,
   updateTeamLinksAction,
@@ -82,6 +84,36 @@ export async function TeamSettingsDialog({ intercepted }: { intercepted: boolean
                 >
                   <input type="hidden" name="teamId" value={team.id} />
                   <input type="hidden" name="listed" value={team.listed ? "false" : "true"} />
+                </ActionForm>
+              </div>
+              <div className="flex flex-col gap-2 border-t border-border pt-4">
+                <span className="text-[14px] font-medium">
+                  {t.landing}:{" "}
+                  <span className="font-normal text-muted-foreground">
+                    {team.onLanding
+                      ? t.onLanding
+                      : team.showOnLanding
+                        ? t.landingWaitsForList
+                        : t.offLanding}
+                  </span>
+                </span>
+                <p className="text-[13px] text-pretty text-muted-foreground">
+                  {t.landingHint(LANDING_SHOWCASE_MAX)}
+                </p>
+                <ActionForm
+                  action={setTeamShowcaseAction}
+                  guard={false}
+                  submitLabel={team.showOnLanding ? t.hideFromLanding : t.showOnLanding}
+                  variant="outline"
+                  size="sm"
+                  className="flex flex-col items-start"
+                >
+                  <input type="hidden" name="teamId" value={team.id} />
+                  <input
+                    type="hidden"
+                    name="showOnLanding"
+                    value={team.showOnLanding ? "false" : "true"}
+                  />
                 </ActionForm>
               </div>
               <div className="flex flex-col gap-2 border-t border-border pt-4">

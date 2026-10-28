@@ -1,14 +1,16 @@
-import { RANK_LABELS, RANKS } from "@uni-scrims/core";
+import { type LandingShowcaseTeam, RANK_LABELS, RANKS, getLandingShowcase } from "@uni-scrims/core";
 import { FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS } from "@uni-scrims/core/config/limits";
 import { cn } from "cn";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import type { ReactNode } from "react";
 import { DiscordIcon } from "@/components/brand-icons";
 import { StatusDot } from "@/components/detail-rows";
 import { CheckIcon, ChevronDownIcon, FileIcon, ShieldCheckIcon, XIcon } from "@/components/icons";
 import { LoginNote } from "@/components/login-note";
 import { PageMain } from "@/components/page-main";
-import { RankIcon } from "@/components/rank-icon";
+import { RankIcon, RankLabel } from "@/components/rank-icon";
+import { ReliabilityLine } from "@/components/reliability-line";
 import { StatTile } from "@/components/stat-tile";
 import { TeamAvatar } from "@/components/team-avatar";
 import { Alert } from "@/components/ui/alert";
@@ -19,6 +21,7 @@ import { formatMessages } from "@/i18n/format";
 import { landingMessages } from "@/i18n/public";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/callback-url";
 import { getLocale, getMessages } from "@/lib/locale";
+import { formatUniversities } from "@/lib/scrim-format";
 import { getSignedInUser, loginUrl } from "@/lib/session";
 import { BoardPreview, PREVIEW_TEAMS } from "./board-preview";
 import { HeroBackdrop, SnapIcon } from "./landing-art";
@@ -45,6 +48,47 @@ function SectionHead({ id, eyebrow, title }: { id: string; eyebrow: string; titl
   );
 }
 
+/**
+ * The teams whose captain agreed (SPEC N-34, §5.36); none if the database fails, so the landing
+ * page still renders.
+ */
+async function loadShowcase(): Promise<LandingShowcaseTeam[]> {
+  try {
+    return await getLandingShowcase(new Date());
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("Could not load the teams for the landing page", error);
+    return [];
+  }
+}
+
+/** One team on the landing page: like the teams list card, without members and links. */
+async function ShowcaseCard({ team }: { team: LandingShowcaseTeam }) {
+  const locale = await getLocale();
+  const t = await getMessages(landingMessages);
+  return (
+    <Card className="min-w-0 flex-1 gap-4 p-[18px]">
+      <div className="flex items-center gap-3">
+        <TeamAvatar team={team} className="border-border" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <h3 className="min-w-0 text-[16px] font-semibold break-words">
+            {team.name} <span className="font-label text-[13px] text-faint">{team.tag}</span>
+          </h3>
+          <span className="text-[13px] text-pretty text-muted-foreground">
+            {formatUniversities(team.universities, locale)}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-[13px] text-muted-foreground">
+          {t.showcase.teamRank} <RankLabel rank={team.rank} />
+        </p>
+        <ReliabilityLine reliability={team.reliability} />
+      </div>
+    </Card>
+  );
+}
+
 /** The landing page, also behind the support dialog (§5.33). */
 export async function LandingView({
   params,
@@ -52,7 +96,10 @@ export async function LandingView({
   params: Record<string, string | string[] | undefined>;
 }) {
   const { gesperrt, geloescht } = params;
-  const loggedIn = (await getSignedInUser()) !== null;
+  const [loggedIn, showcase] = await Promise.all([
+    getSignedInUser().then((user) => user !== null),
+    loadShowcase(),
+  ]);
   const locale = await getLocale();
   const t = await getMessages(landingMessages);
   const status = formatMessages[locale].applicationStatus;
@@ -314,6 +361,19 @@ export async function LandingView({
           </ul>
         </Card>
       </section>
+
+      {showcase.length > 0 ? (
+        <section aria-labelledby="landing-teams" className={cn(COLUMN, "py-[72px]")}>
+          <SectionHead id="landing-teams" eyebrow={t.showcase.eyebrow} title={t.showcase.title} />
+          <ul className={cn(CARD_GRID, "mt-8")}>
+            {showcase.map((team) => (
+              <li key={team.id} className="flex min-w-0">
+                <ShowcaseCard team={team} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section aria-labelledby="landing-reliability" className={cn(COLUMN, "py-[72px]")}>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))] items-center gap-x-16 gap-y-8">

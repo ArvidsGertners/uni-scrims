@@ -105,6 +105,12 @@ export const landingMessages = dictionary(
         },
       ],
     },
+    // Real teams whose captain agreed (SPEC N-34).
+    showcase: {
+      eyebrow: "Teams",
+      title: "Diese Teams sind schon dabei",
+      teamRank: "Team-Rang",
+    },
     reliability: "Verbindlichkeit",
     reliabilityTitle: "No-Shows werden",
     reliabilityAccent: "sichtbar.",
@@ -243,6 +249,11 @@ export const landingMessages = dictionary(
             "Requests and applications only from teams with a verified captain, badge for fully verified teams",
         },
       ],
+    },
+    showcase: {
+      eyebrow: "Teams",
+      title: "These teams are already here",
+      teamRank: "Team rank",
     },
     reliability: "Reliability",
     reliabilityTitle: "No-shows become",

@@ -142,6 +142,8 @@ export async function TeamView({ userId }: { userId: string }) {
               { label: t.universities, value: formatUniversities(team.universities, locale) },
               // Whether all signed-in users see the team and its members there (SPEC N-20).
               { label: t.teamsList, value: team.listed ? t.listed : t.unlisted },
+              // Whether all visitors see the team on the landing page (SPEC N-34).
+              { label: t.landing, value: team.onLanding ? t.onLanding : t.offLanding },
               // Who may apply to the team's requests (SPEC N-21).
               {
                 label: t.applicants,

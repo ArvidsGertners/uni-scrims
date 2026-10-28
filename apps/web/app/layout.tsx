@@ -6,11 +6,12 @@ import { LocaleProvider } from "@/components/locale-provider";
 import { RouteDialogTracker } from "@/components/route-dialog";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteFrame } from "@/components/site-frame";
+import { ShowcaseQuestion } from "@/components/showcase-question";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { WhatsNewProvider } from "@/components/whats-new/whats-new-provider";
 import { layoutMessages } from "@/i18n/chrome";
-import { siteChrome, whatsNewDue } from "@/lib/header-user";
+import { showcaseQuestion, siteChrome, whatsNewDue } from "@/lib/header-user";
 import { getLocale, getMessages } from "@/lib/locale";
 import { themeAttribute, themeColor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,12 @@ export default async function RootLayout({
   /** The route dialogs over the current page (app/@modal, §5.33). */
   modal: ReactNode;
 }) {
-  const [{ user }, locale, due] = await Promise.all([siteChrome(), getLocale(), whatsNewDue()]);
+  const [{ user }, locale, due, showcaseTeams] = await Promise.all([
+    siteChrome(),
+    getLocale(),
+    whatsNewDue(),
+    showcaseQuestion(),
+  ]);
   return (
     // Light or dark by the system setting (Phase 11), or as the account chose (Phase 17, §5.16),
     // through the tokens in globals.css. The language of the request (§5.21).
@@ -69,6 +75,8 @@ export default async function RootLayout({
               <SiteFooter />
               <RouteDialogTracker />
               {modal}
+              {/* After the what's new dialog (SPEC N-34). */}
+              <ShowcaseQuestion teams={showcaseTeams} userId={user?.id ?? null} />
             </WhatsNewProvider>
           </ThemeProvider>
         </LocaleProvider>

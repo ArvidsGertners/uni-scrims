@@ -30,6 +30,7 @@ function rightRows(t: Text): { right: string; cells: [Cell, Cell, Cell, Cell] }[
     { right: t.rights.readyToday, cells: ["✓¹", false, false, false] },
     { right: t.rights.editTeam, cells: [true, false, false, false] },
     { right: t.rights.listTeam, cells: [true, false, false, false] },
+    { right: t.rights.showcaseTeam, cells: [true, false, false, false] },
     { right: t.rights.verifiedApplicants, cells: [true, false, false, false] },
     { right: t.rights.manageMembers, cells: [true, false, false, false] },
     { right: t.rights.linkChannel, cells: [true, false, false, false] },
