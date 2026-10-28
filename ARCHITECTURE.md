@@ -2044,3 +2044,19 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 **Neuigkeiten-Ausgabe 2 (zu Phase 33)** (SPEC N-29, §5.31)
 - Neuer Inhalt für das vorhandene Neuigkeiten-Fenster, keine neue Funktion: Ausgabe `2026-10-phases-36-40` mit je einer Folie für Glocke, OPL-Verknüpfung, Uniliga-Liga und Teams auf der Startseite, jede mit eigener animierter Grafik in `components/whats-new/art/`. Die Grafiken der ersten Ausgabe entfallen. Kein Schema, keine `core`-Logik, keine Änderung an Datenschutz oder Datenauskunft. Zusammen mit den Phasen 37–40 deployt (Entscheidung des Nutzers, 28.10.2026).
 - *Fertig wenn:* Ein Konto, das die erste Ausgabe geschlossen hat, sieht die zweite einmal; alle vier Grafiken bauen sich auf (bei reduzierter Bewegung sofort im Endzustand), die Knöpfe führen an die Stelle aus §5.31; Deutsch und Englisch, hell und dunkel, ab 320 px.
+- *Stand (28.10.2026):* abgeschlossen. Code, Tests (`pnpm test` mit 1017 Tests, keine neuen, `whats-new.test.ts` nutzt die Konstante), `pnpm lint`, Review samt Fixes:
+  - Das englische Liga-Badge passte nicht in die Pille (kleinere Schrift, breitere Pille).
+  - Der Text der OPL-Folie versprach am Knopf auch die Team-Verknüpfung. Jetzt nennt er die Team-Einstellungen für das Team.
+  - Ein Klick auf „Zu den Team-Einstellungen“ öffnete die einmalige Startseiten-Frage (§5.36) über dem Dialog. Jetzt wartet sie, solange ein Dialog aus §5.33 offen ist (`isDialogPath`).
+  - Die grünen ID-Striche der OPL-Grafik gleiten jetzt mit ihren Karten.
+  - Die Schild-Form steht einmal in `art/motion.ts`.
+- Bewusst nicht geändert:
+  - Der Schalter der Startseiten-Grafik schwebt über einer Kachel.
+  - Die Schallwellen der Glocke zeichnen sich einmal, während die Glocke weiter schwingt.
+  - Die Grafik zeigt den Liga-Filter vereinfacht als Chips.
+- Im Browser gegen die Dev-DB (Playwright):
+  - Konten mit der ersten Ausgabe sahen das Fenster, alle vier Grafiken liefen (Glocke zählt 1 → 3, Zeiger liest, 2), Pfeiltasten, Punkte und Weiter funktionierten, und die Knöpfe führten zu `/account/notifications`, `/account`, `/teams` und `/team/settings`.
+  - „Los geht's“ schloss das Fenster, und nach dem Neuladen kam keins.
+  - Bei reduzierter Bewegung erschienen sofort die Endzustände.
+  - Englisch und hell bei 320 px ohne Überstand.
+- Für den Deploy: zusammen mit den Phasen 37–40, ohne eigene Migration oder Einstellung.
