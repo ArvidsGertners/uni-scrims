@@ -587,6 +587,14 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] **Erledigt für alle:** Sobald der Fall entschieden ist (Bescheinigung geprüft, Meldung verworfen oder Nachricht entfernt, Antrag entschieden, Streitfall aufgelöst) oder ohne Entscheidung endet (automatische Ablehnung, gelöschtes Konto, Sperre, vom Verfasser gelöschte Nachricht), gilt der Eintrag bei allen als gelesen, und noch nicht gesendete DMs entfallen. Wer seine Rolle verliert oder einen Bereich nicht mehr sieht, verliert dessen Einträge. Fehlgeschlagene Nachrichten bleiben beim Zähler im Admin-Bereich.
 - [x] Live wie die Glocke, auch im Admin-Bereich; Datenschutzerklärung ergänzt. Alles auf Deutsch und Englisch, ab 320 px, hell und dunkel.
 
+**N-34 Teams auf der Startseite** (Phase 38)
+- [ ] **Zustimmung** (Entscheidungen des Nutzers): Der Captain entscheidet, ob sein Team auf der Startseite stehen darf, beim Gründen (Häkchen, standardmäßig aus) oder später in den Team-Einstellungen. Ohne Zustimmung erscheint kein Team.
+- [ ] **Einmal fragen:** Captains von Teams, die es vor dieser Phase schon gab, sehen einmal einen Dialog mit der Frage, nach dem Neuigkeiten-Fenster (N-29). Hat jemand mehrere solche Teams, fragt ein Dialog für alle, je Team Ja oder Nein (vorgewählt Nein). Wer den Dialog ohne Wahl schließt, hat Nein gewählt (Entscheidung des Nutzers); einschalten lässt es sich jederzeit in den Team-Einstellungen. Eine getroffene Wahl bleibt beim Team, auch wenn der Captain wechselt; wird ein noch nicht gefragtes Team übergeben, fragt der Dialog den neuen Captain.
+- [ ] **Wer erscheint** (Entscheidungen des Nutzers): alle zugestimmten Teams, die in der Teams-Liste stehen (N-20) und nicht gesperrt oder aufgelöst sind, auch ohne gespielte Scrims; höchstens 8, Teams mit Logo zuerst, dann die mit den meisten Scrims der letzten 90 Tage, dann nach Namen. Ohne passendes Team fehlt der Abschnitt.
+- [ ] **Was zu sehen ist:** Ein Abschnitt zwischen „Warum Uni Scrims?“ und „Verbindlichkeit“ (Entscheidung des Nutzers) zeigt je Team Logo, Name, Kürzel, Hochschulen, Team-Rang und die Zuverlässigkeit der letzten 90 Tage (gespielte Scrims, No-Shows, kurzfristige Absagen), für alle Besucher, auch ohne Anmeldung. Keine Mitglieder, kein Link.
+- [ ] **Abschalten:** Abschalten in den Einstellungen, Ausblenden aus der Teams-Liste, Sperre oder Auflösung nehmen das Team sofort von der Startseite, samt seinem Logo für Abgemeldete. Tab „Team“ und Team-Einstellungen zeigen, ob das Team auf der Startseite steht.
+- [ ] Datenauskunft und Datenschutzerklärung nennen die Zustimmung und was öffentlich zu sehen ist; „Rollen und Rechte“ nennt das Recht des Captains. Alles auf Deutsch und Englisch, ab 320 px, hell und dunkel.
+
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
 - **Verifizierung pro Semester:** läuft zum Semesterende ab (31.03. bzw. 30.09.), danach neue Bescheinigung nötig.
