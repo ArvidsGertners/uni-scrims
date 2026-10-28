@@ -72,8 +72,8 @@ export const adminOverviewMessages = dictionary(
     bot: "Bot",
     botRunning: "Läuft",
     botOffline: "Offline",
-    /** The two loops of the bot (§6.2). */
-    loops: { sweeper: "Zeitsteuerung", outbox: "Versand" },
+    /** The loops of the bot (§6.2, §6.5). */
+    loops: { sweeper: "Zeitsteuerung", outbox: "Versand", opl: "OPL-Prüfung" },
     loopStatus: (loop: string, running: boolean, lastSeen: string) =>
       `${loop}: ${running ? "läuft" : "steht"}, ${lastSeen}`,
     lastSeen: (date: string) => `zuletzt ${date}`,
@@ -99,7 +99,7 @@ export const adminOverviewMessages = dictionary(
     bot: "Bot",
     botRunning: "Running",
     botOffline: "Offline",
-    loops: { sweeper: "Scheduler", outbox: "Delivery" },
+    loops: { sweeper: "Scheduler", outbox: "Delivery", opl: "OPL check" },
     loopStatus: (loop, running, lastSeen) =>
       `${loop}: ${running ? "running" : "stopped"}, ${lastSeen}`,
     lastSeen: (date) => `last seen ${date}`,

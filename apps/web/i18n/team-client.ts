@@ -33,3 +33,21 @@ export const memberRoleSelectMessages = dictionary(
   { roleOf: (name: string) => `Rolle von ${name}`, save: "Speichern" },
   { roleOf: (name) => `Role of ${name}`, save: "Save" },
 );
+
+/** The optional OPL team when founding (SPEC N-35). */
+export const oplTeamFieldMessages = dictionary(
+  {
+    label: "OPL-Team",
+    optional: "optional",
+    prefill: "Von OPL übernehmen",
+    linkFirst: "Bitte füge zuerst den Link zu eurem OPL-Team ein.",
+    hint: "Verknüpft das Team gleich mit eurem Team bei OPL; dafür musst du im Kader stehen. „Von OPL übernehmen“ trägt Name und Kürzel ein, beide kannst du ändern.",
+  },
+  {
+    label: "OPL team",
+    optional: "optional",
+    prefill: "Take over from OPL",
+    linkFirst: "Please paste the link to your OPL team first.",
+    hint: "Links the team with your team on OPL right away; you have to be in its roster. “Take over from OPL” fills in name and tag, you can change both.",
+  },
+);

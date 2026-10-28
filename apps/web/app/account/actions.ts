@@ -5,6 +5,8 @@ import {
   deleteAccount,
   emailSchema,
   handOverCaptain,
+  linkOplUser,
+  oplClientFromEnv,
   parseInput,
   passwordSchema,
   requireActiveAccountUser,
@@ -12,6 +14,7 @@ import {
   setNotificationPreferences,
   setPlayerRank,
   setThemePreference,
+  unlinkOplUser,
   updateRealName,
 } from "@uni-scrims/core";
 import { revalidatePath } from "next/cache";
@@ -21,7 +24,7 @@ import { type ActionState, formField, runAction } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { setFlash } from "@/lib/flash";
 import { parseNotificationForm } from "@/lib/notification-form";
-import { allowAttempt, rateLimited } from "@/lib/rate-limit";
+import { allowAttempt, allowUserAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 import { getMessages } from "@/lib/locale";
 import { publishConversationChanges } from "@/lib/realtime/bus";
@@ -97,6 +100,39 @@ export async function saveNotificationsAction(
   if (state.error) return state;
   await setFlash((await getMessages(accountActionMessages)).notificationsSaved);
   // The layout too: switching Discord off everywhere can take the DM banner away (§5.1).
+  revalidatePath("/", "layout");
+  return state;
+}
+
+/** The own OPL profile, only with the same Discord ID (SPEC N-35); asks OPL, so rate limited. */
+export async function linkOplUserAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const userId = (await getSessionUserId()) ?? "";
+  if (!allowUserAttempt("opl", userId)) return rateLimited();
+  const state = await runAction(async () => {
+    await linkOplUser({
+      userId,
+      url: String(formField(formData, "oplUrl") ?? ""),
+      opl: oplClientFromEnv(),
+      now: new Date(),
+    });
+  });
+  if (state.error) return state;
+  await setFlash((await getMessages(accountActionMessages)).oplLinked);
+  // The team page offers linking the team once the captain is linked.
+  revalidatePath("/", "layout");
+  return state;
+}
+
+export async function unlinkOplUserAction(): Promise<ActionState> {
+  const userId = (await getSessionUserId()) ?? "";
+  const state = await runAction(async () => {
+    await unlinkOplUser({ userId });
+  });
+  if (state.error) return state;
+  await setFlash((await getMessages(accountActionMessages)).oplUnlinked);
   revalidatePath("/", "layout");
   return state;
 }

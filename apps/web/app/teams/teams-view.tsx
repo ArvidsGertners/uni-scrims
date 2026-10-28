@@ -15,11 +15,13 @@ import { CheckboxFilters, readCheckboxFilters } from "@/components/filter-checkb
 import { FilterForm, FilterSubmit } from "@/components/filter-form";
 import { UsersIcon } from "@/components/icons";
 import { Masonry } from "@/components/masonry";
+import { OplLogo } from "@/components/opl-logo";
 import { PageMain } from "@/components/page-main";
 import { RankFilter } from "@/components/rank-filter";
 import { RankIcon, RankLabel } from "@/components/rank-icon";
 import { ReliabilityLine } from "@/components/reliability-line";
 import { TeamAvatar } from "@/components/team-avatar";
+import { EXTERNAL_LINK_PROPS } from "@/components/team-links";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -126,6 +128,18 @@ async function TeamCard({ team }: { team: TeamListEntry }) {
               {team.name} <span className="font-label text-[13px] text-faint">{team.tag}</span>
             </h2>
             {team.fullyVerified ? <FullyVerifiedBadge /> : null}
+            {/* The linked OPL team (SPEC N-35), marked with OPL's icon. */}
+            {team.oplUrl ? (
+              <a
+                href={team.oplUrl}
+                {...EXTERNAL_LINK_PROPS}
+                aria-label={t.onOpl(team.name)}
+                title={t.onOpl(team.name)}
+                className="-m-2 inline-flex size-8 items-center justify-center rounded-sm opacity-80 hover:opacity-100"
+              >
+                <OplLogo alt="" />
+              </a>
+            ) : null}
           </div>
           <span className="text-[13px] text-pretty text-muted-foreground">
             {formatUniversities(team.universities, locale)}

@@ -6,6 +6,9 @@ TODO: name, address, email
 ## Language
 TODO: as in the German version: Accept-Language is read and not stored; the cookie "locale" (de/en, one year) only on an explicit choice; signed in, the language on the account (on a choice, at sign-up or at the next sign-in without one; emails and Discord messages in it)
 
+## Linking OPL
+TODO: as in the German version: optional (Art. 6(1)(b)); only the IDs of the OPL profile and team, check times, the "deleted" count, the matches (members in the OPL roster) and the number of the others; the roster's Discord IDs are compared only during the check; checked daily; unlinking and deleting the account delete the data; in the data export
+
 ## Teams list
 TODO: as in the German version: in the teams list all signed-in users see the Discord names, roles and ranks of the members, unless the captain hides the team
 

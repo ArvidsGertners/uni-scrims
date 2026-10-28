@@ -1,14 +1,20 @@
+import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
+import { OplLogo } from "@/components/opl-logo";
 import { TeamFields } from "@/components/team-fields";
 import { createTeamAction } from "./actions";
 import { newTeamFormsMessages } from "@/i18n/team";
 import { getMessages } from "@/lib/locale";
 import { JoinLinkForm } from "./join-link-form";
+import { OplTeamField } from "./opl-team-field";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
 
-/** Found a team or paste an invite link: /team without a team and /team/new (SPEC N-17). */
-export async function NewTeamForms() {
+/**
+ * Found a team or paste an invite link: /team without a team and /team/new (SPEC N-17). With an own
+ * OPL profile the team can be linked with OPL right away (SPEC N-35).
+ */
+export async function NewTeamForms({ oplLinked }: { oplLinked: boolean }) {
   const t = await getMessages(newTeamFormsMessages);
   const baseUrl = process.env.BETTER_AUTH_URL ?? "";
   return (
@@ -38,6 +44,20 @@ export async function NewTeamForms() {
               </span>
             </span>
           </label>
+          {oplLinked ? (
+            <OplTeamField />
+          ) : (
+            <p className="flex items-start gap-2.5 text-[13px] text-pretty text-muted-foreground">
+              <OplLogo alt="" className="mt-0.5 h-4" />
+              <span>
+                {t.oplNeedsProfile((label) => (
+                  <Link href="/account" className="text-foreground underline underline-offset-2">
+                    {label}
+                  </Link>
+                ))}
+              </span>
+            </p>
+          )}
         </ActionForm>
       </section>
       <div className="flex items-center gap-3 text-[13px] text-faint lg:hidden">

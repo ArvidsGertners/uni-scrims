@@ -99,6 +99,28 @@ export const teamPageMessages = dictionary(
     },
     saveLinks: "Links speichern",
     noLinks: "Noch keine Links.",
+    oplLinked: "Verknüpft",
+    oplUnlinked: "Nicht verknüpft",
+    oplSettingsHint:
+      "Verknüpft euer Team mit eurem Team bei OPL (opleague.pro); dafür musst du dort im Kader stehen. Mitglieder, die auch im OPL-Kader stehen, erscheinen dann im Tab „Team“. Wir prüfen etwa einmal am Tag.",
+    oplTeamLink: "Link zu eurem OPL-Team",
+    oplLinkSubmit: "Verknüpfen",
+    oplUnlink: "Verknüpfung lösen",
+    oplUnlinkConfirm: "OPL-Verknüpfung des Teams lösen?",
+    oplNeedsProfile: (link: LinkRender) => (
+      <>Verknüpfe zuerst {link("dein OPL-Profil")}, dann das Team.</>
+    ),
+    oplTeamOnOpl: "Team auf OPL",
+    oplOnUniScrims: "Auf Uni Scrims",
+    oplNoMatches: "Noch niemand aus diesem Team",
+    oplOthers: (count: number) =>
+      count === 1 ? "1 weitere Person auf OPL" : `${count} weitere auf OPL`,
+    oplCheckedAt: (date: string) => `Zuletzt geprüft am ${date}`,
+    oplCardHint:
+      "Mitglieder dieses Teams, die auch im OPL-Kader stehen (Abgleich über Discord), und wie viele dort sonst noch stehen.",
+    oplNotLinked: (link: LinkRender) => (
+      <>Noch nicht mit OPL verknüpft. Das geht in den {link("Team-Einstellungen")}.</>
+    ),
     bannedLastMember: "Als letztes Mitglied kannst du das gesperrte Team auflösen.",
     captainLeaveNote: (link: LinkRender) => (
       <>
@@ -197,6 +219,27 @@ export const teamPageMessages = dictionary(
     },
     saveLinks: "Save links",
     noLinks: "No links yet.",
+    oplLinked: "Linked",
+    oplUnlinked: "Not linked",
+    oplSettingsHint:
+      "Link your team with your team on OPL (opleague.pro); you have to be in its roster there. Members who are also in the OPL roster then show up in the “Team” tab. We check about once a day.",
+    oplTeamLink: "Link to your OPL team",
+    oplLinkSubmit: "Link",
+    oplUnlink: "Unlink",
+    oplUnlinkConfirm: "Unlink the team from OPL?",
+    oplNeedsProfile: (link: LinkRender) => (
+      <>First link {link("your OPL profile")}, then the team.</>
+    ),
+    oplTeamOnOpl: "Team on OPL",
+    oplOnUniScrims: "On Uni Scrims",
+    oplNoMatches: "Nobody from this team yet",
+    oplOthers: (count: number) => (count === 1 ? "1 more on OPL" : `${count} more on OPL`),
+    oplCheckedAt: (date: string) => `Last checked on ${date}`,
+    oplCardHint:
+      "Members of this team who are also in the OPL roster (matched via Discord), and how many others are there.",
+    oplNotLinked: (link: LinkRender) => (
+      <>Not linked with OPL yet. You can do that in the {link("team settings")}.</>
+    ),
     bannedLastMember: "As the last member, you can dissolve the banned team.",
     captainLeaveNote: (link) => (
       <>
@@ -269,6 +312,9 @@ export const newTeamFormsMessages = dictionary(
     showOnLanding: "Team auf der Startseite zeigen",
     showOnLandingHint:
       "Alle Besucher sehen dann Logo, Name, Hochschulen, Team-Rang und Zuverlässigkeit, keine Mitglieder. Später in den Team-Einstellungen änderbar.",
+    oplNeedsProfile: (link: LinkRender) => (
+      <>Mit eurem Team bei OPL verknüpfen? Verknüpfe zuerst {link("dein OPL-Profil")}.</>
+    ),
     or: "oder",
     joinHeading: "Team beitreten",
     joinHint: "Frag deinen Captain nach dem Einladungslink und öffne ihn. Oder füge ihn hier ein:",
@@ -279,6 +325,9 @@ export const newTeamFormsMessages = dictionary(
     showOnLanding: "Show the team on the home page",
     showOnLandingHint:
       "All visitors then see its logo, name, universities, team rank and reliability, but no members. You can change this later in the team settings.",
+    oplNeedsProfile: (link: LinkRender) => (
+      <>Link with your team on OPL? First link {link("your OPL profile")}.</>
+    ),
     or: "or",
     joinHeading: "Join a team",
     joinHint: "Ask your captain for the invite link and open it. Or paste it here:",
@@ -385,6 +434,8 @@ export const rolesTableMessages = dictionary(
       editTeam: "Team, Logos und Links bearbeiten, Einladungslink",
       listTeam: "Team in der Teams-Liste zeigen oder ausblenden",
       showcaseTeam: "Team auf der Startseite zeigen oder nicht",
+      oplTeam: "Team mit OPL verknüpfen oder die Verknüpfung lösen",
+      oplRoster: "Sehen, wer aus dem Team im OPL-Kader steht",
       verifiedApplicants: "Bewerbungen auf vollständig verifizierte Teams beschränken",
       manageMembers: "Rollen setzen, Mitglieder entfernen, Captain übertragen",
       linkChannel: "Team-Channel verknüpfen (/setup)",
@@ -422,6 +473,8 @@ export const rolesTableMessages = dictionary(
       editTeam: "Edit team, logos and links, invite link",
       listTeam: "Show or hide the team on the teams list",
       showcaseTeam: "Show the team on the home page or not",
+      oplTeam: "Link the team with OPL or unlink it",
+      oplRoster: "See who from the team is in the OPL roster",
       verifiedApplicants: "Admit only fully verified teams as applicants",
       manageMembers: "Set roles, remove members, hand over captain",
       linkChannel: "Link the team channel (/setup)",
@@ -484,6 +537,8 @@ export const teamActionMessages = dictionary(
     allApplicants: "Ab jetzt lasst ihr alle Teams zu",
     dissolved: "Du hast das Team aufgelöst",
     left: "Du hast das Team verlassen",
+    oplLinked: "Das Team ist mit OPL verknüpft",
+    oplUnlinked: "Die OPL-Verknüpfung des Teams ist gelöst",
   },
   {
     chooseImage: "Please choose an image.",
@@ -497,5 +552,7 @@ export const teamActionMessages = dictionary(
     allApplicants: "From now on you admit all teams",
     dissolved: "You dissolved the team",
     left: "You left the team",
+    oplLinked: "Your team is linked with OPL",
+    oplUnlinked: "Your team is no longer linked with OPL",
   },
 );

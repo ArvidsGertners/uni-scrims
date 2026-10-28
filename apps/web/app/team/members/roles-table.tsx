@@ -31,6 +31,9 @@ function rightRows(t: Text): { right: string; cells: [Cell, Cell, Cell, Cell] }[
     { right: t.rights.editTeam, cells: [true, false, false, false] },
     { right: t.rights.listTeam, cells: [true, false, false, false] },
     { right: t.rights.showcaseTeam, cells: [true, false, false, false] },
+    // The captain needs an own OPL profile in the roster (SPEC N-35).
+    { right: t.rights.oplTeam, cells: [true, false, false, false] },
+    { right: t.rights.oplRoster, cells: [true, true, true, true] },
     { right: t.rights.verifiedApplicants, cells: [true, false, false, false] },
     { right: t.rights.manageMembers, cells: [true, false, false, false] },
     { right: t.rights.linkChannel, cells: [true, false, false, false] },

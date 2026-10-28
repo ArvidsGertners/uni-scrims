@@ -13,7 +13,8 @@ type Rule = { max: number; windowMs: number };
  * Logging in and registering: 5 per minute; requesting a mail: 3 per minute (SPEC N-3). Codes of
  * the staff 2FA, set up and login (§5.9): 10 per minute, as one setup alone takes several, and the
  * plugin locks brute force itself. Team logo uploads (§5.11): 5 per minute, as each costs image work.
- * Messages between teams (SPEC N-28): 20 per minute and user.
+ * Messages between teams (SPEC N-28): 20 per minute and user. Everything that asks OPL (SPEC N-35):
+ * 5 per 10 minutes and user, as OPL's limit is shared with the bot's checks.
  */
 export const RATE_LIMITS = {
   login: { max: 5, windowMs: 60_000 },
@@ -22,6 +23,7 @@ export const RATE_LIMITS = {
   code: { max: 10, windowMs: 60_000 },
   logo: { max: 5, windowMs: 60_000 },
   message: { max: 20, windowMs: 60_000 },
+  opl: { max: 5, windowMs: 600_000 },
 } satisfies Record<string, Rule>;
 
 /** The answer of an action over its limit, in the language of the request (§5.21). */

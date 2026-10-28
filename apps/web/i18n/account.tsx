@@ -64,6 +64,17 @@ export const accountPageMessages = dictionary(
     discordNotLinked: (link: LinkPart) => (
       <>Noch nicht verknüpft. Das geht im {link("nächsten Schritt der Einrichtung")}.</>
     ),
+    oplIntro:
+      "Verknüpfe dein Profil bei OPL (opleague.pro). Das geht nur, wenn dort dasselbe Discord-Konto hinterlegt ist wie hier.",
+    oplProfileLink: "Link zu deinem OPL-Profil",
+    oplLink: "Verknüpfen",
+    oplHint:
+      "Discord verknüpfst du auf OPL in deinem Profil. Wir speichern nur die ID deines OPL-Profils und prüfen etwa einmal am Tag, ob die Verknüpfung noch passt.",
+    oplLinked: "Mit OPL verknüpft",
+    oplProfile: "Dein Profil auf OPL",
+    oplCheckedAt: (date: string) => `Zuletzt geprüft am ${date}`,
+    oplUnlink: "Verknüpfung lösen",
+    oplUnlinkConfirm: "OPL-Verknüpfung lösen? Ist dein Team mit OPL verknüpft, bleibt das so.",
     nameAndSignIn: "Name und Anmeldung",
     saveName: "Name speichern",
     nameHint:
@@ -154,6 +165,17 @@ export const accountPageMessages = dictionary(
     discordNotLinked: (link: LinkPart) => (
       <>Not linked yet. You can do that in the {link("next step of the setup")}.</>
     ),
+    oplIntro:
+      "Link your profile on OPL (opleague.pro). This only works if it has the same Discord account as here.",
+    oplProfileLink: "Link to your OPL profile",
+    oplLink: "Link",
+    oplHint:
+      "You link Discord on OPL in your profile. We only store the ID of your OPL profile and check about once a day that the link still fits.",
+    oplLinked: "Linked with OPL",
+    oplProfile: "Your profile on OPL",
+    oplCheckedAt: (date: string) => `Last checked on ${date}`,
+    oplUnlink: "Unlink",
+    oplUnlinkConfirm: "Unlink OPL? If your team is linked with OPL, it stays that way.",
     nameAndSignIn: "Name and sign-in",
     saveName: "Save name",
     nameHint:
@@ -212,6 +234,8 @@ export const accountActionMessages = dictionary(
     emailLinkSent: "Wir haben dir einen Link an die neue Adresse geschickt",
     passwordChanged: "Passwort geändert",
     captainHandedOver: "Captain-Rolle übertragen",
+    oplLinked: "OPL-Profil verknüpft",
+    oplUnlinked: "OPL-Verknüpfung gelöst",
   },
   {
     confirmDeletion: "Please confirm that you want to delete your account.",
@@ -221,6 +245,8 @@ export const accountActionMessages = dictionary(
     emailLinkSent: "We've sent you a link to the new address",
     passwordChanged: "Password changed",
     captainHandedOver: "Captain role handed over",
+    oplLinked: "OPL profile linked",
+    oplUnlinked: "OPL unlinked",
   },
 );
 

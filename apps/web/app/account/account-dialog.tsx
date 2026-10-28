@@ -1,4 +1,11 @@
-import { RANKS, RANK_LABELS, THEME_LABELS, getAccount, userDisplayName } from "@uni-scrims/core";
+import {
+  RANKS,
+  RANK_LABELS,
+  THEME_LABELS,
+  formatBerlinDate,
+  getAccount,
+  userDisplayName,
+} from "@uni-scrims/core";
 import { ThemePreference } from "@uni-scrims/db";
 import { cn } from "cn";
 import Link from "next/link";
@@ -10,6 +17,9 @@ import { DiscordButton } from "@/components/discord-button";
 import { DiscordDmWarning } from "@/components/discord-dm-warning";
 import { CheckIcon } from "@/components/icons";
 import { DialogShell } from "@/components/dialog-shell";
+import { OplLogo } from "@/components/opl-logo";
+import { OplUrlInput } from "@/components/opl-url-input";
+import { EXTERNAL_LINK_PROPS } from "@/components/team-links";
 import { DETAIL_COLUMNS } from "@/components/page-main";
 import { RankIcon } from "@/components/rank-icon";
 import { UserAvatar } from "@/components/user-avatar";
@@ -22,7 +32,9 @@ import {
   changeEmailAction,
   changePasswordAction,
   handOverCaptainAction,
+  linkOplUserAction,
   setPlayerRankAction,
+  unlinkOplUserAction,
   updateRealNameAction,
 } from "./actions";
 import { switchTeamAction } from "../team/actions";
@@ -283,6 +295,60 @@ export async function AccountDialog({
                 </Link>
               ))}
             </p>
+          )}
+          {/* OPL (SPEC N-35): needs a complete, active account, as linking compares the Discord ID. */}
+          {account.banned || account.setupStep ? null : (
+            <>
+              <h3 className="-mb-1 border-t border-border pt-4">
+                <OplLogo variant="wordmark" className="h-5" />
+              </h3>
+              {account.opl ? (
+                <>
+                  <a
+                    href={account.opl.url}
+                    {...EXTERNAL_LINK_PROPS}
+                    className="flex min-h-11 items-center gap-3 text-[14px] hover:text-foreground"
+                  >
+                    <OplLogo alt="" />
+                    <span className="font-medium">{t.oplProfile}</span>
+                    <span className="ml-auto min-w-0 truncate text-muted-foreground">
+                      {account.opl.url.replace(/^https:\/\/(www\.)?/, "")}
+                    </span>
+                  </a>
+                  <span className="flex items-center gap-2 text-[14px] text-success">
+                    <CheckIcon strokeWidth={3} />
+                    {t.oplLinked}
+                  </span>
+                  <p className="text-[13px] text-muted-foreground">
+                    {t.oplCheckedAt(formatBerlinDate(account.opl.checkedAt, locale))}
+                  </p>
+                  <ActionForm
+                    action={unlinkOplUserAction}
+                    submitLabel={t.oplUnlink}
+                    confirmText={t.oplUnlinkConfirm}
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-col items-start"
+                  />
+                </>
+              ) : (
+                <>
+                  <p className="text-[14px] text-pretty text-muted-foreground">{t.oplIntro}</p>
+                  <ActionForm
+                    action={linkOplUserAction}
+                    submitLabel={t.oplLink}
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-col gap-3"
+                  >
+                    <Field label={t.oplProfileLink}>
+                      <OplUrlInput name="oplUrl" required />
+                    </Field>
+                  </ActionForm>
+                  <p className="text-[13px] text-pretty text-muted-foreground">{t.oplHint}</p>
+                </>
+              )}
+            </>
           )}
         </section>
         {account.firstName && !account.banned ? (

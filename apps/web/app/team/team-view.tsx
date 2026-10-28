@@ -6,7 +6,9 @@ import {
   RELIABILITY_WINDOW_DAYS,
   describeStartDay,
   describeStartTime,
+  formatBerlinDate,
   getTeamDashboard,
+  requireUser,
 } from "@uni-scrims/core";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
@@ -14,6 +16,7 @@ import { CopyValue } from "@/components/copy-value";
 import { PageMain } from "@/components/page-main";
 import { RankLabel } from "@/components/rank-icon";
 import { StatTile } from "@/components/stat-tile";
+import { OplLogo } from "@/components/opl-logo";
 import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
 import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
 import { leaveTeamAction, regenerateInviteAction } from "./actions";
@@ -45,7 +48,7 @@ export async function TeamView({ userId }: { userId: string }) {
             {t.noTeamIntro(FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS)}
           </p>
         </div>
-        <NewTeamForms />
+        <NewTeamForms oplLinked={(await requireUser(userId)).oplUserId !== null} />
       </PageMain>
     );
   }
@@ -223,6 +226,68 @@ export async function TeamView({ userId }: { userId: string }) {
               </ul>
             )}
           </section>
+
+          {/* OPL (SPEC N-35): the members in the OPL roster by name, the others as a number. */}
+          {team.opl ? (
+            <section className={`${cardClass} gap-3`}>
+              <div className="flex flex-col gap-1">
+                <h2 className="type-h2">
+                  <OplLogo variant="wordmark" className="h-5" />
+                </h2>
+                <p className="text-[13px] text-pretty text-muted-foreground">{t.oplCardHint}</p>
+              </div>
+              <a
+                href={team.opl.url}
+                {...EXTERNAL_LINK_PROPS}
+                className="flex min-h-11 items-center gap-3 border-b border-border py-2 text-[14px] hover:text-foreground"
+              >
+                <OplLogo alt="" />
+                <span className="font-medium">{t.oplTeamOnOpl}</span>
+                <span className="ml-auto min-w-0 truncate text-muted-foreground">
+                  {team.opl.url.replace(/^https:\/\/(www\.)?/, "")}
+                </span>
+              </a>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[14px] font-medium">{t.oplOnUniScrims}</span>
+                {team.opl.matches.length === 0 ? (
+                  <p className="text-[14px] text-muted-foreground">{t.oplNoMatches}</p>
+                ) : (
+                  <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[14px]">
+                    {team.opl.matches.map((member) => (
+                      <li key={member.id} className="min-w-0 break-words">
+                        {member.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {team.opl.others > 0 ? (
+                <span className="flex items-center gap-2 text-[14px] text-muted-foreground">
+                  <OplLogo alt="" />
+                  {t.oplOthers(team.opl.others)}
+                </span>
+              ) : null}
+              <p className="text-[13px] text-faint">
+                {t.oplCheckedAt(formatBerlinDate(team.opl.checkedAt, locale))}
+              </p>
+            </section>
+          ) : manage ? (
+            <section className={`${cardClass} gap-2`}>
+              <h2 className="type-h2">
+                <OplLogo variant="wordmark" className="h-5" />
+              </h2>
+              <p className="text-[14px] text-pretty text-muted-foreground">
+                {t.oplNotLinked((label) => (
+                  <Link
+                    href="/team/settings"
+                    className="text-foreground underline underline-offset-2"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </p>
+            </section>
+          ) : null}
         </div>
       </div>
 

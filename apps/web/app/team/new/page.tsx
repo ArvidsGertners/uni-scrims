@@ -33,7 +33,7 @@ export default async function NewTeamPage() {
           </span>
         </Alert>
       ) : (
-        <NewTeamForms />
+        <NewTeamForms oplLinked={user.oplUserId !== null} />
       )}
     </PageMain>
   );

@@ -6,6 +6,9 @@ import {
   createTeam,
   joinTeam,
   leaveTeam,
+  linkOplTeam,
+  oplClientFromEnv,
+  previewOplTeam,
   regenerateInvite,
   removeMember,
   logoBackgroundSchema,
@@ -17,6 +20,7 @@ import {
   setVerifiedApplicantsOnly,
   setTeamLogo,
   transferCaptain,
+  unlinkOplTeam,
   updateTeam,
   updateTeamLinks,
 } from "@uni-scrims/core";
@@ -28,7 +32,7 @@ import { type ActionState, formField, idSchema, invalidInput, runAction } from "
 import { setFlash } from "@/lib/flash";
 import { teamActionMessages } from "@/i18n/team";
 import { getMessages } from "@/lib/locale";
-import { allowAttempt, rateLimited } from "@/lib/rate-limit";
+import { allowAttempt, allowUserAttempt, rateLimited } from "@/lib/rate-limit";
 import { getSessionUserId } from "@/lib/session";
 
 // Shape check only; the content rules (lengths) live in core's teamInputSchema.
@@ -53,11 +57,15 @@ export async function createTeamAction(_state: ActionState, formData: FormData) 
   const userId = (await getSessionUserId()) ?? "";
   const input = teamInput(formData);
   if (!input) return invalidInput();
+  // The optional OPL team (SPEC N-35); only a filled-in link asks OPL and counts for its limit.
+  const oplUrl = String(formField(formData, "oplUrl") ?? "").trim();
+  if (oplUrl && !allowUserAttempt("opl", userId)) return rateLimited();
   let teamName = "";
   const state = await runAction(async () => {
     // An unchecked checkbox sends nothing: off (SPEC N-34).
     const showOnLanding = formData.get("showOnLanding") === "on";
-    teamName = (await createTeam({ ...input, userId, now: new Date(), showOnLanding })).name;
+    const opl = { url: oplUrl, api: oplClientFromEnv() };
+    teamName = (await createTeam({ ...input, userId, now: new Date(), showOnLanding, opl })).name;
   });
   if (!state.done) return state;
   await setFlash((await getMessages(teamActionMessages)).welcome(teamName));
@@ -166,6 +174,50 @@ export async function setTeamListedAction(_state: ActionState, formData: FormDat
     await setFlash(listed.data === "true" ? t.listed : t.unlisted);
   }
   // finish revalidates the whole layout, the teams list included (SPEC N-20).
+  return finish(state);
+}
+
+/** Name and tag of an OPL team for the founding form (SPEC N-35); stores nothing. */
+export async function previewOplTeamAction(
+  url: string,
+): Promise<{ error: string } | { name: string; shortName: string | null }> {
+  const userId = (await getSessionUserId()) ?? "";
+  if (typeof url !== "string") return { error: (await invalidInput()).error! };
+  if (!allowUserAttempt("opl", userId)) return { error: (await rateLimited()).error! };
+  let preview: { name: string; shortName: string | null } | null = null;
+  const state = await runAction(async () => {
+    preview = await previewOplTeam({ userId, url, opl: oplClientFromEnv() });
+  });
+  return preview ?? { error: state.error ?? "" };
+}
+
+/** The team's OPL team, only with the captain in its roster (SPEC N-35). */
+export async function linkOplTeamAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  if (!teamId.success) return invalidInput();
+  if (!allowUserAttempt("opl", userId)) return rateLimited();
+  const state = await runAction(async () => {
+    await linkOplTeam({
+      userId,
+      teamId: teamId.data,
+      url: String(formField(formData, "oplUrl") ?? ""),
+      opl: oplClientFromEnv(),
+      now: new Date(),
+    });
+  });
+  if (state.done) await setFlash((await getMessages(teamActionMessages)).oplLinked);
+  return finish(state);
+}
+
+export async function unlinkOplTeamAction(_state: ActionState, formData: FormData) {
+  const userId = (await getSessionUserId()) ?? "";
+  const teamId = idSchema.safeParse(formField(formData, "teamId"));
+  if (!teamId.success) return invalidInput();
+  const state = await runAction(async () => {
+    await unlinkOplTeam({ userId, teamId: teamId.data });
+  });
+  if (state.done) await setFlash((await getMessages(teamActionMessages)).oplUnlinked);
   return finish(state);
 }
 

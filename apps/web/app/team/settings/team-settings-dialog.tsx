@@ -8,12 +8,15 @@ import {
   TEAM_LINK_TEXTS,
   getTeamDashboard,
 } from "@uni-scrims/core";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { DialogShell } from "@/components/dialog-shell";
+import { OplLogo } from "@/components/opl-logo";
+import { OplUrlInput } from "@/components/opl-url-input";
 import { TeamLogoPreview } from "@/components/team-avatar";
 import { TeamFields } from "@/components/team-fields";
-import { TeamLinkIcon } from "@/components/team-links";
+import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
 import { Alert } from "@/components/ui/alert";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -21,10 +24,12 @@ import { teamPageMessages } from "@/i18n/team";
 import { getLocale, getMessages } from "@/lib/locale";
 import { requirePageUser } from "@/lib/session";
 import {
+  linkOplTeamAction,
   removeTeamLogoAction,
   setTeamListedAction,
   setTeamShowcaseAction,
   setVerifiedApplicantsOnlyAction,
+  unlinkOplTeamAction,
   updateTeamAction,
   updateTeamLinksAction,
 } from "../actions";
@@ -138,6 +143,65 @@ export async function TeamSettingsDialog({ intercepted }: { intercepted: boolean
                     value={team.verifiedApplicantsOnly ? "false" : "true"}
                   />
                 </ActionForm>
+              </div>
+              {/* OPL (SPEC N-35): the captain links the team when in its OPL roster. */}
+              <div className="flex flex-col gap-2 border-t border-border pt-4">
+                <span className="flex items-center gap-2 text-[14px] font-medium">
+                  <OplLogo variant="wordmark" className="h-4" />
+                  <span className="font-normal text-muted-foreground">
+                    {team.opl ? t.oplLinked : t.oplUnlinked}
+                  </span>
+                </span>
+                <p className="text-[13px] text-pretty text-muted-foreground">{t.oplSettingsHint}</p>
+                {team.opl ? (
+                  <>
+                    <a
+                      href={team.opl.url}
+                      {...EXTERNAL_LINK_PROPS}
+                      className="flex min-h-11 items-center gap-3 text-[14px] hover:text-foreground"
+                    >
+                      <OplLogo alt="" />
+                      <span className="font-medium">{t.oplTeamOnOpl}</span>
+                      <span className="ml-auto min-w-0 truncate text-muted-foreground">
+                        {team.opl.url.replace(/^https:\/\/(www\.)?/, "")}
+                      </span>
+                    </a>
+                    <ActionForm
+                      action={unlinkOplTeamAction}
+                      submitLabel={t.oplUnlink}
+                      confirmText={t.oplUnlinkConfirm}
+                      variant="outline"
+                      size="sm"
+                      className="flex flex-col items-start"
+                    >
+                      <input type="hidden" name="teamId" value={team.id} />
+                    </ActionForm>
+                  </>
+                ) : team.ownOplLinked ? (
+                  <ActionForm
+                    action={linkOplTeamAction}
+                    submitLabel={t.oplLinkSubmit}
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-col gap-3"
+                  >
+                    <input type="hidden" name="teamId" value={team.id} />
+                    <Field label={t.oplTeamLink}>
+                      <OplUrlInput name="oplUrl" required />
+                    </Field>
+                  </ActionForm>
+                ) : (
+                  <p className="text-[14px] text-pretty text-muted-foreground">
+                    {t.oplNeedsProfile((label) => (
+                      <Link
+                        href="/account"
+                        className="text-foreground underline underline-offset-2"
+                      >
+                        {label}
+                      </Link>
+                    ))}
+                  </p>
+                )}
               </div>
             </section>
 

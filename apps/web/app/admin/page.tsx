@@ -6,7 +6,7 @@ import { AdminShell } from "./admin-shell";
 import { getLocale, getMessages } from "@/lib/locale";
 import { adminOverviewMessages } from "@/i18n/admin";
 
-const BOT_LOOPS = ["sweeper", "outbox"] as const;
+const BOT_LOOPS = ["sweeper", "outbox", "opl"] as const;
 
 /** Start page of the admin area (SPEC N-10): what waits, by role. */
 export default async function AdminOverviewPage() {
