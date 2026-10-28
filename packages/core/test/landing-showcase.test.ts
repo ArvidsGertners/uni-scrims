@@ -132,10 +132,11 @@ describe("getLandingShowcase", () => {
   });
 
   it("has only the count when no captain agreed", async () => {
+    const before = (await getLandingShowcase(NOW)).others;
     await createTeamWithMembers();
     const showcase = await getLandingShowcase(NOW);
     expect(showcase.teams).toEqual([]);
-    expect(showcase.others).toBeGreaterThan(0);
+    expect(showcase.others).toBe(before + 1);
   });
 
   it("returns rank, universities and reliability but no members", async () => {

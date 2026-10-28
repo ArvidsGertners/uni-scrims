@@ -391,8 +391,9 @@ export async function LandingView({
               ))}
             </ul>
           ) : null}
-          {showcase.others > 0 ? (
-            // The others only as a number (SPEC N-37); the teams list asks for a login first.
+          {showcase.others > 0 && !gesperrt ? (
+            // The others only as a number (SPEC N-37); the teams list asks for a login first. Like
+            // every way in, not for a banned account.
             <Link
               href={loggedIn ? "/teams" : loginUrl("/teams")}
               className="mt-6 inline-flex items-center gap-1 text-[15px] font-semibold text-accent-text hover:underline"

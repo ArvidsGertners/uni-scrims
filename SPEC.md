@@ -614,11 +614,11 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Gespeichert werden nur die OPL-Team-IDs der angemeldeten Teams mit Liga und Gruppe, keine Personendaten. Die Datenschutzerklärung nennt das. Alles auf Deutsch und Englisch, ab 320 px, hell und dunkel.
 
 **N-37 Zahl weiterer Teams auf der Startseite** (Phase 41)
-- [ ] **Zahl statt Namen** (Wunsch des Nutzers): Unter den Teams auf der Startseite (N-34) steht, wie viele Teams es sonst noch auf Uni Scrims gibt, etwa „und 4 weitere Teams“. Teams ohne Zustimmung des Captains erscheinen weiter nicht, sie zählen nur mit.
-- [ ] **Wer zählt** (Entscheidung des Nutzers): alle aktiven Teams, also nicht gesperrt und nicht aufgelöst, auch aus der Teams-Liste ausgeblendete, abzüglich der gezeigten. Eine reine Zahl, ohne Namen oder sonstige Angaben zu einem Team.
-- [ ] **Ohne gezeigte Teams** (Entscheidung des Nutzers): Hat kein Captain zugestimmt, steht der Abschnitt trotzdem da, nur mit der Zahl („Schon 12 Teams sind dabei“). Gibt es gar kein aktives Team, fehlt er wie bisher. Sind alle aktiven Teams gezeigt, fehlt die Zeile.
-- [ ] **Link** (Entscheidung des Nutzers): Die Zeile führt zur Teams-Liste (`/teams`); wer nicht angemeldet ist, landet zuerst bei der Anmeldung.
-- [ ] Deutsch und Englisch mit Einzahl und Mehrzahl, ab 320 px, hell und dunkel. Keine neuen Daten, also keine Änderung an Datenschutzerklärung oder Datenauskunft.
+- [x] **Zahl statt Namen** (Wunsch des Nutzers): Unter den Teams auf der Startseite (N-34) steht, wie viele Teams es sonst noch auf Uni Scrims gibt, etwa „und 4 weitere Teams“. Teams ohne Zustimmung des Captains erscheinen weiter nicht, sie zählen nur mit.
+- [x] **Wer zählt** (Entscheidung des Nutzers): alle aktiven Teams, also nicht gesperrt und nicht aufgelöst, auch aus der Teams-Liste ausgeblendete, abzüglich der gezeigten. Eine reine Zahl, ohne Namen oder sonstige Angaben zu einem Team.
+- [x] **Ohne gezeigte Teams** (Entscheidung des Nutzers): Hat kein Captain zugestimmt, steht der Abschnitt trotzdem da, nur mit der Zahl („Schon 12 Teams sind dabei“). Gibt es gar kein aktives Team, fehlt er wie bisher. Sind alle aktiven Teams gezeigt, fehlt die Zeile.
+- [x] **Link** (Entscheidung des Nutzers): Die Zeile führt zur Teams-Liste (`/teams`); wer nicht angemeldet ist, landet zuerst bei der Anmeldung.
+- [x] Deutsch und Englisch mit Einzahl und Mehrzahl, ab 320 px, hell und dunkel. Keine neuen Daten, also keine Änderung an Datenschutzerklärung oder Datenauskunft.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
