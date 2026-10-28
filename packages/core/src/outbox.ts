@@ -13,6 +13,7 @@ import {
 } from "@uni-scrims/db";
 import { type DevEnv, getDevChannelId, getDevDmRedirectId } from "../config/dev.ts";
 import type { Db } from "./db.ts";
+import { writeInboxItems } from "./inbox.ts";
 import { lockTeam, lockUser } from "./locks.ts";
 import { effectiveChannels, notificationAudience } from "./notification-settings.ts";
 import {
@@ -343,9 +344,10 @@ async function recordFailure(
 /**
  * Fans a personal notification out into USER_DM and USER_EMAIL children, one per person and channel
  * switched on (§5.17): the person for SELF types, the current captain for CAPTAIN types, every
- * member for TEAM types. Under the team or user lock (§4), so it sees the current members and no
- * child is created for an account deleted meanwhile. The parent becomes SENT as distributed, or
- * CANCELLED without a single child; null if it was no longer pending.
+ * member for TEAM types. Every one of them also gets a bell entry, whatever their channels (Phase
+ * 36, §5.34). Under the team or user lock (§4), so it sees the current members and nothing is
+ * created for an account deleted meanwhile. The parent becomes SENT as distributed, or CANCELLED
+ * without a single recipient; null if it was no longer pending.
  */
 async function fanOut(
   notification: LoadedNotification,
@@ -403,13 +405,14 @@ async function fanOut(
     const settled = await settle(
       tx,
       notification.id,
-      children.length > 0
+      recipients.length > 0
         ? { status: NotifStatus.SENT, sentAt: now }
         : { status: NotifStatus.CANCELLED, scheduledFor: now },
     );
     if (!settled) return null;
     await queueNotifications(tx, now, children);
-    return children.length > 0 ? "DISTRIBUTED" : "CANCELLED";
+    await writeInboxItems(tx, notification, payload, recipients, now);
+    return recipients.length > 0 ? "DISTRIBUTED" : "CANCELLED";
   });
 }
 

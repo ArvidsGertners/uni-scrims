@@ -1,6 +1,7 @@
 // Bans by admins (SPEC P0-9, edge cases; ARCHITECTURE §5.5). Unbanning is manual SQL in the MVP.
 import { type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
+import { deleteTeamInboxItems } from "./inbox.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeams, isCaptainOf, requireAdmin } from "./permissions.ts";
 import { linksVersion, teamLinksSelect, toTeamLinks } from "./team-links.ts";
@@ -244,6 +245,7 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
       teamBanned = (await banTeamInTx(tx, team.id, now)) || teamBanned;
     } else {
       await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+      await deleteTeamInboxItems(tx, team.id, [user.id]);
     }
   }
 

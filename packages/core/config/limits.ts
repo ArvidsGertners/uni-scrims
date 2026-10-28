@@ -28,6 +28,10 @@ export const RATING_MAX = 5;
 export const MESSAGE_MAX = 1000;
 /** Threads are deleted this many days after the start of their request (SPEC N-28). */
 export const MESSAGE_RETENTION_DAYS = 30;
+/** Bell entries are deleted this many days after they arrived (SPEC N-32). */
+export const INBOX_RETENTION_DAYS = 30;
+/** The bell lists at most this many entries, newest first (SPEC N-32). */
+export const INBOX_LIST_MAX = 50;
 
 export const TEAM_LINK_MAX = 300;
 /** Longer searches in the teams list are cut to this many characters (SPEC N-20). */

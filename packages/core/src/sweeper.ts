@@ -2,6 +2,7 @@
 // also while it cannot log in to Discord. Every step is idempotent and derives from the database
 // alone, so after a bot outage the next run catches up. Also the heartbeats of both bot loops.
 import { NotifStatus, prisma } from "@uni-scrims/db";
+import { purgeOldInbox } from "./inbox.ts";
 import { purgeOldConversations } from "./messages.ts";
 import { requireAdmin } from "./permissions.ts";
 import { postSeriesRequests } from "./request-series.ts";
@@ -133,5 +134,7 @@ export async function runSweeper(now: Date, options: { purge: boolean }) {
     purgedConversations: options.purge
       ? await step("purgeOldConversations", () => purgeOldConversations(now))
       : null,
+    // Phase 36 (§5.34): bell entries 30 days after they arrived, with the same hourly purge.
+    purgedInbox: options.purge ? await step("purgeOldInbox", () => purgeOldInbox(now)) : null,
   };
 }

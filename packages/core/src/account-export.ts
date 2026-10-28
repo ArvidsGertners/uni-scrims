@@ -22,6 +22,7 @@ import {
 import { parseNotificationPayload } from "./notifications.ts";
 import { findOwnTeam, isCaptainOf, requireAccountUser } from "./permissions.ts";
 import { RANK_LABELS, loadTeamRank } from "./ranks.ts";
+import { inboxItemView } from "./inbox.ts";
 import { isListedTeam } from "./readiness.ts";
 import { TEAM_LINK_PLATFORMS, teamLinksSelect } from "./team-links.ts";
 import { DISCORD_PROVIDER } from "./users.ts";
@@ -272,6 +273,21 @@ export async function exportAccountData(input: {
       const preferences = await tx.notificationPreference.findMany({
         where: { userId: user.id },
         orderBy: { type: "asc" },
+      });
+      // The bell (SPEC N-32).
+      const inboxItems = await tx.inboxItem.findMany({
+        where: { userId: user.id },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+          type: true,
+          team: { select: { name: true } },
+          payload: true,
+          requestId: true,
+          scrimId: true,
+          createdAt: true,
+          readAt: true,
+        },
       });
       // Messages between teams (SPEC N-28): the person's own, its reports and its read state. Only
       // scalar chains per query and the team names in one query of their own, as above.
@@ -568,6 +584,17 @@ export async function exportAccountData(input: {
           discord: settingLabel(preference.discord),
           eMail: settingLabel(preference.email),
         })),
+        glocke: inboxItems.map((item) => {
+          const view = inboxItemView(item, "de");
+          return {
+            art: NOTIFICATION_TYPE_LABELS.de[item.type],
+            team: item.team?.name ?? null,
+            // As shown in the bell; a payload that does not match its type stays as stored.
+            inhalt: view ? { titel: view.title, text: view.description } : item.payload,
+            erhaltenAm: item.createdAt,
+            gelesenAm: item.readAt,
+          };
+        }),
         verwaltung: {
           prüfungen: decidedReviews.map((review) => ({
             entschiedenAm: review.decidedAt,

@@ -385,6 +385,8 @@ export async function deleteAccount(input: {
     await tx.userAvatar.deleteMany({ where: { userId: user.id } });
     await tx.notification.deleteMany({ where: { targetUserId: user.id } });
     await tx.notificationPreference.deleteMany({ where: { userId: user.id } });
+    // The bell (§5.34).
+    await tx.inboxItem.deleteMany({ where: { userId: user.id } });
     await tx.session.deleteMany({ where: { userId: user.id } });
     // Better Auth keeps password reset tokens with the user ID as value; an open link would
     // otherwise set a new password on the anonymized account (§5.8).

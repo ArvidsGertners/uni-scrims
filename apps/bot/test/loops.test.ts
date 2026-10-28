@@ -124,6 +124,7 @@ describe("sweeper loop (§6.3)", () => {
     clearedTokens: 0,
     purgedNotifications,
     purgedConversations: purgedNotifications,
+    purgedInbox: purgedNotifications,
   });
 
   function sweeperDeps(clock: () => Date, advance: (ms: number) => void) {

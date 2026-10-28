@@ -221,6 +221,8 @@ model User {
   conversationReads    ConversationRead[]
   messageReports       MessageReport[]       @relation("MessageReportReportedBy")
   dismissedReports     MessageReport[]       @relation("MessageReportDismissedBy")
+  // Phase 36 (§5.34): the entries of the notification bell.
+  inboxItems           InboxItem[]
 
   @@unique([email])
   @@map("user")
@@ -412,6 +414,8 @@ model Team {
   guestConversations   Conversation[]
   messages             Message[]
   messageReports       MessageReport[]
+  // Phase 36 (§5.34): bell entries about the team, deleted when a person leaves it.
+  inboxItems           InboxItem[]
 
   @@index([captainId])
 }
@@ -701,6 +705,32 @@ model MessageReport {
 
   @@unique([messageId, teamId])
   @@index([dismissedAt])
+}
+
+// An entry of the notification bell (Phase 36, §5.34): one per person and fanned-out notification,
+// whatever the person's Discord and mail settings are.
+model InboxItem {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotifType
+  // The team of a team notification; the person's entries go when they leave it.
+  teamId    String?
+  team      Team?     @relation(fields: [teamId], references: [id])
+  // For the link only, without foreign keys.
+  requestId String?
+  scrimId   String?
+  // The fanned-out PERSONAL notification; no foreign key, notifications are purged and deleted.
+  sourceId  String
+  // Display data only, a copy of the notification's payload.
+  payload   Json
+  // When it was fanned out.
+  createdAt DateTime  @db.Timestamptz(3)
+  readAt    DateTime? @db.Timestamptz(3)
+
+  @@unique([sourceId, userId])
+  @@index([userId, readAt])
+  @@index([teamId])
 }
 
 // Outbox, see ARCHITECTURE.md §6.

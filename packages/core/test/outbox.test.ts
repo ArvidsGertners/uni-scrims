@@ -24,6 +24,7 @@ import {
   declineDirectRequest,
   deleteAccount,
   deleteRequest,
+  deletedUserEmail,
   deliverDueNotifications,
   deliverNotification,
   expireRequests,
@@ -498,18 +499,46 @@ describe("deliverNotification: personal notifications (§5.17)", () => {
     expect(sent.map(recipientUser)).toEqual([host.captain.id]);
   });
 
-  it("is dropped when nobody wants it", async () => {
+  it("only reaches the bell when nobody wants it by DM or mail (§5.34)", async () => {
     const { host, scrim } = await bookScrim();
     await choose(host.captain.id, NotifType.SCRIM_BOOKED, { discord: false });
     const booked = await scrimNotification(scrim.id, NotifType.SCRIM_BOOKED, host.team.id);
     expect(await deliverNotification(booked.id, NOW, recorder().deliver, NO_DEV_ENV)).toBe(
-      "CANCELLED",
+      "DISTRIBUTED",
     );
     expect(await childrenOf(booked.id)).toEqual([]);
     expect(await prisma.notification.findUnique({ where: { id: booked.id } })).toMatchObject({
+      status: NotifStatus.SENT,
+      sentAt: NOW,
+    });
+    expect(await prisma.inboxItem.count({ where: { sourceId: booked.id } })).toBe(5);
+  });
+
+  it("is dropped without anybody to send it to", async () => {
+    const user = await createUser();
+    await queueNotifications(prisma, NOW, [
+      {
+        type: NotifType.VERIFICATION_RESULT,
+        channel: NotifChannel.PERSONAL,
+        entityId: uid(),
+        targetUserId: user.id,
+        payload: { approved: true, rejectReason: null },
+      },
+    ]);
+    const result = await find({ targetUserId: user.id, channel: NotifChannel.PERSONAL });
+    // Deleted meanwhile (deleteAccount itself would remove the entry, §5.5).
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { email: deletedUserEmail(user.id) },
+    });
+    expect(await deliverNotification(result.id, NOW, recorder().deliver, NO_DEV_ENV)).toBe(
+      "CANCELLED",
+    );
+    expect(await prisma.notification.findUnique({ where: { id: result.id } })).toMatchObject({
       status: NotifStatus.CANCELLED,
       scheduledFor: NOW,
     });
+    expect(await prisma.inboxItem.count({ where: { sourceId: result.id } })).toBe(0);
   });
 
   it("drops a copy whose person left the team or switched it off after the fan-out", async () => {

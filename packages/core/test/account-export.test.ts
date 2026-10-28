@@ -699,6 +699,18 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     dismissedById: "die Person selbst (unter verwaltung)",
   },
   NotificationPreference: { userId: SELF, type: SHOWN, discord: SHOWN, email: SHOWN },
+  InboxItem: {
+    id: KEY,
+    userId: SELF,
+    type: SHOWN,
+    teamId: SHOWN,
+    requestId: "Verweis auf Teamdaten, im Inhalt als Text",
+    scrimId: "Verweis auf Teamdaten, im Inhalt als Text",
+    sourceId: KEY,
+    payload: SHOWN,
+    createdAt: SHOWN,
+    readAt: SHOWN,
+  },
   SystemStatus: { id: "Bot-Heartbeat, keine Personendaten", heartbeatAt: "Bot-Heartbeat" },
 };
 

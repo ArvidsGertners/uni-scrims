@@ -15,6 +15,7 @@ import {
 import { MESSAGE_RETENTION_DAYS } from "../config/limits.ts";
 import { type Db, isForeignKeyViolation, isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
+import { markMessageItemsRead } from "./inbox.ts";
 import { lockConversation, lockUser } from "./locks.ts";
 import { type MessageContext, queueNotifications } from "./notifications.ts";
 import { requireAdmin, requireTeamMember, requireUser } from "./permissions.ts";
@@ -435,8 +436,8 @@ export async function sendMessage(
  * The open thread was seen (§5.30): the person's read state and the side's, so the next message
  * notifies this team again. Nothing before the first message.
  */
-export async function markConversationRead(input: AccessInput): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+export async function markConversationRead(input: AccessInput): Promise<{ inboxChanged: boolean }> {
+  return prisma.$transaction(async (tx) => {
     await lockUser(tx, input.userId);
     const { user, side } = await requireConversationAccess(tx, input);
     const conversation = await tx.conversation.findUnique({
@@ -445,9 +446,12 @@ export async function markConversationRead(input: AccessInput): Promise<void> {
       },
       select: { id: true },
     });
-    if (!conversation) return;
+    if (!conversation) return { inboxChanged: false };
     await lockConversation(tx, conversation.id);
     await markRead(tx, { conversationId: conversation.id, userId: user.id, side, now: input.now });
+    // Its "Neue Nachricht" entries in the bell are read with it (SPEC N-32).
+    const inboxChanged = await markMessageItemsRead(tx, { ...input, userId: user.id });
+    return { inboxChanged };
   });
 }
 

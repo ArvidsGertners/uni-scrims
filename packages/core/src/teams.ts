@@ -12,6 +12,7 @@ import { MAX_TEAM_MEMBERS } from "../config/limits.ts";
 import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, problemError } from "./errors.ts";
 import { type Message, msg } from "./i18n/render.ts";
+import { deleteTeamInboxItems } from "./inbox.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
 import {
   captainProblem,
@@ -422,6 +423,8 @@ export async function removeMember(input: {
     if (removed.count === 0) {
       throw new DomainError("NOT_FOUND", "memberNotFound");
     }
+    // A former member sees nothing more from the team in the bell (§5.34).
+    await deleteTeamInboxItems(tx, input.teamId, [input.memberId]);
   });
 }
 
@@ -504,6 +507,7 @@ export async function leaveTeam(input: { userId: string; teamId: string; now: Da
     const { user, team } = await requireTeamMember(input.userId, input.teamId, tx);
     if (!isCaptainOf(user, team)) {
       await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+      await deleteTeamInboxItems(tx, team.id, [user.id]);
       return { dissolved: false };
     }
     if ((await tx.teamMember.count({ where: { teamId: team.id } })) > 1) {
@@ -523,6 +527,8 @@ export async function dissolveTeam(teamId: string, now: Date, db: Db = prisma): 
   await inTransaction(db, async (tx) => {
     await retireTeamActivity(teamId, now, tx);
     await tx.teamMember.deleteMany({ where: { teamId } });
+    // Nobody is a member anymore, so every bell entry about the team goes (§5.34).
+    await tx.inboxItem.deleteMany({ where: { teamId } });
     await clearTeamLogo(tx, teamId);
     await clearTeamLinks(tx, teamId);
     await tx.team.update({
