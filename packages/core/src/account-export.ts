@@ -161,6 +161,7 @@ export async function exportAccountData(input: {
               linksUpdatedAt: true,
               listed: true,
               verifiedApplicantsOnly: true,
+              showOnLanding: true,
             },
           },
         },
@@ -462,6 +463,8 @@ export async function exportAccountData(input: {
             inTeamsListe: isListedTeam(team),
             // Whether only fully verified teams may apply to the team's requests (SPEC N-21).
             nurVollstaendigVerifizierteBewerber: team.verifiedApplicantsOnly,
+            // The captain's choice for the landing page; null = not asked yet (SPEC N-34).
+            startseiteErlaubt: team.showOnLanding,
             rolle: MEMBER_ROLE_LABELS.de[role],
             captain: isCaptainOf(user, team),
             beigetretenAm: joinedAt,

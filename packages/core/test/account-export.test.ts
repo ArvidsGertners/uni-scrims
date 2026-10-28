@@ -75,6 +75,7 @@ async function fullAccount() {
       xUrl: "https://x.com/team",
       linksUpdatedAt: NOW,
       listed: false,
+      showOnLanding: true,
     },
   });
   await prisma.user.update({
@@ -283,6 +284,7 @@ describe("exportAccountData", () => {
         linksGeändertAm: NOW,
         inTeamsListe: false,
         nurVollstaendigVerifizierteBewerber: false,
+        startseiteErlaubt: true,
         rolle: "Spieler",
         captain: true,
         beigetretenAm: NOW,
@@ -564,6 +566,7 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     linksUpdatedAt: SHOWN,
     listed: SHOWN,
     verifiedApplicantsOnly: SHOWN,
+    showOnLanding: SHOWN,
   },
   TeamLogo: { teamId: KEY, background: SHOWN, data: TEAM },
   TeamMember: { teamId: SHOWN, userId: SELF, role: SHOWN, joinedAt: SHOWN },

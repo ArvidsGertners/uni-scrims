@@ -26,10 +26,12 @@ import {
 } from "./permissions.ts";
 import { teamRank, teamRankSummary } from "./ranks.ts";
 import {
+  activeTeamWhere,
   countVerifiedPlayerMembers,
   isFullyVerifiedCount,
   isPlayingRole,
   isListedTeam,
+  isShowcaseTeam,
   isTeamActive,
   isVerifiedMember,
 } from "./readiness.ts";
@@ -39,9 +41,11 @@ import {
   type TeamLinksInput,
   memberRoleSchema,
   parseInput,
+  showcaseAnswersSchema,
   teamInputSchema,
   teamLinksSchema,
   teamListedSchema,
+  teamShowOnLandingSchema,
   teamVerifiedApplicantsOnlySchema,
 } from "./schemas.ts";
 import { cancelScheduledScrim } from "./scrims.ts";
@@ -86,9 +90,16 @@ async function requireBelowTeamLimit(user: { id: string; teamLimit: number }, db
   if (problem) throw new DomainError("CONFLICT", problem);
 }
 
-export async function createTeam(input: TeamInput & { userId: string; now: Date }) {
+/**
+ * Founds a team with the user as captain. `showOnLanding` is the captain's choice for the landing
+ * page (SPEC N-34), off when missing; new teams are therefore never asked again.
+ */
+export async function createTeam(
+  input: TeamInput & { userId: string; now: Date; showOnLanding?: boolean },
+) {
   const user = await requireUser(input.userId);
   const data = parseInput(teamInputSchema, input);
+  const showOnLanding = parseInput(teamShowOnLandingSchema, input.showOnLanding ?? false);
   await requireBelowTeamLimit(user, prisma);
   try {
     return await prisma.$transaction(async (tx) => {
@@ -106,6 +117,7 @@ export async function createTeam(input: TeamInput & { userId: string; now: Date 
           captainId: user.id,
           inviteCode: generateInviteCode(),
           createdAt: input.now,
+          showOnLanding,
         },
       });
       // The captain is always a member too; the new team becomes the active one (§5.20).
@@ -200,6 +212,61 @@ export async function setTeamListed(input: { userId: string; teamId: string; lis
     if (team.listed === listed) return;
     await tx.team.update({ where: { id: input.teamId }, data: { listed } });
   });
+}
+
+/**
+ * Whether the team may be shown on the landing page (SPEC N-34, §5.36): captain of a team that is
+ * not banned, verification is not needed, like setTeamListed. Only a change writes.
+ */
+export async function setTeamShowcase(input: { userId: string; teamId: string; show: boolean }) {
+  await requireCaptain(input.userId, input.teamId);
+  const show = parseInput(teamShowOnLandingSchema, input.show);
+  await prisma.$transaction(async (tx) => {
+    await lockTeam(tx, input.teamId);
+    const { team } = await requireCaptain(input.userId, input.teamId, tx);
+    if (team.showOnLanding === show) return;
+    await tx.team.update({ where: { id: input.teamId }, data: { showOnLanding: show } });
+  });
+}
+
+/**
+ * The active teams the user captains that were never asked about the landing page (SPEC N-34): only
+ * teams founded before Phase 38, or handed over before their captain answered.
+ */
+export async function pendingShowcaseQuestion(
+  userId: string,
+): Promise<{ id: string; name: string }[]> {
+  const user = await requireUser(userId);
+  const teams = await prisma.team.findMany({
+    where: { captainId: user.id, ...activeTeamWhere(), showOnLanding: null },
+    select: { id: true, name: true },
+  });
+  return teams.sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
+/**
+ * Saves the answers of the one-time question (SPEC N-34, §5.36). Only teams the user still captains,
+ * active and still unanswered, are written; everything else is skipped silently, so the dialog never
+ * gets stuck on a team handed over or banned meanwhile, and a choice made elsewhere stays.
+ */
+export async function answerShowcaseQuestion(input: {
+  userId: string;
+  answers: { teamId: string; show: boolean }[];
+}): Promise<void> {
+  const user = await requireUser(input.userId);
+  const answers = parseInput(showcaseAnswersSchema, input.answers);
+  // Each UPDATE checks its conditions on the row it locks, so no team lock is needed.
+  const write = (show: boolean) =>
+    prisma.team.updateMany({
+      where: {
+        id: { in: answers.filter((answer) => answer.show === show).map((answer) => answer.teamId) },
+        captainId: user.id,
+        ...activeTeamWhere(),
+        showOnLanding: null,
+      },
+      data: { showOnLanding: show },
+    });
+  await prisma.$transaction([write(true), write(false)]);
 }
 
 /**
@@ -746,6 +813,9 @@ export async function getMyTeam(userId: string) {
     links: toTeamLinks(team),
     // On the teams list (SPEC N-20); a banned team is not, whatever the captain chose.
     listed: isListedTeam(team),
+    // The captain's choice for the landing page and whether the team is shown there (SPEC N-34).
+    showOnLanding: team.showOnLanding === true,
+    onLanding: isShowcaseTeam(team),
     // Only fully verified teams may apply to the team's requests (SPEC N-21).
     verifiedApplicantsOnly: team.verifiedApplicantsOnly,
     banned: team.bannedAt !== null,

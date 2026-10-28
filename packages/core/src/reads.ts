@@ -8,6 +8,7 @@ import {
   prisma,
 } from "@uni-scrims/db";
 import {
+  LANDING_SHOWCASE_MAX,
   RELIABILITY_WINDOW_DAYS,
   RELIABLE_NO_SHOW_RATE,
   TEAM_SEARCH_MAX,
@@ -41,6 +42,7 @@ import {
   isTeamActive,
   isTeamFullyVerified,
   listedTeamWhere,
+  showcaseTeamWhere,
 } from "./readiness.ts";
 import {
   applicantRuleProblem,
@@ -72,7 +74,7 @@ import { getDiscordId } from "./users.ts";
 /** The average rating is only shown from this many ratings on (SPEC P0-8). */
 export const MIN_RATINGS_SHOWN = 3;
 
-export { RELIABILITY_WINDOW_DAYS, RELIABLE_NO_SHOW_RATE };
+export { LANDING_SHOWCASE_MAX, RELIABILITY_WINDOW_DAYS, RELIABLE_NO_SHOW_RATE };
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -1451,4 +1453,67 @@ export async function getTeamList(input: TeamListInput) {
       canRequest: requestingTeamId !== null && team.id !== requestingTeamId,
     }));
   return { teams, filter: { search, ranks, fullyVerifiedOnly, reliableOnly } };
+}
+
+export type LandingShowcaseTeam = {
+  id: string;
+  name: string;
+  tag: string;
+  logo: TeamLogoInfo | null;
+  universities: { shown: string[]; more: number };
+  rank: Rank | null;
+  /** Of the last RELIABILITY_WINDOW_DAYS, like on the board (SPEC N-23). */
+  reliability: Reliability;
+};
+
+/**
+ * The teams on the landing page (SPEC N-34, §5.36), for everyone without login: teams by
+ * showcaseTeamWhere, with a logo first, then by scrims played in the last RELIABILITY_WINDOW_DAYS,
+ * then by name; at most LANDING_SHOWCASE_MAX. The members are loaded only for team rank and
+ * universities; no names leave this function.
+ */
+export async function getLandingShowcase(now: Date): Promise<LandingShowcaseTeam[]> {
+  const rows = await prisma.team.findMany({
+    where: showcaseTeamWhere(),
+    select: {
+      id: true,
+      name: true,
+      tag: true,
+      ...teamLogoSelect,
+      members: {
+        select: {
+          ...teamRankMemberSelect,
+          user: {
+            select: {
+              verifiedAt: true,
+              universityOther: true,
+              university: { select: { name: true } },
+              ...teamRankMemberSelect.user.select,
+            },
+          },
+        },
+      },
+    },
+  });
+  const reliabilities = await getReliabilities(
+    rows.map((team) => team.id),
+    now,
+  );
+  return rows
+    .map((team) => ({
+      id: team.id,
+      name: team.name,
+      tag: team.tag,
+      logo: teamLogoInfo(team),
+      universities: teamUniversities(team.members),
+      rank: teamRank(team.members),
+      reliability: reliabilities.get(team.id)!,
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.logo !== null) - Number(a.logo !== null) ||
+        b.reliability.played - a.reliability.played ||
+        a.name.localeCompare(b.name, "de"),
+    )
+    .slice(0, LANDING_SHOWCASE_MAX);
 }

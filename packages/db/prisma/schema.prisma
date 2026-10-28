@@ -397,6 +397,8 @@ model Team {
   listed                 Boolean   @default(true)
   // Only fully verified teams may apply to this team's requests; the captain turns it on (Phase 25).
   verifiedApplicantsOnly Boolean   @default(false)
+  // May be shown on the landing page; null = the captain was not asked yet (Phase 38).
+  showOnLanding          Boolean?
 
   logos                TeamLogo[]
   members              TeamMember[]

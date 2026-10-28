@@ -35,6 +35,24 @@ export function listedTeamWhere() {
 }
 
 /**
+ * On the landing page (SPEC N-34, §5.36): on the teams list and the captain agreed. Hiding, a ban or
+ * a dissolution leave `showOnLanding` as it is, so every reader goes through this rule.
+ */
+export function isShowcaseTeam(team: {
+  bannedAt: Date | null;
+  dissolvedAt: Date | null;
+  listed: boolean;
+  showOnLanding: boolean | null;
+}): boolean {
+  return isListedTeam(team) && team.showOnLanding === true;
+}
+
+/** isShowcaseTeam as a Prisma filter. */
+export function showcaseTeamWhere() {
+  return { ...listedTeamWhere(), showOnLanding: true } satisfies Prisma.TeamWhereInput;
+}
+
+/**
  * A verified member: member status and the universities of the team card. The badge counts only
  * verified players and substitutes, see countsForFullVerification.
  */

@@ -16,6 +16,7 @@ import {
 } from "./notification-types.ts";
 import {
   APPLICATION_MESSAGE_MAX,
+  MAX_TEAM_LIMIT,
   MESSAGE_MAX,
   RATING_MAX,
   RATING_MIN,
@@ -81,6 +82,14 @@ export type TeamLinksInput = z.input<typeof teamLinksSchema>;
 
 /** Whether the team is shown in the teams list (Phase 24, §5.23). */
 export const teamListedSchema = z.boolean(key("invalidInput"));
+
+/** Whether the team may be shown on the landing page (Phase 38, §5.36). */
+export const teamShowOnLandingSchema = z.boolean(key("invalidInput"));
+
+/** The answers of the one-time question, one per team (Phase 38, §5.36). */
+export const showcaseAnswersSchema = z
+  .array(z.object({ teamId: z.string().min(1), show: z.boolean() }), key("invalidInput"))
+  .max(MAX_TEAM_LIMIT, key("invalidInput"));
 
 /** Whether only fully verified teams may apply (Phase 25, §5.24). */
 export const teamVerifiedApplicantsOnlySchema = z.boolean(key("invalidInput"));
