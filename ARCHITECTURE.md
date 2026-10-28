@@ -2067,3 +2067,16 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Wunsch des Nutzers (28.10.2026): unter den gezeigten Teams „und N weitere Teams“, ohne Zustimmung keine Namen. Entscheidungen: Es zählen alle aktiven Teams; ohne gezeigte Teams steht nur die Zahl da; die Zeile verlinkt die Teams-Liste.
 - `core`: `getLandingShowcase` liefert `{ teams, others }`. Web: Abschnitt und Zeile in `landing-view.tsx`, Texte in `i18n/public.tsx`. Kein Schema, keine neue Berechtigung, keine Änderung am Datenschutz.
 - *Fertig wenn:* Abgemeldet zeigt die Startseite unter den zugestimmten Teams „und N weitere Teams“ mit der richtigen Zahl (aktive Teams minus gezeigte) und dem Link zur Teams-Liste; ohne zugestimmtes Team steht nur die Zahl, ohne aktives Team fehlt der Abschnitt; Einzahl und Mehrzahl auf Deutsch und Englisch, hell und dunkel, ab 320 px; Tests für die Zählung (gesperrte und aufgelöste Teams zählen nicht, ausgeblendete schon, mehr als 8 Zustimmungen).
+- *Stand (28.10.2026):* abgeschlossen. Code, Tests (`pnpm test` mit 1020 Tests, drei neue in `landing-showcase.test.ts`: andere aktive Teams inklusive ausgeblendeter und nicht gefragter, ohne gesperrte und aufgelöste; Zustimmungen über 8 hinaus; nur die Zahl ohne Zustimmung), `pnpm lint`, Review samt Fixes:
+  - Beim Hinweis für gesperrte Konten (`?gesperrt`) stand der Link zur Teams-Liste, obwohl dort jeder Weg hinein fehlt. Jetzt fehlt er dort.
+  - Der Test ohne Zustimmung prüfte nur „mehr als 0“, jetzt die genaue Differenz.
+  - In SPEC N-37 fehlten die Häkchen.
+- Bewusst nicht geändert:
+  - Die Zahl enthält aus der Teams-Liste ausgeblendete Teams, obwohl der Link zur Liste führt (Entscheidung des Nutzers).
+  - Zählung und Liste sind zwei Abfragen. Schlägt die Zählung allein fehl, fehlt der ganze Abschnitt wie bei einem Ausfall der Datenbank.
+  - `getLandingShowcase` lädt weiter alle zugestimmten Teams (wie seit Phase 38).
+- Im Browser gegen die Dev-DB (Playwright, abgemeldet):
+  - Bei 8 aktiven und 2 gezeigten Teams stand „und 6 weitere Teams“ bzw. „and 6 more teams“ mit Link auf `/login?callbackURL=%2Fteams`.
+  - Ohne Zustimmung (kurz in der Dev-DB umgestellt und zurückgesetzt) war „Schon 8 Teams sind dabei“ die Überschrift, darunter „Zur Teams-Liste“.
+  - Deutsch dunkel am Desktop und Englisch hell bei 320 px ohne Überstand.
+- Für den Deploy: nur das Web-Image (`dc build web && dc up -d web`), keine Migration, keine Einstellung, kein Rechtstext.
