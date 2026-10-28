@@ -36,7 +36,15 @@ async function Logo({
         <>
           <BrandLogo theme={theme} className="max-[480px]:hidden" />
           <BrandLogo variant="icon" theme={theme} className="min-[480px]:hidden" />
-          <span className="type-label leading-none text-muted-foreground">{t.admin}</span>
+          {/* With the bell (§5.35) four controls: below 400 px only the icon. */}
+          <span
+            className={cn(
+              "type-label leading-none text-muted-foreground",
+              compact && "max-[400px]:hidden",
+            )}
+          >
+            {t.admin}
+          </span>
         </>
       ) : compact ? (
         <>
@@ -62,7 +70,7 @@ async function AdminHeader({ signedIn, theme }: { signedIn: boolean; theme: Them
     // Sticky like the header of the site, so the sidebar sits below it either way (§5.14).
     <header className="sticky top-0 z-30 border-b border-border bg-background">
       <div className="flex h-16 items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
-        <Logo href="/" theme={theme} admin />
+        <Logo href="/" theme={theme} admin compact={unread !== null} />
         <div className="flex items-center gap-1 max-[359px]:gap-0">
           {unread !== null ? (
             <NotificationBell
