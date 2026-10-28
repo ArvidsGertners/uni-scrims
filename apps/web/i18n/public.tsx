@@ -110,6 +110,13 @@ export const landingMessages = dictionary(
       eyebrow: "Teams",
       title: "Diese Teams sind schon dabei",
       teamRank: "Team-Rang",
+      /** Below the shown teams: all other active teams, as a link to the teams list (N-37). */
+      others: (count: number) =>
+        count === 1 ? "und 1 weiteres Team" : `und ${count} weitere Teams`,
+      /** Without a shown team: the number as the title, and a plain link below. */
+      total: (count: number) =>
+        count === 1 ? "Schon 1 Team ist dabei" : `Schon ${count} Teams sind dabei`,
+      toList: "Zur Teams-Liste",
     },
     reliability: "Verbindlichkeit",
     reliabilityTitle: "No-Shows werden",
@@ -254,6 +261,10 @@ export const landingMessages = dictionary(
       eyebrow: "Teams",
       title: "These teams are already here",
       teamRank: "Team rank",
+      others: (count) => (count === 1 ? "and 1 more team" : `and ${count} more teams`),
+      total: (count) =>
+        count === 1 ? "1 team is already here" : `${count} teams are already here`,
+      toList: "Go to the teams list",
     },
     reliability: "Reliability",
     reliabilityTitle: "No-shows become",

@@ -1,4 +1,10 @@
-import { type LandingShowcaseTeam, RANK_LABELS, RANKS, getLandingShowcase } from "@uni-scrims/core";
+import {
+  type LandingShowcase,
+  type LandingShowcaseTeam,
+  RANK_LABELS,
+  RANKS,
+  getLandingShowcase,
+} from "@uni-scrims/core";
 import { FULLY_VERIFIED_PLAYER_COUNT, MAX_TEAM_MEMBERS } from "@uni-scrims/core/config/limits";
 import { cn } from "cn";
 import Link from "next/link";
@@ -6,7 +12,14 @@ import { unstable_rethrow } from "next/navigation";
 import type { ReactNode } from "react";
 import { DiscordIcon } from "@/components/brand-icons";
 import { StatusDot } from "@/components/detail-rows";
-import { CheckIcon, ChevronDownIcon, FileIcon, ShieldCheckIcon, XIcon } from "@/components/icons";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  FileIcon,
+  ShieldCheckIcon,
+  XIcon,
+} from "@/components/icons";
 import { LoginNote } from "@/components/login-note";
 import { PageMain } from "@/components/page-main";
 import { RankIcon, RankLabel } from "@/components/rank-icon";
@@ -49,16 +62,16 @@ function SectionHead({ id, eyebrow, title }: { id: string; eyebrow: string; titl
 }
 
 /**
- * The teams whose captain agreed (SPEC N-34, §5.36); none if the database fails, so the landing
- * page still renders.
+ * The teams whose captain agreed (SPEC N-34, §5.36) and the number of the others (N-37); nothing if
+ * the database fails, so the landing page still renders.
  */
-async function loadShowcase(): Promise<LandingShowcaseTeam[]> {
+async function loadShowcase(): Promise<LandingShowcase> {
   try {
     return await getLandingShowcase(new Date());
   } catch (error) {
     unstable_rethrow(error);
     console.error("Could not load the teams for the landing page", error);
-    return [];
+    return { teams: [], others: 0 };
   }
 }
 
@@ -362,16 +375,32 @@ export async function LandingView({
         </Card>
       </section>
 
-      {showcase.length > 0 ? (
+      {showcase.teams.length > 0 || showcase.others > 0 ? (
         <section aria-labelledby="landing-teams" className={cn(COLUMN, "py-[72px]")}>
-          <SectionHead id="landing-teams" eyebrow={t.showcase.eyebrow} title={t.showcase.title} />
-          <ul className={cn(CARD_GRID, "mt-8")}>
-            {showcase.map((team) => (
-              <li key={team.id} className="flex min-w-0">
-                <ShowcaseCard team={team} />
-              </li>
-            ))}
-          </ul>
+          <SectionHead
+            id="landing-teams"
+            eyebrow={t.showcase.eyebrow}
+            title={showcase.teams.length > 0 ? t.showcase.title : t.showcase.total(showcase.others)}
+          />
+          {showcase.teams.length > 0 ? (
+            <ul className={cn(CARD_GRID, "mt-8")}>
+              {showcase.teams.map((team) => (
+                <li key={team.id} className="flex min-w-0">
+                  <ShowcaseCard team={team} />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {showcase.others > 0 ? (
+            // The others only as a number (SPEC N-37); the teams list asks for a login first.
+            <Link
+              href={loggedIn ? "/teams" : loginUrl("/teams")}
+              className="mt-6 inline-flex items-center gap-1 text-[15px] font-semibold text-accent-text hover:underline"
+            >
+              {showcase.teams.length > 0 ? t.showcase.others(showcase.others) : t.showcase.toList}
+              <ChevronRightIcon size={16} strokeWidth={2.5} />
+            </Link>
+          ) : null}
         </section>
       ) : null}
 

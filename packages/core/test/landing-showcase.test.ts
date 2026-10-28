@@ -85,7 +85,7 @@ async function rename(teamId: string, name: string) {
   await prisma.team.update({ where: { id: teamId }, data: { name, nameNormalized: name } });
 }
 
-const ids = async () => (await getLandingShowcase(NOW)).map((team) => team.id);
+const ids = async () => (await getLandingShowcase(NOW)).teams.map((team) => team.id);
 
 describe("getLandingShowcase", () => {
   it("shows only consenting teams that are listed and active", async () => {
@@ -102,6 +102,42 @@ describe("getLandingShowcase", () => {
     expect(await ids()).toEqual([shown.team.id]);
   });
 
+  // Phase 41 (SPEC N-37): other active teams only as a count. Test files run one after another, so
+  // the count changes only by what each test creates.
+  it("counts the other active teams, hidden and unasked ones too, but not banned or dissolved", async () => {
+    const before = (await getLandingShowcase(NOW)).others;
+    await showcaseTeam();
+    await createTeamWithMembers(); // not asked yet
+    const declined = await createTeamWithMembers();
+    await prisma.team.update({ where: { id: declined.team.id }, data: { showOnLanding: false } });
+    const hidden = await showcaseTeam();
+    await prisma.team.update({ where: { id: hidden.team.id }, data: { listed: false } });
+    await showcaseTeam({ banned: true });
+    const dissolved = await createTeamWithMembers();
+    await prisma.team.update({ where: { id: dissolved.team.id }, data: { dissolvedAt: NOW } });
+
+    const showcase = await getLandingShowcase(NOW);
+    expect(showcase.teams).toHaveLength(1);
+    // Not asked, declined and hidden: three more; the shown one is not among the others.
+    expect(showcase.others).toBe(before + 3);
+  });
+
+  it("counts consenting teams beyond the limit as others", async () => {
+    const before = (await getLandingShowcase(NOW)).others;
+    for (let i = 0; i < LANDING_SHOWCASE_MAX + 2; i++) await showcaseTeam();
+
+    const showcase = await getLandingShowcase(NOW);
+    expect(showcase.teams).toHaveLength(LANDING_SHOWCASE_MAX);
+    expect(showcase.others).toBe(before + 2);
+  });
+
+  it("has only the count when no captain agreed", async () => {
+    await createTeamWithMembers();
+    const showcase = await getLandingShowcase(NOW);
+    expect(showcase.teams).toEqual([]);
+    expect(showcase.others).toBeGreaterThan(0);
+  });
+
   it("returns rank, universities and reliability but no members", async () => {
     const team = await showcaseTeam({ extraMembers: 1 });
     const university = await prisma.university.create({
@@ -113,7 +149,7 @@ describe("getLandingShowcase", () => {
     });
     await playedScrim(team, 3);
 
-    const [entry] = await getLandingShowcase(NOW);
+    const [entry] = (await getLandingShowcase(NOW)).teams;
     expect(entry).toEqual({
       id: team.team.id,
       name: team.team.name,

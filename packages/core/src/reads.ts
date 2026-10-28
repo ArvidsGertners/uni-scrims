@@ -1538,14 +1538,51 @@ export type LandingShowcaseTeam = {
   reliability: Reliability;
 };
 
+export type LandingShowcase = {
+  teams: LandingShowcaseTeam[];
+  /** Active teams beyond the shown ones, hidden or without consent included; a bare count (N-37). */
+  others: number;
+};
+
 /**
  * The teams on the landing page (SPEC N-34, §5.36), for everyone without login: teams by
  * showcaseTeamWhere, with a logo first, then by scrims played in the last RELIABILITY_WINDOW_DAYS,
  * then by name; at most LANDING_SHOWCASE_MAX. The members are loaded only for team rank and
- * universities; no names leave this function.
+ * universities; no names leave this function. Since Phase 41 also the number of all other active
+ * teams (SPEC N-37); count and list are two reads, so it never goes below 0.
  */
-export async function getLandingShowcase(now: Date): Promise<LandingShowcaseTeam[]> {
-  const rows = await prisma.team.findMany({
+export async function getLandingShowcase(now: Date): Promise<LandingShowcase> {
+  const [rows, active] = await Promise.all([
+    loadShowcaseRows(),
+    prisma.team.count({ where: activeTeamWhere() }),
+  ]);
+  const reliabilities = await getReliabilities(
+    rows.map((team) => team.id),
+    now,
+  );
+  const teams = rows
+    .map((team) => ({
+      id: team.id,
+      name: team.name,
+      tag: team.tag,
+      logo: teamLogoInfo(team),
+      universities: teamUniversities(team.members),
+      rank: teamRank(team.members),
+      reliability: reliabilities.get(team.id)!,
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.logo !== null) - Number(a.logo !== null) ||
+        b.reliability.played - a.reliability.played ||
+        a.name.localeCompare(b.name, "de"),
+    )
+    .slice(0, LANDING_SHOWCASE_MAX);
+  return { teams, others: Math.max(0, active - teams.length) };
+}
+
+/** The consenting teams with what the cards need; members only for rank and universities. */
+function loadShowcaseRows() {
+  return prisma.team.findMany({
     where: showcaseTeamWhere(),
     select: {
       id: true,
@@ -1567,25 +1604,4 @@ export async function getLandingShowcase(now: Date): Promise<LandingShowcaseTeam
       },
     },
   });
-  const reliabilities = await getReliabilities(
-    rows.map((team) => team.id),
-    now,
-  );
-  return rows
-    .map((team) => ({
-      id: team.id,
-      name: team.name,
-      tag: team.tag,
-      logo: teamLogoInfo(team),
-      universities: teamUniversities(team.members),
-      rank: teamRank(team.members),
-      reliability: reliabilities.get(team.id)!,
-    }))
-    .sort(
-      (a, b) =>
-        Number(b.logo !== null) - Number(a.logo !== null) ||
-        b.reliability.played - a.reliability.played ||
-        a.name.localeCompare(b.name, "de"),
-    )
-    .slice(0, LANDING_SHOWCASE_MAX);
 }
