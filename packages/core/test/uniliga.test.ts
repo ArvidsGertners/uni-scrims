@@ -246,6 +246,7 @@ describe("OPL client for the Uniliga", () => {
           team_registrations: {
             "5341": { ID: 5341, name: "Team A", discord: "https://discord.gg/x" },
             "5384": { ID: 5384, name: "Team B" },
+            "0": { ID: null, name: "deleted" },
           },
         },
       }),
@@ -350,6 +351,29 @@ describe("Uniliga run", () => {
     expect(steps).toBe(1 + UNILIGA_ROOT_LIMIT);
     expect(await prisma.oplCrawl.findFirstOrThrow()).toMatchObject({ failed: false });
     expect((await getUniligaLeagues("all")).options).toEqual([]);
+  });
+
+  it("keeps the last run with teams shown when a run finds no season", async () => {
+    const opl = fakeOpl();
+    const team = oplId();
+    opl.organiser.ids = [8250];
+    addSeason(opl, { id: 8250, name: WINTER, groups: { l1a: [team] } });
+    await runCrawl(opl);
+    // OPL answers 404 for every tournament: the run ends without teams.
+    opl.tournaments.clear();
+    const later = new Date(NOW.getTime() + 11 * HOUR);
+    await runCrawl(opl, later);
+    expect((await getUniligaLeagues([team])).byTeam.get(team)).toEqual({ division: 1, group: "A" });
+    expect(await prisma.oplCrawl.count()).toBe(2);
+    // The next run is due 11 h after the empty one; a run with teams then replaces both.
+    expect(await uniligaTick({ now: new Date(later.getTime() + HOUR), opl: opl.api })).toBeNull();
+    addSeason(opl, { id: 8250, name: WINTER, groups: { l3: [team] } });
+    await runCrawl(opl, new Date(later.getTime() + 11 * HOUR));
+    expect((await getUniligaLeagues([team])).byTeam.get(team)).toEqual({
+      division: 3,
+      group: null,
+    });
+    expect(await prisma.oplCrawl.count()).toBe(1);
   });
 
   it("starts a new run 11 h after the last one began and drops the old one when done", async () => {

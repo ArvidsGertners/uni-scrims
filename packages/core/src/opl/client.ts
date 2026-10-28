@@ -93,7 +93,8 @@ const tournamentSchema = z.object({
   }),
 });
 
-const registrationEntry = z.object({ ID: z.number().int() });
+// One odd entry (e.g. a deleted team without ID) must not cost the whole leaf; it is skipped.
+const registrationEntry = z.object({ ID: z.number().int() }).nullable().catch(null);
 
 const registrationsSchema = z.object({
   data: z.object({
@@ -224,7 +225,9 @@ export function createOplClient(options: {
       if (status === 404) return { result: { kind: "gone" }, rateLimit };
       const { data } = parse(registrationsSchema, body, status);
       if (data.ID !== id) return { result: { kind: "gone" }, rateLimit };
-      const teamIds = Object.values(data.team_registrations).map((entry) => entry.ID);
+      const teamIds = Object.values(data.team_registrations).flatMap((entry) =>
+        entry ? [entry.ID] : [],
+      );
       return { result: { kind: "found", name: data.name, teamIds }, rateLimit };
     },
   };

@@ -2,7 +2,7 @@
 // Uniliga's tournament list to the current VALORANT season and reads the registrations of its group
 // stage, one OPL call per step; the OPL loop takes a due step before any link check. Only OPL team
 // IDs with league and group are stored, no personal data.
-import { type Prisma, prisma } from "@uni-scrims/db";
+import { Prisma, prisma } from "@uni-scrims/db";
 import type { Db } from "../db.ts";
 import { type OplApi, OplError, type OplRateLimit } from "./client.ts";
 
@@ -268,7 +268,11 @@ async function stepFailed(
   });
 }
 
-/** A successful run: shown from now on, all older runs and their registrations go. */
+/**
+ * A run through: shown from now on if it found teams, and older runs with their registrations go.
+ * A run without any team (no season with groups among the newest tournaments, or OPL answering 404
+ * for all of them) keeps the last run with teams shown (SPEC N-36: the last complete state stays).
+ */
 async function finish(crawlId: string, now: Date, cursor: CrawlCursor, rows?: Outcome["rows"]) {
   await prisma.$transaction(async (tx) => {
     const updated = await tx.oplCrawl.updateMany({
@@ -277,14 +281,17 @@ async function finish(crawlId: string, now: Date, cursor: CrawlCursor, rows?: Ou
     });
     if (updated.count === 0) return;
     await writeRows(tx, crawlId, rows);
-    await tx.oplCrawl.deleteMany({ where: { id: { not: crawlId }, finishedAt: { not: null } } });
+    const shown = await shownCrawlId(tx);
+    await tx.oplCrawl.deleteMany({
+      where: { id: { notIn: [crawlId, ...(shown ? [shown] : [])] }, finishedAt: { not: null } },
+    });
   });
 }
 
-/** The newest successful run, whose registrations are shown. */
+/** The newest successful run with teams, whose registrations are shown. */
 async function shownCrawlId(db: Db): Promise<string | null> {
   const crawl = await db.oplCrawl.findFirst({
-    where: { finishedAt: { not: null }, failed: false },
+    where: { finishedAt: { not: null }, failed: false, registrations: { some: {} } },
     orderBy: { startedAt: "desc" },
     select: { id: true },
   });
@@ -295,12 +302,20 @@ export type UniligaLeagues = { byTeam: Map<number, League>; options: number[] };
 
 /**
  * The leagues of the current season: per OPL team ID (for the given teams, or "all" registered ones,
- * a few dozen) and all leagues as filter options, in order. A run still going changes nothing until
- * it is done.
+ * a few hundred) and all leagues as filter options, in order. A run still going changes nothing
+ * until it is done. One snapshot, so a run finishing meanwhile can't delete the rows being read.
  */
 export async function getUniligaLeagues(
   oplTeamIds: readonly (number | null)[] | "all",
-  db: Db = prisma,
+): Promise<UniligaLeagues> {
+  return prisma.$transaction((tx) => readLeagues(tx, oplTeamIds), {
+    isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+  });
+}
+
+async function readLeagues(
+  db: Db,
+  oplTeamIds: readonly (number | null)[] | "all",
 ): Promise<UniligaLeagues> {
   const crawlId = await shownCrawlId(db);
   if (!crawlId) return { byTeam: new Map(), options: [] };

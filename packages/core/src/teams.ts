@@ -904,6 +904,8 @@ export async function getMyTeam(userId: string) {
           },
     // The Uniliga league of the linked team in the current season's group stage (SPEC N-36).
     league: leagueOf(uniliga, team.oplTeamId),
+    // Whether a season is known at all; without one nothing can be said about the league.
+    leagueKnown: uniliga.options.length > 0,
     // Whether the own account has an OPL profile, needed to link the team (SPEC N-35).
     ownOplLinked: user.oplUserId !== null,
     banned: team.bannedAt !== null,

@@ -143,8 +143,8 @@ export async function TeamView({ userId }: { userId: string }) {
                   </span>
                 ),
               },
-              // The league of a linked team from OPL (SPEC N-36).
-              ...(team.opl
+              // The league of a linked team from OPL, once a season is known (SPEC N-36).
+              ...(team.opl && team.leagueKnown
                 ? [
                     {
                       label: t.uniliga,
