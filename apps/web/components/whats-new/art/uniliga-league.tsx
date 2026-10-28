@@ -3,10 +3,7 @@
 import * as m from "motion/react-m";
 import { useMessages } from "@/components/locale-provider";
 import { leagueMessages } from "@/i18n/format";
-import { SNAP_EASE, useArtMotion } from "./motion";
-
-/** A team's shield, centred on 0,0. */
-const SHIELD = "M0 -40 L32 -28 V2 C32 26 16 38 0 46 C-16 38 -32 26 -32 2 V-28 Z";
+import { SHIELD, SNAP_EASE, useArtMotion } from "./motion";
 /** The podium: division, left edge and height, on the base line BASE. */
 const BASE = 160;
 const STEPS = [
@@ -116,19 +113,19 @@ export function UniligaLeagueArt() {
             })}
       >
         <rect
-          x="186"
+          x="184"
           y="20"
-          width="114"
+          width="122"
           height="24"
           rx="12"
           fill="var(--accent-soft)"
           stroke="var(--primary)"
         />
         <text
-          x="243"
-          y="36"
+          x="245"
+          y="35.5"
           textAnchor="middle"
-          fontSize="10"
+          fontSize="9"
           fontWeight="700"
           fill="var(--accent-text)"
           className="font-label"

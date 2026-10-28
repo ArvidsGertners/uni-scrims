@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useWhatsNew } from "@/components/whats-new/whats-new-provider";
 import { showcaseQuestionMessages } from "@/i18n/client";
 import { isAdminPath } from "@/lib/admin-path";
+import { isDialogPath } from "@/lib/route-dialog";
 
 /** The page shows first, then the dialog, like the what's new dialog. */
 const OPEN_DELAY_MS = 700;
@@ -20,7 +21,8 @@ type Answer = { teamId: string; show: boolean };
 
 /**
  * The one-time question about the landing page (SPEC N-34, §5.36) for captains of teams never asked:
- * one dialog for all of them, "no" preselected. Opens only once the what's new dialog is closed;
+ * one dialog for all of them, "no" preselected. Opens only once the what's new dialog is closed and
+ * no route dialog is open (its link may lead into the team settings, where the choice also lives);
  * closing without saving answers "no" for every team. Within a tab only once per account, since the
  * root layout outlives a sign-out and sign-in; a failed save simply asks again with the next load.
  */
@@ -32,7 +34,9 @@ export function ShowcaseQuestion({
   userId: string | null;
 }) {
   const t = useMessages(showcaseQuestionMessages);
-  const admin = isAdminPath(usePathname());
+  const pathname = usePathname();
+  const admin = isAdminPath(pathname);
+  const onDialog = isDialogPath(pathname);
   const whatsNew = useWhatsNew();
   const [open, setOpen] = useState(false);
   const [answeredFor, setAnsweredFor] = useState<string | null>(null);
@@ -40,10 +44,10 @@ export function ShowcaseQuestion({
   const due = teams.length > 0 && !admin && answeredFor !== userId;
 
   useEffect(() => {
-    if (!due || whatsNew.pending || whatsNew.showing) return;
+    if (!due || onDialog || whatsNew.pending || whatsNew.showing) return;
     const timer = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [due, whatsNew.pending, whatsNew.showing]);
+  }, [due, onDialog, whatsNew.pending, whatsNew.showing]);
 
   const send = (answers: Answer[]) => {
     setOpen(false);

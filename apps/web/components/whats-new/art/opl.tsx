@@ -3,7 +3,7 @@
 import * as m from "motion/react-m";
 import { useMessages } from "@/components/locale-provider";
 import { whatsNewMessages } from "@/i18n/client";
-import { useArtMotion } from "./motion";
+import { SHIELD, useArtMotion } from "./motion";
 
 /** The digits of a Discord ID as short dashes, the same on both cards. */
 const ID_DASHES = [0, 11, 22, 33, 44, 55];
@@ -51,7 +51,7 @@ export function OplArt() {
           strokeWidth="4"
           strokeLinecap="round"
         />
-        <IdRow x={34} />
+        <IdRow x={34} litAt={0.8} />
       </m.g>
 
       {/* The OPL profile: name in text, an avatar. */}
@@ -77,25 +77,8 @@ export function OplArt() {
           strokeWidth="4"
           strokeLinecap="round"
         />
-        <IdRow x={210} />
+        <IdRow x={210} litAt={0.85} />
       </m.g>
-
-      {/* The same ID on both: the dashes light up in turn. */}
-      {[34, 210].map((x, card) =>
-        ID_DASHES.map((offset, i) => (
-          <m.line
-            key={`${card}-${offset}`}
-            x1={x + offset}
-            y1="68"
-            x2={x + offset + 6}
-            y2="68"
-            stroke="var(--success)"
-            strokeWidth="4"
-            strokeLinecap="round"
-            {...draw(0.8 + i * 0.07 + card * 0.05, 0.15)}
-          />
-        )),
-      )}
 
       {/* Two chain links snap together. */}
       <m.rect
@@ -151,12 +134,7 @@ export function OplArt() {
           stroke="var(--border-strong)"
         />
         <g transform="translate(70 139) scale(0.42)">
-          <path
-            d="M0 -40 L32 -28 V2 C32 26 16 38 0 46 C-16 38 -32 26 -32 2 V-28 Z"
-            fill="var(--accent-soft)"
-            stroke="var(--primary)"
-            strokeWidth="4"
-          />
+          <path d={SHIELD} fill="var(--accent-soft)" stroke="var(--primary)" strokeWidth="4" />
         </g>
         <line
           x1="88"
@@ -229,8 +207,12 @@ function Card({ x }: { x: number }) {
   );
 }
 
-/** The Discord ID row: a small tag and the digits as dashes. */
-function IdRow({ x }: { x: number }) {
+/**
+ * The Discord ID row: a small tag and the digits as dashes, which light up in turn from `litAt`
+ * (the same ID on both cards). Inside the card's group, so they move with it.
+ */
+function IdRow({ x, litAt }: { x: number; litAt: number }) {
+  const { draw } = useArtMotion();
   return (
     <g>
       {ID_DASHES.map((offset) => (
@@ -243,6 +225,19 @@ function IdRow({ x }: { x: number }) {
           stroke="var(--border-strong)"
           strokeWidth="4"
           strokeLinecap="round"
+        />
+      ))}
+      {ID_DASHES.map((offset, i) => (
+        <m.line
+          key={`lit-${offset}`}
+          x1={x + offset}
+          y1="68"
+          x2={x + offset + 6}
+          y2="68"
+          stroke="var(--success)"
+          strokeWidth="4"
+          strokeLinecap="round"
+          {...draw(litAt + i * 0.07, 0.15)}
         />
       ))}
       <circle cx={x + 74} cy="68" r="5" fill="var(--secondary)" stroke="var(--border-strong)" />

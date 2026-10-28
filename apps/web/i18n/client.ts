@@ -332,7 +332,7 @@ export const whatsNewMessages = dictionary(
       },
       opl: {
         title: "Mit OPL verknüpft",
-        text: "Verknüpft euer OPL-Profil und euer OPL-Team, abgeglichen über die Discord-ID. Im Tab „Team“ seht ihr, wer aus eurem Kader auf OPL steht.",
+        text: "Verknüpft euer OPL-Profil in den Einstellungen, abgeglichen über die Discord-ID. Captains verknüpfen danach in den Team-Einstellungen auch euer OPL-Team, und der Tab „Team“ zeigt, wer aus eurem Kader auf OPL steht.",
         cta: "Zu den Einstellungen",
       },
       uniligaLeague: {
@@ -367,7 +367,7 @@ export const whatsNewMessages = dictionary(
       },
       opl: {
         title: "Linked with OPL",
-        text: "Link your OPL profile and your OPL team, matched by your Discord ID. The “Team” tab shows who from your roster is on OPL.",
+        text: "Link your OPL profile in the settings, matched by your Discord ID. Captains then link your OPL team in the team settings, and the “Team” tab shows who from your roster is on OPL.",
         cta: "Go to settings",
       },
       uniligaLeague: {

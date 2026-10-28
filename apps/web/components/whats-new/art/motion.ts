@@ -2,6 +2,9 @@
 // its final state at once: no drawing, sliding or looping.
 import { useReducedMotion } from "motion/react";
 
+/** A team's shield, centred on 0,0; shared by the art. */
+export const SHIELD = "M0 -40 L32 -28 V2 C32 26 16 38 0 46 C-16 38 -32 26 -32 2 V-28 Z";
+
 /** The site's snap curve (globals.css, animate-snap-*). */
 export const SNAP_EASE = [0.2, 0.9, 0.2, 1] as const;
 
