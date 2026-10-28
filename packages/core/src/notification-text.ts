@@ -20,8 +20,11 @@ export const plainSummaryFormat: SummaryFormat = { team: (name) => name, code: (
 export type NotificationSummary = {
   title: string;
   description: string;
-  /** A path into the web app. */
-  link: { label: string; path: string };
+  /**
+   * A path into the web app; with host "admin" a path of the admin area (Phase 37, §5.35), which
+   * the bot and the site resolve against ADMIN_URL (§5.13).
+   */
+  link: { label: string; path: string; host?: "admin" };
 };
 
 export type SummaryContext = { requestId: string | null; scrimId: string | null; locale: Locale };
@@ -42,6 +45,7 @@ const requestsLink = (t: NotificationMessages) => ({
   label: t.links.requests,
   path: "/scrims?tab=anfragen",
 });
+const adminLink = (label: string, path: string) => ({ label, path, host: "admin" as const });
 const scrimLink = (label: string, context: SummaryContext) => ({
   label,
   path: `/scrims/${context.scrimId}`,
@@ -184,6 +188,31 @@ const summaries: { [T in NotifType]: Summarize<T> } = {
       },
     };
   },
+  // Phase 37 (§5.35): the list of the case in the admin area.
+  STAFF_VERIFICATION_PENDING: (_payload, _context, _f, t) => ({
+    title: t.staffVerificationPending.title,
+    description: t.staffVerificationPending.description,
+    link: adminLink(t.links.queue, "/queue"),
+  }),
+  STAFF_MESSAGE_REPORTED: (_payload, _context, _f, t) => ({
+    title: t.staffMessageReported.title,
+    description: t.staffMessageReported.description,
+    link: adminLink(t.links.reports, "/reports"),
+  }),
+  STAFF_TEAM_LIMIT_REQUEST: (_payload, _context, _f, t) => ({
+    title: t.staffTeamLimitRequest.title,
+    description: t.staffTeamLimitRequest.description,
+    link: adminLink(t.links.teamLimits, "/team-limits"),
+  }),
+  STAFF_DISPUTE: (payload, context, f, t) => ({
+    title: t.staffDispute.title,
+    description: t.staffDispute.description(
+      f.team(payload.hostTeamName),
+      f.team(payload.guestTeamName),
+      formatBerlinDate(new Date(payload.startsAt), context.locale),
+    ),
+    link: adminLink(t.links.disputes, "/disputes"),
+  }),
 };
 
 /** Title, text and link of a notification in the context's language. */

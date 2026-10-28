@@ -1,13 +1,14 @@
 // Requests for more teams (SPEC N-17, ARCHITECTURE §5.20): a user asks on the support page, an
 // admin or the operator raises the user's team limit or rejects. No message, the support page shows
 // the state.
-import { TeamLimitStatus, prisma } from "@uni-scrims/db";
+import { NotifType, TeamLimitStatus, prisma } from "@uni-scrims/db";
 import { z } from "zod";
 import { MAX_TEAM_LIMIT, TEAM_LIMIT_REASON_MAX, TEAM_LIMIT_REASON_MIN } from "../config/limits.ts";
 import { DomainError } from "./errors.ts";
 import { key, msg } from "./i18n/render.ts";
 import { lockUser } from "./locks.ts";
 import { requireAdmin, requireUser } from "./permissions.ts";
+import { queueStaffNotification, resolveStaffItems } from "./staff-notifications.ts";
 import { parseInput } from "./schemas.ts";
 import { countOwnTeams } from "./teams.ts";
 
@@ -38,7 +39,7 @@ export async function submitTeamLimitRequest(input: { userId: string; reason: st
     if (await tx.teamLimitRequest.findUnique({ where: { pendingUserId: user.id } })) {
       throw pendingConflict();
     }
-    await tx.teamLimitRequest.create({
+    const request = await tx.teamLimitRequest.create({
       data: {
         userId: user.id,
         pendingUserId: user.id,
@@ -46,6 +47,12 @@ export async function submitTeamLimitRequest(input: { userId: string; reason: st
         status: TeamLimitStatus.PENDING,
         createdAt: input.now,
       },
+    });
+    // Admins learn of it (Phase 37, §5.35).
+    await queueStaffNotification(tx, input.now, {
+      type: NotifType.STAFF_TEAM_LIMIT_REQUEST,
+      entityId: request.id,
+      payload: { teamLimitRequestId: request.id },
     });
   });
 }
@@ -130,6 +137,7 @@ export async function decideTeamLimitRequest(input: {
     if (updated.count === 0) {
       throw new DomainError("CONFLICT", "teamLimitRequestDecided");
     }
+    await resolveStaffItems(tx, NotifType.STAFF_TEAM_LIMIT_REQUEST, [request.id], input.now);
     if (newLimit !== null) {
       await tx.user.update({ where: { id: request.userId }, data: { teamLimit: newLimit } });
     }

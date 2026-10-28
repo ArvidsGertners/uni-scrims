@@ -6,6 +6,7 @@ import type { Db } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { queueNotifications } from "./notifications.ts";
 import { lockUser } from "./locks.ts";
+import { queueStaffNotification, resolveStaffItems } from "./staff-notifications.ts";
 import { requireReviewer, requireUser } from "./permissions.ts";
 import { deleteUpload, detectUploadType, storeUpload, uploadFilePath } from "./uploads.ts";
 import { avatarVersion } from "./users.ts";
@@ -119,7 +120,7 @@ export async function submitVerification(input: SubmitVerificationInput) {
       if (await tx.verificationRequest.findUnique({ where: { pendingUserId: user.id } })) {
         throw pendingConflict();
       }
-      return tx.verificationRequest.create({
+      const request = await tx.verificationRequest.create({
         data: {
           userId: user.id,
           pendingUserId: user.id,
@@ -132,6 +133,13 @@ export async function submitVerification(input: SubmitVerificationInput) {
           createdAt: input.now,
         },
       });
+      // Staff with access to the queue learn of it (Phase 37, §5.35).
+      await queueStaffNotification(tx, input.now, {
+        type: NotifType.STAFF_VERIFICATION_PENDING,
+        entityId: request.id,
+        payload: { verificationId: request.id },
+      });
+      return request;
     });
   } catch (error) {
     await deleteUpload(input.uploadDir, fileName);
@@ -244,6 +252,8 @@ async function createResultNotification(
   rejectReason: string | null,
   now: Date,
 ): Promise<void> {
+  // Every result closes the case for staff (Phase 37, §5.35).
+  await resolveStaffItems(db, NotifType.STAFF_VERIFICATION_PENDING, [requestId], now);
   await queueNotifications(db, now, [
     {
       type: NotifType.VERIFICATION_RESULT,

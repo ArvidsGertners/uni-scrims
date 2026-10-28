@@ -396,7 +396,7 @@ describe("sendMessage and the notification", () => {
     await expect(view(member, guest, key)).rejects.toMatchObject({ text: { key: "notInTeam" } });
     // Deleting the own message: as for a stranger.
     await expect(
-      deleteOwnMessage({ userId: member.id, messageId: message.id }),
+      deleteOwnMessage({ userId: member.id, messageId: message.id, now: NOW }),
     ).rejects.toMatchObject({ code: "NOT_FOUND", text: { key: "messageNotFound" } });
   });
 });
@@ -571,22 +571,22 @@ describe("deleting and reporting", () => {
       where: { body: "ups", authorId: guest.captain.id },
     });
     await expect(
-      deleteOwnMessage({ userId: guest.members[0]!.id, messageId: message.id }),
+      deleteOwnMessage({ userId: guest.members[0]!.id, messageId: message.id, now: NOW }),
     ).rejects.toMatchObject({ code: "NOT_FOUND", text: { key: "messageNotFound" } });
     await expect(
-      deleteOwnMessage({ userId: host.captain.id, messageId: message.id }),
+      deleteOwnMessage({ userId: host.captain.id, messageId: message.id, now: NOW }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     await withdrawApplication({
       userId: guest.captain.id,
       applicationId: setup.application.id,
       now: NOW,
     });
-    expect(await deleteOwnMessage({ userId: guest.captain.id, messageId: message.id })).toEqual(
-      key,
-    );
+    expect(
+      await deleteOwnMessage({ userId: guest.captain.id, messageId: message.id, now: NOW }),
+    ).toEqual(key);
     expect(await prisma.message.count({ where: { id: message.id } })).toBe(0);
     await expect(
-      deleteOwnMessage({ userId: guest.captain.id, messageId: message.id }),
+      deleteOwnMessage({ userId: guest.captain.id, messageId: message.id, now: NOW }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
@@ -612,7 +612,7 @@ describe("deleting and reporting", () => {
     expect((await view(host.captain, host, key)).messages[0]?.reported).toBe(true);
     expect((await view(guest.captain, guest, key)).messages[0]?.reported).toBe(false);
 
-    await deleteOwnMessage({ userId: guest.captain.id, messageId: message.id });
+    await deleteOwnMessage({ userId: guest.captain.id, messageId: message.id, now: NOW });
     expect(await prisma.messageReport.count({ where: { messageId: message.id } })).toBe(0);
     await expect(report(host.captain, host)).rejects.toMatchObject({
       text: { key: "messageNotFound" },
@@ -660,7 +660,7 @@ describe("moderation", () => {
     expect(before).toBeGreaterThanOrEqual(2);
 
     expect(
-      await removeReportedMessage({ adminId: admin.id, messageId: removed.message.id }),
+      await removeReportedMessage({ adminId: admin.id, messageId: removed.message.id, now: NOW }),
     ).toEqual(removed.key);
     expect(await prisma.message.count({ where: { id: removed.message.id } })).toBe(0);
     await dismissMessageReports({ adminId: admin.id, messageId: kept.message.id, now: NOW });
@@ -689,7 +689,7 @@ describe("moderation", () => {
     for (const user of [reviewer, noTwoFactor]) {
       await expect(listMessageReports(user.id)).rejects.toBeDefined();
       await expect(
-        removeReportedMessage({ adminId: user.id, messageId: message.id }),
+        removeReportedMessage({ adminId: user.id, messageId: message.id, now: NOW }),
       ).rejects.toBeDefined();
       await expect(
         dismissMessageReports({ adminId: user.id, messageId: message.id, now: NOW }),

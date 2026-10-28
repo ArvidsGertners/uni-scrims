@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { NotifType, prisma } from "@uni-scrims/db";
 import { describe, expect, it } from "vitest";
 import {
+  PLAYER_NOTIFICATION_TYPES,
   NOTIFICATION_CATEGORIES,
   defaultChannels,
   deleteAccount,
@@ -31,9 +32,9 @@ async function storedRows(userId: string) {
 }
 
 describe("notification categories", () => {
-  it("place every type exactly once", () => {
+  it("place every player type exactly once; the staff types have their own page (§5.35)", () => {
     const types = NOTIFICATION_CATEGORIES.flatMap((category) => category.types.map((t) => t.type));
-    expect([...types].sort()).toEqual(Object.values(NotifType).sort());
+    expect([...types].sort()).toEqual([...PLAYER_NOTIFICATION_TYPES].sort());
   });
 });
 
@@ -127,7 +128,7 @@ describe("setNotificationPreferences", () => {
   it("clears the DM banner once Discord is off everywhere", async () => {
     const user = await createUser({ verified: true });
     await prisma.user.update({ where: { id: user.id }, data: { dmFailedAt: NOW } });
-    const allOff = Object.fromEntries(Object.values(NotifType).map((type) => [type, OFF]));
+    const allOff = Object.fromEntries(PLAYER_NOTIFICATION_TYPES.map((type) => [type, OFF]));
     await setNotificationPreferences({ userId: user.id, preferences: allOff });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).dmFailedAt).toBeNull();
   });

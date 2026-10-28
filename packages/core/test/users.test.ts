@@ -78,6 +78,7 @@ describe("getCurrentUser", () => {
       hubJoinFailedAt: null,
       dmFailedAt: NOW,
       staffRole: null,
+      twoFactorEnabled: false,
       setupStep: null,
       avatarVersion: null,
       theme: "SYSTEM",

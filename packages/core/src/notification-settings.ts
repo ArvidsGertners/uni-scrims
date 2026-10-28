@@ -1,20 +1,29 @@
 // Notification settings per person (SPEC N-14, ARCHITECTURE §5.17): Discord and mail per type,
 // with defaults that keep the behaviour from before Phase 18.
-import { NotifType, prisma } from "@uni-scrims/db";
+import { NotifType, type StaffRole, prisma } from "@uni-scrims/db";
 import type { Locale } from "../config/locale.ts";
 import type { Db } from "./db.ts";
 import { NOTIFICATION_SETTING_LABELS } from "./i18n/notification-settings.ts";
 import { lockUser } from "./locks.ts";
+import {
+  PLAYER_NOTIFICATION_TYPES,
+  STAFF_NOTIFICATION_TYPES,
+  isStaffType,
+  staffTypesFor,
+} from "./notification-types.ts";
 import { findOwnTeams, isCaptainOf, requireUser } from "./permissions.ts";
 import { notificationPreferencesSchema, parseInput } from "./schemas.ts";
 import { notDeletedUserWhere } from "./users.ts";
 
-/** Who a type goes to: the person itself, the team's captain, or every member of the team. */
-export type NotificationAudience = "SELF" | "CAPTAIN" | "TEAM";
+/**
+ * Who a type goes to: the person itself, the team's captain, every member of the team, or since
+ * Phase 37 every staff member whose role sees the case (§5.35).
+ */
+export type NotificationAudience = "SELF" | "CAPTAIN" | "TEAM" | "STAFF";
 
 export type ChannelSettings = { discord: boolean; email: boolean };
 
-type StoredChannels = { discord: boolean | null; email: boolean | null };
+export type StoredChannels = { discord: boolean | null; email: boolean | null };
 
 export type NotificationCategoryKey = "verification" | "requests" | "scrims" | "messages" | "team";
 
@@ -24,7 +33,7 @@ export type NotificationCategoryKey = "verification" | "requests" | "scrims" | "
  */
 export const NOTIFICATION_CATEGORIES: {
   key: NotificationCategoryKey;
-  types: { type: NotifType; audience: NotificationAudience }[];
+  types: { type: NotifType; audience: Exclude<NotificationAudience, "STAFF"> }[];
 }[] = [
   {
     key: "verification",
@@ -63,9 +72,12 @@ export const NOTIFICATION_CATEGORIES: {
   },
 ];
 
-const SETTINGS = new Map(
-  NOTIFICATION_CATEGORIES.flatMap((category) => category.types).map((item) => [item.type, item]),
-);
+const SETTINGS = new Map<NotifType, { audience: NotificationAudience }>([
+  ...NOTIFICATION_CATEGORIES.flatMap((category) => category.types).map(
+    (item) => [item.type, item] as const,
+  ),
+  ...STAFF_NOTIFICATION_TYPES.map(({ type }) => [type, { audience: "STAFF" as const }] as const),
+]);
 
 export function notificationAudience(type: NotifType): NotificationAudience {
   return SETTINGS.get(type)!.audience;
@@ -87,7 +99,10 @@ export function defaultChannels(type: NotifType, isCaptain: boolean): ChannelSet
   return { discord: notificationAudience(type) === "TEAM" ? isCaptain : true, email: false };
 }
 
-/** The stored choice where there is one, otherwise the default for this role. */
+/**
+ * The stored choice where there is one, otherwise the default for this role. Staff types never go
+ * by mail (§5.35).
+ */
 export function effectiveChannels(
   type: NotifType,
   isCaptain: boolean,
@@ -96,8 +111,23 @@ export function effectiveChannels(
   const defaults = defaultChannels(type, isCaptain);
   return {
     discord: stored?.discord ?? defaults.discord,
-    email: stored?.email ?? defaults.email,
+    email: isStaffType(type) ? false : (stored?.email ?? defaults.email),
   };
+}
+
+/**
+ * Whether any notification of the person still goes to Discord with these stored choices: the
+ * player types for this role and the staff types of the person's role (§5.1: otherwise the DM
+ * banner is reset).
+ */
+export function discordAnywhere(
+  isCaptain: boolean,
+  staffRole: StaffRole | null,
+  stored: ReadonlyMap<NotifType, StoredChannels>,
+): boolean {
+  return [...PLAYER_NOTIFICATION_TYPES, ...staffTypesFor(staffRole)].some(
+    (type) => effectiveChannels(type, isCaptain, stored.get(type)).discord,
+  );
 }
 
 /**
@@ -159,9 +189,8 @@ export async function setNotificationPreferences(input: {
     const user = await requireUser(input.userId, tx);
     const { isCaptain, mixedRoles } = await captainRoles(user, tx);
     const stored = await tx.notificationPreference.findMany({ where: { userId: user.id } });
-    const byType = new Map(stored.map((row) => [row.type, row]));
-    let discordAnywhere = false;
-    for (const type of Object.values(NotifType)) {
+    const byType = new Map<NotifType, StoredChannels>(stored.map((row) => [row.type, row]));
+    for (const type of PLAYER_NOTIFICATION_TYPES) {
       const row = byType.get(type);
       const next = nextStored(
         type,
@@ -171,15 +200,31 @@ export async function setNotificationPreferences(input: {
         input.shownAsCaptain ?? isCaptain,
         mixedRoles,
       );
-      discordAnywhere ||= effectiveChannels(type, isCaptain, next).discord;
       if (next.discord !== (row?.discord ?? null) || next.email !== (row?.email ?? null)) {
         await writeStored(tx, user.id, type, next, row !== undefined);
       }
+      byType.set(type, next);
     }
-    if (!discordAnywhere) {
-      await tx.user.updateMany({ where: notDeletedUserWhere(user.id), data: { dmFailedAt: null } });
-    }
+    if (!discordAnywhere(isCaptain, user.staffRole, byType)) await clearDmFailure(tx, user.id);
   });
+}
+
+async function clearDmFailure(db: Db, userId: string): Promise<void> {
+  await db.user.updateMany({ where: notDeletedUserWhere(userId), data: { dmFailedAt: null } });
+}
+
+/**
+ * After the staff settings were saved (Phase 37, §5.35), in their transaction: with Discord off for
+ * every type the person gets, dmFailedAt is reset (§5.1), as in setNotificationPreferences.
+ */
+export async function clearDmFailureIfSilent(
+  db: Db,
+  user: { id: string; staffRole: StaffRole | null },
+): Promise<void> {
+  const { isCaptain } = await captainRoles(user, db);
+  const stored = await db.notificationPreference.findMany({ where: { userId: user.id } });
+  const byType = new Map<NotifType, StoredChannels>(stored.map((row) => [row.type, row]));
+  if (!discordAnywhere(isCaptain, user.staffRole, byType)) await clearDmFailure(db, user.id);
 }
 
 /**
@@ -206,7 +251,8 @@ export function nextStored(
   return next;
 }
 
-async function writeStored(
+/** One person's stored choice for a type; both null deletes the row. */
+export async function writeStored(
   db: Db,
   userId: string,
   type: NotifType,

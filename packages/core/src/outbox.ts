@@ -16,6 +16,7 @@ import type { Db } from "./db.ts";
 import { writeInboxItems } from "./inbox.ts";
 import { lockTeam, lockUser } from "./locks.ts";
 import { effectiveChannels, notificationAudience } from "./notification-settings.ts";
+import { isStaffType } from "./notification-types.ts";
 import {
   type NotificationEntry,
   type NotificationPayload,
@@ -26,6 +27,11 @@ import { requireAdmin } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
 import { isRequestOpen } from "./requests.ts";
 import { feedbackClosedReason } from "./scrims.ts";
+import {
+  isStaffMatterOpen,
+  isStillStaffRecipient,
+  lockStaffRecipients,
+} from "./staff-notifications.ts";
 import { deliverableEmail, getDiscordId, notDeletedUserWhere } from "./users.ts";
 import { DEFAULT_LOCALE, type Locale } from "../config/locale.ts";
 import { fromDbLocale } from "./i18n/locale.ts";
@@ -344,10 +350,11 @@ async function recordFailure(
 /**
  * Fans a personal notification out into USER_DM and USER_EMAIL children, one per person and channel
  * switched on (§5.17): the person for SELF types, the current captain for CAPTAIN types, every
- * member for TEAM types. Every one of them also gets a bell entry, whatever their channels (Phase
- * 36, §5.34). Under the team or user lock (§4), so it sees the current members and nothing is
- * created for an account deleted meanwhile. The parent becomes SENT as distributed, or CANCELLED
- * without a single recipient; null if it was no longer pending.
+ * member for TEAM types, since Phase 37 every staff member who gets a STAFF type (§5.35). Every one
+ * of them also gets a bell entry, whatever their channels (Phase 36, §5.34). Under the team or user
+ * locks (§4), so it sees the current members and nothing is created for an account deleted
+ * meanwhile. The parent becomes SENT as distributed, or CANCELLED without a single recipient; null
+ * if it was no longer pending.
  */
 async function fanOut(
   notification: LoadedNotification,
@@ -375,6 +382,9 @@ async function fanOut(
         select: { id: true },
       });
       if (user) recipients = [{ userId: user.id, isCaptain: false }];
+    } else if (isStaffType(notification.type)) {
+      const staff = await lockStaffRecipients(tx, notification.type);
+      recipients = staff.map((userId) => ({ userId, isCaptain: false }));
     }
     const preferences = await tx.notificationPreference.findMany({
       where: { userId: { in: recipients.map(({ userId }) => userId) }, type: notification.type },
@@ -418,12 +428,17 @@ async function fanOut(
 
 /**
  * A fanned-out copy is dropped when its person left the team or has switched the channel off since
- * (§5.17). The defaults are not worked out again: the fan-out already decided with them, and a
- * captain change in between must not drop the copy of the former captain.
+ * (§5.17), or when a staff member no longer gets the type (§5.35). The defaults are not worked out
+ * again: the fan-out already decided with them, and a captain change in between must not drop the
+ * copy of the former captain.
  */
 async function stillWanted(notification: LoadedNotification): Promise<boolean> {
   const userId = notification.targetUserId;
   if (!userId) return true;
+  // A staff copy: the person's role still sees the case (§5.35).
+  if (isStaffType(notification.type) && !(await isStillStaffRecipient(userId, notification.type))) {
+    return false;
+  }
   if (notification.targetTeamId) {
     const membership = await prisma.teamMember.findUnique({
       where: { teamId_userId: { teamId: notification.targetTeamId, userId } },
@@ -480,6 +495,13 @@ export async function deliverNotification(
       scheduledFor: now,
     });
     return failed ? "FAILED" : null;
+  }
+  // A closed case is not announced any more, neither in the bell nor by DM (§5.35).
+  if (
+    isStaffType(notification.type) &&
+    !(await isStaffMatterOpen({ ...notification, type: notification.type }))
+  ) {
+    return cancel();
   }
   if (
     PERSONAL_CHANNELS.includes(notification.channel) ||

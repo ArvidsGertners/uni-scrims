@@ -2,13 +2,18 @@
 import {
   FeedbackOutcome,
   MemberRole,
-  NotifType,
+  type NotifType,
   Rank,
   ScrimFormat,
   ThemePreference,
 } from "@uni-scrims/db";
 import { z } from "zod";
 import { PASSWORD_MAX, PASSWORD_MIN, REAL_NAME_MAX } from "../config/account.ts";
+import {
+  PLAYER_NOTIFICATION_TYPES,
+  STAFF_NOTIFICATION_TYPES,
+  type StaffNotifType,
+} from "./notification-types.ts";
 import {
   APPLICATION_MESSAGE_MAX,
   MESSAGE_MAX,
@@ -95,11 +100,21 @@ export const themePreferenceSchema = z.enum(ThemePreference, key("chooseTheme"))
 
 const INCOMPLETE_SETTINGS = key("settingsIncomplete");
 
-/** The notifications form (Phase 18, §5.17): Discord and mail for every type, none left out. */
+/**
+ * The notifications form (Phase 18, §5.17): Discord and mail for every player type, none left out;
+ * the staff types have their own form (Phase 37, §5.35).
+ */
 export const notificationPreferencesSchema = z.record(
-  z.enum(NotifType),
+  z.enum(PLAYER_NOTIFICATION_TYPES as [NotifType, ...NotifType[]]),
   // A missing type fails here, as a value that is not an object.
   z.object({ discord: z.boolean(), email: z.boolean() }, INCOMPLETE_SETTINGS),
+  INCOMPLETE_SETTINGS,
+);
+
+/** The staff notifications form (Phase 37, §5.35): Discord per type of the own areas. */
+export const staffNotificationPreferencesSchema = z.partialRecord(
+  z.enum(STAFF_NOTIFICATION_TYPES.map(({ type }) => type) as [StaffNotifType, ...StaffNotifType[]]),
+  z.boolean(INCOMPLETE_SETTINGS),
   INCOMPLETE_SETTINGS,
 );
 

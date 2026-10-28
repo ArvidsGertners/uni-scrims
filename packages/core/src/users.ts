@@ -246,6 +246,7 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
       firstName: true,
       emailVerified: true,
       staffRole: true,
+      twoFactorEnabled: true,
       avatarUpdatedAt: true,
       theme: true,
       locale: true,
@@ -265,6 +266,8 @@ export async function getCurrentUser(userId: string, db: Db = prisma) {
     dmFailedAt: user.dmFailedAt,
     /** Shows the admin link; the admin pages check the role per area themselves (§5.9). */
     staffRole: user.staffRole,
+    /** With a role: whether the admin area is open, and the bell there (§5.35). */
+    twoFactorEnabled: user.twoFactorEnabled,
     setupStep: accountSetupStep(user, discordId !== null),
     /** For the avatar next to "Konto" (§5.14). */
     avatarVersion: avatarVersion(user),

@@ -73,8 +73,9 @@ export type InboxEntry = {
   type: NotifType;
   title: string;
   description: string;
-  /** A path into the web app. */
+  /** A path into the web app, or with `admin` into the admin area (Phase 37, §5.35). */
   href: string;
+  admin: boolean;
   createdAt: Date;
   read: boolean;
 };
@@ -105,6 +106,7 @@ export function inboxItemView(item: StoredItem, locale: Locale): InboxEntry | nu
     title: summary.title,
     description: summary.description,
     href: summary.link.path,
+    admin: summary.link.host === "admin",
     createdAt: item.createdAt,
     read: item.readAt !== null,
   };

@@ -38,6 +38,11 @@ export const NOTIFICATION_SETTING_LABELS = dictionary<Record<NotifType, string>>
     DIRECT_REQUEST_DECLINED: "Direktanfrage abgelehnt",
     PARTNERSHIP_ENDED: "Feste Partnerschaft beendet",
     MESSAGE_RECEIVED: "Neue Nachricht eines anderen Teams",
+    // Phase 37 (§5.35): the staff settings in the admin area.
+    STAFF_VERIFICATION_PENDING: "Neue Verifizierung in der Prüf-Queue",
+    STAFF_MESSAGE_REPORTED: "Gemeldete Nachricht",
+    STAFF_TEAM_LIMIT_REQUEST: "Antrag auf mehr Teams",
+    STAFF_DISPUTE: "Strittiges Scrim",
   },
   {
     VERIFICATION_RESULT: "Result of the review",
@@ -55,5 +60,9 @@ export const NOTIFICATION_SETTING_LABELS = dictionary<Record<NotifType, string>>
     DIRECT_REQUEST_DECLINED: "Direct request declined",
     PARTNERSHIP_ENDED: "Fixed partnership ended",
     MESSAGE_RECEIVED: "New message from another team",
+    STAFF_VERIFICATION_PENDING: "New verification in the review queue",
+    STAFF_MESSAGE_REPORTED: "Reported message",
+    STAFF_TEAM_LIMIT_REQUEST: "Request for more teams",
+    STAFF_DISPUTE: "Disputed scrim",
   },
 );

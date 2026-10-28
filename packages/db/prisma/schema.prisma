@@ -105,6 +105,11 @@ enum NotifType {
   PARTNERSHIP_ENDED
   // Phase 32 (§5.30): a new message in a thread, without its text.
   MESSAGE_RECEIVED
+  // Phase 37 (§5.35): a new case for staff, to everyone whose role sees its area.
+  STAFF_VERIFICATION_PENDING
+  STAFF_MESSAGE_REPORTED
+  STAFF_TEAM_LIMIT_REQUEST
+  STAFF_DISPUTE
 }
 
 enum NotifChannel {

@@ -21,6 +21,11 @@ const de = {
     uploadAgain: "Neu hochladen",
     requests: "Zu euren Anfragen",
     readMessage: "Nachricht lesen",
+    // Phase 37 (§5.35): into the admin area.
+    queue: "Zur Prüf-Queue",
+    reports: "Zu den Meldungen",
+    teamLimits: "Zu den Anträgen",
+    disputes: "Zu den Streitfällen",
   },
   applicationReceived: {
     title: "Neue Bewerbung",
@@ -118,6 +123,25 @@ const de = {
     description:
       "Deine Immatrikulationsbescheinigung wurde abgelehnt. Du kannst eine neue hochladen.",
   },
+  // Phase 37 (SPEC N-33): for staff, without names of people or message texts.
+  staffVerificationPending: {
+    title: "Neue Verifizierung",
+    description: "Eine Studienbescheinigung wartet in der Prüf-Queue auf ihre Prüfung.",
+  },
+  staffMessageReported: {
+    title: "Nachricht gemeldet",
+    description: "Ein Team hat eine Nachricht gemeldet. Entferne sie oder verwirf die Meldung.",
+  },
+  staffTeamLimitRequest: {
+    title: "Antrag auf mehr Teams",
+    description: "Jemand möchte mehr Teams haben. Der Antrag wartet auf eine Entscheidung.",
+  },
+  staffDispute: {
+    title: "Strittiges Scrim",
+    /** `date`: the day of the scrim. */
+    description: (host: string, guest: string, date: string) =>
+      `Die Feedbacks von ${host} und ${guest} zum Scrim am ${date} widersprechen sich. Der Streitfall wartet auf eine Entscheidung.`,
+  },
   mail: {
     greeting: "Hallo,",
     /** `setting`: the name of the switch in the settings; `url`: the settings page. */
@@ -146,6 +170,10 @@ export const NOTIFICATION_MESSAGES = dictionary(de, {
     uploadAgain: "Upload again",
     requests: "Go to your requests",
     readMessage: "Read message",
+    queue: "Go to the review queue",
+    reports: "Go to the reports",
+    teamLimits: "Go to the team requests",
+    disputes: "Go to the disputes",
   },
   applicationReceived: {
     title: "New application",
@@ -231,6 +259,23 @@ export const NOTIFICATION_MESSAGES = dictionary(de, {
   verificationRejected: {
     title: "Verification rejected",
     description: "Your enrolment certificate was rejected. You can upload a new one.",
+  },
+  staffVerificationPending: {
+    title: "New verification",
+    description: "An enrolment certificate is waiting for review in the review queue.",
+  },
+  staffMessageReported: {
+    title: "Message reported",
+    description: "A team reported a message. Remove it or dismiss the report.",
+  },
+  staffTeamLimitRequest: {
+    title: "Request for more teams",
+    description: "Someone would like more teams. The request is waiting for a decision.",
+  },
+  staffDispute: {
+    title: "Disputed scrim",
+    description: (host, guest, date) =>
+      `${host} and ${guest} gave contradicting feedback on their scrim on ${date}. The dispute is waiting for a decision.`,
   },
   mail: {
     greeting: "Hi,",

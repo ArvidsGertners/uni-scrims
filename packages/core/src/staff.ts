@@ -15,6 +15,7 @@ import { DomainError } from "./errors.ts";
 import type { PlainMessageKey } from "./i18n/render.ts";
 import { lockUser } from "./locks.ts";
 import { STAFF_AREAS, requireOperator, requireStaff, staffArea } from "./permissions.ts";
+import { deleteLostStaffItems } from "./staff-notifications.ts";
 import { emailSchema } from "./schemas.ts";
 import { CREDENTIAL_PROVIDER } from "./account.ts";
 import { getBotStatus } from "./sweeper.ts";
@@ -156,6 +157,8 @@ export async function setStaffRole(input: {
     if (target?.staffRole === input.role) return;
     await tx.user.update({ where: { id: input.userId }, data: { staffRole: input.role } });
     await endStaffSessions(tx, input.userId, input.role === null);
+    // Bell entries of cases the new role does not see go (Phase 37, §5.35).
+    await deleteLostStaffItems(tx, input.userId, input.role);
   });
 }
 

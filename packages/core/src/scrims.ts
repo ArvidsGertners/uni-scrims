@@ -20,6 +20,7 @@ import {
 } from "./notifications.ts";
 import { requireAdmin, requireScrimActingCaptain } from "./permissions.ts";
 import { type FeedbackInput, feedbackInputSchema, parseInput } from "./schemas.ts";
+import { queueStaffNotification, resolveStaffItems } from "./staff-notifications.ts";
 
 function scrimNotFound(): DomainError {
   return new DomainError("NOT_FOUND", "scrimNotFound");
@@ -181,11 +182,15 @@ export function resolveScrimOutcome(
   }
 }
 
-/** Reads both answers of a locked scrim, evaluates and writes the result if it is final. */
+/**
+ * Reads both answers of a locked scrim, evaluates and writes the result if it is final. A dispute
+ * goes to the admins (Phase 37, §5.35).
+ */
 async function evaluate(
   tx: Prisma.TransactionClient,
   scrim: { id: string; hostTeamId: string; guestTeamId: string },
   deadlineReached: boolean,
+  now: Date,
 ): Promise<ScrimOutcome | null> {
   const feedback = await tx.scrimFeedback.findMany({
     where: { scrimId: scrim.id },
@@ -205,7 +210,28 @@ async function evaluate(
     where: { id: scrim.id, status: ScrimStatus.AWAITING_FEEDBACK },
     data: { status: result.status, noShowTeamId: result.noShowTeamId },
   });
-  return updated.count === 0 ? null : result;
+  if (updated.count === 0) return null;
+  if (result.status === ScrimStatus.DISPUTED) {
+    const disputed = await tx.scrim.findUniqueOrThrow({
+      where: { id: scrim.id },
+      select: {
+        startsAt: true,
+        hostTeam: { select: { name: true } },
+        guestTeam: { select: { name: true } },
+      },
+    });
+    await queueStaffNotification(tx, now, {
+      type: NotifType.STAFF_DISPUTE,
+      entityId: scrim.id,
+      scrimId: scrim.id,
+      payload: {
+        hostTeamName: disputed.hostTeam.name,
+        guestTeamName: disputed.guestTeam.name,
+        startsAt: disputed.startsAt.toISOString(),
+      },
+    });
+  }
+  return result;
 }
 
 /**
@@ -252,7 +278,7 @@ export async function submitFeedback(
           createdAt: now,
         },
       });
-      return { result: await evaluate(tx, scrim, false) };
+      return { result: await evaluate(tx, scrim, false, now) };
     });
   } catch (error) {
     if (isUniqueViolation(error)) throw alreadyAnswered();
@@ -288,7 +314,7 @@ export async function resolveDeadlines(now: Date): Promise<number> {
       if (scrim.status !== ScrimStatus.AWAITING_FEEDBACK || scrim.feedbackDeadline > now) {
         return null;
       }
-      return evaluate(tx, scrim, true);
+      return evaluate(tx, scrim, true, now);
     });
     if (result) resolved++;
   }
@@ -374,5 +400,6 @@ export async function resolveDispute(
         resolvedAt: input.now,
       },
     });
+    await resolveStaffItems(tx, NotifType.STAFF_DISPUTE, [scrim.id], input.now);
   });
 }

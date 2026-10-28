@@ -1,9 +1,10 @@
 // Bans by admins (SPEC P0-9, edge cases; ARCHITECTURE §5.5). Unbanning is manual SQL in the MVP.
-import { type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
+import { NotifType, type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { deleteTeamInboxItems } from "./inbox.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeams, isCaptainOf, requireAdmin } from "./permissions.ts";
+import { resolveStaffItems } from "./staff-notifications.ts";
 import { linksVersion, teamLinksSelect, toTeamLinks } from "./team-links.ts";
 import { clearTeamLogo, logoVersion, teamLogoInfo, teamLogoSelect } from "./team-logo.ts";
 import { clearTeamLinks, lockRetirements, retireTeamActivity } from "./teams.ts";
@@ -263,5 +264,12 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
     },
     select: { id: true, filePath: true },
   });
+  // The closed requests are no case for staff any more (Phase 37, §5.35).
+  await resolveStaffItems(
+    tx,
+    NotifType.STAFF_VERIFICATION_PENDING,
+    closedVerifications.map(({ id }) => id),
+    now,
+  );
   return { teamBanned, closedVerifications };
 }

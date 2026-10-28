@@ -74,6 +74,17 @@ export const notificationPayloadSchemas = {
     guestTeamId: z.string(),
     toGuest: z.boolean(),
   }),
+  // Phase 37 (§5.35): cases for staff, without names of people or message texts (SPEC N-33). The
+  // ID of the case marks every copy read once it is closed.
+  STAFF_VERIFICATION_PENDING: z.object({ verificationId: z.string() }),
+  STAFF_MESSAGE_REPORTED: z.object({ messageId: z.string() }),
+  STAFF_TEAM_LIMIT_REQUEST: z.object({ teamLimitRequestId: z.string() }),
+  // The scrim is the notification's scrimId.
+  STAFF_DISPUTE: z.object({
+    hostTeamName: z.string(),
+    guestTeamName: z.string(),
+    startsAt: z.iso.datetime(),
+  }),
 } satisfies Record<NotifType, z.ZodType>;
 
 export type NotificationPayload<T extends NotifType> = z.infer<
@@ -115,10 +126,12 @@ export const BOTH_TEAM_CHANNELS = [NotifChannel.PERSONAL, NotifChannel.TEAM_CHAN
 
 /**
  * <type>:<entity>:<userId|teamId>:<channel>. Fanned-out children carry both IDs and the parent as
- * entity, so each person's copy has a key of its own (§5.17).
+ * entity, so each person's copy has a key of its own (§5.17). A staff notification has no target
+ * before it is fanned out: "staff" (§5.35).
  */
 export function dedupeKey(entry: NotificationEntry): string {
-  return `${entry.type}:${entry.entityId}:${entry.targetUserId ?? entry.targetTeamId}:${entry.channel}`;
+  const target = entry.targetUserId ?? entry.targetTeamId ?? "staff";
+  return `${entry.type}:${entry.entityId}:${target}:${entry.channel}`;
 }
 
 /** One entry per channel for a team. */

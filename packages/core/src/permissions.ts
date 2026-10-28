@@ -2,7 +2,7 @@
 // The require* checks read the current state from the database and throw a DomainError.
 // The non-throwing predicates only decide what pages offer; mutations always run the require*
 // checks inside their transaction as well.
-import { StaffRole, prisma } from "@uni-scrims/db";
+import { type StaffRole, prisma } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
 import {
   AccountIncompleteError,
@@ -13,7 +13,10 @@ import {
   problemError,
 } from "./errors.ts";
 import { type PlainMessageKey, msg } from "./i18n/render.ts";
+import { STAFF_AREAS } from "./staff-areas.ts";
 import { type AccountSetupStep, accountSetupStep, getDiscordId, isLoggedOutUser } from "./users.ts";
+
+export { STAFF_AREAS, type StaffArea, staffArea } from "./staff-areas.ts";
 
 /** Shown when an action needs a complete account; pages redirect to the step instead (§5.8). */
 const SETUP_STEP_MESSAGES: Record<AccountSetupStep, PlainMessageKey> = {
@@ -200,23 +203,6 @@ export async function requireTeamMember(
     throw new DomainError("FORBIDDEN", "notInTeam");
   }
   return { user, team: membership.team };
-}
-
-/** Which roles see which part of the admin area (ARCHITECTURE §5.9). */
-export const STAFF_AREAS = {
-  /** Verification queue and file access. */
-  queue: [StaffRole.OPERATOR, StaffRole.ADMIN, StaffRole.REVIEWER],
-  /** Disputes, bans, failed notifications, bot status, statistics. */
-  admin: [StaffRole.OPERATOR, StaffRole.ADMIN],
-  /** Roles and 2FA resets. */
-  staff: [StaffRole.OPERATOR],
-} as const satisfies Record<string, readonly StaffRole[]>;
-
-export type StaffArea = keyof typeof STAFF_AREAS;
-
-/** Whether a role sees an area of the admin area; for the navigation. */
-export function staffArea(role: StaffRole | null, area: StaffArea): boolean {
-  return role !== null && (STAFF_AREAS[area] as readonly StaffRole[]).includes(role);
 }
 
 /**

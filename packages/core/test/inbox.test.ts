@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
   type Deliver,
+  PLAYER_NOTIFICATION_TYPES,
   applyToRequest,
   banUser,
   countUnread,
@@ -236,8 +237,8 @@ describe("inboxItemView: texts and links per type", () => {
     ],
   ];
 
-  it("covers every type", () => {
-    expect(new Set(cases.map(([type]) => type))).toEqual(new Set(Object.values(NotifType)));
+  it("covers every player type (the staff types: staff-notifications.test.ts)", () => {
+    expect(new Set(cases.map(([type]) => type))).toEqual(new Set(PLAYER_NOTIFICATION_TYPES));
   });
 
   it.each(cases)("%s links to the right page in both languages", (type, payload, href) => {

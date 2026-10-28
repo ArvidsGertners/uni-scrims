@@ -118,6 +118,10 @@ export const NOTIFICATION_TYPE_LABELS: Localized<Record<NotifType, string>> = di
     DIRECT_REQUEST_DECLINED: "Direktanfrage abgelehnt",
     PARTNERSHIP_ENDED: "Feste Partnerschaft beendet",
     MESSAGE_RECEIVED: "Neue Nachricht",
+    STAFF_VERIFICATION_PENDING: "Staff: neue Verifizierung",
+    STAFF_MESSAGE_REPORTED: "Staff: Nachricht gemeldet",
+    STAFF_TEAM_LIMIT_REQUEST: "Staff: Antrag auf mehr Teams",
+    STAFF_DISPUTE: "Staff: strittiges Scrim",
   },
   {
     VERIFICATION_RESULT: "Verification result",
@@ -135,6 +139,10 @@ export const NOTIFICATION_TYPE_LABELS: Localized<Record<NotifType, string>> = di
     DIRECT_REQUEST_DECLINED: "Direct request declined",
     PARTNERSHIP_ENDED: "Fixed partnership ended",
     MESSAGE_RECEIVED: "New message",
+    STAFF_VERIFICATION_PENDING: "Staff: new verification",
+    STAFF_MESSAGE_REPORTED: "Staff: message reported",
+    STAFF_TEAM_LIMIT_REQUEST: "Staff: request for more teams",
+    STAFF_DISPUTE: "Staff: disputed scrim",
   },
 );
 

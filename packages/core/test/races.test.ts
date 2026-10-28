@@ -1101,7 +1101,7 @@ describe("messages while the thread or its author change (§5.30)", () => {
           messageId: message.id,
           now: NOW,
         }),
-        deleteOwnMessage({ userId: guest.captain.id, messageId: message.id }),
+        deleteOwnMessage({ userId: guest.captain.id, messageId: message.id, now: NOW }),
       ]);
       expectOnlyDomainErrors(results);
       expect(results[1].status).toBe("fulfilled");

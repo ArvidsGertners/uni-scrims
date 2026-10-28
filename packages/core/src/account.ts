@@ -1,7 +1,7 @@
 // Account deletion (SPEC P0-10, ARCHITECTURE §4, §5.5). The user row is anonymized instead of
 // deleted, so past scrims keep their teams and the team statistics stay right.
 import { randomUUID } from "node:crypto";
-import { VerifStatus, prisma } from "@uni-scrims/db";
+import { NotifType, VerifStatus, prisma } from "@uni-scrims/db";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { type Message } from "./i18n/render.ts";
@@ -29,6 +29,7 @@ import {
   lockRetirements,
   needsCaptainVerification,
 } from "./teams.ts";
+import { resolveStaffItems } from "./staff-notifications.ts";
 import { deleteUpload } from "./uploads.ts";
 import { avatarVersion } from "./users.ts";
 import {
@@ -365,7 +366,33 @@ export async function deleteAccount(input: {
         await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
       }
     }
-    // Requests for more teams hold free text (SPEC N-17).
+    // Requests for more teams hold free text (SPEC N-17). Open ones, open verifications and
+    // reported messages are no case for staff any more (Phase 37, §5.35).
+    const ids = (rows: { id: string }[]) => rows.map(({ id }) => id);
+    const cases = [
+      [
+        NotifType.STAFF_TEAM_LIMIT_REQUEST,
+        ids(
+          await tx.teamLimitRequest.findMany({ where: { userId: user.id }, select: { id: true } }),
+        ),
+      ],
+      [
+        NotifType.STAFF_VERIFICATION_PENDING,
+        ids(
+          await tx.verificationRequest.findMany({
+            where: { userId: user.id },
+            select: { id: true },
+          }),
+        ),
+      ],
+      [
+        NotifType.STAFF_MESSAGE_REPORTED,
+        ids(await tx.message.findMany({ where: { authorId: user.id }, select: { id: true } })),
+      ],
+    ] as const;
+    for (const [type, caseIds] of cases) {
+      await resolveStaffItems(tx, type, caseIds, input.now);
+    }
     await tx.teamLimitRequest.deleteMany({ where: { userId: user.id } });
     // Messages to other teams and the read state (SPEC N-28); reports on them go with them
     // (cascade), the reports the user made stay with the anonymized account, like feedback.

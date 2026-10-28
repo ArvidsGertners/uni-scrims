@@ -22,6 +22,7 @@ import { requireAdmin, requireTeamMember, requireUser } from "./permissions.ts";
 import { isTeamActive } from "./readiness.ts";
 import { isRequestOpen } from "./requests.ts";
 import { messageBodySchema, parseInput } from "./schemas.ts";
+import { queueStaffNotification, resolveStaffItems } from "./staff-notifications.ts";
 import { DISCORD_PROVIDER } from "./users.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -466,6 +467,7 @@ const messageKeySelect = {
 export async function deleteOwnMessage(input: {
   userId: string;
   messageId: string;
+  now: Date;
 }): Promise<ConversationKey> {
   const message = await prisma.message.findUnique({
     where: { id: input.messageId },
@@ -479,10 +481,14 @@ export async function deleteOwnMessage(input: {
     select: { userId: true },
   });
   if (!membership) throw messageNotFound();
-  const deleted = await prisma.message.deleteMany({
-    where: { id: input.messageId, authorId: input.userId },
+  await prisma.$transaction(async (tx) => {
+    const deleted = await tx.message.deleteMany({
+      where: { id: input.messageId, authorId: input.userId },
+    });
+    if (deleted.count === 0) throw messageNotFound();
+    // Its reports went with it, so the case is closed for staff (Phase 37, §5.35).
+    await resolveStaffItems(tx, NotifType.STAFF_MESSAGE_REPORTED, [input.messageId], input.now);
   });
-  if (deleted.count === 0) throw messageNotFound();
   return message.conversation;
 }
 
@@ -507,13 +513,21 @@ export async function reportMessage(input: {
   });
   if (existing) throw alreadyReported();
   try {
-    await prisma.messageReport.create({
-      data: {
-        messageId: input.messageId,
-        teamId: team.id,
-        reportedById: user.id,
-        createdAt: input.now,
-      },
+    await prisma.$transaction(async (tx) => {
+      const report = await tx.messageReport.create({
+        data: {
+          messageId: input.messageId,
+          teamId: team.id,
+          reportedById: user.id,
+          createdAt: input.now,
+        },
+      });
+      // Admins learn of it, without the text (Phase 37, §5.35).
+      await queueStaffNotification(tx, input.now, {
+        type: NotifType.STAFF_MESSAGE_REPORTED,
+        entityId: report.id,
+        payload: { messageId: input.messageId },
+      });
     });
   } catch (error) {
     if (isUniqueViolation(error)) throw alreadyReported();
@@ -597,6 +611,7 @@ export async function listMessageReports(adminId: string) {
 export async function removeReportedMessage(input: {
   adminId: string;
   messageId: string;
+  now: Date;
 }): Promise<ConversationKey> {
   await requireAdmin(input.adminId);
   const message = await prisma.message.findUnique({
@@ -604,8 +619,11 @@ export async function removeReportedMessage(input: {
     select: messageKeySelect,
   });
   if (!message) throw messageNotFound();
-  const deleted = await prisma.message.deleteMany({ where: { id: input.messageId } });
-  if (deleted.count === 0) throw messageNotFound();
+  await prisma.$transaction(async (tx) => {
+    const deleted = await tx.message.deleteMany({ where: { id: input.messageId } });
+    if (deleted.count === 0) throw messageNotFound();
+    await resolveStaffItems(tx, NotifType.STAFF_MESSAGE_REPORTED, [input.messageId], input.now);
+  });
   return message.conversation;
 }
 
@@ -616,11 +634,14 @@ export async function dismissMessageReports(input: {
   now: Date;
 }): Promise<void> {
   const admin = await requireAdmin(input.adminId);
-  const dismissed = await prisma.messageReport.updateMany({
-    where: { messageId: input.messageId, dismissedAt: null },
-    data: { dismissedAt: input.now, dismissedById: admin.id },
+  await prisma.$transaction(async (tx) => {
+    const dismissed = await tx.messageReport.updateMany({
+      where: { messageId: input.messageId, dismissedAt: null },
+      data: { dismissedAt: input.now, dismissedById: admin.id },
+    });
+    if (dismissed.count === 0) throw messageNotFound();
+    await resolveStaffItems(tx, NotifType.STAFF_MESSAGE_REPORTED, [input.messageId], input.now);
   });
-  if (dismissed.count === 0) throw messageNotFound();
 }
 
 // ─── Retention ────────────────────────────────────────────────────────────────
