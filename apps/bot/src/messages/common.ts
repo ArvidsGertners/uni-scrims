@@ -1,8 +1,11 @@
 // Shared parts of the bot messages (ARCHITECTURE §6.1). Every message is an embed with one link
 // button into the web app; nobody is pinged, and user text is escaped (SPEC P0-7).
 import {
+  NOTIFICATION_MESSAGES,
+  type NotificationMessages,
   type OutboxMessage,
   SCRIM_FORMAT_LABELS,
+  type SummaryFormat,
   describeStart,
   userDisplayName,
 } from "@uni-scrims/core";
@@ -16,7 +19,6 @@ import {
   type RESTPostAPIChannelMessageJSONBody,
   escapeMarkdown,
 } from "discord.js";
-import { BOT_MESSAGES, type BotMessages } from "../i18n/messages.ts";
 
 export type MessageOf<T extends NotifType> = Extract<OutboxMessage, { type: T }>;
 
@@ -77,15 +79,20 @@ export function team(name: string, f: TextFormat): string {
   return f.strong(f.text(name));
 }
 
+/** The format of the shared title and text (core notificationSummary). */
+export function summaryFormat(f: TextFormat): SummaryFormat {
+  return { team: (name) => team(name, f), code: f.code };
+}
+
 /** The start in a language; the field name and the date always agree. */
 export function startField(startsAt: string, locale: Locale) {
   return {
-    name: BOT_MESSAGES[locale].fields.start,
+    name: NOTIFICATION_MESSAGES[locale].fields.start,
     value: describeStart(new Date(startsAt), locale),
   };
 }
 
-type ScrimMessage = MessageOf<
+export type ScrimMessage = MessageOf<
   | typeof NotifType.SCRIM_BOOKED
   | typeof NotifType.SCRIM_CANCELLED
   | typeof NotifType.REMINDER_24H
@@ -94,7 +101,7 @@ type ScrimMessage = MessageOf<
 >;
 
 /** Start, format and the opponent's current captain with name and mention (§6.1). */
-export function scrimFields(message: ScrimMessage, f: TextFormat, t: BotMessages) {
+export function scrimFields(message: ScrimMessage, f: TextFormat, t: NotificationMessages) {
   const { locale } = message;
   const fields = [
     startField(message.payload.startsAt, locale),
@@ -107,14 +114,6 @@ export function scrimFields(message: ScrimMessage, f: TextFormat, t: BotMessages
     fields.push({ name: t.fields.opponentCaptain, value: f.person(name, captain.discordId) });
   }
   return fields;
-}
-
-export function scrimLink(message: ScrimMessage, label: string) {
-  return { label, path: `/scrims/${message.scrimId}` };
-}
-
-export function boardLink(t: BotMessages) {
-  return { label: t.links.board, path: "/scrims" };
 }
 
 export function render(message: OutboxMessage, parts: MessageParts, baseUrl: string): MessageBody {

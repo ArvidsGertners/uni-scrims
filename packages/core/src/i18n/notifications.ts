@@ -1,6 +1,7 @@
-// Texts of the bot messages in both languages (ARCHITECTURE §5.22): DMs, team channel posts and
-// notification mails. Team names come in already formatted (bold on Discord), never as raw text.
-import { dictionary } from "@uni-scrims/core/config/locale";
+// Texts of the notifications in both languages (ARCHITECTURE §5.22, §5.34): DMs, team channel
+// posts, notification mails and, since Phase 36, the bell on the site. Team names come in already
+// formatted (bold on Discord), never as raw text.
+import { dictionary } from "../../config/locale.ts";
 
 const de = {
   fields: {
@@ -125,9 +126,9 @@ const de = {
   },
 };
 
-export type BotMessages = typeof de;
+export type NotificationMessages = typeof de;
 
-export const BOT_MESSAGES = dictionary(de, {
+export const NOTIFICATION_MESSAGES = dictionary(de, {
   fields: {
     start: "Start",
     format: "Format",
