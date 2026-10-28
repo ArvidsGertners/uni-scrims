@@ -62,6 +62,7 @@ import { type TeamLogoInfo, loadTeamLogoInfo, teamLogoInfo, teamLogoSelect } fro
 import {
   getMyTeam,
   needsCaptainVerification,
+  showcaseQuestionTeams,
   teamLimitProblem,
   teamUniversities,
   verifiedUniversityNames,
@@ -1313,6 +1314,8 @@ export async function getNavTeam(userId: string) {
     limitProblem: teamLimitProblem(own.length, user.teamLimit),
     /** The warning dot: unverified captain of an active team (SPEC N-21). */
     verificationNeeded: needsCaptainVerification(user, own),
+    /** The teams the one-time question about the landing page asks about (SPEC N-34). */
+    showcaseQuestion: showcaseQuestionTeams(user, own),
   };
 }
 

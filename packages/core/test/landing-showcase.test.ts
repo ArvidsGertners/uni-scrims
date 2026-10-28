@@ -13,6 +13,7 @@ import {
   createTeam,
   getLandingShowcase,
   getMyTeam,
+  getNavTeam,
   getPublicTeamLogo,
   pendingShowcaseQuestion,
   setTeamShowcase,
@@ -215,15 +216,24 @@ describe("setTeamShowcase", () => {
       verifiedCaptain: false,
     });
     await setTeamShowcase({ userId: captain.id, teamId: team.id, show: true });
-    expect(await getMyTeam(members[0]!.id)).toMatchObject({ showOnLanding: true, onLanding: true });
+    expect(await getMyTeam(members[0]!.id)).toMatchObject({
+      showOnLanding: true,
+      landingEligible: true,
+    });
     expect(await ids()).toEqual([team.id]);
 
     // Hidden from the teams list: the choice stays, but the team is not shown.
     await prisma.team.update({ where: { id: team.id }, data: { listed: false } });
-    expect(await getMyTeam(captain.id)).toMatchObject({ showOnLanding: true, onLanding: false });
+    expect(await getMyTeam(captain.id)).toMatchObject({
+      showOnLanding: true,
+      landingEligible: false,
+    });
 
     await setTeamShowcase({ userId: captain.id, teamId: team.id, show: false });
-    expect(await getMyTeam(captain.id)).toMatchObject({ showOnLanding: false, onLanding: false });
+    expect(await getMyTeam(captain.id)).toMatchObject({
+      showOnLanding: false,
+      landingEligible: false,
+    });
   });
 
   it("rejects members, other captains, banned teams and invalid values", async () => {
@@ -269,12 +279,19 @@ describe("the one-time question", () => {
         where: { id: team.team.id },
         data: { ...data, captainId: captain.id },
       });
+      await prisma.teamMember.create({
+        data: { teamId: team.team.id, userId: captain.id, joinedAt: NOW },
+      });
     }
 
     expect(await pendingShowcaseQuestion(captain.id)).toEqual([
       { id: second.team.id, name: "Frage A" },
       { id: first.team.id, name: "Frage B" },
     ]);
+    // The sidebar's team query answers the same for the layout.
+    expect((await getNavTeam(captain.id)).showcaseQuestion).toEqual(
+      await pendingShowcaseQuestion(captain.id),
+    );
     // Members are never asked.
     const member = (await createTeamWithMembers({ extraMembers: 1 })).members[0]!;
     expect(await pendingShowcaseQuestion(member.id)).toEqual([]);

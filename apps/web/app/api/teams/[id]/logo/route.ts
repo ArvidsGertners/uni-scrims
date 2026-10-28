@@ -8,16 +8,20 @@ const BACKGROUNDS = new Map<string | null, LogoBackground>([
   ["light", "LIGHT"],
 ]);
 
+/** requireUser's rejections that leave the public rule. */
+const PUBLIC_FALLBACK = new Set(["UNAUTHENTICATED", "BANNED", "ACCOUNT_INCOMPLETE"]);
+
 /**
  * With a user getTeamLogo, else the public rule. A session left of a deleted account counts as
- * none, as on the pages (getSignedInUser), so the public board keeps its logos.
+ * none, as on the pages (getSignedInUser), so the public board keeps its logos; banned and
+ * unfinished accounts see the landing page (SPEC N-34) and get what everybody sees.
  */
 async function loadLogo(userId: string | null, teamId: string, background: LogoBackground) {
   if (userId) {
     try {
       return await getTeamLogo({ userId, teamId, background });
     } catch (error) {
-      if (!isDomainError(error) || error.code !== "UNAUTHENTICATED") throw error;
+      if (!isDomainError(error) || !PUBLIC_FALLBACK.has(error.code)) throw error;
     }
   }
   return getPublicTeamLogo({ teamId, background, now: new Date() });

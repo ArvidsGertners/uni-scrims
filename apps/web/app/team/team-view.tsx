@@ -17,6 +17,7 @@ import { StatTile } from "@/components/stat-tile";
 import { EXTERNAL_LINK_PROPS, TeamLinkIcon } from "@/components/team-links";
 import { formatFormat, formatReliabilityDetails, formatUniversities } from "@/lib/scrim-format";
 import { leaveTeamAction, regenerateInviteAction } from "./actions";
+import { landingStatus } from "./landing-status";
 import { NewTeamForms } from "./new-team-forms";
 import { TeamHeader } from "./team-tabs";
 import { getLocale, getMessages } from "@/lib/locale";
@@ -142,8 +143,8 @@ export async function TeamView({ userId }: { userId: string }) {
               { label: t.universities, value: formatUniversities(team.universities, locale) },
               // Whether all signed-in users see the team and its members there (SPEC N-20).
               { label: t.teamsList, value: team.listed ? t.listed : t.unlisted },
-              // Whether all visitors see the team on the landing page (SPEC N-34).
-              { label: t.landing, value: team.onLanding ? t.onLanding : t.offLanding },
+              // Whether the captain allowed the landing page and whether it is possible (SPEC N-34).
+              { label: t.landing, value: landingStatus(team, t) },
               // Who may apply to the team's requests (SPEC N-21).
               {
                 label: t.applicants,

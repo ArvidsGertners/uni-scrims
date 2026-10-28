@@ -22,14 +22,16 @@ const WhatsNewDialog = dynamic(() => loadDialog().then((module) => module.WhatsN
   ssr: false,
 });
 
-const WhatsNewContext = createContext<{ open: () => void; pending: boolean }>({
+const WhatsNewContext = createContext<{ open: () => void; pending: boolean; showing: boolean }>({
   open: () => undefined,
   pending: false,
+  showing: false,
 });
 
 /**
  * "Neuigkeiten" in the account menu opens the dialog again (SPEC N-29); `pending`: the current
- * edition is due and not closed in this tab, for the bell (SPEC N-32).
+ * edition is due and not closed in this tab, for the bell (SPEC N-32); `showing`: the dialog is open,
+ * so the landing page question waits (SPEC N-34).
  */
 export function useWhatsNew() {
   return useContext(WhatsNewContext);
@@ -84,7 +86,7 @@ export function WhatsNewProvider({
   }, [due, userId, closedFor]);
 
   const pending = due && !admin && closedFor !== userId;
-  const value = useMemo(() => ({ open: show, pending }), [show, pending]);
+  const value = useMemo(() => ({ open: show, pending, showing: open }), [show, pending, open]);
   return (
     <WhatsNewContext value={value}>
       {children}

@@ -1,9 +1,4 @@
-import {
-  countUnread,
-  getNavTeam,
-  pendingShowcaseQuestion,
-  userDisplayName,
-} from "@uni-scrims/core";
+import { countUnread, getNavTeam, userDisplayName } from "@uni-scrims/core";
 import { WHATS_NEW_EDITION } from "@uni-scrims/core/config/whats-new";
 import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
@@ -71,18 +66,12 @@ export async function whatsNewDue(): Promise<boolean> {
 
 /**
  * The captain's own teams never asked about the landing page (SPEC N-34, §5.36), for the one-time
- * question: active accounts on the main host, like the what's new dialog; none if the query fails.
+ * question: active accounts on the main host, like the what's new dialog; from the sidebar's team
+ * query, so no page pays an extra query.
  */
 export async function showcaseQuestion(): Promise<{ id: string; name: string }[]> {
-  const [nav, { user }] = await Promise.all([siteNav(), siteChrome()]);
-  if (nav?.full !== true || !user) return [];
-  try {
-    return await pendingShowcaseQuestion(user.id);
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error("Could not load the landing page question", error);
-    return [];
-  }
+  const [nav, { teams }] = await Promise.all([siteNav(), siteChrome()]);
+  return nav?.full === true ? (teams?.showcaseQuestion ?? []) : [];
 }
 
 /** The navigation of the signed-in user, or null (logged out, admin host), once per request. */

@@ -40,10 +40,10 @@ export function ShowcaseQuestion({
   const due = teams.length > 0 && !admin && answeredFor !== userId;
 
   useEffect(() => {
-    if (!due || whatsNew.pending) return;
+    if (!due || whatsNew.pending || whatsNew.showing) return;
     const timer = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [due, whatsNew.pending]);
+  }, [due, whatsNew.pending, whatsNew.showing]);
 
   const send = (answers: Answer[]) => {
     setOpen(false);

@@ -719,6 +719,8 @@ describe("getNavTeam (§5.15)", () => {
       teamLimit: 5,
       limitProblem: null,
       verificationNeeded: false,
+      // A member is never asked about the landing page (SPEC N-34).
+      showcaseQuestion: [],
     });
     const none = {
       team: null,
@@ -727,6 +729,7 @@ describe("getNavTeam (§5.15)", () => {
       teamLimit: 5,
       limitProblem: null,
       verificationNeeded: false,
+      showcaseQuestion: [],
     };
     expect(await getNavTeam((await createUser()).id)).toEqual(none);
     await prisma.team.update({ where: { id: team.id }, data: { dissolvedAt: NOW } });

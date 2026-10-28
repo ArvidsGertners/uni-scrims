@@ -51,9 +51,10 @@ export const teamPageMessages = dictionary(
     showInList: "In der Teams-Liste zeigen",
     /** Whether the team is on the landing page (SPEC N-34). */
     landing: "Startseite",
-    onLanding: "Gezeigt",
-    offLanding: "Nicht gezeigt",
-    landingWaitsForList: "Zugestimmt, aber erst sichtbar, wenn das Team in der Teams-Liste steht",
+    landingAllowed: "Erlaubt",
+    landingNotAllowed: "Nicht erlaubt",
+    landingWaitsForList: "Erlaubt, aber erst möglich, wenn das Team in der Teams-Liste steht",
+    landingBanned: "Erlaubt, aber nicht möglich, solange das Team gesperrt ist",
     landingHint: (max: number) =>
       `Auf der Startseite sehen alle Besucher, auch ohne Anmeldung, Logo, Name, Hochschulen, Team-Rang und Zuverlässigkeit eures Teams, keine Mitglieder. Es erscheinen bis zu ${max} Teams aus der Teams-Liste, mit Logo zuerst.`,
     showOnLanding: "Auf der Startseite zeigen",
@@ -152,9 +153,10 @@ export const teamPageMessages = dictionary(
     hideFromList: "Remove from the teams list",
     showInList: "Show on the teams list",
     landing: "Home page",
-    onLanding: "Shown",
-    offLanding: "Not shown",
-    landingWaitsForList: "Allowed, but only visible while the team is on the teams list",
+    landingAllowed: "Allowed",
+    landingNotAllowed: "Not allowed",
+    landingWaitsForList: "Allowed, but only possible while the team is on the teams list",
+    landingBanned: "Allowed, but not possible while the team is banned",
     landingHint: (max) =>
       `On the home page, all visitors, even without signing in, see your team's logo, name, universities, team rank and reliability, but no members. Up to ${max} teams from the teams list appear there, those with a logo first.`,
     showOnLanding: "Show on the home page",

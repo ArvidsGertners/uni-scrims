@@ -26,7 +26,6 @@ import {
 } from "./permissions.ts";
 import { teamRank, teamRankSummary } from "./ranks.ts";
 import {
-  activeTeamWhere,
   countVerifiedPlayerMembers,
   isFullyVerifiedCount,
   isPlayingRole,
@@ -230,43 +229,61 @@ export async function setTeamShowcase(input: { userId: string; teamId: string; s
 }
 
 /**
- * The active teams the user captains that were never asked about the landing page (SPEC N-34): only
- * teams founded before Phase 38, or handed over before their captain answered.
+ * Of the user's own teams (findOwnTeams), those to ask about the landing page (SPEC N-34): active,
+ * captained by the user and never asked, i.e. founded before Phase 38 or handed over before their
+ * captain answered; by name. Pure, so the sidebar's team query answers it too (getNavTeam).
  */
+export function showcaseQuestionTeams(
+  user: { id: string },
+  teams: readonly {
+    id: string;
+    name: string;
+    captainId: string;
+    bannedAt: Date | null;
+    dissolvedAt: Date | null;
+    showOnLanding: boolean | null;
+  }[],
+): { id: string; name: string }[] {
+  return teams
+    .filter((team) => isCaptainOf(user, team) && isTeamActive(team) && team.showOnLanding === null)
+    .map((team) => ({ id: team.id, name: team.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
+/** The teams the one-time question asks the user about (showcaseQuestionTeams). */
 export async function pendingShowcaseQuestion(
   userId: string,
 ): Promise<{ id: string; name: string }[]> {
   const user = await requireUser(userId);
-  const teams = await prisma.team.findMany({
-    where: { captainId: user.id, ...activeTeamWhere(), showOnLanding: null },
-    select: { id: true, name: true },
-  });
-  return teams.sort((a, b) => a.name.localeCompare(b.name, "de"));
+  return showcaseQuestionTeams(user, await findOwnTeams(user.id));
 }
 
 /**
- * Saves the answers of the one-time question (SPEC N-34, §5.36). Only teams the user still captains,
- * active and still unanswered, are written; everything else is skipped silently, so the dialog never
- * gets stuck on a team handed over or banned meanwhile, and a choice made elsewhere stays.
+ * Saves the answers of the one-time question (SPEC N-34, §5.36). Each team under its lock, in ID
+ * order (§4), is written only while showcaseQuestionTeams still asks about it; everything else is
+ * skipped silently, so the dialog never gets stuck on a team handed over or banned meanwhile, and a
+ * choice made elsewhere stays.
  */
 export async function answerShowcaseQuestion(input: {
   userId: string;
   answers: { teamId: string; show: boolean }[];
 }): Promise<void> {
   const user = await requireUser(input.userId);
-  const answers = parseInput(showcaseAnswersSchema, input.answers);
-  // Each UPDATE checks its conditions on the row it locks, so no team lock is needed.
-  const write = (show: boolean) =>
-    prisma.team.updateMany({
-      where: {
-        id: { in: answers.filter((answer) => answer.show === show).map((answer) => answer.teamId) },
-        captainId: user.id,
-        ...activeTeamWhere(),
-        showOnLanding: null,
-      },
-      data: { showOnLanding: show },
-    });
-  await prisma.$transaction([write(true), write(false)]);
+  const answers = new Map(
+    parseInput(showcaseAnswersSchema, input.answers).map((answer) => [answer.teamId, answer.show]),
+  );
+  if (answers.size === 0) return;
+  await prisma.$transaction(async (tx) => {
+    for (const teamId of [...answers.keys()].sort()) {
+      await lockTeam(tx, teamId);
+      const team = await tx.team.findUnique({ where: { id: teamId } });
+      if (!team || showcaseQuestionTeams(user, [team]).length === 0) continue;
+      await tx.team.update({
+        where: { id: teamId },
+        data: { showOnLanding: answers.get(teamId)! },
+      });
+    }
+  });
 }
 
 /**
@@ -813,9 +830,10 @@ export async function getMyTeam(userId: string) {
     links: toTeamLinks(team),
     // On the teams list (SPEC N-20); a banned team is not, whatever the captain chose.
     listed: isListedTeam(team),
-    // The captain's choice for the landing page and whether the team is shown there (SPEC N-34).
+    // The captain's choice for the landing page and whether the team may appear there now; with
+    // more consenting teams than places it may still not be among them (SPEC N-34).
     showOnLanding: team.showOnLanding === true,
-    onLanding: isShowcaseTeam(team),
+    landingEligible: isShowcaseTeam(team),
     // Only fully verified teams may apply to the team's requests (SPEC N-21).
     verifiedApplicantsOnly: team.verifiedApplicantsOnly,
     banned: team.bannedAt !== null,

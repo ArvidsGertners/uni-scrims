@@ -28,6 +28,7 @@ import {
   updateTeamAction,
   updateTeamLinksAction,
 } from "../actions";
+import { landingStatus } from "../landing-status";
 import { TeamLogoForm } from "../team-logo-form";
 
 const cardClass = "flex flex-col rounded-lg border border-border bg-card p-5";
@@ -90,11 +91,7 @@ export async function TeamSettingsDialog({ intercepted }: { intercepted: boolean
                 <span className="text-[14px] font-medium">
                   {t.landing}:{" "}
                   <span className="font-normal text-muted-foreground">
-                    {team.onLanding
-                      ? t.onLanding
-                      : team.showOnLanding
-                        ? t.landingWaitsForList
-                        : t.offLanding}
+                    {landingStatus(team, t)}
                   </span>
                 </span>
                 <p className="text-[13px] text-pretty text-muted-foreground">
