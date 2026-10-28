@@ -144,6 +144,7 @@ uni-scrims/
 | Heute spielbereit (Phase 31) | `createReadyWindow`, `endReadyWindow`, `requestReadyWindow` (Direktanfrage aus einem Zeitfenster über `createRequest` mit `readyWindowId`), `readyWindowStarts`, `readyWindowStartOptions`, `unendedReadyWindowIds`, `lockReadyWindowRequests` und `closeReadyWindows` (`ready-windows.ts`); `isReadyWindowRunning` und `runningReadyWindowWhere` in `requests.ts` neben `boardRequestWhere`; Lesen über `getBoard`, `getPublicBoard` und `getReadyWindowForm` (§5.29) |
 | Nachrichten (Phase 32) | `sendMessage`, `deleteOwnMessage`, `reportMessage`, `markConversationRead`, `getConversation` (ein Verlauf mit Zugangsprüfung, für den WebSocket-Server), `conversationViews` (die Verläufe einer Anfrage für Anfrage- und Scrim-Seite), `conversationState` (rein: gibt es den Verlauf, ist er schreibbar), `conversationKeyOf` (Schlüssel als Text), `unreadConversationKeys` (für „Neu“), `purgeOldConversations` (Sweeper); für den Admin-Bereich `listMessageReports`, `removeReportedMessage`, `dismissMessageReports` (`messages.ts`, §5.30) |
 | Glocke (Phase 36) | `listInbox`, `countUnread`, `inboxStates` (für den WebSocket-Server), `markInboxRead`, `inboxItemView` (rein: Titel, Text und Link eines Eintrags), `purgeOldInbox` (Sweeper); Einträge schreibt `fanOut` (`inbox.ts`, §5.34) |
+| OPL (Phase 39) | `linkOplUser`, `unlinkOplUser`, `previewOplTeam`, `linkOplTeam`, `unlinkOplTeam`, `clearTeamOpl` (in `dissolveTeam`), `rosterMatches` (rein), `nextOplCheck` (rein), `oplTick` (Bot-Schleife, §6.5) in `opl.ts`; Client `createOplClient`, `oplClientFromEnv`, `parseOplUrl`, `oplUserUrl`, `oplTeamUrl` im Teilpfad `@uni-scrims/core/opl` (§5.37) |
 | Staff-Benachrichtigungen (Phase 37) | `queueStaffNotification` (in den Auslösern), `isStaffMatterOpen` (Relevanz vor dem Senden), `lockStaffRecipients` (Empfänger für `fanOut`), `isStillStaffRecipient` (vor einer DM), `resolveStaffItems` (ein Fall ist erledigt), `deleteLostStaffItems` (Rollenwechsel), `getStaffNotificationPreferences`, `setStaffNotificationPreferences` (`staff-notifications.ts`); `STAFF_NOTIFICATION_TYPES` (Typ → Bereich), `PLAYER_NOTIFICATION_TYPES`, `isStaffType`, `staffTypesFor` in `notification-types.ts`; `STAFF_AREAS` und `staffArea` seither in `staff-areas.ts` (von `permissions.ts` weitergereicht), damit `schemas.ts` die Typlisten beim Laden ohne Zyklus über `permissions.ts` bekommt (§5.35) |
 | Bewerbungen | `applyToRequest`, `withdrawApplication`, `confirmApplication` |
 | Scrims | `cancelScrim`, `openFeedback`, `submitFeedback`, `resolveScrimOutcome` (rein), `resolveDeadlines`, `resolveDispute` |
@@ -209,6 +210,8 @@ User                                     # Better-Auth-Tabelle "user" + zusätzl
   theme (ThemePreference)                 # Phase 17: Design, Standard SYSTEM (§5.16)
   locale? (Locale)                        # Phase 22: gewählte Sprache, null = nie gewählt (§5.21)
   whatsNewSeen?                           # Phase 33: zuletzt geschlossene Ausgabe des Neuigkeiten-Fensters, null = nie (§5.31)
+  oplUserId? (unique)                     # Phase 39: verknüpftes OPL-Profil, nur bei gleicher Discord-ID (§5.37)
+  oplLinkedAt?, oplCheckedAt?, oplNextCheckAt?, oplFailures (default 0)   # Phase 39: Prüfung etwa täglich, Zähler für „gelöscht“ in Folge; Index (oplNextCheckAt)
   rank? (Rank)                            # Phase 20: selbst angegebener Rang, null = keiner (§5.19)
   activeTeamId? ──► Team                  # Phase 21: aktives Team (onDelete SetNull); zeigt es auf kein eigenes Team, gilt das zuletzt beigetretene (§5.20)
   teamLimit (default 5)                   # Phase 21: in wie vielen Teams der Nutzer sein darf, von Admins auf Antrag erhöht (§5.20)
@@ -265,6 +268,9 @@ Team
   listed (default true)                   # Phase 24: steht in der Teams-Liste; der Captain blendet es aus (§5.23)
   verifiedApplicantsOnly (default false)  # Phase 25: nur vollständig verifizierte Teams dürfen sich bewerben (§5.24)
   showOnLanding?                          # Phase 38: darf auf der Startseite stehen; null = Captain noch nicht gefragt (§5.36)
+  oplTeamId? (unique)                     # Phase 39: verknüpftes OPL-Team, nur mit dem Captain im Kader (§5.37)
+  oplLinkedAt?, oplCheckedAt?, oplNextCheckAt?, oplFailures (default 0)   # Phase 39: wie am User; Index (oplNextCheckAt)
+  oplRosterOthers?                        # Phase 39: Spieler im OPL-Kader, die keine Treffer sind (nur die Zahl)
   ⚑ Team-Zustand: aktiv (beide null) | gesperrt (bannedAt) | aufgelöst (dissolvedAt). Gesperrt und aufgelöst sind im MVP final.
 
 UserAvatar                                # Phase 12, eigene Tabelle, damit requireUser (ganze User-Zeile) keine Bilddaten lädt
@@ -379,6 +385,9 @@ InboxItem                                 # Phase 36: Eintrag der Glocke je Pers
   createdAt, readAt?                      # createdAt = Zeitpunkt der Verteilung
   unique(sourceId, userId); Index: (userId, readAt), (teamId)
 
+OplRosterMatch                            # Phase 39: Mitglied des Teams, dessen Discord-ID im OPL-Kader steht (§5.37)
+  teamId ──► Team, userId ──► User        # PK (teamId, userId), beide onDelete Cascade; Index (userId)
+
 Notification   (Outbox)
   id, type (NotifType), channel (NotifChannel)
   targetUserId? ──► User                  # bei USER_DM, USER_EMAIL und PERSONAL an eine Person
@@ -396,7 +405,7 @@ NotificationPreference   (Phase 18, §5.17)
   discord?, email?                        # null = Standard (Mail aus; Discord an, bei Scrim-Typen nur für den Captain)
 
 SystemStatus
-  id ('bot' = Sweeper, 'outbox' = Sender), heartbeatAt   # eine Zeile pro Bot-Schleife (§6.3)
+  id ('bot' = Sweeper, 'outbox' = Sender, ab Phase 39 'opl' = OPL-Prüfung), heartbeatAt   # eine Zeile pro Bot-Schleife (§6.3, §6.5)
 ```
 
 ### Warum so?
@@ -1243,6 +1252,50 @@ Nur Web, kein Schema, keine `core`-Änderung (SPEC N-31).
 
 **Datenauskunft und Datenschutz:** `teams[].startseiteErlaubt` (§5.10, die gespeicherte Wahl, `null` = noch nicht gefragt); im Abdeckungstest gilt `Team.showOnLanding` als „in der Auskunft“. Die Datenschutzerklärung nennt die Startseite: Mit Zustimmung des Captains sehen alle Besucher ohne Anmeldung Name, Kürzel, Logo, Hochschulen, Team-Rang und die Zahlen der letzten 90 Tage, keine Mitglieder; Abschalten oder Ausblenden nimmt das Team sofort heraus.
 
+### 5.37 OPL-Verknüpfung (ab Phase 39)
+
+**Daten** (Migration `opl_links`, von `prisma migrate diff` erzeugt, additiv): am User `oplUserId` (unique), `oplLinkedAt`, `oplCheckedAt`, `oplNextCheckAt`, `oplFailures`; am Team `oplTeamId` (unique), `oplLinkedAt`, `oplCheckedAt`, `oplNextCheckAt`, `oplFailures`, `oplRosterOthers`; Tabelle `OplRosterMatch(teamId, userId)` für die Treffer im Kader. Nichts von OPL außer den IDs wird gespeichert, keine Namen, kein Alter, kein Discord-Wert (SPEC N-35). Links werden aus der ID gebaut (`https://www.opleague.pro/user/<id>`, `/team/<id>`; OPL antwortet auch ohne den Namen im Pfad).
+
+**API (Probe am 28.10.2026):** `https://www.opleague.pro/api/v4/`, `Authorization: Bearer OPLEAGUE_API_KEY`, nur GET, Antworten in `data`. `user/{id}` liefert u. a. `ID` und `discord_ID`, unbekannt 404. `team/{id}/users` liefert Name, Kürzel und `users` (Objekt mit der ID als Schlüssel, leer als `[]`), je Spieler `ID` und `discord_ID`; ein Aufruf reicht also für eine Team-Prüfung. Ein unbekanntes Team kommt mit **200** und `url: "/"` (Name „deleted“, leerer Kader) und gilt dann als gelöscht. Die Einträge enthalten auch Vor- und Nachname und Alter; diese Felder werden nie gelesen. `discord_ID` steht als 18-stellige Zahl im JSON, größer als `Number.MAX_SAFE_INTEGER`; der Client schreibt sie im Rohtext vor `JSON.parse` in einen String um (`"discord_ID"\s*:\s*(\d+)`). Header `RateLimit-Limit` (100), `RateLimit-Remaining`, `RateLimit-Reset` (Sekunden).
+
+**Client (`core/opl/`, Teilpfad `@uni-scrims/core/opl` wie `core/mail`):**
+- `parse.ts` (rein): `parseOplUrl(kind, raw)` nimmt `https://` (ohne Schema ergänzt) auf `opleague.pro` oder `www.opleague.pro`, ohne Benutzer, Passwort und Port, Pfad `/user/<id>` bzw. `/team/<id>`, optional mit `-<name>` dahinter und einem Sprachpräfix davor; sonst `oplLinkInvalid`. `oplUserUrl(id)`, `oplTeamUrl(id)`.
+- `client.ts`: `createOplClient({ apiKey, baseUrl, fetch })` → `OplApi` mit `user(id)` und `teamRoster(id)`; Zeitlimit 5 s; das Ergebnis ist `{ kind: "found", … }` oder `{ kind: "gone" }`, dazu `rateLimit: { remaining, resetSec }`. zod prüft nur die benötigten Felder. Fehler sind `OplError` mit `reason` `auth` (401, 403) oder `transient` (alles andere, auch Zeitüberschreitung) und dem Status, **nie mit dem Body** (`/ping` echot den Token). Ohne Key liefert `oplClientFromEnv` `null`.
+- Die Domänenfunktionen bekommen das `OplApi` übergeben (wie den Hub-Beitritt, §5.1); Web und Bot bauen es aus der Env.
+
+**Schreiben (`opl.ts`):** Der Aufruf bei OPL liegt immer vor der Transaktion; darin wird gesperrt und neu geprüft. Fehlender Client oder `OplError` → `oplUnavailable`.
+- `linkOplUser({ userId, url, opl, now, random })`: `requireUser`, `parseOplUrl("user")`, `opl.user`; `gone` → `oplLinkInvalid`; fehlt `discord_ID` oder weicht sie von `getDiscordId(userId)` ab → `oplDiscordMismatch` (Hinweis: Discord zuerst auf OPL verknüpfen). Dann `lockUser`, `requireUser` erneut; gehört die OPL-ID schon einem anderen Konto → `oplProfileTaken`. Setzt `oplUserId`, `oplLinkedAt = oplCheckedAt = now`, `oplNextCheckAt = nextOplCheck(now, random)`, `oplFailures = 0`.
+- `unlinkOplUser({ userId })`: leert die fünf Felder. Team-Verknüpfungen bleiben.
+- `previewOplTeam({ userId, url, opl })`: `requireUser`, Name und Kürzel des OPL-Teams zum Vorausfüllen beim Gründen; nichts wird gespeichert.
+- `linkOplTeam({ userId, teamId, url, opl, now, random })`: `requireCaptain` (nicht gesperrt, Verifizierung nicht nötig, wie `updateTeamLinks`); ohne eigenes `oplUserId` → `oplAccountRequired`; `opl.teamRoster`; `gone` → `oplLinkInvalid`; steht `oplUserId` des Captains nicht im Kader → `oplNotInRoster`. Dann `lockTeam`, `requireCaptain` erneut, Captain weiter mit derselben `oplUserId`; gehört das OPL-Team schon einem anderen Team → `oplTeamTaken`. Schreibt die Felder und die Treffer (`writeRosterMatches`).
+- `createTeam({ …, oplTeamUrl })`: mit Link läuft dieselbe Prüfung vor der Transaktion (das Team gibt es noch nicht, also Captain = Gründer); in der Transaktion werden Treffer (nur der Gründer kann einer sein) und Felder mit dem neuen Team geschrieben. Schlägt die Prüfung fehl, wird kein Team angelegt.
+- `unlinkOplTeam({ userId, teamId })`: Captain eines nicht gesperrten Teams, `lockTeam`; `clearTeamOpl(tx, teamId)` leert die Felder und löscht die Treffer, auch in `dissolveTeam`.
+- **Treffer** (`rosterMatches`, rein): Discord-IDs der Mitglieder des Uni-Scrims-Teams (`account.accountId`, Anbieter `discord`) gegen die `discord_ID`s des Kaders, nur im Speicher; Ergebnis die User-IDs der Treffer und `others` = Kadergröße − Treffer (Entscheidung des Nutzers: nur Mitglieder des Teams).
+- **Mitglieder:** `leaveTeam` und `removeMember` löschen den Treffer des Mitglieds und zählen ihn zu `oplRosterOthers` (es steht weiter im OPL-Kader); `joinTeam` setzt bei einem verknüpften Team `oplNextCheckAt = now`, damit neue Mitglieder bei der nächsten Runde der Schleife erscheinen. Captain-Wechsel und Sperren ändern nichts.
+
+**Prüfung (`oplTick({ now, opl, random })`):** genau eine Prüfung je Aufruf: die am längsten fällige Verknüpfung (`oplNextCheckAt <= now`, User und Teams zusammen, älteste zuerst; aufgelöste Teams haben keine). Ergebnis `{ checked, rateLimit }`.
+- User: `found` mit derselben Discord-ID → `oplCheckedAt = now`, `oplFailures = 0`, nächste Prüfung; andere oder fehlende Discord-ID → Verknüpfung sofort gelöst.
+- Team: `found` → Treffer neu schreiben (`deleteMany` + `createMany`), `oplRosterOthers`, `oplCheckedAt`, `oplFailures = 0`, nächste Prüfung. Der Captain muss nicht mehr im Kader stehen (Entscheidung des Nutzers).
+- `gone` (User 404, Team mit `url: "/"`): `oplFailures + 1`, erneut in 2 h; beim dritten Mal in Folge wird die Verknüpfung gelöst (`OPL_GONE_LIMIT`).
+- `transient`: erneut in 2 h ± 15 min, ohne Zähler. `auth` wird geworfen, ohne etwas zu schreiben (die Schleife pausiert).
+- Nächste Prüfung `nextOplCheck(now, random)` = now + 20 h + random · 8 h (also 24 h ± 4 h), damit sich die Aufrufe über den Tag verteilen.
+- Geschrieben wird unter der Sperre der Zeile und nur, wenn die Verknüpfung noch dieselbe ist (gleiche OPL-ID und `oplLinkedAt`); ein zwischendurch gelöstes oder neu verknüpftes Konto bzw. Team bleibt unberührt.
+- Keine Benachrichtigung beim Lösen (Entscheidung des Nutzers).
+
+**Lesen:** `getAccount` liefert `opl` (`{ id, url, linkedAt, checkedAt }` oder `null`); `getMyTeam` liefert `opl` (`{ id, url, linkedAt, checkedAt, matches: { id, name }[], others }` oder `null`, Treffer nur aktuelle Mitglieder, nach Namen) und `captainOplLinked` (nur für den Captain sinnvoll); `getTeamList` liefert `oplUrl`.
+
+**Web:**
+- Logo: `public/opl/` enthält die einfarbigen SVGs aus dem Brand-Kit (`docs/opl/company/{icon,logo}/solid/{dark,light}/svg/w0.svg`, unverändert; `dark` = schwarz, `light` = weiß). `components/opl-logo.tsx` wählt die Datei je Design wie `BrandLogo` (dunkles Design → weiß), Bildmarke (`icon`) oder Wortmarke (`wordmark`). `components/opl-url-input.tsx`: Eingabefeld mit der Bildmarke als Präfix und dem Platzhalter `https://www.opleague.pro/…`.
+- Konto-Dialog, Karte „Verknüpfte Konten“ unter Discord: Überschrift mit Wortmarke; nicht verknüpft Feld, Hinweis und „Verknüpfen“; verknüpft der Link zum Profil mit Bildmarke, „Verknüpft am“, „Zuletzt geprüft“ und „Lösen“ mit Rückfrage. Actions `linkOplUserAction`, `unlinkOplUserAction` (`app/account/actions.ts`).
+- Gründen: optionales Feld „OPL-Team“ mit „Von OPL übernehmen“ (`previewOplTeamAction` füllt Name und Kürzel, Kürzel auf die erlaubte Länge gekürzt); ohne eigenes OPL-Profil ein Hinweis auf die Konto-Einstellungen statt des Felds.
+- Team-Einstellungen: Block „OPL“ mit Wortmarke nach dem Muster der übrigen Blöcke; `linkOplTeamAction`, `unlinkOplTeamAction` (`app/team/actions.ts`).
+- Tab „Team“: Karte „OPL“ in der rechten Spalte, wenn verknüpft (Link zum OPL-Team mit Bildmarke, „Auf Uni Scrims“ mit den Namen der Treffer, „N weitere auf OPL“, „Zuletzt geprüft“); der Captain eines nicht verknüpften Teams sieht dort einen Hinweis auf die Einstellungen.
+- Teams-Liste: die Bildmarke als Link zum OPL-Team neben dem Namen.
+- Alle Aktionen, die OPL aufrufen, höchstens 5 je 10 Minuten und Nutzer (`RATE_LIMITS.opl`, `allowUserAttempt`).
+- „Rollen und Rechte“: Zeile „OPL-Team verknüpfen“ (nur Captain). Admin-Übersicht: dritte Bot-Schleife „OPL-Prüfung“.
+
+**Datenauskunft und Datenschutz:** `konto.opl` (`profilId`, `verknüpftAm`, `geprüftAm`, `fehlversuche`) und je Team `opl` (`teamId`, `verknüpftAm`, `geprüftAm`, `imKader` (ob die Person ein Treffer ist), `weitereImKader`) (§5.10); im Abdeckungstest gelten die neuen Spalten und `OplRosterMatch` als „in der Auskunft“. `deletedUserData` leert die OPL-Felder des Users, `deleteAccount` löscht seine Treffer. Die Datenschutzerklärung nennt OPL als Quelle, die gespeicherten IDs und Zeitpunkte, den Abgleich der Discord-ID nur im Moment der Prüfung, die tägliche Prüfung und wer was sieht.
+
 ## 6. Bot
 
 ### 6.1 Notification-Typen (vollständig)
@@ -1338,6 +1391,15 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 - Speichert `discordGuildId` und `discordChannelId` und postet eine Test-Nachricht.
 - Antwortet ephemeral mit Erfolg oder einer konkreten Fehlermeldung; ab Phase 23 in der Sprache des Kontos bzw. der Discord-App, Beschreibungen mit englischen Lokalisierungen (§5.22).
 
+### 6.5 OPL-Prüfung (ab Phase 39)
+
+Dritte sequentielle Schleife (`apps/bot/src/opl/loop.ts`), startet wie der Sweeper ohne Discord-Verbindung. Jede Runde ruft `oplTick` (§5.37) für genau eine Verknüpfung auf und schläft dann:
+- nach einer Prüfung 1,5 s (also höchstens 40 Aufrufe pro Minute); meldet OPL weniger als 30 verbleibende Aufrufe, bis zum `RateLimit-Reset` (der Key wird auch vom Web für das Verknüpfen genutzt);
+- ist nichts fällig, 60 s;
+- bei einem Auth-Fehler (Key ungültig oder abgelaufen) 1 h, geloggt wird nur der Status;
+- ohne `OPLEAGUE_API_KEY` läuft sie leer (einmal geloggt) und schreibt weiter den Heartbeat.
+Heartbeat `SystemStatus('opl')` wie die anderen Schleifen (höchstens einmal pro Minute); die Admin-Übersicht zeigt sie als „OPL-Prüfung“, und der Bot gilt erst als online, wenn alle drei laufen.
+
 ---
 
 ## 7. Web: Muster
@@ -1392,6 +1454,9 @@ Alle Schritte sind idempotent und leiten sich nur aus dem DB-Zustand ab. Nach ei
 | Ab Phase 24: Team in der Teams-Liste zeigen oder ausblenden (`setTeamListed`) | aktueller Captain eines nicht gesperrten Teams (Verifizierung nicht nötig) |
 | Ab Phase 38: Teams auf der Startseite (`getLandingShowcase`) samt ihren Logos (`getPublicTeamLogo`) sehen | alle, auch ohne Anmeldung; nur Teams nach `showcaseTeamWhere()` (§5.36) |
 | Ab Phase 38: Team auf der Startseite zeigen oder nicht (`setTeamShowcase`, Häkchen beim Gründen, einmalige Frage `answerShowcaseQuestion`) | aktueller Captain eines nicht gesperrten Teams (Verifizierung nicht nötig); die Frage beantwortet nur noch offene Teams |
+| Ab Phase 39: eigenes OPL-Profil verknüpfen und lösen (`linkOplUser`, `unlinkOplUser`) | eingeloggt, nicht gesperrt, vollständiges Konto (`requireUser`); verknüpft nur bei derselben Discord-ID, nur für sich selbst (§5.37) |
+| Ab Phase 39: OPL-Team verknüpfen (`linkOplTeam`, `createTeam` mit Link, `previewOplTeam` zum Vorausfüllen) und lösen (`unlinkOplTeam`) | aktueller Captain eines nicht gesperrten Teams (Verifizierung nicht nötig); zum Verknüpfen mit eigenem OPL-Profil, das im Kader des OPL-Teams steht |
+| Ab Phase 39: OPL-Kader-Karte sehen (Treffer, Zahl der übrigen) | Mitglieder des Teams (`getMyTeam`); den Link zum OPL-Team zusätzlich alle, die die Teams-Liste sehen |
 | Ab Phase 25: Bewerbungen auf vollständig verifizierte Teams beschränken (`setVerifiedApplicantsOnly`) | aktueller Captain eines nicht gesperrten Teams (Verifizierung nicht nötig) |
 | Ab Phase 28: öffentliches Board (`/board`, `getPublicBoard`), nur lesen, mit denselben Karten wie das Board | alle; Angemeldete leitet die Seite auf `/scrims` (§5.26) |
 | Ab Phase 29: wöchentliche Anfrage anlegen (`createRequest` mit `repeatUntil`) und Serie beenden (`endRequestSeries`) | aktueller Captain, **selbst verifiziert**, nicht gesperrt (wie Anfrage erstellen/löschen); die laufenden Serien im Tab „Anfragen“ sehen alle Mitglieder des Teams (§5.27) |
@@ -1508,6 +1573,8 @@ MAIL_FROM="Uni Scrims <noreply@uniscrims.com>"
 DEV_MAIL_REDIRECT=                        # nur Entwicklung: alle Mails an diese Adresse; leer = nur ins Log
 REALTIME_PORT=3001                        # ab Phase 32: Port des WebSocket-Servers im Web-Prozess (§5.30)
 REALTIME_PUBLIC_URL=                      # ab Phase 32: Adresse für den Browser; leer = /ws auf der eigenen Adresse (Production), lokal ws://localhost:3001
+OPLEAGUE_API_KEY=                         # ab Phase 39: Key der OPL-API, nur serverseitig (Web und Bot); leer = OPL-Verknüpfung aus (§5.37)
+OPLEAGUE_API_URL=                         # ab Phase 39: nur für Tests mit einem Fake-Server; leer = https://www.opleague.pro/api/v4
 ```
 
 **Impressum und Datenschutzerklärung** liegen als `impressum.txt` und `datenschutz.txt` in `LEGAL_DIR`, außerhalb von Git (Production: `docker/legal/`, schreibgeschützt in den Web-Container gemountet; Gerüst in `docker/legal.example/`). Ab Phase 22 daneben die englischen Fassungen `impressum.en.txt` und `datenschutz.en.txt` (§5.21); verbindlich bleibt die deutsche. Format: `## ` beginnt eine Überschrift, `- ` einen Listenpunkt, eine Leerzeile beendet einen Absatz; Zeilenumbrüche im Absatz bleiben (Adressen). Die Seiten lesen die Dateien bei jedem Aufruf; fehlt eine, steht dort "Inhalt folgt.". Damit das nicht unbemerkt online geht: Compose bindet `docker/legal` mit `create_host_path: false` ein (fehlt der Ordner, scheitert `up`, statt einen leeren Ordner anzulegen), der Web-Prozess loggt beim Start fehlende oder leere Texte und solche, die noch „TODO“ enthalten (das kopierte, nicht ausgefüllte Gerüst), und die Admin-Seiten zeigen dazu eine Warnung. Der Seitenkopf lädt den Nutzer mit Fehlerbehandlung (getestet in `apps/web/test/header-user.test.ts`), damit Impressum und Datenschutz auch bei nicht erreichbarer Datenbank erscheinen; der Datenbank-Client gibt einen Verbindungsversuch nach 10 s auf, damit eine hängende Datenbank die Seiten nicht unbegrenzt aufhält.
@@ -1846,7 +1913,7 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Phase 36: Glocke; Tabelle `InboxItem`, die `fanOut` für jeden Empfänger der Zielgruppe schreibt (Team-Typen für alle Mitglieder, unabhängig von Discord/Mail), 30 Tage; live über den WebSocket-Server, der für verbundene Nutzer die ungelesene Zahl sequentiell abfragt; „Neuigkeiten“ als Eintrag aus §5.31.
 - Phase 37: Staff-Typen (Verifizierung, Meldung, Team-Limit, strittiges Scrim) mit Zielgruppe nach Bereich aus §7, Glocke und eine Discord-DM pro Ereignis, je Typ einstellbar; eine Entscheidung markiert alle Kopien als gelesen.
 - Phase 38: `Team.showOnLanding` (null = noch nicht gefragt), einmaliger Dialog für Captains, bis zu 8 gelistete Teams nach Scrims der letzten 90 Tage, Teams mit Logo zuerst; das öffentliche Logo auch für diese Teams.
-- Phase 39: OPL-Konto (gleiche Discord-ID) und OPL-Team (Captain im Kader); Kader-Abgleich über die Discord-ID nur im Speicher, gespeichert werden nur OPL-IDs, Treffer und die Zahl der übrigen; eigene sequentielle Schleife im Bot mit gestreuter täglicher Prüfung im Rate-Limit; einfarbiges OPL-Logo aus dem Brand-Kit (farbig nur mit Zustimmung von OPL). Keine Verifizierung über OPL.
+- Phase 39: OPL-Konto (gleiche Discord-ID) und OPL-Team (Captain im Kader); Kader-Abgleich über die Discord-ID nur im Speicher, gespeichert werden nur OPL-IDs, Treffer und die Zahl der übrigen; eigene sequentielle Schleife im Bot mit gestreuter täglicher Prüfung im Rate-Limit; einfarbiges OPL-Logo aus dem Brand-Kit (farbig nur mit Zustimmung von OPL). Keine Verifizierung über OPL. Entscheidungen des Nutzers (28.10.2026): Treffer nur Mitglieder des Uni-Scrims-Teams; die Team-Verknüpfung entfällt nur, wenn OPL das Team dreimal in Folge als gelöscht meldet; keine Benachrichtigung beim Lösen.
 - Phase 40: Liga aus den Anmeldungen der aktuellen Uniliga-Turniere (Abstieg über Veranstalter, Turnier, Gruppen, nur per ID, zweimal täglich), Badge und Filter auf Board und Teams-Liste.
 
 **Phase 34: Feinschliff Filter, Teams-Liste, Hochschul-Suche** (SPEC N-30, §5.32)
@@ -1891,3 +1958,13 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Tests: `landing-showcase.test.ts` (Regel, Auswahl und Reihenfolge, keine Mitglieder, Gründen, Schalter, Frage und Antwort), angepasst `public-board.test.ts` (Logo), `account-export.test.ts`
 - *Fertig wenn:* Zugestimmte, gelistete Teams stehen abgemeldet mit Logo, Hochschulen, Team-Rang und Zuverlässigkeit auf der Startseite (höchstens 8, mit Logo zuerst, dann nach Scrims der letzten 90 Tage); Abschalten, Ausblenden aus der Teams-Liste oder Sperre entfernt sie samt öffentlichem Logo; neue Teams entscheiden beim Gründen (Standard aus); Captains bestehender Teams werden genau einmal gefragt, Schließen gilt als Nein; ab 320 px, hell und dunkel, Deutsch und Englisch; Tests und Lint sind grün.
 - *Stand (28.10.2026):* abgeschlossen. Code, Web- und Bot-Image, Tests (`pnpm test` mit 959 Tests, neu `landing-showcase.test.ts`, dazu `account-export.test.ts` und `reads.test.ts`), `pnpm lint`, Review samt Fixes (die Antworten auf die Frage liefen als zwei `updateMany` ohne Sperr-Reihenfolge, jetzt je Team mit `lockTeam` in ID-Reihenfolge und über `showcaseQuestionTeams` mit `isCaptainOf`; die Frage kostete jede Seite eine eigene Abfrage, jetzt aus `getNavTeam`; Tab „Team“ und Einstellungen sagten „Gezeigt“, auch wenn das Team bei mehr als acht Zustimmungen nicht erscheint, jetzt „Erlaubt“ mit Grund, warum es nicht geht, auch bei einer Sperre; die Frage konnte über einem manuell geöffneten Neuigkeiten-Fenster aufgehen, jetzt wartet sie auf `showing`; gesperrte und unvollständige Konten bekamen auf der Startseite 403 für die Logos, jetzt die öffentliche Regel). Bewusst nicht geändert: `getLandingShowcase` lädt bei jedem Aufruf der Startseite alle zugestimmten Teams samt Zuverlässigkeit (wie `getTeamList`, bei der erwarteten Zahl unkritisch, §10; ein Cache widerspräche „sofort weg“); die Mitglieder-Auswahl steht neben der der Teams-Liste ein zweites Mal; die Web-Action prüft die Form der Antworten selbst, die Grenze bleibt in `core`. Im Browser gegen die Dev-DB (Playwright, Seed-Konten): Die Frage kam nach dem Neuigkeiten-Fenster, nie gleichzeitig; „Zeigen“ und „Speichern“ setzte das Team auf die Startseite, Escape und X speicherten „Nein“, nach dem Neuladen keine Frage mehr; abgemeldet stand das Team mit Logo, Hochschule, Rang und Zuverlässigkeit vor „Verbindlichkeit“; Logo eines Teams ohne offene Anfrage abgemeldet 200, nach Ausblenden aus der Teams-Liste oder Abschalten 404 und das Team weg, nach dem Einblenden wieder da; Häkchen beim Gründen, Block in den Einstellungen, Zeile im Tab „Team“; Deutsch hell am Desktop und Englisch dunkel bei 320 px ohne Überstand. Für den Deploy: `docker/legal/datenschutz.txt` und `datenschutz.en.txt` nach Prod kopieren (Absatz zur Startseite bei der Teams-Liste, Ergänzung beim Team-Rang; Freigabe durch den Nutzer offen), dann `dc build && dc up -d` (Migration `landing_showcase`, additiv; Web und Bot wegen des Schemas), keine Einstellung in der `.env`, keine Änderung an nginx.
+
+**Phase 39: OPL-Verknüpfung** (SPEC N-35, §5.37, §6.5)
+- Am Phasenstart: acht Probe-Aufrufe (Aufbau von `user`, `team/{id}/users`, gelöschte und unbekannte IDs, Header), Ergebnisse in §5.37
+- Schema: `User.opl*`, `Team.opl*`, `OplRosterMatch` (Migration `opl_links`, von `prisma migrate diff` erzeugt, additiv)
+- `core`: `opl/` (`parse.ts`, `client.ts`, Teilpfad `@uni-scrims/core/opl`), `opl.ts` (Verknüpfen, Lösen, Vorausfüllen, Treffer, `oplTick`), `createTeam` mit `oplTeamUrl`, Treffer bei `leaveTeam`, `removeMember`, `joinTeam`, `dissolveTeam`, `deletedUserData`, `deleteAccount`, Lesen in `getAccount`, `getMyTeam`, `getTeamList`, Datenauskunft, dritte Schleife in `getBotStatus`, Fehlerschlüssel auf Deutsch und Englisch
+- Bot: `opl/loop.ts` mit Start in `index.ts`
+- Web: `public/opl/`, `OplLogo`, `OplUrlInput`, Konto-Dialog, Gründen mit Vorausfüllen, Team-Einstellungen, Karte im Tab „Team“, Teams-Liste, Rate-Limit, Admin-Übersicht, „Rollen und Rechte“; Texte auf Deutsch und Englisch; `.env.example`
+- Datenschutzerklärung: Abschnitt zu OPL (Dev-Kopien; nach Production beim Deploy, nach Freigabe)
+- Tests: `opl.test.ts` (URL, Client mit Fake-fetch samt großer Discord-ID und ohne Body im Fehler, Verknüpfen, Gründen, Treffer, Mitgliederwechsel, `oplTick` mit Streuung, Zähler und Lösen), Bot `loops.test.ts` (Takt, Rate-Limit, Pause, Leerlauf), angepasst `account.test.ts`, `account-export.test.ts`, `sweeper.test.ts`, `staff.test.ts`, `races.test.ts`
+- *Fertig wenn:* Ein Konto verknüpft sein OPL-Profil nur bei derselben Discord-ID, ein Captain mit verknüpftem Profil sein Team nur, wenn er im OPL-Kader steht (beim Gründen mit übernommenem Namen und Kürzel oder später); der Tab „Team“ zeigt die Mitglieder im Kader mit Namen und die übrigen als Zahl, die Teams-Liste den Link mit der OPL-Bildmarke; jede Verknüpfung wird etwa täglich zu gestreuten Zeiten neu geprüft, nie mit mehr als 40 Aufrufen pro Minute, und entfällt bei einer anderen Discord-ID bzw. nach dreimal „gelöscht“; Lösen, Auskunft, Kontolöschung, Rechte und Datenschutzerklärung wie beschrieben; ab 320 px, hell und dunkel, Deutsch und Englisch; Tests, Lint, Web- und Bot-Image sind grün.
