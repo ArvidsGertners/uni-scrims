@@ -162,6 +162,7 @@ describe("fanOut writes the bell (§5.34)", () => {
       targetTeamId: null,
       requestId: null,
       scrimId: null,
+      createdAt: NOW,
     };
     for (let i = 0; i < 2; i++) {
       await prisma.$transaction((tx) =>
@@ -376,6 +377,45 @@ describe("reading the bell", () => {
       now: NOW,
     });
     expect(again).toEqual({ inboxChanged: false });
+  });
+});
+
+describe("a thread read before the fan-out", () => {
+  it("brings its 'Neue Nachricht' in read for who read it, unread for the others", async () => {
+    const host = await createFullyVerifiedTeam();
+    const guest = await createFullyVerifiedTeam();
+    const request = await createOpenRequest(host.captain.id);
+    await applyToRequest({
+      userId: guest.captain.id,
+      teamId: guest.team.id,
+      requestId: request.id,
+      now: NOW,
+    });
+    await sendMessage({
+      userId: guest.captain.id,
+      teamId: guest.team.id,
+      requestId: request.id,
+      guestTeamId: guest.team.id,
+      body: "Hallo",
+      now: NOW,
+    });
+    // Read live, before the bot fanned the notification out.
+    const readAt = new Date(NOW.getTime() + 1000);
+    const reader = host.members[0]!;
+    await markConversationRead({
+      userId: reader.id,
+      teamId: host.team.id,
+      requestId: request.id,
+      guestTeamId: guest.team.id,
+      now: readAt,
+    });
+    const received = await personal({ requestId: request.id, type: NotifType.MESSAGE_RECEIVED });
+    await deliverNotification(received.id, new Date(NOW.getTime() + 5000), deliver, NO_DEV_ENV);
+    const items = await itemsOf(received.id);
+    expect(items).toHaveLength(5);
+    for (const entry of items) {
+      expect(entry.readAt).toEqual(entry.userId === reader.id ? readAt : null);
+    }
   });
 });
 

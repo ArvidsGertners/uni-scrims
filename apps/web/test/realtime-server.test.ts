@@ -305,6 +305,20 @@ describe("realtime server: the bell", () => {
     for (const { socket } of [tabA, tabB, other]) socket.close();
   });
 
+  it("reads once per user for all tabs and ignores a repeated subscription", async () => {
+    const { port, queries } = await startBell({ bus: realtimeBus(), inboxPollMs: 60_000 });
+    const tabA = await follow(port);
+    const tabB = await follow(port);
+    for (let i = 0; i < 5; i++) tabA.socket.send(JSON.stringify({ type: "inbox", on: true }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // One read per subscribing tab, none for the repeats.
+    expect(queries).toHaveLength(2);
+    publishInboxChange("user-1");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(queries).toHaveLength(3);
+    for (const { socket } of [tabA, tabB]) socket.close();
+  });
+
   it("stops sending once the bell is switched off, and polls nothing without followers", async () => {
     const { port, states, queries } = await startBell({ inboxPollMs: 20 });
     const { socket } = await follow(port);

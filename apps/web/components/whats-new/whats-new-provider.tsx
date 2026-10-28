@@ -11,7 +11,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { markWhatsNewSeenAction } from "@/app/actions";
@@ -59,9 +58,8 @@ export function WhatsNewProvider({
   const [open, setOpen] = useState(false);
   // Every opening starts a fresh dialog on the first slide.
   const [opening, setOpening] = useState(0);
-  const closedFor = useRef<string | null>(null);
-  // The same as closedFor, as state for the bell.
-  const [closedUser, setClosedUser] = useState<string | null>(null);
+  // Whose dialog was closed in this tab (the root layout outlives a sign-out).
+  const [closedFor, setClosedFor] = useState<string | null>(null);
   const show = useCallback(() => {
     if (admin) return;
     setOpening((count) => count + 1);
@@ -69,24 +67,23 @@ export function WhatsNewProvider({
   }, [admin]);
 
   useEffect(() => {
-    if (!due || admin || closedFor.current === userId) return;
+    if (!due || admin || closedFor === userId) return;
     void loadDialog();
     const timer = setTimeout(show, OPEN_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [due, admin, userId, show]);
+  }, [due, admin, userId, show, closedFor]);
 
   const close = useCallback(() => {
     setOpen(false);
-    if (!due || closedFor.current === userId) return;
-    closedFor.current = userId;
-    setClosedUser(userId);
+    if (!due || closedFor === userId) return;
+    setClosedFor(userId);
     // Not saved: it simply comes again with the next load.
     startTransition(async () => {
       await markWhatsNewSeenAction(WHATS_NEW_EDITION).catch(() => false);
     });
-  }, [due, userId]);
+  }, [due, userId, closedFor]);
 
-  const pending = due && !admin && closedUser !== userId;
+  const pending = due && !admin && closedFor !== userId;
   const value = useMemo(() => ({ open: show, pending }), [show, pending]);
   return (
     <WhatsNewContext value={value}>

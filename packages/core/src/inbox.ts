@@ -21,14 +21,17 @@ export async function writeInboxItems<T extends NotifType>(
     targetTeamId: string | null;
     requestId: string | null;
     scrimId: string | null;
+    createdAt: Date;
   },
   payload: NotificationPayload<T>,
   recipients: readonly { userId: string }[],
   now: Date,
 ): Promise<void> {
   if (recipients.length === 0) return;
+  const readAt = await threadReadSince(tx, notification, payload, recipients);
   await tx.inboxItem.createMany({
     data: recipients.map(({ userId }) => ({
+      readAt: readAt.get(userId) ?? null,
       userId,
       type: notification.type,
       teamId: notification.targetTeamId,
@@ -40,6 +43,29 @@ export async function writeInboxItems<T extends NotifType>(
     })),
     skipDuplicates: true,
   });
+}
+
+/**
+ * A "Neue Nachricht" for someone who read the thread since the message (live, before the bot fanned
+ * it out) arrives read (SPEC N-32): when they read it, per recipient.
+ */
+async function threadReadSince<T extends NotifType>(
+  tx: Prisma.TransactionClient,
+  notification: { type: T; requestId: string | null; createdAt: Date },
+  payload: NotificationPayload<T>,
+  recipients: readonly { userId: string }[],
+): Promise<Map<string, Date>> {
+  if (notification.type !== NotifType.MESSAGE_RECEIVED || !notification.requestId) return new Map();
+  const { guestTeamId } = payload as NotificationPayload<typeof NotifType.MESSAGE_RECEIVED>;
+  const reads = await tx.conversationRead.findMany({
+    where: {
+      userId: { in: recipients.map(({ userId }) => userId) },
+      readAt: { gte: notification.createdAt },
+      conversation: { requestId: notification.requestId, guestTeamId },
+    },
+    select: { userId: true, readAt: true },
+  });
+  return new Map(reads.map(({ userId, readAt }) => [userId, readAt]));
 }
 
 export type InboxEntry = {

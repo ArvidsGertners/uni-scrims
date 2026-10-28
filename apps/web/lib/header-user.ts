@@ -64,8 +64,8 @@ export async function whatsNewDue(): Promise<boolean> {
   return nav?.full === true && user?.whatsNewSeen !== WHATS_NEW_EDITION;
 }
 
-/** The navigation of the signed-in user, or null (logged out, admin host). */
-export async function siteNav(): Promise<AppNavData | null> {
+/** The navigation of the signed-in user, or null (logged out, admin host), once per request. */
+export const siteNav = cache(async (): Promise<AppNavData | null> => {
   const { user, active, teams, teamUnavailable, adminHost } = await siteChrome();
   if (!user || adminHost) return null;
   const locale = await getLocale();
@@ -86,7 +86,7 @@ export async function siteNav(): Promise<AppNavData | null> {
     // Like the former box on the account page: staff with an active account (§5.16).
     adminUrl: active && user.staffRole ? adminUrl("/") : null,
   };
-}
+});
 
 /**
  * The unread count the bell starts with (SPEC N-32, §5.34), or null without a bell: only with the

@@ -123,25 +123,33 @@ export function createRealtimeServer(deps: RealtimeDeps) {
   };
 
   /**
-   * Bumped by every immediate read of a user's bell: a poll that started before must not send its
-   * older state after the newer one.
+   * Bumped by every immediate read of a user's bell: an older read (a poll or an earlier refresh)
+   * that answers later must not send its state after the newer one. Dropped with the user's last
+   * connection.
    */
   const inboxVersions = new Map<string, number>();
   const inboxVersion = (userId: string) => inboxVersions.get(userId) ?? 0;
 
-  /** Reads the bell of one user now, for these of its connections (§5.34). */
-  const refreshInbox = (userId: string, targets: Connection[]) => {
-    inboxVersions.set(userId, inboxVersion(userId) + 1);
-    for (const connection of targets) {
-      connection.queue = connection.queue.then(async () => {
-        try {
-          const state = (await deps.inboxStates([userId])).get(userId);
-          if (state) sendInbox(connection, state);
-        } catch (error) {
-          console.error("Realtime inbox read failed", error);
-        }
-      });
+  /** Sends a state to every connection of the user that follows the bell; each only on a change. */
+  const sendInboxToUser = (userId: string, state: WireInboxState) => {
+    for (const connection of connections) {
+      if (connection.userId === userId) sendInbox(connection, state);
     }
+  };
+
+  /** Reads the bell of one user now, once, for all of its tabs (§5.34). */
+  const refreshInbox = (userId: string) => {
+    const version = inboxVersion(userId) + 1;
+    inboxVersions.set(userId, version);
+    void (async () => {
+      try {
+        const state = (await deps.inboxStates([userId])).get(userId);
+        // A newer read is under way; it sends.
+        if (state && inboxVersion(userId) === version) sendInboxToUser(userId, state);
+      } catch (error) {
+        console.error("Realtime inbox read failed", error);
+      }
+    })();
   };
 
   const onMessage = (connection: Connection, data: RawData) => {
@@ -156,9 +164,11 @@ export function createRealtimeServer(deps: RealtimeDeps) {
       return;
     }
     if (parsed.data.type === "inbox") {
+      // Repeating the state reads nothing.
+      if (connection.inbox === parsed.data.on) return;
       connection.inbox = parsed.data.on;
       connection.lastInbox = null;
-      if (connection.inbox) refreshInbox(connection.userId, [connection]);
+      if (connection.inbox) refreshInbox(connection.userId);
       return;
     }
     const { type, ...subscription } = parsed.data;
@@ -191,7 +201,10 @@ export function createRealtimeServer(deps: RealtimeDeps) {
       connection.alive = true;
     });
     socket.on("message", (data) => onMessage(connection, data));
-    socket.on("close", () => connections.delete(connection));
+    socket.on("close", () => {
+      connections.delete(connection);
+      if (![...connections].some((entry) => entry.userId === userId)) inboxVersions.delete(userId);
+    });
     socket.on("error", () => socket.terminate());
   };
 
@@ -234,8 +247,9 @@ export function createRealtimeServer(deps: RealtimeDeps) {
 
   // Read in the web (an entry or a thread read, §5.34): every tab of that user at once.
   const stopListeningInbox = onInboxChange(deps.bus, (userId) => {
-    const targets = [...connections].filter((entry) => entry.inbox && entry.userId === userId);
-    if (targets.length > 0) refreshInbox(userId, targets);
+    if ([...connections].some((entry) => entry.inbox && entry.userId === userId)) {
+      refreshInbox(userId);
+    }
   });
 
   /**
