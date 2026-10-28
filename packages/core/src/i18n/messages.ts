@@ -168,6 +168,21 @@ const de = {
   teamLinkWrongHost: ({ platform }: { platform: TeamLinkPlatform }) =>
     `${TEAM_LINK_TEXTS.de[platform].label}: Bitte ${TEAM_LINK_TEXTS.de[platform].hint}.`,
 
+  // OPL (Phase 39, §5.37)
+  oplUnavailable: "OPL ist gerade nicht erreichbar. Bitte versuch es später noch einmal.",
+  oplUserLinkInvalid:
+    "Das ist kein Link zu einem OPL-Profil (z. B. https://www.opleague.pro/user/12345-Name).",
+  oplTeamLinkInvalid:
+    "Das ist kein Link zu einem OPL-Team (z. B. https://www.opleague.pro/team/12345-Name).",
+  oplUserNotFound: "Dieses OPL-Profil gibt es nicht.",
+  oplTeamNotFound: "Dieses OPL-Team gibt es nicht.",
+  oplDiscordMismatch:
+    "In diesem OPL-Profil ist nicht dein Discord-Konto hinterlegt. Verknüpfe zuerst auf OPL Discord mit dem Konto, das du hier nutzt.",
+  oplProfileTaken: "Dieses OPL-Profil ist schon mit einem anderen Konto verknüpft.",
+  oplAccountRequired: "Verknüpfe zuerst in deinen Einstellungen dein OPL-Profil.",
+  oplNotInRoster: "Du stehst nicht im Kader dieses OPL-Teams.",
+  oplTeamTaken: "Dieses OPL-Team ist schon mit einem anderen Team verknüpft.",
+
   // Moderation and staff (admin area)
   logoChanged: "Das Logo hat sich inzwischen geändert. Sieh es dir erneut an.",
   linksChanged: "Die Links haben sich inzwischen geändert. Sieh sie dir erneut an.",
@@ -368,6 +383,20 @@ export const MESSAGES = dictionary(de, {
     `${TEAM_LINK_TEXTS.en[platform].label}: The link can't contain credentials or a port.`,
   teamLinkWrongHost: ({ platform }) =>
     `${TEAM_LINK_TEXTS.en[platform].label}: Please ${TEAM_LINK_TEXTS.en[platform].hint}.`,
+
+  oplUnavailable: "OPL can't be reached right now. Please try again later.",
+  oplUserLinkInvalid:
+    "That's not a link to an OPL profile (e.g. https://www.opleague.pro/user/12345-Name).",
+  oplTeamLinkInvalid:
+    "That's not a link to an OPL team (e.g. https://www.opleague.pro/team/12345-Name).",
+  oplUserNotFound: "This OPL profile doesn't exist.",
+  oplTeamNotFound: "This OPL team doesn't exist.",
+  oplDiscordMismatch:
+    "This OPL profile doesn't have your Discord account. First link Discord on OPL with the account you use here.",
+  oplProfileTaken: "This OPL profile is already linked to another account.",
+  oplAccountRequired: "First link your OPL profile in your settings.",
+  oplNotInRoster: "You're not in the roster of this OPL team.",
+  oplTeamTaken: "This OPL team is already linked to another team.",
 
   logoChanged: "The logo has changed in the meantime. Take another look.",
   linksChanged: "The links have changed in the meantime. Take another look.",

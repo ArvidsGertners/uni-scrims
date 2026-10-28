@@ -17,6 +17,12 @@ import {
 import sharp from "sharp";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  type OplApi,
+  linkOplTeam,
+  removeMember,
+  linkOplUser,
+  oplTick,
+  unlinkOplTeam,
   acceptDirectRequest,
   deleteOwnMessage,
   reportMessage,
@@ -1106,6 +1112,84 @@ describe("messages while the thread or its author change (§5.30)", () => {
       expectOnlyDomainErrors(results);
       expect(results[1].status).toBe("fulfilled");
       expect(await prisma.messageReport.count({ where: { messageId: message.id } })).toBe(0);
+    }
+  });
+});
+
+describe("OPL links while the team changes (§5.37)", () => {
+  let lastId = 500_000_000 + Math.floor(Math.random() * 100_000_000);
+  async function linkableTeam() {
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
+    const userId = ++lastId;
+    const teamId = ++lastId;
+    const roster = [
+      { oplUserId: userId, discordId: captain.discordId },
+      { oplUserId: ++lastId, discordId: members[0]!.discordId },
+    ];
+    const opl: OplApi = {
+      async user() {
+        return { result: { kind: "found", discordId: captain.discordId }, rateLimit: RATE };
+      },
+      async teamRoster() {
+        return {
+          result: { kind: "found", name: "T", shortName: null, members: roster },
+          rateLimit: RATE,
+        };
+      },
+    };
+    await linkOplUser({
+      userId: captain.id,
+      url: `https://www.opleague.pro/user/${userId}`,
+      opl,
+      now: NOW,
+    });
+    return { team, captain, members, opl, url: `https://www.opleague.pro/team/${teamId}` };
+  }
+  const RATE = { remaining: 99, resetSec: 30 };
+
+  it("never leaves a link or matches on a team dissolved while it was linked", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team, captain, members, opl, url } = await linkableTeam();
+      await removeMember({ userId: captain.id, teamId: team.id, memberId: members[0]!.id });
+      const results = await Promise.allSettled([
+        linkOplTeam({ userId: captain.id, teamId: team.id, url, opl, now: NOW }),
+        leaveTeam({ userId: captain.id, teamId: team.id, now: NOW }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results[1].status).toBe("fulfilled");
+      expect(await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).toMatchObject({
+        dissolvedAt: NOW,
+        oplTeamId: null,
+      });
+      expect(await prisma.oplRosterMatch.count({ where: { teamId: team.id } })).toBe(0);
+    }
+  });
+
+  it("never writes matches back after the captain unlinked during a check", async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      const { team, captain, opl, url } = await linkableTeam();
+      await linkOplTeam({ userId: captain.id, teamId: team.id, url, opl, now: NOW });
+      // Only this team is due.
+      await prisma.user.updateMany({
+        where: { oplUserId: { not: null } },
+        data: { oplNextCheckAt: null },
+      });
+      await prisma.team.updateMany({
+        where: { oplTeamId: { not: null } },
+        data: { oplNextCheckAt: null },
+      });
+      await prisma.team.update({ where: { id: team.id }, data: { oplNextCheckAt: NOW } });
+      const results = await Promise.allSettled([
+        oplTick({ now: NOW, opl }),
+        unlinkOplTeam({ userId: captain.id, teamId: team.id }),
+      ]);
+      expectOnlyDomainErrors(results);
+      expect(results.every((result) => result.status === "fulfilled")).toBe(true);
+      expect(await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).toMatchObject({
+        oplTeamId: null,
+        oplRosterOthers: null,
+      });
+      expect(await prisma.oplRosterMatch.count({ where: { teamId: team.id } })).toBe(0);
     }
   });
 });

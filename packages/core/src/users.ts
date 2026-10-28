@@ -40,6 +40,12 @@ export function deletedUserData(userId: string) {
     locale: null,
     activeTeamId: null,
     whatsNewSeen: null,
+    // The OPL link goes too (§5.37); the matches in rosters are deleted by deleteAccount.
+    oplUserId: null,
+    oplLinkedAt: null,
+    oplCheckedAt: null,
+    oplNextCheckAt: null,
+    oplFailures: 0,
   } satisfies Prisma.UserUncheckedUpdateInput;
 }
 

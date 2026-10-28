@@ -200,6 +200,13 @@ model User {
   locale           Locale?
   // Phase 33 (§5.31): the last edition of the what's new dialog the user closed; null = never.
   whatsNewSeen     String?
+  // Phase 39 (§5.37): the linked OPL profile (only with the same Discord ID); its daily recheck and
+  // how often in a row OPL reported it as deleted. Nothing else from OPL is stored.
+  oplUserId        Int?            @unique
+  oplLinkedAt      DateTime?       @db.Timestamptz(3)
+  oplCheckedAt     DateTime?       @db.Timestamptz(3)
+  oplNextCheckAt   DateTime?       @db.Timestamptz(3)
+  oplFailures      Int             @default(0)
 
   avatar                  UserAvatar?
   notificationPreferences NotificationPreference[]
@@ -228,8 +235,11 @@ model User {
   dismissedReports     MessageReport[]       @relation("MessageReportDismissedBy")
   // Phase 36 (§5.34): the entries of the notification bell.
   inboxItems           InboxItem[]
+  // Phase 39 (§5.37): the teams in whose OPL roster this user stands.
+  oplRosterMatches     OplRosterMatch[]
 
   @@unique([email])
+  @@index([oplNextCheckAt])
   @@map("user")
 }
 
@@ -399,6 +409,14 @@ model Team {
   verifiedApplicantsOnly Boolean   @default(false)
   // May be shown on the landing page; null = the captain was not asked yet (Phase 38).
   showOnLanding          Boolean?
+  // Phase 39 (§5.37): the linked OPL team (only with the captain in its roster), its daily recheck,
+  // how often in a row OPL reported it as deleted and how many in its roster are no members here.
+  oplTeamId              Int?      @unique
+  oplLinkedAt            DateTime? @db.Timestamptz(3)
+  oplCheckedAt           DateTime? @db.Timestamptz(3)
+  oplNextCheckAt         DateTime? @db.Timestamptz(3)
+  oplFailures            Int       @default(0)
+  oplRosterOthers        Int?
 
   logos                TeamLogo[]
   members              TeamMember[]
@@ -423,8 +441,23 @@ model Team {
   messageReports       MessageReport[]
   // Phase 36 (§5.34): bell entries about the team, deleted when a person leaves it.
   inboxItems           InboxItem[]
+  // Phase 39 (§5.37): members whose Discord ID stands in the OPL roster.
+  oplRosterMatches     OplRosterMatch[]
 
   @@index([captainId])
+  @@index([oplNextCheckAt])
+}
+
+// Phase 39 (§5.37): a member of the team whose Discord ID stands in the linked OPL roster. Compared
+// only during the check; the Discord IDs from OPL are never stored.
+model OplRosterMatch {
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@index([userId])
 }
 
 // Copy of the Discord avatar (Phase 12, §5.12), in its own table so requireUser, which loads the

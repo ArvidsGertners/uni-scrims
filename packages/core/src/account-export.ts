@@ -162,6 +162,13 @@ export async function exportAccountData(input: {
               listed: true,
               verifiedApplicantsOnly: true,
               showOnLanding: true,
+              oplTeamId: true,
+              oplLinkedAt: true,
+              oplCheckedAt: true,
+              oplNextCheckAt: true,
+              oplFailures: true,
+              oplRosterOthers: true,
+              oplRosterMatches: { where: { userId: user.id }, select: { userId: true } },
             },
           },
         },
@@ -405,6 +412,17 @@ export async function exportAccountData(input: {
           rang: user.rank && RANK_LABELS[user.rank],
           // The last edition of the what's new dialog the person closed (SPEC N-29).
           neuigkeitenGesehen: user.whatsNewSeen,
+          // The linked OPL profile and its daily check (SPEC N-35); nothing else from OPL is stored.
+          opl:
+            user.oplUserId === null
+              ? null
+              : {
+                  profilId: user.oplUserId,
+                  verknüpftAm: user.oplLinkedAt,
+                  geprüftAm: user.oplCheckedAt,
+                  nächstePrüfung: user.oplNextCheckAt,
+                  gelöschtGemeldet: user.oplFailures,
+                },
         },
         anmeldung: {
           discordId: discord?.accountId ?? null,
@@ -465,6 +483,20 @@ export async function exportAccountData(input: {
             nurVollstaendigVerifizierteBewerber: team.verifiedApplicantsOnly,
             // The captain's choice for the landing page; null = not asked yet (SPEC N-34).
             startseiteErlaubt: team.showOnLanding,
+            // The linked OPL team (SPEC N-35): whether the person stands in its roster, the others
+            // only as a number.
+            opl:
+              team.oplTeamId === null
+                ? null
+                : {
+                    teamId: team.oplTeamId,
+                    verknüpftAm: team.oplLinkedAt,
+                    geprüftAm: team.oplCheckedAt,
+                    nächstePrüfung: team.oplNextCheckAt,
+                    gelöschtGemeldet: team.oplFailures,
+                    imKader: team.oplRosterMatches.length > 0,
+                    weitereImKader: team.oplRosterOthers,
+                  },
             rolle: MEMBER_ROLE_LABELS.de[role],
             captain: isCaptainOf(user, team),
             beigetretenAm: joinedAt,

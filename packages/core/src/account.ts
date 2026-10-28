@@ -8,6 +8,7 @@ import { type Message } from "./i18n/render.ts";
 import { toDbLocale } from "./i18n/locale.ts";
 import { lockTeam, lockUser } from "./locks.ts";
 import { type ConversationKey, conversationKeyOf } from "./messages.ts";
+import { dropRosterMatches, userOplView } from "./opl/links.ts";
 import {
   findOwnTeams,
   isCaptainOf,
@@ -130,6 +131,8 @@ export async function getAccount(userId: string) {
         },
     /** The warning dot: unverified captain of an active team (SPEC N-21). */
     verificationNeeded: needsCaptainVerification(user, ownTeams),
+    /** The linked OPL profile (SPEC N-35), or null. */
+    opl: userOplView(user),
     /** All own teams (SPEC N-17); a captain's team is dissolved by the deletion, others are left. */
     teams: ownTeams.map((team) => ({
       id: team.id,
@@ -364,6 +367,7 @@ export async function deleteAccount(input: {
         await dissolveTeam(team.id, input.now, tx);
       } else {
         await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
+        await dropRosterMatches(tx, team.id, [user.id]);
       }
     }
     // Requests for more teams hold free text (SPEC N-17). Open ones, open verifications and
@@ -423,6 +427,8 @@ export async function deleteAccount(input: {
     await tx.notificationPreference.deleteMany({ where: { userId: user.id } });
     // The bell (§5.34).
     await tx.inboxItem.deleteMany({ where: { userId: user.id } });
+    // Matches in OPL rosters (§5.37); dissolved teams lost theirs already.
+    await tx.oplRosterMatch.deleteMany({ where: { userId: user.id } });
     await tx.session.deleteMany({ where: { userId: user.id } });
     // Better Auth keeps password reset tokens with the user ID as value; an open link would
     // otherwise set a new password on the anonymized account (§5.8).

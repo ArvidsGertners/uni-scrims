@@ -160,6 +160,7 @@ describe("recordHeartbeat", () => {
     const later = new Date(NOW.getTime() + 60_000);
     await recordHeartbeat("sweeper", later);
     await recordHeartbeat("outbox", NOW);
+    await recordHeartbeat("opl", NOW);
     expect(
       await prisma.systemStatus.findMany({
         where: { id: { in: Object.values(BOT_LOOP_STATUS_IDS) } },
@@ -167,6 +168,7 @@ describe("recordHeartbeat", () => {
       }),
     ).toEqual([
       { id: BOT_LOOP_STATUS_IDS.sweeper, heartbeatAt: later },
+      { id: BOT_LOOP_STATUS_IDS.opl, heartbeatAt: NOW },
       { id: BOT_LOOP_STATUS_IDS.outbox, heartbeatAt: NOW },
     ]);
   });
@@ -189,18 +191,21 @@ describe("getBotStatus", () => {
       loops: {
         sweeper: { heartbeatAt: null, online: false },
         outbox: { heartbeatAt: null, online: false },
+        opl: { heartbeatAt: null, online: false },
       },
     });
 
     const outboxAt = new Date(NOW.getTime() - 60_000);
     await recordHeartbeat("sweeper", NOW);
     await recordHeartbeat("outbox", outboxAt);
+    await recordHeartbeat("opl", NOW);
     const limit = new Date(outboxAt.getTime() + BOT_OFFLINE_AFTER_MS);
     expect(await getBotStatus(admin.id, limit)).toEqual({
       online: true,
       loops: {
         sweeper: { heartbeatAt: NOW, online: true },
         outbox: { heartbeatAt: outboxAt, online: true },
+        opl: { heartbeatAt: NOW, online: true },
       },
     });
     // Only the sender is silent: the bot counts as offline, and the loop is named.
@@ -209,6 +214,7 @@ describe("getBotStatus", () => {
       loops: {
         sweeper: { heartbeatAt: NOW, online: true },
         outbox: { heartbeatAt: outboxAt, online: false },
+        opl: { heartbeatAt: NOW, online: true },
       },
     });
   });

@@ -13,6 +13,17 @@ import { type Db, isUniqueViolation } from "./db.ts";
 import { DomainError, problemError } from "./errors.ts";
 import { type Message, msg } from "./i18n/render.ts";
 import { deleteTeamInboxItems } from "./inbox.ts";
+import type { OplApi } from "./opl/client.ts";
+import {
+  type CheckedOplTeam,
+  type Random,
+  applyOplTeamLink,
+  checkOplTeamForCaptain,
+  clearTeamOpl,
+  dropRosterMatches,
+  oplTeamTaken,
+} from "./opl/links.ts";
+import { oplTeamUrl } from "./opl/url.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
 import {
   captainProblem,
@@ -91,15 +102,25 @@ async function requireBelowTeamLimit(user: { id: string; teamLimit: number }, db
 
 /**
  * Founds a team with the user as captain. `showOnLanding` is the captain's choice for the landing
- * page (SPEC N-34), off when missing; new teams are therefore never asked again.
+ * page (SPEC N-34), off when missing; new teams are therefore never asked again. With `opl.url` the
+ * team is linked with that OPL team at once (SPEC N-35); if the check fails, no team is founded.
  */
 export async function createTeam(
-  input: TeamInput & { userId: string; now: Date; showOnLanding?: boolean },
+  input: TeamInput & {
+    userId: string;
+    now: Date;
+    showOnLanding?: boolean;
+    opl?: { url: string; api: OplApi | null; random?: Random };
+  },
 ) {
   const user = await requireUser(input.userId);
   const data = parseInput(teamInputSchema, input);
   const showOnLanding = parseInput(teamShowOnLandingSchema, input.showOnLanding ?? false);
   await requireBelowTeamLimit(user, prisma);
+  const oplUrl = input.opl?.url.trim() ?? "";
+  // OPL is asked before the transaction (§5.37); the founder is the captain to check.
+  const checkedOpl: CheckedOplTeam | null =
+    oplUrl === "" ? null : await checkOplTeamForCaptain(user, oplUrl, input.opl!.api);
   try {
     return await prisma.$transaction(async (tx) => {
       // Nobody sees the new team yet, so the user row is the first lock (§4). A ban or deletion that
@@ -124,10 +145,25 @@ export async function createTeam(
         data: { teamId: team.id, userId: user.id, joinedAt: input.now },
       });
       await tx.user.update({ where: { id: user.id }, data: { activeTeamId: team.id } });
+      if (checkedOpl) {
+        await applyOplTeamLink(tx, {
+          teamId: team.id,
+          captain: locked,
+          checked: checkedOpl,
+          now: input.now,
+          random: input.opl?.random,
+        });
+      }
       return team;
     });
   } catch (error) {
-    if (isUniqueViolation(error)) throw nameTaken();
+    if (isUniqueViolation(error)) {
+      // The name or, rarely, the OPL team linked by another team at the same time.
+      if (checkedOpl && (await prisma.team.count({ where: { oplTeamId: checkedOpl.oplTeamId } }))) {
+        throw oplTeamTaken();
+      }
+      throw nameTaken();
+    }
     throw error;
   }
 }
@@ -509,6 +545,7 @@ export async function removeMember(input: {
     }
     // A former member sees nothing more from the team in the bell (§5.34).
     await deleteTeamInboxItems(tx, input.teamId, [input.memberId]);
+    await dropRosterMatches(tx, input.teamId, [input.memberId]);
   });
 }
 
@@ -570,6 +607,11 @@ export async function joinTeam(input: { userId: string; inviteCode: string; now:
       data: { teamId: team.id, userId: user.id, joinedAt: input.now },
     });
     await tx.user.update({ where: { id: user.id }, data: { activeTeamId: team.id } });
+    // A linked team is checked again soon, so a new member in the OPL roster shows up (§5.37).
+    await tx.team.updateMany({
+      where: { id: team.id, oplTeamId: { not: null } },
+      data: { oplNextCheckAt: input.now },
+    });
     return team;
   });
 }
@@ -592,6 +634,7 @@ export async function leaveTeam(input: { userId: string; teamId: string; now: Da
     if (!isCaptainOf(user, team)) {
       await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
       await deleteTeamInboxItems(tx, team.id, [user.id]);
+      await dropRosterMatches(tx, team.id, [user.id]);
       return { dissolved: false };
     }
     if ((await tx.teamMember.count({ where: { teamId: team.id } })) > 1) {
@@ -615,6 +658,7 @@ export async function dissolveTeam(teamId: string, now: Date, db: Db = prisma): 
     await tx.inboxItem.deleteMany({ where: { teamId } });
     await clearTeamLogo(tx, teamId);
     await clearTeamLinks(tx, teamId);
+    await clearTeamOpl(tx, teamId);
     await tx.team.update({
       where: { id: teamId },
       data: { dissolvedAt: now, nameNormalized: null, inviteCode: null },
@@ -786,7 +830,7 @@ export async function getMyTeam(userId: string) {
   const user = await requireUser(userId);
   const team = await findOwnTeam(user.id);
   if (!team) return null;
-  const [memberRows, logo] = await Promise.all([
+  const [memberRows, logo, oplMatches] = await Promise.all([
     prisma.teamMember.findMany({
       where: { teamId: team.id },
       select: memberSelect,
@@ -794,7 +838,11 @@ export async function getMyTeam(userId: string) {
       orderBy: [{ joinedAt: "asc" }, { userId: "asc" }],
     }),
     loadTeamLogoInfo(team),
+    team.oplTeamId === null
+      ? []
+      : prisma.oplRosterMatch.findMany({ where: { teamId: team.id }, select: { userId: true } }),
   ]);
+  const matchedIds = new Set(oplMatches.map(({ userId }) => userId));
 
   const isCaptain = isCaptainOf(user, team);
   const members = memberRows.map(({ user: member, joinedAt, role }) => ({
@@ -836,6 +884,23 @@ export async function getMyTeam(userId: string) {
     landingEligible: isShowcaseTeam(team),
     // Only fully verified teams may apply to the team's requests (SPEC N-21).
     verifiedApplicantsOnly: team.verifiedApplicantsOnly,
+    // The linked OPL team with the members in its roster and the number of the others (SPEC N-35).
+    opl:
+      team.oplTeamId === null || !team.oplLinkedAt
+        ? null
+        : {
+            id: team.oplTeamId,
+            url: oplTeamUrl(team.oplTeamId),
+            linkedAt: team.oplLinkedAt,
+            checkedAt: team.oplCheckedAt ?? team.oplLinkedAt,
+            matches: memberRows
+              .filter(({ user: member }) => matchedIds.has(member.id))
+              .map(({ user: member }) => ({ id: member.id, name: member.name }))
+              .sort((a, b) => a.name.localeCompare(b.name, "de")),
+            others: team.oplRosterOthers ?? 0,
+          },
+    // Whether the own account has an OPL profile, needed to link the team (SPEC N-35).
+    ownOplLinked: user.oplUserId !== null,
     banned: team.bannedAt !== null,
     isCaptain,
     // Only the captain manages the invite link.

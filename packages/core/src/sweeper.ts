@@ -23,11 +23,11 @@ export const NOTIFICATION_RETENTION_MS = 30 * DAY;
 export const OAUTH_TOKEN_MAX_AGE_MS = 10 * MINUTE;
 
 /**
- * SystemStatus rows of the two bot loops (§6.3): each writes its heartbeat after a run. "bot" is the
- * sweeper's row from before the outbox had one. The admin page shows the bot as offline when either
- * heartbeat is older than 3 minutes.
+ * SystemStatus rows of the bot loops (§6.3, §6.5): each writes its heartbeat after a run. "bot" is
+ * the sweeper's row from before the outbox had one; "opl" is the OPL check (Phase 39). The admin
+ * page shows the bot as offline when any heartbeat is older than 3 minutes.
  */
-export const BOT_LOOP_STATUS_IDS = { sweeper: "bot", outbox: "outbox" } as const;
+export const BOT_LOOP_STATUS_IDS = { sweeper: "bot", outbox: "outbox", opl: "opl" } as const;
 export type BotLoop = keyof typeof BOT_LOOP_STATUS_IDS;
 export const BOT_STATUS_ID = BOT_LOOP_STATUS_IDS.sweeper;
 export const BOT_OFFLINE_AFTER_MS = 3 * MINUTE;
@@ -46,8 +46,12 @@ export async function getBotStatus(adminId: string, now: Date) {
       online: heartbeatAt !== null && now.getTime() - heartbeatAt.getTime() <= BOT_OFFLINE_AFTER_MS,
     };
   };
-  const loops = { sweeper: loopStatus("sweeper"), outbox: loopStatus("outbox") };
-  return { online: loops.sweeper.online && loops.outbox.online, loops };
+  const loops = {
+    sweeper: loopStatus("sweeper"),
+    outbox: loopStatus("outbox"),
+    opl: loopStatus("opl"),
+  };
+  return { online: Object.values(loops).every((loop) => loop.online), loops };
 }
 
 /**

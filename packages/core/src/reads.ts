@@ -14,6 +14,7 @@ import {
   TEAM_SEARCH_MAX,
 } from "../config/limits.ts";
 import type { Db } from "./db.ts";
+import { oplTeamUrl } from "./opl/url.ts";
 import type { Message } from "./i18n/render.ts";
 import { conversationKeyOf, conversationViews, unreadConversationKeys } from "./messages.ts";
 import {
@@ -1359,6 +1360,8 @@ export type TeamListEntry = {
   members: TeamListMember[];
   /** The user may open a direct request to this team (SPEC N-26). */
   canRequest: boolean;
+  /** The linked OPL team (SPEC N-35), or null. */
+  oplUrl: string | null;
 };
 
 const teamListSelect = {
@@ -1366,6 +1369,7 @@ const teamListSelect = {
   name: true,
   tag: true,
   captainId: true,
+  oplTeamId: true,
   ...teamLogoSelect,
   members: {
     // The order of the members tab.
@@ -1454,6 +1458,7 @@ export async function getTeamList(input: TeamListInput) {
         rank: user.rank,
       })),
       canRequest: requestingTeamId !== null && team.id !== requestingTeamId,
+      oplUrl: team.oplTeamId === null ? null : oplTeamUrl(team.oplTeamId),
     }));
   return { teams, filter: { search, ranks, fullyVerifiedOnly, reliableOnly } };
 }

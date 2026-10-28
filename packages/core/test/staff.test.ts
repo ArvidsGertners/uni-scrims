@@ -337,7 +337,7 @@ describe("getAdminOverview (§5.14)", () => {
   const LONG_AGO = new Date("2020-01-01T00:00:00Z");
 
   async function heartbeat(at: Date) {
-    for (const id of ["bot", "outbox"]) {
+    for (const id of ["bot", "outbox", "opl"]) {
       await prisma.systemStatus.upsert({
         where: { id },
         create: { id, heartbeatAt: at },
