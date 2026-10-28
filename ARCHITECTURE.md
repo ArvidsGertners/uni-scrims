@@ -2015,3 +2015,28 @@ Punkte aus SPEC P1, freigegeben am 23.10.2026. Wie bisher genau eine Phase nach 
 - Datenschutzerklärung: Satz zur Uniliga-Liga im Abschnitt OPL (Dev-Kopien; nach Production beim Deploy, nach Freigabe)
 - Tests: `uniliga.test.ts` (Client, `parseLeague`, Durchlauf mit Rückfall auf die ältere Saison, Fehler, Fälligkeit, Vorrang, Lesen während eines Durchlaufs), angepasst `team-list.test.ts`, `public-board.test.ts`, `reads.test.ts`, `account-export.test.ts`
 - *Fertig wenn:* Ein verknüpftes Team in der Gruppenphase der aktuellen Uniliga-Saison zeigt seine Liga („1. Liga · Gruppe A“ bzw. „Division 1 · Group A“, „3. Liga“ ohne Gruppe) im Tab „Team“, auf den Karten von `/scrims` und `/board` und in der Teams-Liste; nicht verknüpfte Teams und Teams nur im Wildcardturnier oder in den Playoffs zeigen keine; der Filter „Liga“ wirkt auf `/scrims`, `/board` und `/teams`, unbekannte Werte fallen weg; der Durchlauf läuft alle 11 h mit Vorrang, ein Aufruf je Runde im Takt der Schleife; zwischen den Saisons bleibt die letzte Saison mit Gruppen stehen; ab 320 px, hell und dunkel, Deutsch und Englisch; Tests, Lint und Web-Image sind grün.
+- *Stand (28.10.2026):* abgeschlossen. Code, Tests (`pnpm test` mit 1017 Tests, neu `uniliga.test.ts`, dazu `opl.test.ts`, `races.test.ts`, `team-list.test.ts`, `public-board.test.ts`, `account-export.test.ts` und im Bot `loops.test.ts`), `pnpm lint`, Web- und Bot-Image. Review samt Fixes:
+  - Ein Durchlauf ohne Teams (OPL meldet 404 für alle Turniere, oder keine Saison mit Gruppen unter den neuesten) löschte den letzten Stand. Jetzt bleibt der letzte Durchlauf mit Teams gezeigt.
+  - Das Lesen konnte mit dem Abschluss eines Durchlaufs zusammenfallen und dann nichts liefern. Jetzt liest es in einer Transaktion mit `RepeatableRead`.
+  - Der Tab „Team“ sagte „Nicht in der Gruppenphase“, auch wenn noch gar keine Saison bekannt war. Jetzt fehlt die Zeile in diesem Fall (`leagueKnown`).
+  - Ein einzelner Eintrag ohne gültige ID ließ ein ganzes Blatt und damit den Durchlauf scheitern. Jetzt wird er übersprungen.
+  - Die Namen der Lesefunktionen in §3/§5.38 stimmten nicht mit dem Code überein.
+- Bewusst nicht geändert:
+  - Board und Teams-Liste laden alle Anmeldungen der Saison (einige hundert Zeilen), weil die Teams erst nach dem Laden feststehen.
+  - Der Zweig für einen gespeicherten Cursor `done` in `crawlStep` bleibt als Absicherung.
+  - `loadAllLeagues` steht neben dem direkten Aufruf in `getTeamList`.
+- Zusätzlich:
+  - Das Badge steht auch auf der Anfrage-Seite und im Dialog der Direktanfrage, weil beide `TeamCardData` zeigen.
+  - In der Teams-Liste ist das Badge der Link zum OPL-Team, statt einer zweiten Bildmarke.
+- Probe am Phasenstart: rund 25 GET-Aufrufe gegen die echte API (Ergebnisse in §5.38), nichts gespeichert.
+- Im Browser gegen die Dev-DB und einen lokalen Fake-OPL-Server mit dem Baum der Winterseason (Playwright):
+  - Der Durchlauf brauchte 8 Aufrufe. Gespeichert wurden nur die Teams der Gruppenphase, nicht die des Wildcardturniers.
+  - Abgemeldet auf `/board` zeigten Demo Dragons „1. Liga · Gruppe A“ und Example Esports „3. Liga“.
+  - Filter „Liga“: Die Optionen 1., 2. und 3. Liga erschienen, „Filtern“ war nach dem Laden grau und nach der Auswahl aktiv. `?liga=3` zeigte nur Example Esports, `?liga=7` filterte nichts.
+  - In der Teams-Liste führten die Badges zu OPL, und `?liga=3` filterte richtig.
+  - Der Tab „Team“ zeigte die Zeile „Uniliga“.
+  - 320 px hell und Desktop dunkel ohne Überstand.
+- Für den Deploy:
+  - `docker/legal/datenschutz.txt` und `datenschutz.en.txt` nach Prod kopieren (ein Satz zur Uniliga-Liga im Abschnitt OPL; die Freigabe durch den Nutzer ist offen).
+  - Dann `dc build && dc up -d` (Migration `uniliga_leagues`, nur neue Tabellen; Web- und Bot-Image).
+  - Keine Einstellung in der `.env`; ohne `OPLEAGUE_API_KEY` läuft kein Durchlauf, und es erscheint keine Liga.
