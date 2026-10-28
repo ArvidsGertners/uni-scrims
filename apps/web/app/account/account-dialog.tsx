@@ -320,6 +320,7 @@ export async function AccountDialog({
                     {t.oplLinked}
                   </span>
                   <p className="text-[13px] text-muted-foreground">
+                    {t.oplLinkedAt(formatBerlinDate(account.opl.linkedAt, locale))} ·{" "}
                     {t.oplCheckedAt(formatBerlinDate(account.opl.checkedAt, locale))}
                   </p>
                   <ActionForm

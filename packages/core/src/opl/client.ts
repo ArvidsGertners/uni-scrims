@@ -24,13 +24,15 @@ export type OplApi = {
 };
 
 /**
- * A failed call: `auth` for a rejected key (401, 403), `transient` for everything else. Carries only
- * the status, never the body (`/ping` echoes the token, rosters hold personal data).
+ * A failed call: `auth` for a rejected key (401), `rate` when OPL's limit is used up (429, with the
+ * reset from the headers), `transient` for everything else, also a 403 for a single profile or team.
+ * Carries only the status, never the body (`/ping` echoes the token, rosters hold personal data).
  */
 export class OplError extends Error {
   constructor(
-    readonly reason: "auth" | "transient",
+    readonly reason: "auth" | "rate" | "transient",
     readonly status: number | null,
+    readonly rateLimit: OplRateLimit | null = null,
   ) {
     super(`OPL request failed (${status ?? "no response"})`);
     this.name = "OplError";
@@ -100,11 +102,12 @@ export function createOplClient(options: {
       remaining: headerNumber(response.headers, "ratelimit-remaining"),
       resetSec: headerNumber(response.headers, "ratelimit-reset"),
     };
-    if (response.status === 401 || response.status === 403) {
-      throw new OplError("auth", response.status);
+    if (response.status === 401) throw new OplError("auth", response.status, rateLimit);
+    if (response.status === 429) {
+      throw new OplError("rate", response.status, { remaining: 0, resetSec: rateLimit.resetSec });
     }
     if (response.status === 404) return { status: 404, body: null, rateLimit };
-    if (!response.ok) throw new OplError("transient", response.status);
+    if (!response.ok) throw new OplError("transient", response.status, rateLimit);
     try {
       return {
         status: response.status,

@@ -607,9 +607,10 @@ export async function joinTeam(input: { userId: string; inviteCode: string; now:
       data: { teamId: team.id, userId: user.id, joinedAt: input.now },
     });
     await tx.user.update({ where: { id: user.id }, data: { activeTeamId: team.id } });
-    // A linked team is checked again soon, so a new member in the OPL roster shows up (§5.37).
+    // A linked team is checked again soon, so a new member in the OPL roster shows up (§5.37); not
+    // while it waits after a "deleted" answer, which would shorten that grace period.
     await tx.team.updateMany({
-      where: { id: team.id, oplTeamId: { not: null } },
+      where: { id: team.id, oplTeamId: { not: null }, oplFailures: 0 },
       data: { oplNextCheckAt: input.now },
     });
     return team;

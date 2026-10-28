@@ -52,6 +52,7 @@ export async function oplLoopTick(
   if (deps.opl) {
     try {
       const { checked, rateLimit } = await deps.oplTick({ now: deps.clock(), opl: deps.opl });
+      // A used-up limit (429) comes back as checked with remaining 0, so it waits for the reset too.
       if (checked) {
         delay = CALL_PAUSE_MS;
         if (rateLimit?.remaining != null && rateLimit.remaining < MIN_REMAINING) {

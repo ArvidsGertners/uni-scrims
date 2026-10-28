@@ -1,4 +1,4 @@
-import { prisma } from "@uni-scrims/db";
+import { StaffRole, prisma } from "@uni-scrims/db";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   type OplApi,
@@ -219,10 +219,12 @@ describe("OPL client", () => {
     });
   });
 
-  it("fails without the body: auth for 401 and 403, transient otherwise", async () => {
-    const cases: [number, string, "auth" | "transient"][] = [
+  it("fails without the body: auth for 401, rate for 429, transient otherwise", async () => {
+    const cases: [number, string, OplError["reason"]][] = [
       [401, '{"token":"secret-echo"}', "auth"],
-      [403, "secret-echo", "auth"],
+      // A 403 may concern one profile or team only; it must not stop the whole queue.
+      [403, "secret-echo", "transient"],
+      [429, "secret-echo", "rate"],
       [500, "secret-echo", "transient"],
       [200, "not json secret-echo", "transient"],
       [200, '{"data":{"unexpected":"secret-echo"}}', "transient"],
@@ -235,6 +237,14 @@ describe("OPL client", () => {
       expect(String(error)).not.toContain("secret-echo");
       expect(JSON.stringify(error)).not.toContain("secret-echo");
     }
+    const limited = createOplClient({
+      apiKey: "k",
+      fetch: fakeFetch(429, "{}", { "RateLimit-Remaining": "0", "RateLimit-Reset": "41" }).fetch,
+    });
+    expect(((await limited.user(1).catch((e: unknown) => e)) as OplError).rateLimit).toEqual({
+      remaining: 0,
+      resetSec: 41,
+    });
     const offline = createOplClient({
       apiKey: "k",
       fetch: (async () => {
@@ -490,6 +500,16 @@ describe("createTeam with an OPL team and previewOplTeam", () => {
     expect(view.opl).toMatchObject({ id, matches: [{ id: founder.id }], others: 1 });
   });
 
+  it("previews only for users with an OPL profile", async () => {
+    const opl = fakeOpl();
+    const user = await createUser();
+    await expectError(
+      previewOplTeam({ userId: user.id, url: "https://www.opleague.pro/team/1", opl: opl.api }),
+      "oplAccountRequired",
+    );
+    expect(opl.calls).toBe(0);
+  });
+
   it("founds no team when the check fails", async () => {
     const opl = fakeOpl();
     const founder = await linkedUser(opl);
@@ -561,6 +581,18 @@ describe("matches when members change", () => {
     expect(
       (await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).oplNextCheckAt,
     ).toEqual(LATER);
+    // Not while it waits after a "deleted" answer.
+    const waiting = new Date(LATER.getTime() + 2 * HOUR);
+    await prisma.team.update({
+      where: { id: team.id },
+      data: { oplFailures: 1, oplNextCheckAt: waiting },
+    });
+    const second = await createUser();
+    await joinTeam({ userId: second.id, inviteCode: inviteCode!, now: DAY_LATER });
+    expect(
+      (await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).oplNextCheckAt,
+    ).toEqual(waiting);
+    await leaveTeam({ userId: second.id, teamId: team.id, now: LATER });
     await leaveTeam({ userId: joiner.id, teamId: team.id, now: LATER });
     await dissolveTeam(team.id, LATER);
     expect(await prisma.team.findUniqueOrThrow({ where: { id: team.id } })).toMatchObject({
@@ -654,6 +686,20 @@ describe("oplTick", () => {
       oplNextCheckAt: NOW,
       oplUserId: user.oplUserId,
     });
+  });
+
+  it("leaves the link due on a used-up limit and hands on OPL's reset", async () => {
+    const opl = fakeOpl();
+    const user = await linkedUser(opl);
+    await makeOnlyDue({ userId: user.id });
+    opl.failing.error = new OplError("rate", 429, { remaining: 0, resetSec: 41 });
+    expect(await oplTick({ now: DAY_LATER, opl: opl.api })).toEqual({
+      checked: true,
+      rateLimit: { remaining: 0, resetSec: 41 },
+    });
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).oplNextCheckAt,
+    ).toEqual(NOW);
   });
 
   it("checks the most overdue link first, users and teams together", async () => {
@@ -801,6 +847,40 @@ describe("data export (§5.10)", () => {
       imKader: true,
       weitereImKader: 1,
     });
+  });
+});
+
+describe("banning a member", () => {
+  it("drops the match and counts the person among the others", async () => {
+    const { banUser } = await import("../src/index.ts");
+    const admin = await createUser({ verified: true, staffRole: StaffRole.ADMIN });
+    const opl = fakeOpl();
+    const { team, captain, members } = await createTeamWithMembers({ extraMembers: 1 });
+    const linked = await linkedUser(opl, captain);
+    const id = oplId();
+    opl.teams.set(id, {
+      name: "T",
+      shortName: null,
+      members: [
+        { oplUserId: linked.oplUserId, discordId: captain.discordId },
+        { oplUserId: oplId(), discordId: members[0]!.discordId },
+      ],
+    });
+    await linkOplTeam({
+      userId: captain.id,
+      teamId: team.id,
+      url: `https://www.opleague.pro/team/${id}`,
+      opl: opl.api,
+      now: NOW,
+    });
+    await banUser({
+      adminId: admin.id,
+      userId: members[0]!.id,
+      uploadDir: "/tmp/uni-scrims-test-none",
+      now: LATER,
+    });
+    expect(await prisma.oplRosterMatch.count({ where: { userId: members[0]!.id } })).toBe(0);
+    expect((await getMyTeam(captain.id))!.opl).toMatchObject({ others: 1 });
   });
 });
 

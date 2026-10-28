@@ -266,6 +266,12 @@ describe("OPL loop (§6.5)", () => {
       rateLimit: { remaining: 30, resetSec: 45 },
     }));
     expect(await oplLoopTick(async () => {}, enough)).toBe(CALL_PAUSE_MS);
+    // A 429 comes back from oplTick as checked with remaining 0.
+    const limited = oplDeps(clock, async () => ({
+      checked: true,
+      rateLimit: { remaining: 0, resetSec: 41 },
+    }));
+    expect(await oplLoopTick(async () => {}, limited)).toBe(41 * SECOND);
     void advance;
   });
 

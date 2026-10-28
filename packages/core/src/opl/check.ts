@@ -26,7 +26,8 @@ function retryAt(now: Date, random: Random): Date {
 
 /**
  * Checks the most overdue link (users and teams together). Returns whether OPL was called. Throws an
- * OplError with reason "auth" (key rejected) without writing anything; the loop pauses then.
+ * OplError with reason "auth" (key rejected) without writing anything; the loop pauses then. On a
+ * used-up limit (429) the link stays due and the result carries OPL's reset, so the loop waits.
  */
 export async function oplTick(input: {
   now: Date;
@@ -66,8 +67,10 @@ async function checkUser(
     response = await opl.user(oplUserId);
   } catch (error) {
     if (!(error instanceof OplError) || error.reason === "auth") throw error;
-    await prisma.user.updateMany({ where: same, data: { oplNextCheckAt: retryAt(now, random) } });
-    return { checked: true, rateLimit: null };
+    if (error.reason !== "rate") {
+      await prisma.user.updateMany({ where: same, data: { oplNextCheckAt: retryAt(now, random) } });
+    }
+    return { checked: true, rateLimit: error.rateLimit };
   }
   const { result } = response;
   await prisma.$transaction(async (tx) => {
@@ -113,8 +116,10 @@ async function checkTeam(
     response = await opl.teamRoster(oplTeamId);
   } catch (error) {
     if (!(error instanceof OplError) || error.reason === "auth") throw error;
-    await prisma.team.updateMany({ where: same, data: { oplNextCheckAt: retryAt(now, random) } });
-    return { checked: true, rateLimit: null };
+    if (error.reason !== "rate") {
+      await prisma.team.updateMany({ where: same, data: { oplNextCheckAt: retryAt(now, random) } });
+    }
+    return { checked: true, rateLimit: error.rateLimit };
   }
   const { result } = response;
   await prisma.$transaction(async (tx) => {

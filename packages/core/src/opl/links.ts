@@ -124,10 +124,6 @@ export async function clearTeamOpl(db: Db, teamId: string): Promise<void> {
   await db.team.update({ where: { id: teamId }, data: NO_TEAM_OPL });
 }
 
-export async function clearUserOpl(db: Db, userId: string): Promise<void> {
-  await db.user.update({ where: { id: userId }, data: NO_USER_OPL });
-}
-
 /**
  * Links the user's OPL profile (SPEC N-35), only if its Discord ID is the account's. OPL verifies
  * the Discord ID of a profile through Discord.
@@ -185,13 +181,17 @@ export async function unlinkOplUser(input: { userId: string }): Promise<void> {
   });
 }
 
-/** Name and short name of an OPL team, to fill in the founding form (SPEC N-35); stores nothing. */
+/**
+ * Name and short name of an OPL team, to fill in the founding form (SPEC N-35); stores nothing. Only
+ * for users with an OPL profile, like the field that offers it.
+ */
 export async function previewOplTeam(input: {
   userId: string;
   url: string;
   opl: OplApi | null;
 }): Promise<{ name: string; shortName: string | null }> {
-  await requireUser(input.userId);
+  const user = await requireUser(input.userId);
+  if (user.oplUserId === null) throw new DomainError("INVALID", "oplAccountRequired");
   const oplTeamId = parseOplUrl("team", input.url);
   const result = await callOpl(input.opl, (api) => api.teamRoster(oplTeamId));
   if (result.kind === "gone") throw new DomainError("NOT_FOUND", "oplTeamNotFound");

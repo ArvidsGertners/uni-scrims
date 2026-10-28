@@ -2,6 +2,7 @@
 import { NotifType, type Prisma, VerifStatus, prisma } from "@uni-scrims/db";
 import { DomainError } from "./errors.ts";
 import { deleteTeamInboxItems } from "./inbox.ts";
+import { dropRosterMatches } from "./opl/links.ts";
 import { lockTeam } from "./locks.ts";
 import { findOwnTeams, isCaptainOf, requireAdmin } from "./permissions.ts";
 import { resolveStaffItems } from "./staff-notifications.ts";
@@ -247,6 +248,7 @@ export async function banUserInTx(tx: Prisma.TransactionClient, userId: string, 
     } else {
       await tx.teamMember.deleteMany({ where: { teamId: team.id, userId: user.id } });
       await deleteTeamInboxItems(tx, team.id, [user.id]);
+      await dropRosterMatches(tx, team.id, [user.id]);
     }
   }
 
