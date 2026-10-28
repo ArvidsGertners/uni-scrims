@@ -1,5 +1,6 @@
 // The daily recheck of OPL links (SPEC N-35, ARCHITECTURE §5.37, §6.5): one link per call, the most
 // overdue first; the bot's OPL loop paces the calls. Writes only if the link is still the one checked.
+// Since Phase 40 a due step of the Uniliga run (§5.38) goes before the links.
 import { prisma } from "@uni-scrims/db";
 import { lockTeam, lockUser } from "../locks.ts";
 import { getDiscordId } from "../users.ts";
@@ -12,6 +13,7 @@ import {
   nextOplCheck,
   writeRosterMatches,
 } from "./links.ts";
+import { uniligaTick } from "./uniliga.ts";
 
 const MINUTE = 60 * 1000;
 /** After "deleted" or a failed call the link is checked again after about this long. */
@@ -36,6 +38,9 @@ export async function oplTick(input: {
 }): Promise<OplTickResult> {
   const { now, opl } = input;
   const random = input.random ?? Math.random;
+  // A due step of the Uniliga run goes first (§5.38), still one call per tick.
+  const crawl = await uniligaTick({ now, opl });
+  if (crawl) return crawl;
   const [user, team] = await Promise.all([
     prisma.user.findFirst({
       where: { oplUserId: { not: null }, oplNextCheckAt: { lte: now } },

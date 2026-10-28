@@ -2,9 +2,44 @@ import { randomUUID } from "node:crypto";
 import { prisma, Rank, ScrimFormat, StaffRole } from "@uni-scrims/db";
 import { beforeAll } from "vitest";
 import type { ValorantMap } from "../config/maps.ts";
-import { applyToRequest, confirmApplication, createRequest, findOwnTeam } from "../src/index.ts";
+import {
+  type OplApi,
+  applyToRequest,
+  confirmApplication,
+  createRequest,
+  findOwnTeam,
+} from "../src/index.ts";
 
 export const NOW = new Date("2026-10-21T12:00:00Z");
+
+/** The Uniliga calls of a fake OPL for tests of the link checks, which never reach them. */
+export const NO_UNILIGA: Pick<OplApi, "organiserTournaments" | "tournament" | "teamRegistrations"> =
+  {
+    async organiserTournaments() {
+      throw new Error("not called");
+    },
+    async tournament() {
+      throw new Error("not called");
+    },
+    async teamRegistrations() {
+      throw new Error("not called");
+    },
+  };
+
+const FAR_FUTURE = new Date("2100-01-01T00:00:00Z");
+
+/** No Uniliga run is due (§5.38): one finished run far in the future, so oplTick checks links. */
+export async function noUniligaRunDue() {
+  await prisma.oplCrawl.deleteMany();
+  await prisma.oplCrawl.create({
+    data: {
+      startedAt: FAR_FUTURE,
+      finishedAt: FAR_FUTURE,
+      nextStepAt: FAR_FUTURE,
+      cursor: { step: "done" },
+    },
+  });
+}
 
 // Unique per call: the test DB is only reset once per vitest process.
 export function uid(): string {

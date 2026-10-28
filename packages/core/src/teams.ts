@@ -24,6 +24,7 @@ import {
   oplTeamTaken,
 } from "./opl/links.ts";
 import { oplTeamUrl } from "./opl/url.ts";
+import { getUniligaLeagues, leagueOf } from "./opl/uniliga.ts";
 import { inTransaction, lockRequest, lockScrim, lockTeam, lockUser } from "./locks.ts";
 import {
   captainProblem,
@@ -831,7 +832,7 @@ export async function getMyTeam(userId: string) {
   const user = await requireUser(userId);
   const team = await findOwnTeam(user.id);
   if (!team) return null;
-  const [memberRows, logo, oplMatches] = await Promise.all([
+  const [memberRows, logo, oplMatches, uniliga] = await Promise.all([
     prisma.teamMember.findMany({
       where: { teamId: team.id },
       select: memberSelect,
@@ -842,6 +843,7 @@ export async function getMyTeam(userId: string) {
     team.oplTeamId === null
       ? []
       : prisma.oplRosterMatch.findMany({ where: { teamId: team.id }, select: { userId: true } }),
+    getUniligaLeagues([team.oplTeamId]),
   ]);
   const matchedIds = new Set(oplMatches.map(({ userId }) => userId));
 
@@ -900,6 +902,8 @@ export async function getMyTeam(userId: string) {
               .sort((a, b) => a.name.localeCompare(b.name, "de")),
             others: team.oplRosterOthers ?? 0,
           },
+    // The Uniliga league of the linked team in the current season's group stage (SPEC N-36).
+    league: leagueOf(uniliga, team.oplTeamId),
     // Whether the own account has an OPL profile, needed to link the team (SPEC N-35).
     ownOplLinked: user.oplUserId !== null,
     banned: team.bannedAt !== null,

@@ -208,6 +208,15 @@ describe("OPL loop (§6.5)", () => {
     teamRoster: async () => {
       throw new Error("not called");
     },
+    organiserTournaments: async () => {
+      throw new Error("not called");
+    },
+    tournament: async () => {
+      throw new Error("not called");
+    },
+    teamRegistrations: async () => {
+      throw new Error("not called");
+    },
   };
 
   function oplDeps(

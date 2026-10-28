@@ -68,6 +68,8 @@ import {
   createFullyVerifiedTeam,
   createTeamWithMembers,
   createUser,
+  NO_UNILIGA,
+  noUniligaRunDue,
   uid,
   useAdmin,
 } from "./helpers.ts";
@@ -1127,6 +1129,7 @@ describe("OPL links while the team changes (§5.37)", () => {
       { oplUserId: ++lastId, discordId: members[0]!.discordId },
     ];
     const opl: OplApi = {
+      ...NO_UNILIGA,
       async user() {
         return { result: { kind: "found", discordId: captain.discordId }, rateLimit: RATE };
       },
@@ -1166,6 +1169,7 @@ describe("OPL links while the team changes (§5.37)", () => {
   });
 
   it("never writes matches back after the captain unlinked during a check", async () => {
+    await noUniligaRunDue();
     for (let round = 0; round < ROUNDS; round++) {
       const { team, captain, opl, url } = await linkableTeam();
       await linkOplTeam({ userId: captain.id, teamId: team.id, url, opl, now: NOW });

@@ -1,7 +1,8 @@
 // OPL check loop (ARCHITECTURE §6.5): checks one OPL link per run (oplTick, §5.37), from the start of
-// the bot process on, without Discord. Sequential loop with await + sleep, never setInterval. At most
-// 40 calls a minute; below 30 remaining calls it waits for OPL's reset, as the web uses the same key.
-// Errors log only the status: OPL's answers may echo the key or hold personal data.
+// the bot process on, without Discord; since Phase 40 a due step of the Uniliga run (§5.38) goes
+// first. Sequential loop with await + sleep, never setInterval. At most 40 calls a minute; below 30
+// remaining calls it waits for OPL's reset, as the web uses the same key. Errors log only the status:
+// OPL's answers may echo the key or hold personal data.
 import { setTimeout as sleep } from "node:timers/promises";
 import {
   type OplApi,

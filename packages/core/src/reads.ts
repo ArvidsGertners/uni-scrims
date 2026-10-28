@@ -15,6 +15,13 @@ import {
 } from "../config/limits.ts";
 import type { Db } from "./db.ts";
 import { oplTeamUrl } from "./opl/url.ts";
+import {
+  type League,
+  type UniligaLeagues,
+  chosenLeagues,
+  getUniligaLeagues,
+  leagueOf,
+} from "./opl/uniliga.ts";
 import type { Message } from "./i18n/render.ts";
 import { conversationKeyOf, conversationViews, unreadConversationKeys } from "./messages.ts";
 import {
@@ -182,6 +189,7 @@ const teamCardSelect = {
   name: true,
   tag: true,
   verifiedApplicantsOnly: true,
+  oplTeamId: true,
   ...teamLogoSelect,
   members: {
     select: {
@@ -212,9 +220,15 @@ export type TeamCardData = {
   reliability: Reliability;
   /** At least 5 verified players or substitutes: the badge (SPEC N-21). */
   fullyVerified: boolean;
+  /** Uniliga league of a linked team in the current season's group stage (SPEC N-36). */
+  league: League | null;
 };
 
-function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>): TeamCardData {
+function toTeamCard(
+  team: TeamCardRow,
+  reliabilities: Map<string, Reliability>,
+  leagues: UniligaLeagues,
+): TeamCardData {
   return {
     id: team.id,
     name: team.name,
@@ -224,6 +238,7 @@ function toTeamCard(team: TeamCardRow, reliabilities: Map<string, Reliability>):
     universities: teamUniversities(team.members),
     reliability: reliabilities.get(team.id)!,
     fullyVerified: hasFullyVerifiedMembers(team.members),
+    league: leagueOf(leagues, team.oplTeamId),
   };
 }
 
@@ -242,6 +257,8 @@ type BoardFilterInput = {
   fullyVerifiedOnly?: boolean | null;
   /** Only requests of reliable teams (SPEC N-23); missing or false = all. */
   reliableOnly?: boolean | null;
+  /** Only teams in these Uniliga leagues (SPEC N-36); missing or empty = all, unknown ones dropped. */
+  leagues?: readonly number[] | null;
   now: Date;
 };
 
@@ -280,15 +297,32 @@ function boardDay(date: string | null | undefined) {
  * Open, future requests of active teams with the board's filters, as cards (SPEC P0-4, §5.26);
  * `excludeTeamId` leaves out the own team's requests.
  */
-async function loadBoardRequests(input: {
+type BoardLoadInput = {
   date: string | null | undefined;
   ranks: Rank[];
   fullyVerifiedOnly: boolean;
   reliableOnly: boolean;
+  /** Normalised by chosenLeagues; empty = all. */
+  leagues: number[];
+  uniliga: UniligaLeagues;
   excludeTeamId: string | null;
   now: Date;
-}) {
-  const { ranks, fullyVerifiedOnly, reliableOnly } = input;
+};
+
+/** All leagues of the current season, for the board, whose teams are only known after loading. */
+function loadAllLeagues() {
+  return getUniligaLeagues("all");
+}
+
+/** The Uniliga filter on a loaded team (SPEC N-36): empty = all, else a linked team in one of them. */
+function inChosenLeagues(leagues: number[], uniliga: UniligaLeagues, oplTeamId: number | null) {
+  if (leagues.length === 0) return true;
+  const league = leagueOf(uniliga, oplTeamId);
+  return league !== null && leagues.includes(league.division);
+}
+
+async function loadBoardRequests(input: BoardLoadInput) {
+  const { ranks, fullyVerifiedOnly, reliableOnly, leagues, uniliga } = input;
   const { date, range } = boardDay(input.date);
 
   // Each filter is its own AND entry, so none can overwrite a condition of the base.
@@ -312,9 +346,11 @@ async function loadBoardRequests(input: {
   });
   // Badge and reliability are computed on read, so these filters run after loading (SPEC N-21,
   // N-23); the reliabilities only for the requests the badge filter leaves.
-  const verified = fullyVerifiedOnly
-    ? found.filter((request) => hasFullyVerifiedMembers(request.team.members))
-    : found;
+  const verified = found.filter(
+    (request) =>
+      (!fullyVerifiedOnly || hasFullyVerifiedMembers(request.team.members)) &&
+      inChosenLeagues(leagues, uniliga, request.team.oplTeamId),
+  );
   const reliabilities = await getReliabilities(
     verified.map((request) => request.teamId),
     input.now,
@@ -324,7 +360,7 @@ async function loadBoardRequests(input: {
     : verified;
 
   return {
-    filter: { date, ranks, fullyVerifiedOnly, reliableOnly },
+    filter: { date, ranks, fullyVerifiedOnly, reliableOnly, leagues },
     requests: requests.map((request) => ({
       id: request.id,
       startsAt: request.startsAt,
@@ -333,7 +369,7 @@ async function loadBoardRequests(input: {
       rankMax: request.rankMax,
       maps: request.maps,
       applicationCount: request._count.applications,
-      team: toTeamCard(request.team, reliabilities),
+      team: toTeamCard(request.team, reliabilities, uniliga),
       /** The team admits only fully verified applicants (SPEC N-21). */
       verifiedApplicantsOnly: request.team.verifiedApplicantsOnly,
     })),
@@ -345,14 +381,7 @@ async function loadBoardRequests(input: {
  * ordered by their earliest start time still to request. The day filter keeps windows with such a
  * start time on that day; badge and reliability filter after loading, as for requests.
  */
-async function loadReadyWindows(input: {
-  date: string | null | undefined;
-  ranks: Rank[];
-  fullyVerifiedOnly: boolean;
-  reliableOnly: boolean;
-  excludeTeamId: string | null;
-  now: Date;
-}) {
+async function loadReadyWindows(input: BoardLoadInput) {
   const { range } = boardDay(input.date);
   const found = await prisma.readyWindow.findMany({
     where: {
@@ -372,7 +401,9 @@ async function loadReadyWindows(input: {
         (!range || startOptions.some((start) => start >= range.from && start < range.to)),
     )
     .filter(
-      ({ window }) => !input.fullyVerifiedOnly || hasFullyVerifiedMembers(window.team.members),
+      ({ window }) =>
+        (!input.fullyVerifiedOnly || hasFullyVerifiedMembers(window.team.members)) &&
+        inChosenLeagues(input.leagues, input.uniliga, window.team.oplTeamId),
     )
     .sort((a, b) => a.startOptions[0]!.getTime() - b.startOptions[0]!.getTime());
   const reliabilities = await getReliabilities(
@@ -390,7 +421,7 @@ async function loadReadyWindows(input: {
       rankMin: window.rankMin,
       rankMax: window.rankMax,
       maps: window.maps,
-      team: toTeamCard(window.team, reliabilities),
+      team: toTeamCard(window.team, reliabilities, input.uniliga),
     }));
 }
 
@@ -406,12 +437,17 @@ async function loadOwnReadyWindow(teamId: string, now: Date) {
 export async function getBoard(input: BoardInput) {
   const user = await requireUser(input.userId);
   const ownTeam = await findOwnTeam(user.id);
-  const ownRank = ownTeam ? await loadTeamRank(ownTeam.id) : null;
+  const [ownRank, uniliga] = await Promise.all([
+    ownTeam ? loadTeamRank(ownTeam.id) : null,
+    loadAllLeagues(),
+  ]);
   const filters = {
     date: input.date,
     ranks: chosenRanks(input.ranks, ownRank ? [ownRank] : []),
     fullyVerifiedOnly: input.fullyVerifiedOnly === true,
     reliableOnly: input.reliableOnly === true,
+    leagues: chosenLeagues(input.leagues, uniliga.options),
+    uniliga,
     excludeTeamId: ownTeam?.id ?? null,
     now: input.now,
   };
@@ -444,6 +480,8 @@ export async function getBoard(input: BoardInput) {
   return {
     ownTeam: ownTeam ? { id: ownTeam.id, rank: ownRank, isCaptain } : null,
     filter,
+    /** The leagues of the current Uniliga season for the filter; empty without one (SPEC N-36). */
+    leagueOptions: uniliga.options,
     requests: requests.map((request) => ({
       ...request,
       ownApplicationStatus:
@@ -492,11 +530,14 @@ export async function getBoard(input: BoardInput) {
  * everyone, without user, own team or rank default; open to all like the landing page (§7).
  */
 export async function getPublicBoard(input: PublicBoardInput) {
+  const uniliga = await loadAllLeagues();
   const filters = {
     date: input.date,
     ranks: chosenRanks(input.ranks, []),
     fullyVerifiedOnly: input.fullyVerifiedOnly === true,
     reliableOnly: input.reliableOnly === true,
+    leagues: chosenLeagues(input.leagues, uniliga.options),
+    uniliga,
     excludeTeamId: null,
     now: input.now,
   };
@@ -504,7 +545,7 @@ export async function getPublicBoard(input: PublicBoardInput) {
     loadBoardRequests(filters),
     loadReadyWindows(filters),
   ]);
-  return { filter, requests, readyWindows };
+  return { filter, leagueOptions: uniliga.options, requests, readyWindows };
 }
 
 // ─── Request form ─────────────────────────────────────────────────────────────
@@ -588,8 +629,11 @@ async function loadDirectRequestTarget(ownTeamId: string, targetTeamId: string, 
   });
   const problem = directRequestTargetProblem(ownTeamId, team);
   if (problem || !team) return { team: null, problem: problem?.text ?? null };
-  const reliabilities = await getReliabilities([team.id], now);
-  return { team: toTeamCard(team, reliabilities), problem: null };
+  const [reliabilities, uniliga] = await Promise.all([
+    getReliabilities([team.id], now),
+    getUniligaLeagues([team.oplTeamId]),
+  ]);
+  return { team: toTeamCard(team, reliabilities, uniliga), problem: null };
 }
 
 // ─── Request detail ───────────────────────────────────────────────────────────
@@ -696,7 +740,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
         : ownApplication
           ? [ownTeam.id]
           : [];
-  const [reliabilities, ownFullyVerified, ownMemberCount, threads] = await Promise.all([
+  const [reliabilities, uniliga, ownFullyVerified, ownMemberCount, threads] = await Promise.all([
     getReliabilities(
       [
         request.teamId,
@@ -705,6 +749,11 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
       ],
       input.now,
     ),
+    getUniligaLeagues([
+      request.team.oplTeamId,
+      request.targetTeam?.oplTeamId ?? null,
+      ...applications.map((application) => application.team.oplTeamId),
+    ]),
     countOwnPlayers ? isTeamFullyVerified(ownTeam.id) : null,
     offersApply ? prisma.teamMember.count({ where: { teamId: ownTeam.id } }) : null,
     ownTeam
@@ -764,7 +813,10 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
      * partnership both teams (SPEC N-26).
      */
     weekly: (isOwner || isTarget) && request.seriesId !== null,
-    team: { ...toTeamCard(request.team, reliabilities), links: toTeamLinks(request.team) },
+    team: {
+      ...toTeamCard(request.team, reliabilities, uniliga),
+      links: toTeamLinks(request.team),
+    },
     /**
      * A direct request (SPEC N-26): the requested team, the last date of a proposed partnership,
      * and whether the page shows it to the requested team.
@@ -772,7 +824,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
     direct: request.targetTeam
       ? {
           target: {
-            ...toTeamCard(request.targetTeam, reliabilities),
+            ...toTeamCard(request.targetTeam, reliabilities, uniliga),
             links: toTeamLinks(request.targetTeam),
           },
           weeklyUntil: request.weeklyLastStartsAt,
@@ -815,7 +867,7 @@ export async function getRequestDetail(input: { userId: string; requestId: strin
           createdAt: application.createdAt,
           outOfRange: isOutsideRange(teamRank(application.team.members), request),
           team: {
-            ...toTeamCard(application.team, reliabilities),
+            ...toTeamCard(application.team, reliabilities, uniliga),
             links: toTeamLinks(application.team),
           },
           conversation: thread(application.teamId),
@@ -1334,6 +1386,8 @@ export type TeamListInput = {
   fullyVerifiedOnly?: boolean | null;
   /** Only reliable teams (SPEC N-23); missing or false = all. */
   reliableOnly?: boolean | null;
+  /** Only teams in these Uniliga leagues (SPEC N-36); missing or empty = all, unknown ones dropped. */
+  leagues?: readonly number[] | null;
   now: Date;
 };
 
@@ -1362,6 +1416,8 @@ export type TeamListEntry = {
   canRequest: boolean;
   /** The linked OPL team (SPEC N-35), or null. */
   oplUrl: string | null;
+  /** Uniliga league of a linked team in the current season's group stage (SPEC N-36). */
+  league: League | null;
 };
 
 const teamListSelect = {
@@ -1413,10 +1469,11 @@ export async function getTeamList(input: TeamListInput) {
   const needle = search.toLocaleLowerCase("de");
   const matches = (text: string | null) => !!text && text.toLocaleLowerCase("de").includes(needle);
 
-  const rows = await prisma.team.findMany({
-    where: listedTeamWhere(),
-    select: teamListSelect,
-  });
+  const [rows, uniliga] = await Promise.all([
+    prisma.team.findMany({ where: listedTeamWhere(), select: teamListSelect }),
+    getUniligaLeagues("all"),
+  ]);
+  const leagues = chosenLeagues(input.leagues, uniliga.options);
   const candidates = rows
     .map((team) => ({
       team,
@@ -1425,6 +1482,7 @@ export async function getTeamList(input: TeamListInput) {
     }))
     .filter(({ rank }) => ranks.length === 0 || (rank !== null && ranks.includes(rank)))
     .filter(({ fullyVerified }) => !fullyVerifiedOnly || fullyVerified)
+    .filter(({ team }) => inChosenLeagues(leagues, uniliga, team.oplTeamId))
     .filter(
       ({ team }) =>
         !needle ||
@@ -1459,8 +1517,14 @@ export async function getTeamList(input: TeamListInput) {
       })),
       canRequest: requestingTeamId !== null && team.id !== requestingTeamId,
       oplUrl: team.oplTeamId === null ? null : oplTeamUrl(team.oplTeamId),
+      league: leagueOf(uniliga, team.oplTeamId),
     }));
-  return { teams, filter: { search, ranks, fullyVerifiedOnly, reliableOnly } };
+  return {
+    teams,
+    filter: { search, ranks, fullyVerifiedOnly, reliableOnly, leagues },
+    /** The leagues of the current Uniliga season for the filter; empty without one (SPEC N-36). */
+    leagueOptions: uniliga.options,
+  };
 }
 
 export type LandingShowcaseTeam = {

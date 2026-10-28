@@ -16,11 +16,26 @@ export type OplTeamResult =
   | { kind: "found"; name: string; shortName: string | null; members: OplRosterMember[] }
   | { kind: "gone" };
 
+export type OplTournament = {
+  id: number;
+  name: string;
+  gameId: number | null;
+  ancestors: number[];
+  leafes: number[];
+};
+
+export type Found<T> = ({ kind: "found" } & T) | { kind: "gone" };
+
 export type OplResponse<T> = { result: T; rateLimit: OplRateLimit };
 
 export type OplApi = {
   user(id: number): Promise<OplResponse<OplUserResult>>;
   teamRoster(id: number): Promise<OplResponse<OplTeamResult>>;
+  /** Phase 40 (§5.38): the tournament IDs of an organiser, positive only, newest first. */
+  organiserTournaments(id: number): Promise<OplResponse<Found<{ tournamentIds: number[] }>>>;
+  tournament(id: number): Promise<OplResponse<Found<{ tournament: OplTournament }>>>;
+  /** The teams registered in a tournament, only their IDs (the entries also hold public team data). */
+  teamRegistrations(id: number): Promise<OplResponse<Found<{ name: string; teamIds: number[] }>>>;
 };
 
 /**
@@ -59,6 +74,36 @@ const teamSchema = z.object({
     url: z.string().nullable(),
     // An object keyed by user ID; PHP sends an empty roster as [].
     users: z.union([z.record(z.string(), rosterEntry), z.array(rosterEntry)]),
+  }),
+});
+
+const intList = z.array(z.number().int());
+
+const organiserSchema = z.object({
+  data: z.object({ tournaments: z.array(z.union([z.string(), z.number()])) }),
+});
+
+const tournamentSchema = z.object({
+  data: z.object({
+    ID: z.number().int(),
+    name: z.string(),
+    game: z.object({ ID: z.number().int() }).nullable().catch(null),
+    ancestors: intList,
+    leafes: intList,
+  }),
+});
+
+const registrationEntry = z.object({ ID: z.number().int() });
+
+const registrationsSchema = z.object({
+  data: z.object({
+    ID: z.number().int(),
+    name: z.string(),
+    // An object keyed by team ID; an empty list comes as [].
+    team_registrations: z.union([
+      z.record(z.string(), registrationEntry),
+      z.array(registrationEntry),
+    ]),
   }),
 });
 
@@ -148,6 +193,39 @@ export function createOplClient(options: {
         result: { kind: "found", name: data.name, shortName: data.short_name, members },
         rateLimit,
       };
+    },
+    async organiserTournaments(id) {
+      const { status, body, rateLimit } = await get(`organiser/${id}/tournaments`);
+      if (status === 404) return { result: { kind: "gone" }, rateLimit };
+      const { data } = parse(organiserSchema, body, status);
+      // OPL lists some IDs as negative strings; only the positive ones are tournaments to read.
+      const tournamentIds = data.tournaments
+        .map(Number)
+        .filter((value) => Number.isSafeInteger(value) && value > 0)
+        .sort((a, b) => b - a);
+      return { result: { kind: "found", tournamentIds }, rateLimit };
+    },
+    async tournament(id) {
+      const { status, body, rateLimit } = await get(`tournament/${id}`);
+      if (status === 404) return { result: { kind: "gone" }, rateLimit };
+      const { data } = parse(tournamentSchema, body, status);
+      if (data.ID !== id) return { result: { kind: "gone" }, rateLimit };
+      const tournament = {
+        id: data.ID,
+        name: data.name,
+        gameId: data.game?.ID ?? null,
+        ancestors: data.ancestors,
+        leafes: data.leafes,
+      };
+      return { result: { kind: "found", tournament }, rateLimit };
+    },
+    async teamRegistrations(id) {
+      const { status, body, rateLimit } = await get(`tournament/${id}/team_registrations`);
+      if (status === 404) return { result: { kind: "gone" }, rateLimit };
+      const { data } = parse(registrationsSchema, body, status);
+      if (data.ID !== id) return { result: { kind: "gone" }, rateLimit };
+      const teamIds = Object.values(data.team_registrations).map((entry) => entry.ID);
+      return { result: { kind: "found", name: data.name, teamIds }, rateLimit };
     },
   };
 }

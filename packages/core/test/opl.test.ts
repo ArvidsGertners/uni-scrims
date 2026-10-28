@@ -1,5 +1,5 @@
 import { StaffRole, prisma } from "@uni-scrims/db";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   type OplApi,
   OplError,
@@ -25,7 +25,7 @@ import {
   unlinkOplTeam,
   unlinkOplUser,
 } from "../src/index.ts";
-import { NOW, createTeamWithMembers, createUser } from "./helpers.ts";
+import { NOW, NO_UNILIGA, createTeamWithMembers, createUser, noUniligaRunDue } from "./helpers.ts";
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -51,6 +51,7 @@ function fakeOpl() {
   let calls = 0;
   const rateLimit = { remaining: 99, resetSec: 30 };
   const api: OplApi = {
+    ...NO_UNILIGA,
     async user(id) {
       calls++;
       if (failing.error) throw failing.error;
@@ -606,6 +607,8 @@ describe("matches when members change", () => {
 });
 
 describe("oplTick", () => {
+  beforeEach(noUniligaRunDue);
+
   it("checks nothing when nothing is due", async () => {
     const opl = fakeOpl();
     await makeOnlyDue({});

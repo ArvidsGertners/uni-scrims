@@ -460,6 +460,35 @@ model OplRosterMatch {
   @@index([userId])
 }
 
+// Phase 40 (§5.38): one run over the current Uniliga season, one OPL call per step. Only the newest
+// successful run is shown; older ones go once a new one finishes.
+model OplCrawl {
+  id            String                @id @default(cuid())
+  startedAt     DateTime              @db.Timestamptz(3)
+  finishedAt    DateTime?             @db.Timestamptz(3)
+  failed        Boolean               @default(false)
+  nextStepAt    DateTime              @db.Timestamptz(3)
+  // Step, pending IDs, season found, failures of the current step (opl/uniliga.ts)
+  cursor        Json
+  registrations UniligaRegistration[]
+
+  @@index([finishedAt, startedAt])
+}
+
+// Phase 40 (§5.38): an OPL team in the group stage of the season. Every registered team, not only
+// linked ones (no relation to Team), so a later link shows the league at once. No personal data.
+model UniligaRegistration {
+  crawlId   String
+  crawl     OplCrawl @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  oplTeamId Int
+  leafId    Int
+  division  Int
+  group     String?
+
+  @@id([crawlId, oplTeamId])
+  @@index([oplTeamId])
+}
+
 // Copy of the Discord avatar (Phase 12, §5.12), in its own table so requireUser, which loads the
 // whole user row, never loads image bytes. A row exists exactly when User.avatarUpdatedAt is set.
 model UserAvatar {

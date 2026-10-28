@@ -728,6 +728,22 @@ const COLUMNS: Record<Prisma.ModelName, Record<string, string>> = {
     readAt: SHOWN,
   },
   SystemStatus: { id: "Bot-Heartbeat, keine Personendaten", heartbeatAt: "Bot-Heartbeat" },
+  // Phase 40 (§5.38): the Uniliga run and its registered OPL teams, no personal data.
+  OplCrawl: {
+    id: "Uniliga-Durchlauf, keine Personendaten",
+    startedAt: "Uniliga-Durchlauf",
+    finishedAt: "Uniliga-Durchlauf",
+    failed: "Uniliga-Durchlauf",
+    nextStepAt: "Uniliga-Durchlauf",
+    cursor: "Uniliga-Durchlauf (OPL-Turnier-IDs)",
+  },
+  UniligaRegistration: {
+    crawlId: KEY,
+    oplTeamId: "OPL-Daten der Uniliga, keine Personendaten",
+    leafId: "OPL-Daten der Uniliga",
+    division: "OPL-Daten der Uniliga",
+    group: "OPL-Daten der Uniliga",
+  },
 };
 
 describe("exportAccountData coverage", () => {
