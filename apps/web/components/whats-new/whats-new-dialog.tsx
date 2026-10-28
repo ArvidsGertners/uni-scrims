@@ -11,25 +11,25 @@ import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "@/components/icons";
 import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { whatsNewMessages } from "@/i18n/client";
-import { DirectRequestsArt } from "./art/direct-requests";
-import { MessagesArt } from "./art/messages";
+import { BellArt } from "./art/bell";
+import { LandingShowcaseArt } from "./art/landing-showcase";
 import { SNAP_EASE } from "./art/motion";
-import { ReadyTodayArt } from "./art/ready-today";
-import { WeeklyRequestsArt } from "./art/weekly-requests";
+import { OplArt } from "./art/opl";
+import { UniligaLeagueArt } from "./art/uniliga-league";
 
 const ART: Record<WhatsNewSlide, ComponentType> = {
-  messages: MessagesArt,
-  readyToday: ReadyTodayArt,
-  directRequests: DirectRequestsArt,
-  weeklyRequests: WeeklyRequestsArt,
+  bell: BellArt,
+  opl: OplArt,
+  uniligaLeague: UniligaLeagueArt,
+  landingShowcase: LandingShowcaseArt,
 };
 
 /** Where each feature lives (§5.31). */
 const HREF: Record<WhatsNewSlide, string> = {
-  messages: "/scrims?tab=anstehend",
-  readyToday: "/scrims",
-  directRequests: "/teams",
-  weeklyRequests: "/requests/new",
+  bell: "/account/notifications",
+  opl: "/account",
+  uniligaLeague: "/teams",
+  landingShowcase: "/team/settings",
 };
 
 /** A swipe of at least this many pixels turns the slide on phones. */

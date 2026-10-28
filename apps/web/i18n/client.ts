@@ -312,8 +312,6 @@ export const showcaseQuestionMessages = dictionary(
 export const whatsNewMessages = dictionary(
   {
     kicker: "Neu bei Uni Scrims",
-    /** The badge in the art of the messages slide. */
-    live: "LIVE",
     close: "Schließen",
     back: "Zurück",
     next: "Weiter",
@@ -321,58 +319,66 @@ export const whatsNewMessages = dictionary(
     /** The dots below the slides, for screen readers. */
     goTo: (index: number, title: string) => `Folie ${index}: ${title}`,
     position: (index: number, count: number) => `${index} von ${count}`,
+    /** Words inside the art; the league badge comes from leagueMessages. */
+    art: {
+      opl: "OPL",
+      allowed: "Erlaubt",
+    },
     slides: {
-      messages: {
-        title: "Absprechen, ohne Discord",
-        text: "Schreibt euch direkt an Bewerbung, Direktanfrage und Scrim mit dem anderen Team, live und für alle Mitglieder beider Teams. Wartet eine neue Nachricht auf euch, bekommt ihr Bescheid.",
-        cta: "Zu euren Scrims",
+      bell: {
+        title: "Alles an einem Ort",
+        text: "Oben rechts sammelt die Glocke jede Benachrichtigung, live und in jedem offenen Tab. Ein Klick führt zur passenden Seite, „Alle als gelesen“ räumt auf.",
+        cta: "Benachrichtigungen einstellen",
       },
-      readyToday: {
-        title: "Heute spielbereit",
-        text: "Meldet, wann ihr heute starten könnt. Andere Teams sehen euer Zeitfenster auf dem Board, wählen eine Startzeit und fragen euch mit einem Klick an.",
-        cta: "Zum Board",
+      opl: {
+        title: "Mit OPL verknüpft",
+        text: "Verknüpft euer OPL-Profil und euer OPL-Team, abgeglichen über die Discord-ID. Im Tab „Team“ seht ihr, wer aus eurem Kader auf OPL steht.",
+        cta: "Zu den Einstellungen",
       },
-      directRequests: {
-        title: "Direkt anfragen, fest verabreden",
-        text: "Fragt ein Team aus der Teams-Liste oder nach einem Scrim direkt an, ohne dass es auf dem Board steht. Mit „Jede Woche bis …“ wird daraus eine feste Partnerschaft, die sich jede Woche selbst bucht.",
+      uniligaLeague: {
+        title: "Eure Uniliga-Liga",
+        text: "Mit OPL verknüpfte Teams zeigen ihre Liga aus der aktuellen Uniliga-Saison. Board und Teams-Liste filtern danach, so findet ihr Gegner auf eurem Niveau.",
         cta: "Zur Teams-Liste",
       },
-      weeklyRequests: {
-        title: "Einmal anlegen, jede Woche da",
-        text: "Eine Anfrage wiederholt sich auf Wunsch jede Woche bis zu einem Enddatum. Die nächste erscheint von selbst, sobald die vorige beginnt.",
-        cta: "Anfrage erstellen",
+      landingShowcase: {
+        title: "Ab auf die Startseite",
+        text: "Captains können erlauben, dass ihr Team auf der Startseite steht, mit Logo, Team-Rang und Zuverlässigkeit. Ohne Zustimmung erscheint dort kein Team.",
+        cta: "Zu den Team-Einstellungen",
       },
     },
   },
   {
     kicker: "New on Uni Scrims",
-    live: "LIVE",
     close: "Close",
     back: "Back",
     next: "Next",
     done: "Let's go",
     goTo: (index, title) => `Slide ${index}: ${title}`,
     position: (index, count) => `${index} of ${count}`,
+    art: {
+      opl: "OPL",
+      allowed: "Allowed",
+    },
     slides: {
-      messages: {
-        title: "Sort it out without Discord",
-        text: "Write to the other team right at the application, direct request and scrim, live and for every member of both teams. When a new message waits for you, you get notified.",
-        cta: "Go to your scrims",
+      bell: {
+        title: "Everything in one place",
+        text: "Up top on the right, the bell collects every notification, live and in every open tab. One click takes you there, “Mark all as read” tidies up.",
+        cta: "Notification settings",
       },
-      readyToday: {
-        title: "Ready today",
-        text: "Say when you can start today. Other teams see your window on the board, pick a start time and send you a request with one click.",
-        cta: "Go to the board",
+      opl: {
+        title: "Linked with OPL",
+        text: "Link your OPL profile and your OPL team, matched by your Discord ID. The “Team” tab shows who from your roster is on OPL.",
+        cta: "Go to settings",
       },
-      directRequests: {
-        title: "Ask directly, play regularly",
-        text: "Send a request straight to a team from the teams list or after a scrim, without it showing on the board. With “Every week until …” it becomes a fixed partnership that books itself every week.",
+      uniligaLeague: {
+        title: "Your Uniliga division",
+        text: "Teams linked with OPL show their division from the current Uniliga season. The board and the teams list filter by it, so you find opponents at your level.",
         cta: "Go to the teams list",
       },
-      weeklyRequests: {
-        title: "Create once, there every week",
-        text: "A request can repeat every week up to an end date. The next one appears by itself as soon as the previous one starts.",
-        cta: "Create a request",
+      landingShowcase: {
+        title: "Onto the front page",
+        text: "Captains can allow their team to appear on the front page, with logo, team rank and reliability. Without consent, no team shows up there.",
+        cta: "Go to team settings",
       },
     },
   },
