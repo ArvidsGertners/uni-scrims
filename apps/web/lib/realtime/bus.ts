@@ -28,7 +28,19 @@ export function publishInboxChange(userId: string): void {
   realtimeBus().emit(INBOX_CHANGE, userId);
 }
 
-export function onInboxChange(bus: EventEmitter, listener: (userId: string) => void): () => void {
+/**
+ * A staff case was closed in the web (Phase 37, §5.35): its entries are read for every staff member
+ * who got them, so every bell is read again at once.
+ */
+export function publishInboxChangeAll(): void {
+  realtimeBus().emit(INBOX_CHANGE, null);
+}
+
+/** `userId` null: every bell. */
+export function onInboxChange(
+  bus: EventEmitter,
+  listener: (userId: string | null) => void,
+): () => void {
   bus.on(INBOX_CHANGE, listener);
   return () => bus.off(INBOX_CHANGE, listener);
 }

@@ -57,7 +57,9 @@ export async function deleteMessageAction(
     .safeParse({ messageId: formField(formData, "messageId") });
   if (!parsed.success) return invalidInput();
   const state = await runAction(async () => {
-    publishConversationChanges([await deleteOwnMessage({ userId, ...parsed.data })]);
+    publishConversationChanges([
+      await deleteOwnMessage({ userId, ...parsed.data, now: new Date() }),
+    ]);
   });
   if (state.done) revalidateThreads();
   return state;

@@ -35,7 +35,7 @@ export function startRealtimeServer(env: NodeJS.ProcessEnv = process.env): void 
       );
     },
     bus: realtimeBus(),
-    origin: env.BETTER_AUTH_URL ?? "",
+    origins: [env.BETTER_AUTH_URL ?? "", env.ADMIN_URL ?? ""],
   });
   // Like `next dev -H`: on a server with the dev login only on 127.0.0.1 (README).
   server.listen(port, env.DEV_HOST || undefined).then(

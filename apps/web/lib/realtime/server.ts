@@ -32,8 +32,11 @@ export type RealtimeDeps = {
   /** The thread as the user may see it now, or null without access. */
   snapshot: (input: Subscription & { userId: string }) => Promise<WireConversation | null>;
   bus: EventEmitter;
-  /** The only Origin a browser may connect from (BETTER_AUTH_URL), against cross-site use. */
-  origin: string;
+  /**
+   * The only Origins a browser may connect from, against cross-site use: BETTER_AUTH_URL and, for
+   * the bell in the admin area (Phase 37, §5.35), ADMIN_URL.
+   */
+  origins: string[];
   /** The bell of these users, in one query; a missing user has no unread entries. */
   inboxStates: (userIds: string[]) => Promise<Map<string, WireInboxState>>;
   heartbeatMs?: number;
@@ -79,7 +82,7 @@ function reject(socket: Duplex, status: number, text: string): void {
 export function createRealtimeServer(deps: RealtimeDeps) {
   const heartbeatMs = deps.heartbeatMs ?? HEARTBEAT_MS;
   const inboxPollMs = deps.inboxPollMs ?? INBOX_POLL_MS;
-  const allowedOrigin = originOf(deps.origin);
+  const allowedOrigins = new Set(deps.origins.flatMap((origin) => originOf(origin) ?? []));
   const connections = new Set<Connection>();
   const http = createServer((_request, response) => {
     response.writeHead(426, { "Content-Type": "text/plain" }).end("WebSocket only");
@@ -137,20 +140,30 @@ export function createRealtimeServer(deps: RealtimeDeps) {
     }
   };
 
-  /** Reads the bell of one user now, once, for all of its tabs (§5.34). */
-  const refreshInbox = (userId: string) => {
-    const version = inboxVersion(userId) + 1;
-    inboxVersions.set(userId, version);
+  /** Reads the bells of these users now, in one query, once for all of their tabs (§5.34). */
+  const refreshInboxes = (userIds: string[]) => {
+    if (userIds.length === 0) return;
+    const versions = new Map(userIds.map((userId) => [userId, inboxVersion(userId) + 1]));
+    for (const [userId, version] of versions) inboxVersions.set(userId, version);
     void (async () => {
       try {
-        const state = (await deps.inboxStates([userId])).get(userId);
-        // A newer read is under way; it sends.
-        if (state && inboxVersion(userId) === version) sendInboxToUser(userId, state);
+        const states = await deps.inboxStates(userIds);
+        for (const [userId, version] of versions) {
+          const state = states.get(userId);
+          // A newer read is under way; it sends.
+          if (state && inboxVersion(userId) === version) sendInboxToUser(userId, state);
+        }
       } catch (error) {
         console.error("Realtime inbox read failed", error);
       }
     })();
   };
+  const refreshInbox = (userId: string) => refreshInboxes([userId]);
+
+  /** The users whose bell follows over at least one connection. */
+  const inboxUserIds = () => [
+    ...new Set([...connections].filter((entry) => entry.inbox).map((entry) => entry.userId)),
+  ];
 
   const onMessage = (connection: Connection, data: RawData) => {
     let parsed;
@@ -217,7 +230,8 @@ export function createRealtimeServer(deps: RealtimeDeps) {
       try {
         const path = new URL(request.url ?? "/", "http://realtime").pathname;
         if (path !== REALTIME_PATH) return reject(socket, 404, "Not Found");
-        if (!allowedOrigin || originOf(request.headers.origin) !== allowedOrigin) {
+        const origin = originOf(request.headers.origin);
+        if (!origin || !allowedOrigins.has(origin)) {
           return reject(socket, 403, "Forbidden");
         }
         const headers = cookieHeaders(request.headers);
@@ -245,11 +259,12 @@ export function createRealtimeServer(deps: RealtimeDeps) {
     }
   });
 
-  // Read in the web (an entry or a thread read, §5.34): every tab of that user at once.
+  // Read in the web (an entry or a thread read, §5.34): every tab of that user at once; a closed
+  // staff case (§5.35): every bell.
   const stopListeningInbox = onInboxChange(deps.bus, (userId) => {
-    if ([...connections].some((entry) => entry.inbox && entry.userId === userId)) {
-      refreshInbox(userId);
-    }
+    const following = inboxUserIds();
+    if (userId === null) refreshInboxes(following);
+    else if (following.includes(userId)) refreshInbox(userId);
   });
 
   /**
@@ -263,9 +278,7 @@ export function createRealtimeServer(deps: RealtimeDeps) {
       } catch {
         return;
       }
-      const userIds = [
-        ...new Set([...connections].filter((entry) => entry.inbox).map((entry) => entry.userId)),
-      ];
+      const userIds = inboxUserIds();
       if (userIds.length === 0) continue;
       const versions = new Map(userIds.map((userId) => [userId, inboxVersion(userId)]));
       try {

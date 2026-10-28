@@ -7,9 +7,14 @@ import { Masonry } from "@/components/masonry";
 import { useMessages } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { notificationFormMessages } from "@/i18n/account-client";
-import { initialActionState } from "@/lib/action-state";
-import { type NotificationChannelField, notificationFieldName } from "@/lib/notification-form";
+import { type ActionState, initialActionState } from "@/lib/action-state";
+import {
+  type NotificationChannelField,
+  SHOWN_TYPE_FIELD,
+  notificationFieldName,
+} from "@/lib/notification-form";
 import { submitKeepingValues } from "@/lib/submit-form";
+import { cn } from "@/lib/utils";
 import { saveNotificationsAction } from "../actions";
 
 export type NotificationFormCategory = {
@@ -21,22 +26,36 @@ export type NotificationFormCategory = {
     /** "Nur als Captain" and the like, below the label. */
     hint: string | null;
     discord: boolean;
-    email: boolean;
+    email?: boolean;
   }[];
 };
 
-const CHANNELS: NotificationChannelField[] = ["discord", "email"];
+const BOTH_CHANNELS: NotificationChannelField[] = ["discord", "email"];
 
-/** One card per category, a Discord and a mail box per type (SPEC N-14); works without JavaScript. */
+// Static, so Tailwind sees them: the label column and one column per channel.
+const ROW_GRID = {
+  1: "grid-cols-[minmax(0,1fr)_4.5rem]",
+  2: "grid-cols-[minmax(0,1fr)_4.5rem_4.5rem]",
+} as const;
+
+/**
+ * One card per category, a Discord and a mail box per type (SPEC N-14); works without JavaScript.
+ * The staff settings in the admin area use it with Discord only and their own action (§5.35).
+ */
 export function NotificationForm({
   categories,
   isCaptain,
+  channels = BOTH_CHANNELS,
+  action = saveNotificationsAction,
 }: {
   categories: NotificationFormCategory[];
   /** The role the defaults are shown for; saving compares against these values. */
-  isCaptain: boolean;
+  isCaptain?: boolean;
+  channels?: NotificationChannelField[];
+  action?: (state: ActionState, formData: FormData) => Promise<ActionState>;
 }) {
-  const [state, formAction, pending] = useActionState(saveNotificationsAction, initialActionState);
+  const [state, formAction, pending] = useActionState(action, initialActionState);
+  const grid = ROW_GRID[channels.length as 1 | 2];
   const t = useMessages(notificationFormMessages);
   const formRef = useRef<HTMLFormElement>(null);
   const { markDispatched } = useDirtyGuard({ formRef, state });
@@ -51,21 +70,20 @@ export function NotificationForm({
       }}
       className="flex flex-col gap-6"
     >
-      <input type="hidden" name="shownAsCaptain" value={isCaptain ? "1" : "0"} />
+      {isCaptain !== undefined ? (
+        <input type="hidden" name="shownAsCaptain" value={isCaptain ? "1" : "0"} />
+      ) : null}
       {/* Two columns without gaps above a shorter category (§5.32). */}
-      <Masonry grid="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <Masonry grid={cn("grid grid-cols-1 gap-6", categories.length > 1 && "xl:grid-cols-2")}>
         {categories.map((category) => (
           <fieldset
             key={category.key}
             className="flex min-w-0 flex-col rounded-lg border border-border bg-card px-5 pt-4 pb-2"
           >
             <legend className="sr-only">{category.title}</legend>
-            <div
-              aria-hidden
-              className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] items-end gap-2 pb-2"
-            >
+            <div aria-hidden className={cn("grid items-end gap-2 pb-2", grid)}>
               <span className="type-label text-muted-foreground">{category.title}</span>
-              {CHANNELS.map((channel) => (
+              {channels.map((channel) => (
                 <span key={channel} className="text-center text-[12px] text-muted-foreground">
                   {t.channels[channel]}
                 </span>
@@ -74,20 +92,24 @@ export function NotificationForm({
             {category.types.map((item) => (
               <div
                 key={item.type}
-                className="grid min-h-14 grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] items-center gap-2 border-t border-border py-2.5"
+                className={cn(
+                  "grid min-h-14 items-center gap-2 border-t border-border py-2.5",
+                  grid,
+                )}
               >
+                <input type="hidden" name={SHOWN_TYPE_FIELD} value={item.type} />
                 <span className="flex min-w-0 flex-col">
                   <span className="text-[15px]">{item.label}</span>
                   {item.hint ? (
                     <span className="text-[13px] text-muted-foreground">{item.hint}</span>
                   ) : null}
                 </span>
-                {CHANNELS.map((channel) => (
+                {channels.map((channel) => (
                   <label key={channel} className="flex min-h-11 items-center justify-center">
                     <input
                       type="checkbox"
                       name={notificationFieldName(channel, item.type)}
-                      defaultChecked={item[channel]}
+                      defaultChecked={item[channel] ?? false}
                       aria-label={t.checkbox(item.label, t.channels[channel])}
                       className="size-5 cursor-pointer accent-primary"
                     />

@@ -2,6 +2,7 @@
 
 import {
   type DisputeDecision,
+  STAFF_NOTIFICATION_TYPES,
   banTeam,
   banUser,
   decideTeamLimitRequest,
@@ -12,11 +13,16 @@ import {
   removeTeamLogoAsAdmin,
   resolveDispute,
   resolveUploadDir,
+  setStaffNotificationPreferences,
 } from "@uni-scrims/core";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
-import { publishConversationChanges } from "@/lib/realtime/bus";
+import { setFlash } from "@/lib/flash";
+import { getMessages } from "@/lib/locale";
+import { parseStaffNotificationForm } from "@/lib/notification-form";
+import { adminSettingsMessages } from "@/i18n/admin";
+import { publishConversationChanges, publishInboxChangeAll } from "@/lib/realtime/bus";
 import { getSessionUserId } from "@/lib/session";
 
 const schema = z.object({
@@ -46,6 +52,8 @@ export async function decideVerificationAction(
       uploadDir: resolveUploadDir(),
       now: new Date(),
     });
+    // The case is read in every staff member's bell (§5.35).
+    publishInboxChangeAll();
   });
   // The queue and the counts of the overview (§5.14).
   revalidatePath("/admin/queue");
@@ -75,6 +83,7 @@ export async function resolveDisputeAction(
   if (!scrimId.success || !parsed) return invalidInput();
   const state = await runAction(async () => {
     await resolveDispute({ ...parsed, adminId, scrimId: scrimId.data, now: new Date() });
+    publishInboxChangeAll();
   });
   revalidatePath("/admin/disputes");
   return state;
@@ -107,6 +116,7 @@ export async function decideTeamLimitAction(
       newLimit: newLimit ? Number(newLimit) : null,
       now: new Date(),
     });
+    publishInboxChangeAll();
   });
   revalidatePath("/admin/team-limits");
   revalidatePath("/admin");
@@ -119,6 +129,8 @@ export async function banUserAction(_state: ActionState, formData: FormData): Pr
   if (!userId.success) return invalidInput();
   const state = await runAction(async () => {
     await banUser({ adminId, userId: userId.data, uploadDir: resolveUploadDir(), now: new Date() });
+    // An open verification of the user is closed with the ban (§5.35).
+    publishInboxChangeAll();
   });
   revalidatePath("/admin/bans");
   return state;
@@ -179,8 +191,9 @@ export async function removeReportedMessageAction(
   if (!messageId.success) return invalidInput();
   const state = await runAction(async () => {
     publishConversationChanges([
-      await removeReportedMessage({ adminId, messageId: messageId.data }),
+      await removeReportedMessage({ adminId, messageId: messageId.data, now: new Date() }),
     ]);
+    publishInboxChangeAll();
   });
   revalidatePath("/admin/reports");
   return state;
@@ -195,7 +208,28 @@ export async function dismissMessageReportsAction(
   if (!messageId.success) return invalidInput();
   const state = await runAction(async () => {
     await dismissMessageReports({ adminId, messageId: messageId.data, now: new Date() });
+    publishInboxChangeAll();
   });
   revalidatePath("/admin/reports");
+  return state;
+}
+
+/** Discord per staff type of the own areas (§5.35); the bell always shows them. */
+export async function saveStaffNotificationsAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staffId = (await getSessionUserId()) ?? "";
+  const types = STAFF_NOTIFICATION_TYPES.map(({ type }) => type);
+  const state = await runAction(async () => {
+    await setStaffNotificationPreferences({
+      staffId,
+      preferences: parseStaffNotificationForm(formData, types),
+    });
+  });
+  if (state.error) return state;
+  await setFlash((await getMessages(adminSettingsMessages)).saved);
+  // The layout too: switching Discord off everywhere can take the DM banner away (§5.1).
+  revalidatePath("/", "layout");
   return state;
 }

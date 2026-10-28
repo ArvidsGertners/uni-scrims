@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  PLAYER_NOTIFICATION_TYPES,
   deleteAccount,
   emailSchema,
   handOverCaptain,
@@ -13,7 +14,6 @@ import {
   setThemePreference,
   updateRealName,
 } from "@uni-scrims/core";
-import { NotifType } from "@uni-scrims/db";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -89,7 +89,7 @@ export async function saveNotificationsAction(
   const state = await runAction(async () => {
     await setNotificationPreferences({
       userId,
-      preferences: parseNotificationForm(formData, Object.values(NotifType)),
+      preferences: parseNotificationForm(formData, PLAYER_NOTIFICATION_TYPES),
       // The role the boxes were shown with (§5.17).
       shownAsCaptain: formField(formData, "shownAsCaptain") === "1",
     });

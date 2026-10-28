@@ -56,12 +56,21 @@ async function Logo({
  */
 async function AdminHeader({ signedIn, theme }: { signedIn: boolean; theme: ThemePreference }) {
   const t = await getMessages(headerMessages);
+  // The same bell as on the site, with the cases for staff (Phase 37, §5.35).
+  const unread = await inboxUnread();
   return (
     // Sticky like the header of the site, so the sidebar sits below it either way (§5.14).
     <header className="sticky top-0 z-30 border-b border-border bg-background">
       <div className="flex h-16 items-center justify-between gap-3 px-5 max-[359px]:gap-2 sm:px-8">
         <Logo href="/" theme={theme} admin />
         <div className="flex items-center gap-1 max-[359px]:gap-0">
+          {unread !== null ? (
+            <NotificationBell
+              initialUnread={unread}
+              realtimeUrl={realtimePublicUrl()}
+              className="mr-1 size-9 max-[359px]:mr-0.5"
+            />
+          ) : null}
           <LocaleSwitcher compact className="mr-1 h-9 max-[359px]:mr-0.5" />
           <a
             href={mainUrl("/scrims")}

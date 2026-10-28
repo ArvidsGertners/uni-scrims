@@ -34,9 +34,12 @@ function ageText(createdAt: string, now: Date, t: Messages): string {
 export function NotificationBell({
   initialUnread,
   realtimeUrl,
+  className,
 }: {
   initialUnread: number;
   realtimeUrl: string | null;
+  /** The admin header has smaller controls (§5.35). */
+  className?: string;
 }) {
   const t = useMessages(notificationBellMessages);
   const whatsNew = useWhatsNew();
@@ -85,7 +88,10 @@ export function NotificationBell({
     <Popover.Root open={open} onOpenChange={changeOpen}>
       <Popover.Trigger
         aria-label={t.button(count)}
-        className="relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-border bg-card text-foreground hover:border-border-strong data-popup-open:border-border-strong"
+        className={cn(
+          "relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-border bg-card text-foreground hover:border-border-strong data-popup-open:border-border-strong",
+          className,
+        )}
       >
         <BellIcon size={20} />
         {count > 0 ? (

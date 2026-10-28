@@ -3,21 +3,35 @@
 // The notification bell (SPEC N-32, §5.34): its list, read with the page's language, and reading
 // entries. Called by the bell itself, not by forms; failures show an empty or unchanged bell.
 import { type InboxEntry, isDomainError, listInbox, markInboxRead } from "@uni-scrims/core";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { idSchema } from "@/lib/action";
+import { adminUrl, isAdminHost, mainUrl } from "@/lib/admin-url";
 import { getLocale } from "@/lib/locale";
 import { publishInboxChange } from "@/lib/realtime/bus";
 import { getSessionUserId } from "@/lib/session";
 
-export type InboxListEntry = Omit<InboxEntry, "createdAt"> & { createdAt: string };
+export type InboxListEntry = Omit<InboxEntry, "createdAt" | "admin"> & { createdAt: string };
 
-/** The newest entries, or null if they could not be read. */
+/**
+ * The newest entries, or null if they could not be read. One bell on both hosts (§5.35): a staff
+ * entry leads into the admin area, the others to the site, from whichever host the bell is on.
+ */
 export async function listInboxAction(): Promise<InboxListEntry[] | null> {
   const userId = await getSessionUserId();
   if (!userId) return null;
   try {
     const entries = await listInbox({ userId, locale: await getLocale() });
-    return entries.map((entry) => ({ ...entry, createdAt: entry.createdAt.toISOString() }));
+    const onAdminHost = isAdminHost((await headers()).get("host"));
+    return entries.map(({ admin, ...entry }) => ({
+      ...entry,
+      href: admin
+        ? adminUrl(entry.href as `/${string}`)
+        : onAdminHost
+          ? mainUrl(entry.href)
+          : entry.href,
+      createdAt: entry.createdAt.toISOString(),
+    }));
   } catch (error) {
     if (!isDomainError(error)) console.error("Could not read the bell", error);
     return null;

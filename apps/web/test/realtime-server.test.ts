@@ -6,6 +6,7 @@ import { WebSocket } from "ws";
 import {
   publishConversationChanges,
   publishInboxChange,
+  publishInboxChangeAll,
   realtimeBus,
 } from "../lib/realtime/bus.ts";
 import type {
@@ -17,6 +18,7 @@ import type {
 import { type RealtimeDeps, createRealtimeServer } from "../lib/realtime/server.ts";
 
 const ORIGIN = "https://scrims.example";
+const ADMIN_ORIGIN = "https://admin.scrims.example";
 const SUBSCRIPTION: Subscription = { requestId: "r1", guestTeamId: "g1", teamId: "g1" };
 
 function conversation(body: string): WireConversation {
@@ -59,7 +61,7 @@ async function start(overrides: Partial<RealtimeDeps> = {}) {
       return conversation(body);
     },
     bus: new EventEmitter(),
-    origin: ORIGIN,
+    origins: [ORIGIN, ADMIN_ORIGIN],
     inboxStates: async () => new Map(),
     ...overrides,
   });
@@ -111,6 +113,13 @@ describe("realtime server", () => {
     expect(await refusedWith(connect(port, { origin: "https://evil.example" }))).toBe(403);
     expect(await refusedWith(connect(port, { cookie: "session=gone" }))).toBe(401);
     expect(await refusedWith(connect(port, { path: "/other" }))).toBe(404);
+  });
+
+  it("accepts the admin host for the bell there (§5.35)", async () => {
+    const { port } = await start();
+    const socket = connect(port, { origin: `${ADMIN_ORIGIN}/` });
+    await opened(socket);
+    socket.close();
   });
 
   it("sends a snapshot on subscribe and again on every change of the thread", async () => {
@@ -303,6 +312,24 @@ describe("realtime server: the bell", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(otherReceived).toEqual([]);
     for (const { socket } of [tabA, tabB, other]) socket.close();
+  });
+
+  it("reads every bell in one query when a staff case was closed (§5.35)", async () => {
+    const { port, states, queries } = await startBell({ bus: realtimeBus(), inboxPollMs: 60_000 });
+    states.set("user-1", { unread: 1, latest: "2026-10-27T10:00:00.000Z" });
+    states.set("user-2", { unread: 1, latest: "2026-10-27T10:00:00.000Z" });
+    const one = await follow(port);
+    const two = await follow(port, "session=two");
+    states.set("user-1", { unread: 0, latest: null });
+    states.set("user-2", { unread: 0, latest: null });
+    const pushedOne = nextMessage(one.socket);
+    const pushedTwo = nextMessage(two.socket);
+    const before = queries.length;
+    publishInboxChangeAll();
+    expect(await pushedOne).toEqual({ type: "inbox", unread: 0, latest: null });
+    expect(await pushedTwo).toEqual({ type: "inbox", unread: 0, latest: null });
+    expect(queries.slice(before)).toEqual([["user-1", "user-2"]]);
+    for (const { socket } of [one, two]) socket.close();
   });
 
   it("reads once per user for all tabs and ignores a repeated subscription", async () => {

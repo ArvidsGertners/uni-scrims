@@ -16,6 +16,7 @@ export const adminShellMessages = dictionary(
       notifications: "Nachrichten",
       stats: "Statistik",
       staff: "Rollen",
+      settings: "Einstellungen",
     },
     botRunning: "Bot läuft",
     botOffline: "Bot offline",
@@ -38,6 +39,7 @@ export const adminShellMessages = dictionary(
       notifications: "Messages",
       stats: "Statistics",
       staff: "Roles",
+      settings: "Settings",
     },
     botRunning: "Bot running",
     botOffline: "Bot offline",
@@ -458,5 +460,26 @@ export const adminTwoFactorMessages = dictionary(
       "For the admin area you need a code from an authenticator app in addition to your password. Afterwards you sign in again once, and from then on always with password and code. As long as you have a role, you can't sign in with Discord.",
     resetMeanwhile: "Two-factor sign-in was reset. Please reload the page.",
     enabled: "Two-factor sign-in set up. Now sign in with your password and code",
+  },
+);
+
+/** Staff notifications per type (Phase 37, SPEC N-33). */
+export const adminSettingsMessages = dictionary(
+  {
+    title: "Einstellungen",
+    category: "Benachrichtigungen",
+    intro:
+      "Neue Fälle in deinen Bereichen stehen immer in der Glocke oben rechts, auf der Seite wie hier. Zusätzlich kommt jeder Fall als Discord-DM, außer du schaltest sie hier ab. Glocke und DM nennen keine Namen und keine Nachrichtentexte.",
+    bellAlways:
+      "Die Glocke lässt sich nicht abschalten; eine Entscheidung markiert den Fall bei allen als gelesen.",
+    saved: "Einstellungen gespeichert",
+  },
+  {
+    title: "Settings",
+    category: "Notifications",
+    intro:
+      "New cases in your areas always appear in the bell at the top right, on the site as well as here. Each case also comes as a Discord DM unless you switch it off here. Bell and DM name no people and no message texts.",
+    bellAlways: "The bell can't be switched off; a decision marks the case as read for everyone.",
+    saved: "Settings saved",
   },
 );

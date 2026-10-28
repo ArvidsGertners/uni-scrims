@@ -15,6 +15,7 @@ import {
   FlagIcon,
   LayoutGridIcon,
   MessageSquareIcon,
+  SettingsIcon,
   ShieldCheckIcon,
   UsersIcon,
 } from "@/components/icons";
@@ -81,6 +82,8 @@ const AREAS: {
   },
   { path: "/stats", labelKey: "stats", area: "admin", icon: BarChartIcon },
   { path: "/staff", labelKey: "staff", area: "staff", icon: UsersIcon },
+  // Phase 37 (§5.35): every role, for its own staff notifications.
+  { path: "/settings", labelKey: "settings", area: "queue", icon: SettingsIcon },
 ];
 
 function CountBadge({

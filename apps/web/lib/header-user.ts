@@ -90,12 +90,17 @@ export const siteNav = cache(async (): Promise<AppNavData | null> => {
 
 /**
  * The unread count the bell starts with (SPEC N-32, §5.34), or null without a bell: only with the
- * full navigation (an active account on the main host). A failing query starts it at 0; the
- * WebSocket server sends the real count right after.
+ * full navigation (an active account on the main host), on the admin host for an active account
+ * with a staff role and 2FA (Phase 37, §5.35). A failing query starts it at 0; the WebSocket server
+ * sends the real count right after.
  */
 export async function inboxUnread(): Promise<number | null> {
-  const [nav, { user }] = await Promise.all([siteNav(), siteChrome()]);
-  if (nav?.full !== true || !user) return null;
+  const [nav, { user, active, adminHost }] = await Promise.all([siteNav(), siteChrome()]);
+  if (!user) return null;
+  const shown = adminHost
+    ? active && user.staffRole !== null && user.twoFactorEnabled
+    : nav?.full === true;
+  if (!shown) return null;
   try {
     return await countUnread(user.id);
   } catch (error) {
