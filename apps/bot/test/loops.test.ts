@@ -1,5 +1,13 @@
-import type { Deliver, OutboxMessage } from "@uni-scrims/core";
+import { type Deliver, type OplApi, OplError, type OutboxMessage } from "@uni-scrims/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  AUTH_PAUSE_MS,
+  CALL_PAUSE_MS,
+  IDLE_MS,
+  type OplLoopDeps,
+  createOplHeartbeat,
+  oplLoopTick,
+} from "../src/opl/loop.ts";
 import {
   HEARTBEAT_INTERVAL_MS,
   type OutboxDeps,
@@ -189,5 +197,110 @@ describe("sweeper loop (§6.3)", () => {
     await sweeperTick(schedule, deps); // done for the next hour
 
     expect(runs.map((run) => run.purge)).toEqual([true, false, true, true, false]);
+  });
+});
+
+describe("OPL loop (§6.5)", () => {
+  const opl: OplApi = {
+    user: async () => {
+      throw new Error("not called");
+    },
+    teamRoster: async () => {
+      throw new Error("not called");
+    },
+  };
+
+  function oplDeps(
+    clock: () => Date,
+    tick: OplLoopDeps["oplTick"],
+    beats: Date[] = [],
+  ): OplLoopDeps {
+    return {
+      opl,
+      clock,
+      oplTick: tick,
+      recordHeartbeat: async (loop, at) => {
+        expect(loop).toBe("opl");
+        beats.push(at);
+      },
+    };
+  }
+
+  /** Runs the loop with a test clock for `ms`; returns the times of the calls to OPL. */
+  async function run(
+    deps: OplLoopDeps,
+    advance: (ms: number) => void,
+    clock: () => Date,
+    ms: number,
+  ) {
+    const heartbeat = createOplHeartbeat(deps);
+    const end = clock().getTime() + ms;
+    while (clock().getTime() < end) advance(await oplLoopTick(heartbeat, deps));
+  }
+
+  it("never calls OPL more than 40 times a minute", async () => {
+    const { clock, advance } = testClock();
+    const calls: number[] = [];
+    const deps = oplDeps(clock, async ({ now }) => {
+      calls.push(now.getTime());
+      return { checked: true, rateLimit: { remaining: 90, resetSec: 10 } };
+    });
+    await run(deps, advance, clock, 10 * 60 * SECOND);
+    expect(calls.length).toBeGreaterThan(300);
+    for (const at of calls) {
+      expect(
+        calls.filter((other) => other >= at && other < at + 60 * SECOND).length,
+      ).toBeLessThanOrEqual(40);
+    }
+  });
+
+  it("waits for OPL's reset below 30 remaining calls", async () => {
+    const { clock, advance } = testClock();
+    const deps = oplDeps(clock, async () => ({
+      checked: true,
+      rateLimit: { remaining: 29, resetSec: 45 },
+    }));
+    expect(await oplLoopTick(async () => {}, deps)).toBe(45 * SECOND);
+    const enough = oplDeps(clock, async () => ({
+      checked: true,
+      rateLimit: { remaining: 30, resetSec: 45 },
+    }));
+    expect(await oplLoopTick(async () => {}, enough)).toBe(CALL_PAUSE_MS);
+    void advance;
+  });
+
+  it("idles when nothing is due or without a key, and still writes the heartbeat", async () => {
+    const { clock, advance } = testClock();
+    const beats: Date[] = [];
+    const deps = oplDeps(clock, async () => ({ checked: false, rateLimit: null }), beats);
+    const heartbeat = createOplHeartbeat(deps);
+    expect(await oplLoopTick(heartbeat, deps)).toBe(IDLE_MS);
+    advance(IDLE_MS);
+    let ticked = false;
+    const keyless = {
+      ...deps,
+      opl: null,
+      oplTick: async () => {
+        ticked = true;
+        return { checked: true, rateLimit: null };
+      },
+    };
+    expect(await oplLoopTick(heartbeat, keyless)).toBe(IDLE_MS);
+    expect(ticked).toBe(false);
+    expect(beats).toEqual([START, new Date(START.getTime() + IDLE_MS)]);
+  });
+
+  it("pauses an hour when OPL rejects the key, logging only the status", async () => {
+    const { clock } = testClock();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const deps = oplDeps(clock, async () => {
+      throw new OplError("auth", 401);
+    });
+    expect(await oplLoopTick(async () => {}, deps)).toBe(AUTH_PAUSE_MS);
+    expect(errors).toHaveBeenCalledWith("OPL rejected the API key (401), pausing for an hour");
+    const failing = oplDeps(clock, async () => {
+      throw new Error("db down");
+    });
+    expect(await oplLoopTick(async () => {}, failing)).toBe(IDLE_MS);
   });
 });

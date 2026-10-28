@@ -11,6 +11,7 @@ import {
 import { SETUP_TEXTS } from "./i18n/setup.ts";
 import { createDeliver } from "./outbox/deliver.ts";
 import { runOutboxLoop } from "./outbox/loop.ts";
+import { runOplLoop } from "./opl/loop.ts";
 import { runSweeperLoop } from "./sweeper/loop.ts";
 
 function requireEnv(name: string): string {
@@ -60,6 +61,8 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 // The sweeper needs no Discord connection: deadlines, evaluations and the purges of sessions and
 // tokens go on while the login fails (§6.3). The bot runs as exactly one instance (§6.2).
 void runSweeperLoop();
+// Neither does the OPL check (§6.5).
+void runOplLoop();
 
 // once: reconnects do not emit ClientReady again, so the sender starts exactly once.
 client.once(Events.ClientReady, (ready) => {
