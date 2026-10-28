@@ -30,6 +30,7 @@ import { feedbackClosedReason } from "./scrims.ts";
 import {
   isStaffMatterOpen,
   isStillStaffRecipient,
+  lockOpenStaffMatter,
   lockStaffRecipients,
 } from "./staff-notifications.ts";
 import { deliverableEmail, getDiscordId, notDeletedUserWhere } from "./users.ts";
@@ -384,7 +385,9 @@ async function fanOut(
       if (user) recipients = [{ userId: user.id, isCaptain: false }];
     } else if (isStaffType(notification.type)) {
       const staff = await lockStaffRecipients(tx, notification.type);
-      recipients = staff.map((userId) => ({ userId, isCaptain: false }));
+      // Checked again under the case's lock: closed meanwhile, nobody gets it (§5.35).
+      const open = await lockOpenStaffMatter(tx, { ...notification, type: notification.type });
+      recipients = open ? staff.map((userId) => ({ userId, isCaptain: false })) : [];
     }
     const preferences = await tx.notificationPreference.findMany({
       where: { userId: { in: recipients.map(({ userId }) => userId) }, type: notification.type },

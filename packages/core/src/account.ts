@@ -1,7 +1,7 @@
 // Account deletion (SPEC P0-10, ARCHITECTURE §4, §5.5). The user row is anonymized instead of
 // deleted, so past scrims keep their teams and the team statistics stay right.
 import { randomUUID } from "node:crypto";
-import { NotifType, VerifStatus, prisma } from "@uni-scrims/db";
+import { NotifType, TeamLimitStatus, VerifStatus, prisma } from "@uni-scrims/db";
 import { isUniqueViolation } from "./db.ts";
 import { DomainError } from "./errors.ts";
 import { type Message } from "./i18n/render.ts";
@@ -373,21 +373,30 @@ export async function deleteAccount(input: {
       [
         NotifType.STAFF_TEAM_LIMIT_REQUEST,
         ids(
-          await tx.teamLimitRequest.findMany({ where: { userId: user.id }, select: { id: true } }),
+          await tx.teamLimitRequest.findMany({
+            where: { userId: user.id, status: TeamLimitStatus.PENDING },
+            select: { id: true },
+          }),
         ),
       ],
       [
         NotifType.STAFF_VERIFICATION_PENDING,
         ids(
           await tx.verificationRequest.findMany({
-            where: { userId: user.id },
+            where: { userId: user.id, status: VerifStatus.PENDING },
             select: { id: true },
           }),
         ),
       ],
       [
         NotifType.STAFF_MESSAGE_REPORTED,
-        ids(await tx.message.findMany({ where: { authorId: user.id }, select: { id: true } })),
+        // Only messages with an open report are a case.
+        ids(
+          await tx.message.findMany({
+            where: { authorId: user.id, reports: { some: { dismissedAt: null } } },
+            select: { id: true },
+          }),
+        ),
       ],
     ] as const;
     for (const [type, caseIds] of cases) {

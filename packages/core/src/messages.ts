@@ -652,8 +652,20 @@ export async function dismissMessageReports(input: {
  */
 export async function purgeOldConversations(now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - MESSAGE_RETENTION_DAYS * DAY);
-  const { count } = await prisma.conversation.deleteMany({
-    where: { request: { startsAt: { lt: cutoff } } },
+  const where = { request: { startsAt: { lt: cutoff } } } satisfies Prisma.ConversationWhereInput;
+  return prisma.$transaction(async (tx) => {
+    // Open reports go with their messages: the case is closed for staff (Phase 37, §5.35).
+    const reported = await tx.message.findMany({
+      where: { conversation: where, reports: { some: { dismissedAt: null } } },
+      select: { id: true },
+    });
+    await resolveStaffItems(
+      tx,
+      NotifType.STAFF_MESSAGE_REPORTED,
+      reported.map(({ id }) => id),
+      now,
+    );
+    const { count } = await tx.conversation.deleteMany({ where });
+    return count;
   });
-  return count;
 }

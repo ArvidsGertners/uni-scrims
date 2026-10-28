@@ -114,7 +114,7 @@ describe("buildMessage", () => {
   it("tells staff about a case without names of people (SPEC N-33)", () => {
     expect(embedOf(sample(NotifType.STAFF_VERIFICATION_PENDING))).toMatchObject({
       title: "Neue Verifizierung",
-      description: "Eine Studienbescheinigung wartet in der Prüf-Queue auf ihre Prüfung.",
+      description: "Eine Immatrikulationsbescheinigung wartet in der Prüf-Queue auf ihre Prüfung.",
     });
     expect(embedOf(sample(NotifType.STAFF_DISPUTE))).toMatchObject({
       title: "Strittiges Scrim",

@@ -31,6 +31,24 @@ export async function lockRequest(tx: Prisma.TransactionClient, requestId: strin
   await tx.$queryRaw`SELECT id FROM "ScrimRequest" WHERE id = ${requestId} FOR NO KEY UPDATE`;
 }
 
+/**
+ * The case of a staff notification (Phase 37, §5.35), in fanOut after the staff rows: whoever closes
+ * it updates or deletes this row, so the check under the lock and the decision cannot interleave.
+ * A reported message with its reports, which are dismissed without touching the message.
+ */
+export async function lockVerificationRequest(tx: Prisma.TransactionClient, id: string) {
+  await tx.$queryRaw`SELECT id FROM "VerificationRequest" WHERE id = ${id} FOR NO KEY UPDATE`;
+}
+
+export async function lockTeamLimitRequest(tx: Prisma.TransactionClient, id: string) {
+  await tx.$queryRaw`SELECT id FROM "TeamLimitRequest" WHERE id = ${id} FOR NO KEY UPDATE`;
+}
+
+export async function lockReportedMessage(tx: Prisma.TransactionClient, messageId: string) {
+  await tx.$queryRaw`SELECT id FROM "Message" WHERE id = ${messageId} FOR NO KEY UPDATE`;
+  await tx.$queryRaw`SELECT id FROM "MessageReport" WHERE "messageId" = ${messageId} ORDER BY id FOR NO KEY UPDATE`;
+}
+
 export async function lockScrim(tx: Prisma.TransactionClient, scrimId: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM "Scrim" WHERE id = ${scrimId} FOR NO KEY UPDATE`;
 }

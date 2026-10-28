@@ -29,6 +29,7 @@ import {
   getNotificationPreferences,
   getStaffNotificationPreferences,
   inboxItemView,
+  purgeOldConversations,
   removeReportedMessage,
   reportMessage,
   resolveDispute,
@@ -316,6 +317,15 @@ describe("closing a case (§5.35)", () => {
     for (const { report } of [dismissed, removed, ownDeleted, authorDeleted]) {
       expect(await unread(NotifType.STAFF_MESSAGE_REPORTED, report.id)).toBe(0);
     }
+  });
+
+  it("closes a report whose thread the sweeper deletes", async () => {
+    const purged = await reportedMessage();
+    await fannedOut(NotifType.STAFF_MESSAGE_REPORTED, purged.report.id);
+    const afterRetention = new Date(REQUEST_STARTS_AT.getTime() + 31 * 24 * HOUR);
+    expect(await purgeOldConversations(afterRetention)).toBeGreaterThan(0);
+    expect(await prisma.message.count({ where: { id: purged.message.id } })).toBe(0);
+    expect(await unread(NotifType.STAFF_MESSAGE_REPORTED, purged.report.id)).toBe(0);
   });
 
   it("announces a dispute with the teams and the date, and the decision closes it", async () => {

@@ -126,7 +126,7 @@ const de = {
   // Phase 37 (SPEC N-33): for staff, without names of people or message texts.
   staffVerificationPending: {
     title: "Neue Verifizierung",
-    description: "Eine Studienbescheinigung wartet in der Prüf-Queue auf ihre Prüfung.",
+    description: "Eine Immatrikulationsbescheinigung wartet in der Prüf-Queue auf ihre Prüfung.",
   },
   staffMessageReported: {
     title: "Nachricht gemeldet",

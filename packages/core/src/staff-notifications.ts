@@ -11,7 +11,13 @@ import {
   prisma,
 } from "@uni-scrims/db";
 import type { Db } from "./db.ts";
-import { lockUser } from "./locks.ts";
+import {
+  lockReportedMessage,
+  lockScrim,
+  lockTeamLimitRequest,
+  lockUser,
+  lockVerificationRequest,
+} from "./locks.ts";
 import { clearDmFailureIfSilent, writeStored } from "./notification-settings.ts";
 import {
   STAFF_NOTIFICATION_TYPES,
@@ -94,6 +100,34 @@ export async function isStaffMatterOpen(
       return scrim?.status === ScrimStatus.DISPUTED;
     }
   }
+}
+
+/**
+ * In fanOut, after lockStaffRecipients (users before the case, as in the decisions, §4): locks the
+ * case and tells whether it is still open. A decision that commits first is seen here; one that
+ * comes later waits and then finds the new bell entries to mark read.
+ */
+export async function lockOpenStaffMatter(
+  tx: Prisma.TransactionClient,
+  notification: { type: StaffNotifType; payload: unknown; scrimId: string | null },
+): Promise<boolean> {
+  const payload = notification.payload as Record<string, unknown>;
+  const id = (key: string) => String(payload[key] ?? "");
+  switch (notification.type) {
+    case NotifType.STAFF_VERIFICATION_PENDING:
+      await lockVerificationRequest(tx, id("verificationId"));
+      break;
+    case NotifType.STAFF_MESSAGE_REPORTED:
+      await lockReportedMessage(tx, id("messageId"));
+      break;
+    case NotifType.STAFF_TEAM_LIMIT_REQUEST:
+      await lockTeamLimitRequest(tx, id("teamLimitRequestId"));
+      break;
+    case NotifType.STAFF_DISPUTE:
+      if (notification.scrimId) await lockScrim(tx, notification.scrimId);
+      break;
+  }
+  return isStaffMatterOpen(notification, tx);
 }
 
 /** Who may get a staff type now: a role that sees its area, 2FA set up, not banned, not deleted. */
