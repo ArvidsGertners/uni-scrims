@@ -345,3 +345,42 @@ export const whatsNewMessages = dictionary(
     },
   },
 );
+
+/** components/notification-bell (SPEC N-32, §5.34); the texts of the entries come from core. */
+export const notificationBellMessages = dictionary(
+  {
+    title: "Benachrichtigungen",
+    /** The name of the button, with the number of unread entries. */
+    button: (unread: number) =>
+      unread === 0 ? "Benachrichtigungen" : `Benachrichtigungen, ${unread} ungelesen`,
+    /** The badge above 9. */
+    many: "9+",
+    markAllRead: "Alle als gelesen",
+    loading: "Wird geladen …",
+    failed: "Die Benachrichtigungen konnten nicht geladen werden. Bitte versuch es erneut.",
+    empty: "Noch keine Benachrichtigungen. Hier erscheint alles zu euren Anfragen und Scrims.",
+    unread: "Ungelesen",
+    whatsNew: "Neuigkeiten",
+    whatsNewText: "Sieh dir an, was es Neues bei Uni Scrims gibt.",
+    justNow: "gerade eben",
+    minutesAgo: (minutes: number) => `vor ${minutes} Min.`,
+    hoursAgo: (hours: number) => `vor ${hours} Std.`,
+    daysAgo: (days: number) => (days === 1 ? "vor 1 Tag" : `vor ${days} Tagen`),
+  },
+  {
+    title: "Notifications",
+    button: (unread) => (unread === 0 ? "Notifications" : `Notifications, ${unread} unread`),
+    many: "9+",
+    markAllRead: "Mark all as read",
+    loading: "Loading …",
+    failed: "The notifications couldn't be loaded. Please try again.",
+    empty: "No notifications yet. Everything about your requests and scrims shows up here.",
+    unread: "Unread",
+    whatsNew: "What's new",
+    whatsNewText: "See what's new on Uni Scrims.",
+    justNow: "just now",
+    minutesAgo: (minutes) => `${minutes} min ago`,
+    hoursAgo: (hours) => (hours === 1 ? "1 hour ago" : `${hours} hours ago`),
+    daysAgo: (days) => (days === 1 ? "1 day ago" : `${days} days ago`),
+  },
+);

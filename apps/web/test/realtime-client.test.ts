@@ -1,4 +1,5 @@
-// The browser connection of the message threads (ARCHITECTURE §5.30), with a fake WebSocket.
+// The browser connection of the message threads (ARCHITECTURE §5.30) and the bell (§5.34), with a
+// fake WebSocket.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RealtimeConnection } from "../lib/realtime/client.ts";
 
@@ -81,5 +82,36 @@ describe("realtime connection", () => {
       data: JSON.stringify({ type: "snapshot", key: "r1:g1:g1", conversation: { asOf: "x" } }),
     });
     expect(snapshots).toEqual([{ asOf: "x" }]);
+  });
+
+  it("keeps the socket for the bell alone and follows it again after a reconnect", () => {
+    const connection = new RealtimeConnection("ws://example/ws");
+    const states: unknown[] = [];
+    const stopBell = connection.subscribeInbox((state) => states.push(state));
+    const stopThread = connection.subscribe(SUBSCRIPTION, noop);
+    const first = FakeSocket.instances[0]!;
+    first.fire("open");
+    expect(first.sent.map((data) => JSON.parse(data))).toEqual([
+      { type: "subscribe", ...SUBSCRIPTION },
+      { type: "inbox", on: true },
+    ]);
+    // Leaving the thread page: the bell keeps the connection.
+    stopThread();
+    expect(first.closed).toBe(false);
+    first.fire("message", { data: JSON.stringify({ type: "inbox", unread: 2, latest: null }) });
+    expect(states).toEqual([{ unread: 2, latest: null }]);
+
+    first.fire("close");
+    vi.advanceTimersByTime(1000);
+    const second = FakeSocket.instances[1]!;
+    second.fire("open");
+    expect(second.sent.map((data) => JSON.parse(data))).toEqual([{ type: "inbox", on: true }]);
+
+    stopBell();
+    expect(second.sent.map((data) => JSON.parse(data)).at(-1)).toEqual({
+      type: "inbox",
+      on: false,
+    });
+    expect(second.closed).toBe(true);
   });
 });

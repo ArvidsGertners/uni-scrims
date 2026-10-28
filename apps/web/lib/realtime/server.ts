@@ -1,13 +1,14 @@
-// WebSocket server of the message threads (ARCHITECTURE §5.30), in the web process on a port of its
-// own: Next.js does not accept WebSocket upgrades itself. It only pushes; messages are written by
-// server actions. Every push is a fresh snapshot, read with the subscriber's own rights.
+// WebSocket server of the message threads (ARCHITECTURE §5.30) and the notification bell (§5.34), in
+// the web process on a port of its own: Next.js does not accept WebSocket upgrades itself. It only
+// pushes; messages are written by server actions. Every push is a fresh snapshot, read with the
+// subscriber's own rights.
 import type { EventEmitter } from "node:events";
 import { type IncomingHttpHeaders, type IncomingMessage, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { setTimeout as sleep } from "node:timers/promises";
 import { type RawData, type WebSocket, WebSocketServer } from "ws";
-import { onConversationChange } from "./bus.ts";
+import { onConversationChange, onInboxChange } from "./bus.ts";
 import {
   MAX_CLIENT_MESSAGE_BYTES,
   MAX_CONNECTIONS_PER_USER,
@@ -16,11 +17,14 @@ import {
   type ServerMessage,
   type Subscription,
   type WireConversation,
+  type WireInboxState,
   clientMessageSchema,
   subscriptionKey,
 } from "./protocol.ts";
 
 export const HEARTBEAT_MS = 30_000;
+/** How often the bell's counts are read: the bot writes the entries in its own process. */
+export const INBOX_POLL_MS = 4000;
 
 export type RealtimeDeps = {
   /** The user of the session in these handshake headers, or null. */
@@ -30,7 +34,10 @@ export type RealtimeDeps = {
   bus: EventEmitter;
   /** The only Origin a browser may connect from (BETTER_AUTH_URL), against cross-site use. */
   origin: string;
+  /** The bell of these users, in one query; a missing user has no unread entries. */
+  inboxStates: (userIds: string[]) => Promise<Map<string, WireInboxState>>;
   heartbeatMs?: number;
+  inboxPollMs?: number;
 };
 
 type Connection = {
@@ -42,6 +49,10 @@ type Connection = {
   alive: boolean;
   /** Pushes of one connection in order, so an older snapshot never overtakes a newer one. */
   queue: Promise<void>;
+  /** The bell follows the count over this connection. */
+  inbox: boolean;
+  /** The last state sent to the bell, to send only changes. */
+  lastInbox: string | null;
 };
 
 function originOf(value: string | undefined): string | null {
@@ -67,6 +78,7 @@ function reject(socket: Duplex, status: number, text: string): void {
 
 export function createRealtimeServer(deps: RealtimeDeps) {
   const heartbeatMs = deps.heartbeatMs ?? HEARTBEAT_MS;
+  const inboxPollMs = deps.inboxPollMs ?? INBOX_POLL_MS;
   const allowedOrigin = originOf(deps.origin);
   const connections = new Set<Connection>();
   const http = createServer((_request, response) => {
@@ -102,6 +114,36 @@ export function createRealtimeServer(deps: RealtimeDeps) {
     });
   };
 
+  /** Sends the bell's state if it differs from the last one this connection got. */
+  const sendInbox = (connection: Connection, state: WireInboxState) => {
+    const key = `${state.unread}:${state.latest}`;
+    if (!connection.inbox || connection.lastInbox === key) return;
+    connection.lastInbox = key;
+    send(connection, { type: "inbox", ...state });
+  };
+
+  /**
+   * Bumped by every immediate read of a user's bell: a poll that started before must not send its
+   * older state after the newer one.
+   */
+  const inboxVersions = new Map<string, number>();
+  const inboxVersion = (userId: string) => inboxVersions.get(userId) ?? 0;
+
+  /** Reads the bell of one user now, for these of its connections (§5.34). */
+  const refreshInbox = (userId: string, targets: Connection[]) => {
+    inboxVersions.set(userId, inboxVersion(userId) + 1);
+    for (const connection of targets) {
+      connection.queue = connection.queue.then(async () => {
+        try {
+          const state = (await deps.inboxStates([userId])).get(userId);
+          if (state) sendInbox(connection, state);
+        } catch (error) {
+          console.error("Realtime inbox read failed", error);
+        }
+      });
+    }
+  };
+
   const onMessage = (connection: Connection, data: RawData) => {
     let parsed;
     try {
@@ -111,6 +153,12 @@ export function createRealtimeServer(deps: RealtimeDeps) {
     }
     if (!parsed?.success) {
       connection.socket.close(1003, "invalid message");
+      return;
+    }
+    if (parsed.data.type === "inbox") {
+      connection.inbox = parsed.data.on;
+      connection.lastInbox = null;
+      if (connection.inbox) refreshInbox(connection.userId, [connection]);
       return;
     }
     const { type, ...subscription } = parsed.data;
@@ -135,6 +183,8 @@ export function createRealtimeServer(deps: RealtimeDeps) {
       subscriptions: new Map(),
       alive: true,
       queue: Promise.resolve(),
+      inbox: false,
+      lastInbox: null,
     };
     connections.add(connection);
     socket.on("pong", () => {
@@ -182,6 +232,45 @@ export function createRealtimeServer(deps: RealtimeDeps) {
     }
   });
 
+  // Read in the web (an entry or a thread read, §5.34): every tab of that user at once.
+  const stopListeningInbox = onInboxChange(deps.bus, (userId) => {
+    const targets = [...connections].filter((entry) => entry.inbox && entry.userId === userId);
+    if (targets.length > 0) refreshInbox(userId, targets);
+  });
+
+  /**
+   * Sequential loop (await + sleep, never setInterval, §5.34): the bells of all users that follow
+   * one, in one query; sends only what changed.
+   */
+  const pollInbox = async () => {
+    for (;;) {
+      try {
+        await sleep(inboxPollMs, undefined, { signal: stopping.signal });
+      } catch {
+        return;
+      }
+      const userIds = [
+        ...new Set([...connections].filter((entry) => entry.inbox).map((entry) => entry.userId)),
+      ];
+      if (userIds.length === 0) continue;
+      const versions = new Map(userIds.map((userId) => [userId, inboxVersion(userId)]));
+      try {
+        const states = await deps.inboxStates(userIds);
+        for (const connection of connections) {
+          const state = states.get(connection.userId);
+          // Read again meanwhile: that read sends the newer state.
+          if (!state || versions.get(connection.userId) !== inboxVersion(connection.userId)) {
+            continue;
+          }
+          sendInbox(connection, state);
+        }
+      } catch (error) {
+        // E.g. the database is away for a moment; the next round reads again.
+        console.error("Realtime inbox poll failed", error);
+      }
+    }
+  };
+
   /**
    * Sequential loop (await + sleep, never setInterval, ARCHITECTURE §5.30): ping, drop connections
    * that did not answer the last ping, and those whose session no longer holds.
@@ -223,11 +312,13 @@ export function createRealtimeServer(deps: RealtimeDeps) {
         });
       });
       void heartbeat();
+      void pollInbox();
       return (http.address() as AddressInfo).port;
     },
     async close(): Promise<void> {
       stopping.abort();
       stopListening();
+      stopListeningInbox();
       for (const connection of connections) connection.socket.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
       await new Promise<void>((resolve) => http.close(() => resolve()));

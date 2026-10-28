@@ -1,12 +1,13 @@
-// The browser side of the message threads (ARCHITECTURE §5.30): one WebSocket per page for all
-// threads on it, reconnecting with a growing pause and subscribing again, which brings fresh
-// snapshots. Must not import server code.
+// The browser side of the message threads (ARCHITECTURE §5.30) and the bell (§5.34): one WebSocket
+// per page for all threads on it and the bell, reconnecting with a growing pause and subscribing
+// again, which brings fresh state. Must not import server code.
 import { useEffect, useRef, useState } from "react";
 import {
   REALTIME_PATH,
   type ServerMessage,
   type Subscription,
   type WireConversation,
+  type WireInboxState,
   subscriptionKey,
 } from "./protocol.ts";
 
@@ -38,6 +39,7 @@ export class RealtimeConnection {
     string,
     { subscription: Subscription; listeners: Set<Listener> }
   >();
+  private readonly inboxListeners = new Set<(state: WireInboxState) => void>();
 
   constructor(private readonly address: string) {}
 
@@ -63,8 +65,31 @@ export class RealtimeConnection {
       if (current.listeners.size > 0) return;
       this.subscriptions.delete(key);
       this.sendSubscription("unsubscribe", subscription);
-      if (this.subscriptions.size === 0) this.disconnect();
+      if (!this.wanted) this.disconnect();
     };
+  }
+
+  /** Follows the own bell; the server sends its state at once and on every change. */
+  subscribeInbox(listener: (state: WireInboxState) => void): () => void {
+    this.inboxListeners.add(listener);
+    if (this.inboxListeners.size === 1) this.sendInbox(true);
+    this.connect();
+    return () => {
+      if (!this.inboxListeners.delete(listener) || this.inboxListeners.size > 0) return;
+      this.sendInbox(false);
+      if (!this.wanted) this.disconnect();
+    };
+  }
+
+  /** Something still follows this connection. */
+  private get wanted(): boolean {
+    return this.subscriptions.size > 0 || this.inboxListeners.size > 0;
+  }
+
+  private sendInbox(on: boolean) {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({ type: "inbox", on }));
+    }
   }
 
   private sendSubscription(type: "subscribe" | "unsubscribe", subscription: Subscription) {
@@ -80,7 +105,7 @@ export class RealtimeConnection {
   }
 
   private connect() {
-    if (this.socket || this.retry || this.subscriptions.size === 0) return;
+    if (this.socket || this.retry || !this.wanted) return;
     const socket = new WebSocket(this.address);
     this.socket = socket;
     socket.addEventListener("open", () => {
@@ -88,6 +113,7 @@ export class RealtimeConnection {
       for (const { subscription } of this.subscriptions.values()) {
         this.sendSubscription("subscribe", subscription);
       }
+      if (this.inboxListeners.size > 0) this.sendInbox(true);
       this.notifyStatus();
     });
     socket.addEventListener("message", (event) => {
@@ -95,6 +121,11 @@ export class RealtimeConnection {
       try {
         message = JSON.parse(String(event.data)) as ServerMessage;
       } catch {
+        return;
+      }
+      if (message.type === "inbox") {
+        const state = { unread: message.unread, latest: message.latest };
+        for (const listener of this.inboxListeners) listener(state);
         return;
       }
       const entry = this.subscriptions.get(message.key);
@@ -111,7 +142,7 @@ export class RealtimeConnection {
       if (this.socket !== socket) return;
       this.socket = null;
       this.notifyStatus();
-      if (this.subscriptions.size === 0) return;
+      if (!this.wanted) return;
       const delay = RECONNECT_DELAYS_MS[Math.min(this.attempt, RECONNECT_DELAYS_MS.length - 1)];
       this.attempt++;
       this.retry = setTimeout(() => {
@@ -167,4 +198,29 @@ export function useThreadSubscription(
     );
   }, [configuredAddress, requestId, guestTeamId, teamId]);
   return status;
+}
+
+/**
+ * The own bell while the component is mounted (§5.34): starts with the count the page rendered and
+ * follows the server's pushes; `onPush` gets every pushed state too.
+ */
+export function useInboxState(
+  configuredAddress: string | null,
+  initialUnread: number,
+  onPush?: (state: WireInboxState) => void,
+): WireInboxState {
+  const [state, setState] = useState<WireInboxState>({ unread: initialUnread, latest: null });
+  // The newest callback, so a new function per render does not subscribe again.
+  const handler = useRef(onPush);
+  useEffect(() => {
+    handler.current = onPush;
+  });
+  useEffect(() => {
+    const connection = connectionFor(realtimeAddress(configuredAddress, window.location));
+    return connection.subscribeInbox((next) => {
+      setState(next);
+      handler.current?.(next);
+    });
+  }, [configuredAddress]);
+  return state;
 }

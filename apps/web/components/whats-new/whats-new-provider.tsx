@@ -23,9 +23,15 @@ const WhatsNewDialog = dynamic(() => loadDialog().then((module) => module.WhatsN
   ssr: false,
 });
 
-const WhatsNewContext = createContext<{ open: () => void }>({ open: () => undefined });
+const WhatsNewContext = createContext<{ open: () => void; pending: boolean }>({
+  open: () => undefined,
+  pending: false,
+});
 
-/** "Neuigkeiten" in the account menu opens the dialog again (SPEC N-29). */
+/**
+ * "Neuigkeiten" in the account menu opens the dialog again (SPEC N-29); `pending`: the current
+ * edition is due and not closed in this tab, for the bell (SPEC N-32).
+ */
 export function useWhatsNew() {
   return useContext(WhatsNewContext);
 }
@@ -54,6 +60,8 @@ export function WhatsNewProvider({
   // Every opening starts a fresh dialog on the first slide.
   const [opening, setOpening] = useState(0);
   const closedFor = useRef<string | null>(null);
+  // The same as closedFor, as state for the bell.
+  const [closedUser, setClosedUser] = useState<string | null>(null);
   const show = useCallback(() => {
     if (admin) return;
     setOpening((count) => count + 1);
@@ -71,13 +79,15 @@ export function WhatsNewProvider({
     setOpen(false);
     if (!due || closedFor.current === userId) return;
     closedFor.current = userId;
+    setClosedUser(userId);
     // Not saved: it simply comes again with the next load.
     startTransition(async () => {
       await markWhatsNewSeenAction(WHATS_NEW_EDITION).catch(() => false);
     });
   }, [due, userId]);
 
-  const value = useMemo(() => ({ open: show }), [show]);
+  const pending = due && !admin && closedUser !== userId;
+  const value = useMemo(() => ({ open: show, pending }), [show, pending]);
   return (
     <WhatsNewContext value={value}>
       {children}

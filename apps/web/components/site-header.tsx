@@ -5,11 +5,13 @@ import { DiscordBanner } from "@/components/discord-banner";
 import { MobileMenu } from "@/components/app-nav";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
+import { NotificationBell } from "@/components/notification-bell";
 import { headerMessages } from "@/i18n/chrome";
 import { mainUrl } from "@/lib/admin-url";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/callback-url";
-import { siteChrome, siteNav } from "@/lib/header-user";
+import { inboxUnread, siteChrome, siteNav } from "@/lib/header-user";
 import { getMessages } from "@/lib/locale";
+import { realtimePublicUrl } from "@/lib/realtime/config";
 import { loginUrl } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -17,10 +19,13 @@ async function Logo({
   href,
   theme,
   admin = false,
+  compact = false,
 }: {
   href: string;
   theme: ThemePreference;
   admin?: boolean;
+  /** With the bell (SPEC N-32) there are three controls on the right: the icon below 400 px. */
+  compact?: boolean;
 }) {
   const t = await getMessages(headerMessages);
   return (
@@ -32,6 +37,11 @@ async function Logo({
           <BrandLogo theme={theme} className="max-[480px]:hidden" />
           <BrandLogo variant="icon" theme={theme} className="min-[480px]:hidden" />
           <span className="type-label leading-none text-muted-foreground">{t.admin}</span>
+        </>
+      ) : compact ? (
+        <>
+          <BrandLogo theme={theme} className="max-[400px]:hidden" />
+          <BrandLogo variant="icon" theme={theme} className="min-[400px]:hidden" />
         </>
       ) : (
         <BrandLogo theme={theme} />
@@ -78,7 +88,7 @@ export async function SiteHeader() {
   const showBanner = user !== null && (user.hubJoinFailedAt !== null || user.dmFailedAt !== null);
   // The navigation is the sidebar from 1024 px and the menu below (§5.15). Signed in, the header is
   // full width with the logo above the sidebar.
-  const nav = await siteNav();
+  const [nav, unread] = await Promise.all([siteNav(), inboxUnread()]);
   const t = await getMessages(headerMessages);
 
   return (
@@ -92,9 +102,13 @@ export async function SiteHeader() {
               "mx-auto max-w-3xl [body:has([data-landing])_&]:max-w-[1120px] sm:[body:has([data-landing])_&]:px-5",
           )}
         >
-          <Logo href={active ? "/scrims" : "/"} theme={theme} />
+          <Logo href={active ? "/scrims" : "/"} theme={theme} compact={unread !== null} />
           {/* The language at the top right (§5.21); signed in, left of the menu button below 1024 px. */}
           <div className="flex items-center gap-2">
+            {/* The bell left of the language (SPEC N-32). */}
+            {unread !== null ? (
+              <NotificationBell initialUnread={unread} realtimeUrl={realtimePublicUrl()} />
+            ) : null}
             <LocaleSwitcher className="h-11" />
             {nav ? <MobileMenu nav={nav} /> : null}
             {user ? null : (

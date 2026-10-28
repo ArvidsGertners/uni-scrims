@@ -1,4 +1,4 @@
-import { getNavTeam, userDisplayName } from "@uni-scrims/core";
+import { countUnread, getNavTeam, userDisplayName } from "@uni-scrims/core";
 import { WHATS_NEW_EDITION } from "@uni-scrims/core/config/whats-new";
 import { headers } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
@@ -86,4 +86,21 @@ export async function siteNav(): Promise<AppNavData | null> {
     // Like the former box on the account page: staff with an active account (§5.16).
     adminUrl: active && user.staffRole ? adminUrl("/") : null,
   };
+}
+
+/**
+ * The unread count the bell starts with (SPEC N-32, §5.34), or null without a bell: only with the
+ * full navigation (an active account on the main host). A failing query starts it at 0; the
+ * WebSocket server sends the real count right after.
+ */
+export async function inboxUnread(): Promise<number | null> {
+  const [nav, { user }] = await Promise.all([siteNav(), siteChrome()]);
+  if (nav?.full !== true || !user) return null;
+  try {
+    return await countUnread(user.id);
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("Could not count the bell's entries", error);
+    return 0;
+  }
 }

@@ -1,6 +1,6 @@
-// Starts the WebSocket server of the message threads once per process (ARCHITECTURE §5.30), from
-// instrumentation.ts like the upload janitor.
-import { getConversation, isDomainError } from "@uni-scrims/core";
+// Starts the WebSocket server of the message threads and the bell once per process (ARCHITECTURE
+// §5.30, §5.34), from instrumentation.ts like the upload janitor.
+import { getConversation, inboxStates, isDomainError } from "@uni-scrims/core";
 import { auth } from "../auth.ts";
 import { realtimeBus, toWireConversation } from "./bus.ts";
 import { realtimePort } from "./config.ts";
@@ -24,6 +24,15 @@ export function startRealtimeServer(env: NodeJS.ProcessEnv = process.env): void 
         if (isDomainError(error)) return null;
         throw error;
       }
+    },
+    inboxStates: async (userIds) => {
+      const states = await inboxStates(userIds);
+      return new Map(
+        [...states].map(([userId, state]) => [
+          userId,
+          { unread: state.unread, latest: state.latest?.toISOString() ?? null },
+        ]),
+      );
     },
     bus: realtimeBus(),
     origin: env.BETTER_AUTH_URL ?? "",

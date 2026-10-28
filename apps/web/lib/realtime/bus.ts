@@ -1,11 +1,12 @@
-// Changes of message threads inside the web process (ARCHITECTURE §5.30): the server actions publish
-// after their commit, the WebSocket server pushes fresh snapshots. On globalThis, because server
+// Changes of message threads (ARCHITECTURE §5.30) and of the bell (§5.34) inside the web process: the
+// server actions publish after their commit, the WebSocket server pushes fresh state. On globalThis, because server
 // actions and instrumentation.ts run in separate module graphs of the same process.
 import { EventEmitter } from "node:events";
 import { type ConversationKey, type ConversationView, conversationKeyOf } from "@uni-scrims/core";
 import type { WireConversation } from "./protocol.ts";
 
 const CHANGE = "change";
+const INBOX_CHANGE = "inbox";
 
 const state = globalThis as unknown as { uniScrimsRealtimeBus?: EventEmitter };
 
@@ -20,6 +21,16 @@ export function realtimeBus(): EventEmitter {
 /** Threads that changed (a message sent, deleted, reported or removed). */
 export function publishConversationChanges(keys: readonly ConversationKey[]): void {
   for (const key of keys) realtimeBus().emit(CHANGE, conversationKeyOf(key));
+}
+
+/** The bell of this user changed in the web (an entry or a thread read); the bot's are polled. */
+export function publishInboxChange(userId: string): void {
+  realtimeBus().emit(INBOX_CHANGE, userId);
+}
+
+export function onInboxChange(bus: EventEmitter, listener: (userId: string) => void): () => void {
+  bus.on(INBOX_CHANGE, listener);
+  return () => bus.off(INBOX_CHANGE, listener);
 }
 
 /** Listens to changes; returns the function that stops listening. */

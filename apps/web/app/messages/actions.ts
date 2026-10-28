@@ -13,7 +13,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { type ActionState, formField, idSchema, invalidInput, runAction } from "@/lib/action";
 import { allowUserAttempt, rateLimited } from "@/lib/rate-limit";
-import { publishConversationChanges } from "@/lib/realtime/bus";
+import { publishConversationChanges, publishInboxChange } from "@/lib/realtime/bus";
 import { getSessionUserId } from "@/lib/session";
 
 // The thread and the team the page acted for (§5.20).
@@ -93,7 +93,13 @@ export async function markConversationReadAction(input: {
   const parsed = threadSchema.safeParse(input);
   if (!parsed.success) return;
   try {
-    await markConversationRead({ userId, ...parsed.data, now: new Date() });
+    const { inboxChanged } = await markConversationRead({
+      userId,
+      ...parsed.data,
+      now: new Date(),
+    });
+    // Its "Neue Nachricht" entries in the bell were read too, in every tab (§5.34).
+    if (inboxChanged) publishInboxChange(userId);
   } catch (error) {
     if (!isDomainError(error)) console.error("Marking a thread read failed", error);
   }

@@ -1,10 +1,19 @@
-// The WebSocket server of the message threads (ARCHITECTURE §5.30) with real sockets on a free port;
-// session and access are stubbed.
+// The WebSocket server of the message threads (ARCHITECTURE §5.30) and the bell (§5.34) with real
+// sockets on a free port; session, access and the bell's counts are stubbed.
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
-import { publishConversationChanges, realtimeBus } from "../lib/realtime/bus.ts";
-import type { ServerMessage, Subscription, WireConversation } from "../lib/realtime/protocol.ts";
+import {
+  publishConversationChanges,
+  publishInboxChange,
+  realtimeBus,
+} from "../lib/realtime/bus.ts";
+import type {
+  ServerMessage,
+  Subscription,
+  WireConversation,
+  WireInboxState,
+} from "../lib/realtime/protocol.ts";
 import { type RealtimeDeps, createRealtimeServer } from "../lib/realtime/server.ts";
 
 const ORIGIN = "https://scrims.example";
@@ -51,6 +60,7 @@ async function start(overrides: Partial<RealtimeDeps> = {}) {
     },
     bus: new EventEmitter(),
     origin: ORIGIN,
+    inboxStates: async () => new Map(),
     ...overrides,
   });
   servers.push(server);
@@ -219,5 +229,94 @@ describe("realtime server", () => {
     const closed = new Promise<number>((resolve) => socket.on("close", resolve));
     valid = false;
     expect(await closed).toBe(4401);
+  });
+});
+
+describe("realtime server: the bell", () => {
+  const USERS: Record<string, string> = { "session=ok": "user-1", "session=two": "user-2" };
+
+  /** A server whose bell counts come from `states`; `queries` records every read. */
+  async function startBell(overrides: Partial<RealtimeDeps> = {}) {
+    const states = new Map<string, WireInboxState>();
+    const queries: string[][] = [];
+    const started = await start({
+      sessionUserId: async (headers) => USERS[headers.get("cookie") ?? ""] ?? null,
+      inboxStates: async (userIds) => {
+        queries.push([...userIds].sort());
+        return new Map(
+          userIds.map((id) => [id, states.get(id) ?? { unread: 0, latest: null }] as const),
+        );
+      },
+      ...overrides,
+    });
+    return { ...started, states, queries };
+  }
+
+  async function follow(port: number, cookie = "session=ok") {
+    const socket = connect(port, { cookie });
+    await opened(socket);
+    const first = nextMessage(socket);
+    socket.send(JSON.stringify({ type: "inbox", on: true }));
+    return { socket, first: await first };
+  }
+
+  it("sends the state on subscribing and polls all followers in one query, only changes", async () => {
+    const { port, states, queries } = await startBell({ inboxPollMs: 20 });
+    states.set("user-1", { unread: 2, latest: "2026-10-27T10:00:00.000Z" });
+    const one = await follow(port);
+    expect(one.first).toEqual({ type: "inbox", unread: 2, latest: "2026-10-27T10:00:00.000Z" });
+    const two = await follow(port, "session=two");
+    expect(two.first).toEqual({ type: "inbox", unread: 0, latest: null });
+
+    const received: ServerMessage[] = [];
+    one.socket.on("message", (data) => received.push(JSON.parse(data.toString())));
+    const twoReceived: ServerMessage[] = [];
+    two.socket.on("message", (data) => twoReceived.push(JSON.parse(data.toString())));
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    // Unchanged: nothing sent.
+    expect(received).toEqual([]);
+    expect(queries).toContainEqual(["user-1", "user-2"]);
+
+    states.set("user-1", { unread: 3, latest: "2026-10-27T10:05:00.000Z" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(received).toEqual([{ type: "inbox", unread: 3, latest: "2026-10-27T10:05:00.000Z" }]);
+    expect(twoReceived).toEqual([]);
+    one.socket.close();
+    two.socket.close();
+  });
+
+  it("reads one user's bell at once when the web publishes, for that user's tabs only", async () => {
+    const { port, states } = await startBell({ bus: realtimeBus(), inboxPollMs: 60_000 });
+    states.set("user-1", { unread: 1, latest: "2026-10-27T10:00:00.000Z" });
+    const tabA = await follow(port);
+    const tabB = await follow(port);
+    const other = await follow(port, "session=two");
+    const otherReceived: ServerMessage[] = [];
+    other.socket.on("message", (data) => otherReceived.push(JSON.parse(data.toString())));
+
+    states.set("user-1", { unread: 0, latest: null });
+    const pushedA = nextMessage(tabA.socket);
+    const pushedB = nextMessage(tabB.socket);
+    publishInboxChange("user-1");
+    expect(await pushedA).toEqual({ type: "inbox", unread: 0, latest: null });
+    expect(await pushedB).toEqual({ type: "inbox", unread: 0, latest: null });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(otherReceived).toEqual([]);
+    for (const { socket } of [tabA, tabB, other]) socket.close();
+  });
+
+  it("stops sending once the bell is switched off, and polls nothing without followers", async () => {
+    const { port, states, queries } = await startBell({ inboxPollMs: 20 });
+    const { socket } = await follow(port);
+    socket.send(JSON.stringify({ type: "inbox", on: false }));
+    const received: ServerMessage[] = [];
+    socket.on("message", (data) => received.push(JSON.parse(data.toString())));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const before = queries.length;
+    states.set("user-1", { unread: 5, latest: "2026-10-27T11:00:00.000Z" });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(received).toEqual([]);
+    expect(queries.length).toBe(before);
+    socket.close();
   });
 });
