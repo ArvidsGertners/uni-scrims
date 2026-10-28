@@ -573,11 +573,11 @@ Punkte aus P1, die nach dem MVP gebaut werden, mit ihren Anforderungen (Phasen a
 - [x] Alles ab 320 px, auf Deutsch und Englisch, hell und dunkel; die Chat-Seitenleiste (N-28) bleibt unberührt.
 
 **N-32 Benachrichtigungs-Glocke** (Phase 36)
-- [ ] **Was drin steht** (Entscheidungen des Nutzers): Angemeldete Nutzer mit vollständigem, nicht gesperrtem Konto sehen oben rechts links neben der Sprachauswahl eine Glocke mit der Zahl ungelesener Einträge. Sie zeigt jede Benachrichtigung, die per Discord oder Mail verteilt wird, unabhängig davon, was in den Einstellungen dafür eingeschaltet ist: Team-Ereignisse (Scrims, Nachrichten) bei allen Mitgliedern, Captain-Themen beim Captain, das Ergebnis der Verifizierung bei der Person. Dazu kommt „Neuigkeiten“, solange das Neuigkeiten-Fenster (N-29) nicht geschlossen ist. Discord und Mail bleiben, wie eingestellt. Nicht im Admin-Bereich (Phase 37).
-- [ ] **Liste:** die neuesten 50 Einträge mit Titel, kurzem Text, Zeit und Markierung für ungelesen; ein Klick führt zur passenden Seite.
-- [ ] **Gelesen** (Entscheidungen des Nutzers): je Person; ein Eintrag beim Anklicken, alle über „Alle als gelesen“, das Öffnen der Glocke ändert nichts. Wer einen Chat-Verlauf liest, hat damit auch dessen „Neue Nachricht“ gelesen.
-- [ ] **Live:** Neue Einträge und Gelesenes erscheinen ohne Neuladen in wenigen Sekunden, in allen offenen Tabs.
-- [ ] Wer ein Team verlässt, daraus entfernt wird oder es auflöst, verliert dessen Einträge. Einträge werden nach 30 Tagen gelöscht. Die Datenauskunft nennt sie, die Kontolöschung löscht sie, die Datenschutzerklärung nennt sie. Alles auf Deutsch und Englisch, ab 320 px, hell und dunkel.
+- [x] **Was drin steht** (Entscheidungen des Nutzers): Angemeldete Nutzer mit vollständigem, nicht gesperrtem Konto sehen oben rechts links neben der Sprachauswahl eine Glocke mit der Zahl ungelesener Einträge. Sie zeigt jede Benachrichtigung, die per Discord oder Mail verteilt wird, unabhängig davon, was in den Einstellungen dafür eingeschaltet ist: Team-Ereignisse (Scrims, Nachrichten) bei allen Mitgliedern, Captain-Themen beim Captain, das Ergebnis der Verifizierung bei der Person. Dazu kommt „Neuigkeiten“, solange das Neuigkeiten-Fenster (N-29) nicht geschlossen ist. Discord und Mail bleiben, wie eingestellt. Nicht im Admin-Bereich (Phase 37).
+- [x] **Liste:** die neuesten 50 Einträge mit Titel, kurzem Text, Zeit und Markierung für ungelesen; ein Klick führt zur passenden Seite.
+- [x] **Gelesen** (Entscheidungen des Nutzers): je Person; ein Eintrag beim Anklicken, alle über „Alle als gelesen“, das Öffnen der Glocke ändert nichts. Wer einen Chat-Verlauf liest, hat damit auch dessen „Neue Nachricht“ gelesen.
+- [x] **Live:** Neue Einträge und Gelesenes erscheinen ohne Neuladen in wenigen Sekunden, in allen offenen Tabs.
+- [x] Wer ein Team verlässt, daraus entfernt wird oder es auflöst, verliert dessen Einträge. Einträge werden nach 30 Tagen gelöscht. Die Datenauskunft nennt sie, die Kontolöschung löscht sie, die Datenschutzerklärung nennt sie. Alles auf Deutsch und Englisch, ab 320 px, hell und dunkel.
 
 ### P1: Nice-to-Have, direkt nach dem MVP
 - **Benachrichtigung über neue passende Anfragen** im Team-Channel (Opt-in).
