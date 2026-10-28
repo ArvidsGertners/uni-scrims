@@ -27,7 +27,7 @@ export type MessageParts = {
   title: string;
   description: string;
   fields?: { name: string; value: string }[];
-  link: { label: string; path: string };
+  link: { label: string; path: string; host?: "admin" };
 };
 
 export type MessageBody = RESTPostAPIChannelMessageJSONBody;
@@ -116,6 +116,20 @@ export function scrimFields(message: ScrimMessage, f: TextFormat, t: Notificatio
   return fields;
 }
 
+/**
+ * The absolute address of a message's link: on PUBLIC_BASE_URL, or for a staff notification in the
+ * admin area (Phase 37, §5.35): on ADMIN_URL, without it under /admin of the site (§5.13).
+ */
+export function linkUrl(
+  link: MessageParts["link"],
+  baseUrl: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  if (link.host !== "admin") return new URL(link.path, baseUrl).toString();
+  if (env.ADMIN_URL) return new URL(link.path, env.ADMIN_URL).toString();
+  return new URL(link.path === "/" ? "/admin" : `/admin${link.path}`, baseUrl).toString();
+}
+
 export function render(message: OutboxMessage, parts: MessageParts, baseUrl: string): MessageBody {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
@@ -125,7 +139,7 @@ export function render(message: OutboxMessage, parts: MessageParts, baseUrl: str
   const button = new ButtonBuilder()
     .setStyle(ButtonStyle.Link)
     .setLabel(parts.link.label)
-    .setURL(new URL(parts.link.path, baseUrl).toString());
+    .setURL(linkUrl(parts.link, baseUrl));
   const redirectedFrom = message.recipient.redirectedFrom;
   return {
     // Dev only: DMs and team posts are redirected to one account and channel (§7).

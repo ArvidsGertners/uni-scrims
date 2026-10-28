@@ -1,5 +1,5 @@
 // Notification mails (ARCHITECTURE §5.17): the text of the Discord message as plain text.
-import type { OutboxMessage } from "@uni-scrims/core";
+import { type OutboxMessage, PLAYER_NOTIFICATION_TYPES } from "@uni-scrims/core";
 import { NotifType } from "@uni-scrims/db";
 import { describe, expect, it } from "vitest";
 import { buildMessage } from "../src/messages/index.ts";
@@ -30,6 +30,11 @@ const payloads: Record<NotifType, unknown> = {
     guestTeamId: "team-2",
     toGuest: false,
   },
+  // Staff types never go by mail (§5.35); listed for the type only.
+  STAFF_VERIFICATION_PENDING: { verificationId: "verification-1" },
+  STAFF_MESSAGE_REPORTED: { messageId: "message-1" },
+  STAFF_TEAM_LIMIT_REQUEST: { teamLimitRequestId: "limit-1" },
+  STAFF_DISPUTE: { hostTeamName: "A", guestTeamName: "B", startsAt: STARTS_AT },
 };
 
 function sample(type: NotifType): OutboxMessage {
@@ -47,7 +52,7 @@ function sample(type: NotifType): OutboxMessage {
 }
 
 describe("buildMail", () => {
-  it.each(Object.values(NotifType))(
+  it.each(PLAYER_NOTIFICATION_TYPES)(
     "writes %s as plain text with the link and where to switch it off",
     (type) => {
       const message = sample(type);

@@ -7,7 +7,7 @@ import {
   notificationSettingLabel,
 } from "@uni-scrims/core";
 import type { Mail } from "@uni-scrims/core/mail";
-import { mailFormat } from "./common.ts";
+import { linkUrl, mailFormat } from "./common.ts";
 import { messageParts } from "./index.ts";
 
 /** The subject is the fixed title of the type, never user text. */
@@ -22,7 +22,7 @@ export function buildMail(message: OutboxMessage, to: string, baseUrl: string): 
   }
   lines.push(
     "",
-    `${parts.link.label}: ${new URL(parts.link.path, baseUrl).toString()}`,
+    `${parts.link.label}: ${linkUrl(parts.link, baseUrl)}`,
     "",
     t.footer(setting, settingsUrl),
     "",

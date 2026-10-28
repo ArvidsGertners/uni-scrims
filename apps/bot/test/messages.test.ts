@@ -1,7 +1,7 @@
 import type { OutboxMessage } from "@uni-scrims/core";
 import { NotifType } from "@uni-scrims/db";
 import { describe, expect, it } from "vitest";
-import type { MessageOf } from "../src/messages/common.ts";
+import { type MessageOf, linkUrl } from "../src/messages/common.ts";
 import { buildMessage } from "../src/messages/index.ts";
 
 const BASE_URL = "https://scrims.example";
@@ -28,6 +28,10 @@ const payloads: { [T in NotifType]: MessageOf<T>["payload"] } = {
   DIRECT_REQUEST_DECLINED: requestPayload,
   PARTNERSHIP_ENDED: requestPayload,
   MESSAGE_RECEIVED: { ...requestPayload, context: "SCRIM", guestTeamId: "team-2", toGuest: true },
+  STAFF_VERIFICATION_PENDING: { verificationId: "verification-1" },
+  STAFF_MESSAGE_REPORTED: { messageId: "message-1" },
+  STAFF_TEAM_LIMIT_REQUEST: { teamLimitRequestId: "limit-1" },
+  STAFF_DISPUTE: { hostTeamName: "Die Bären", guestTeamName: "Team Wolf", startsAt: STARTS_AT },
 };
 
 function sample<T extends NotifType>(
@@ -75,6 +79,11 @@ const LINKS: Record<NotifType, string> = {
   DIRECT_REQUEST_DECLINED: "/requests/request-1",
   PARTNERSHIP_ENDED: "/scrims?tab=anfragen",
   MESSAGE_RECEIVED: "/scrims/scrim-1?chat=team-2",
+  // Into the admin area, without ADMIN_URL under /admin (Phase 37, §5.35).
+  STAFF_VERIFICATION_PENDING: "/admin/queue",
+  STAFF_MESSAGE_REPORTED: "/admin/reports",
+  STAFF_TEAM_LIMIT_REQUEST: "/admin/team-limits",
+  STAFF_DISPUTE: "/admin/disputes",
 };
 
 describe("buildMessage", () => {
@@ -90,6 +99,31 @@ describe("buildMessage", () => {
       expect(linkOf(sample(type))).toMatchObject({ style: 5, url: `${BASE_URL}${LINKS[type]}` });
     },
   );
+
+  it("links staff notifications to ADMIN_URL if set (§5.35)", () => {
+    const link = { label: "Zur Prüf-Queue", path: "/queue", host: "admin" as const };
+    expect(linkUrl(link, BASE_URL, { ADMIN_URL: "https://admin.scrims.example" })).toBe(
+      "https://admin.scrims.example/queue",
+    );
+    expect(linkUrl(link, BASE_URL, {})).toBe(`${BASE_URL}/admin/queue`);
+    expect(linkUrl({ label: "x", path: "/team" }, BASE_URL, { ADMIN_URL: "https://a.x" })).toBe(
+      `${BASE_URL}/team`,
+    );
+  });
+
+  it("tells staff about a case without names of people (SPEC N-33)", () => {
+    expect(embedOf(sample(NotifType.STAFF_VERIFICATION_PENDING))).toMatchObject({
+      title: "Neue Verifizierung",
+      description: "Eine Studienbescheinigung wartet in der Prüf-Queue auf ihre Prüfung.",
+    });
+    expect(embedOf(sample(NotifType.STAFF_DISPUTE))).toMatchObject({
+      title: "Strittiges Scrim",
+      description:
+        "Die Feedbacks von **Die Bären** und **Team Wolf** zum Scrim am 22.10.2026 widersprechen sich. Der Streitfall wartet auf eine Entscheidung.",
+      fields: [{ name: "Start", value: START_TEXT }],
+    });
+    expect(linkOf(sample(NotifType.STAFF_MESSAGE_REPORTED)).label).toBe("Zu den Meldungen");
+  });
 
   it("escapes markdown and masked links in user text", () => {
     const message = sample(NotifType.APPLICATION_RECEIVED, {

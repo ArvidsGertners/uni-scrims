@@ -31,9 +31,20 @@ function requirePublicBaseUrl(): string {
   return url.origin;
 }
 
+/** Links of staff notifications point here if set (Phase 37, §5.35); like PUBLIC_BASE_URL. */
+function checkAdminUrl(): void {
+  const value = process.env.ADMIN_URL;
+  if (!value) return;
+  const url = URL.canParse(value) ? new URL(value) : null;
+  if (!url || !["http:", "https:"].includes(url.protocol) || url.pathname !== "/") {
+    throw new Error(`ADMIN_URL must be an origin like https://admin.example.de, got "${value}"`);
+  }
+}
+
 const token = requireEnv("DISCORD_BOT_TOKEN");
 // Checked at start: a broken URL would otherwise fail every message until it is marked FAILED.
 const baseUrl = requirePublicBaseUrl();
+checkAdminUrl();
 // /setup refuses the hub server by this ID (§6.4); without it, the hub could be linked unnoticed.
 requireEnv("HUB_GUILD_ID");
 // Notification mails (§5.17); outside production sendMail only logs or redirects them.

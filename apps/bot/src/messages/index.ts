@@ -70,6 +70,11 @@ const fieldBuilders: {
   DIRECT_REQUEST_DECLINED: startOnly,
   PARTNERSHIP_ENDED: () => [],
   MESSAGE_RECEIVED: startOnly,
+  // Phase 37 (§5.35): the text says all there is; the dispute names its start.
+  STAFF_VERIFICATION_PENDING: () => [],
+  STAFF_MESSAGE_REPORTED: () => [],
+  STAFF_TEAM_LIMIT_REQUEST: () => [],
+  STAFF_DISPUTE: startOnly,
 };
 
 /**
